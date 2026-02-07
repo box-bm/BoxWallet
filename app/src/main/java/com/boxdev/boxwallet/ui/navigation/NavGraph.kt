@@ -1,5 +1,14 @@
 package com.boxdev.boxwallet.ui.navigation
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideIn
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Home
@@ -13,6 +22,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import androidx.navigation.navigation
 import com.boxdev.boxwallet.ui.screens.analytics.AnalyticsScreen
 import com.boxdev.boxwallet.ui.screens.home.HomeScreen
 import com.boxdev.boxwallet.ui.screens.settings.BackupScreen
@@ -29,7 +39,7 @@ enum class Destination(
 ) {
     HOME(NavRoutes.Home.route, "home", Icons.Default.Home, "Home"),
     ANALYTICS(NavRoutes.Analytics.route, "Summary", Icons.Default.Analytics, "Summary"),
-    SETTINGS(NavRoutes.Settings.route, "settings", Icons.Default.Settings, "Settings")
+    SETTINGS("settings_graph", "settings", Icons.Default.Settings, "Settings")
 }
 
 @Composable
@@ -41,37 +51,18 @@ fun NavGraph(
     NavHost(
         navController = navController,
         startDestination = startDestination,
-        modifier = Modifier
+        modifier = modifier,
     ) {
-        Destination.entries.forEach { destination ->
-            composable(destination.route) {
-                when (destination) {
-                    Destination.HOME -> HomeScreen(
-                        onNavigateToTransaction = { transactionId ->
-                            navController.navigate(NavRoutes.Transaction.createRoute(transactionId))
-                        },
-                    )
-
-                    Destination.ANALYTICS -> AnalyticsScreen(
-                        onNavigateBack = { navController.popBackStack() }
-                    )
-
-                    Destination.SETTINGS -> SettingsScreen(
-                        onNavigateBack = { navController.popBackStack() },
-                        onNavigateToTheme = {
-                            navController.navigate(NavRoutes.ThemeCustomization.route)
-                        },
-                        onNavigateToBackup = {
-                            navController.navigate(NavRoutes.Backup.route)
-                        },
-                        onNavigateToExport = {
-                            navController.navigate(NavRoutes.Export.route)
-                        }
-                    )
-                }
-            }
+        // Home tab
+        composable(NavRoutes.Home.route) {
+            HomeScreen(
+                onNavigateToTransaction = { transactionId ->
+                    navController.navigate(NavRoutes.Transaction.createRoute(transactionId))
+                },
+            )
         }
 
+        // Transaction screen (child of Home)
         composable(
             route = NavRoutes.Transaction.route,
             arguments = listOf(
@@ -88,22 +79,47 @@ fun NavGraph(
             )
         }
 
-        composable(NavRoutes.ThemeCustomization.route) {
-            ThemeCustomizationScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
+        // Analytics tab
+        composable(NavRoutes.Analytics.route) {
+            AnalyticsScreen()
         }
 
-        composable(NavRoutes.Backup.route) {
-            BackupScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
+        // Settings tab with nested navigation
+        navigation(
+            startDestination = NavRoutes.Settings.route,
+            route = "settings_graph"
+        ) {
+            composable(NavRoutes.Settings.route) {
+                SettingsScreen(
+                    onNavigateToTheme = {
+                        navController.navigate(NavRoutes.ThemeCustomization.route)
+                    },
+                    onNavigateToBackup = {
+                        navController.navigate(NavRoutes.Backup.route)
+                    },
+                    onNavigateToExport = {
+                        navController.navigate(NavRoutes.Export.route)
+                    }
+                )
+            }
 
-        composable(NavRoutes.Export.route) {
-            ExportScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
+            composable(NavRoutes.ThemeCustomization.route) {
+                ThemeCustomizationScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(NavRoutes.Backup.route) {
+                BackupScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(NavRoutes.Export.route) {
+                ExportScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
         }
     }
 }

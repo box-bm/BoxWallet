@@ -12,7 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
 import com.boxdev.boxwallet.data.datastore.ThemePreferences
-import com.boxdev.boxwallet.ui.navigation.NavGraph
+import com.boxdev.boxwallet.ui.navigation.NavigationTab
 import com.boxdev.boxwallet.ui.theme.AppTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -33,12 +33,7 @@ class MainActivity : ComponentActivity() {
             )
 
             AppTheme(themeSettings = themeSettings) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    val navController = rememberNavController()
-                    NavGraph(navController = navController)
-                }
+                NavigationTab(modifier = Modifier.fillMaxSize())
             }
         }
     }

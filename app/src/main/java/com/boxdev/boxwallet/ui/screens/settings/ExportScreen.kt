@@ -139,7 +139,6 @@ fun ExportScreen(
                 title = {
                     Text(
                         text = "Export Reports",
-                        fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {

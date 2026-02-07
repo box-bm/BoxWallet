@@ -45,7 +45,6 @@ import androidx.compose.ui.unit.dp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    onNavigateBack: () -> Unit,
     onNavigateToTheme: () -> Unit,
     onNavigateToBackup: () -> Unit,
     onNavigateToExport: () -> Unit
@@ -58,16 +57,7 @@ fun SettingsScreen(
                 title = {
                     Text(
                         text = "Settings",
-                        fontWeight = FontWeight.Bold
                     )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
-                    }
                 },
             )
         }
@@ -113,8 +103,6 @@ fun SettingsScreen(
                     icon = Icons.Default.Info,
                     title = "App Version",
                     subtitle = "1.0.0",
-                    showArrow = false,
-                    onClick = {}
                 )
             }
 
@@ -194,13 +182,13 @@ private fun SettingsItem(
     icon: ImageVector,
     title: String,
     subtitle: String,
-    showArrow: Boolean = true,
-    onClick: () -> Unit
+    onClick: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(onClick = { onClick?.invoke() },
+                enabled = onClick != null)
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -224,7 +212,7 @@ private fun SettingsItem(
                 style = MaterialTheme.typography.bodySmall,
             )
         }
-        if (showArrow) {
+        if (onClick != null) {
             Icon(
                 imageVector = Icons.Default.ChevronRight,
                 contentDescription = null,

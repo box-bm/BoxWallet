@@ -58,8 +58,7 @@ fun ThemeCustomizationScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Theme",
-                        fontWeight = FontWeight.Bold
+                        text = "Theme"
                     )
                 },
                 navigationIcon = {
