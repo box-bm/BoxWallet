@@ -27,10 +27,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.domain.model.Transaction
-import com.boxdev.boxwallet.ui.theme.ExpenseRed
-import com.boxdev.boxwallet.ui.theme.ExpenseRedDark
-import com.boxdev.boxwallet.ui.theme.IncomeGreen
-import com.boxdev.boxwallet.ui.theme.IncomeGreenDark
 import java.text.NumberFormat
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -48,8 +44,8 @@ fun TransactionItem(
     val dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy")
 
     val (icon, color) = when (transaction.type) {
-        TransactionType.INCOME -> Icons.Default.ArrowDownward to IncomeGreen
-        TransactionType.EXPENSE -> Icons.Default.ArrowUpward to ExpenseRed
+        TransactionType.INCOME -> Icons.Default.ArrowDownward to MaterialTheme.colorScheme.primary
+        TransactionType.EXPENSE -> Icons.Default.ArrowUpward to MaterialTheme.colorScheme.error
     }
 
     Card(
@@ -66,9 +62,6 @@ fun TransactionItem(
                 MaterialTheme.colorScheme.surfaceVariant
             }
         ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isSelected) 4.dp else 1.dp
-        )
     ) {
         Row(
             modifier = Modifier
@@ -115,19 +108,16 @@ fun TransactionItem(
                         Text(
                             text = transaction.date.format(dateFormatter),
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         if (transaction.isLoan && transaction.currentInstallment != null) {
                             Icon(
                                 imageVector = Icons.Default.Schedule,
                                 contentDescription = "Installment",
                                 modifier = Modifier.size(14.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
                                 text = "${transaction.currentInstallment}/${transaction.totalInstallments}",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                         if (transaction.hasReminder) {
@@ -146,7 +136,6 @@ fun TransactionItem(
                 text = "${if (transaction.type == TransactionType.EXPENSE) "-" else "+"} ${currencyFormat.format(transaction.amount)}",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = color
             )
         }
     }

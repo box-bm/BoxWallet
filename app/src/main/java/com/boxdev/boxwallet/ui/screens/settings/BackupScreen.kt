@@ -127,11 +127,6 @@ fun BackupScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -152,7 +147,6 @@ fun BackupScreen(
                 if (uiState.isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.padding(end = 8.dp),
-                        color = MaterialTheme.colorScheme.onPrimary
                     )
                 } else {
                     Icon(
@@ -167,9 +161,6 @@ fun BackupScreen(
             // Info Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
@@ -180,7 +171,6 @@ fun BackupScreen(
                     Text(
                         text = "Documents/BoxWallet/",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -202,7 +192,6 @@ fun BackupScreen(
                     Text(
                         text = "No backups found",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             } else {
@@ -234,9 +223,6 @@ private fun BackupFileItem(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
     ) {
         Row(
             modifier = Modifier
@@ -254,7 +240,6 @@ private fun BackupFileItem(
                 Text(
                     text = fileSize,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             Row {

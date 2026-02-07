@@ -13,7 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
 import com.boxdev.boxwallet.data.datastore.ThemePreferences
 import com.boxdev.boxwallet.ui.navigation.NavGraph
-import com.boxdev.boxwallet.ui.theme.BoxWalletTheme
+import com.boxdev.boxwallet.ui.theme.AppTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -32,10 +32,9 @@ class MainActivity : ComponentActivity() {
                 initial = com.boxdev.boxwallet.data.datastore.ThemeSettings()
             )
 
-            BoxWalletTheme(themeSettings = themeSettings) {
+            AppTheme(themeSettings = themeSettings) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
                 ) {
                     val navController = rememberNavController()
                     NavGraph(navController = navController)

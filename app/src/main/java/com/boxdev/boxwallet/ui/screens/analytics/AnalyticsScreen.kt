@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-// import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -36,17 +35,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.boxdev.boxwallet.ui.theme.ChartExpense
-import com.boxdev.boxwallet.ui.theme.ChartIncome
 import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
 import com.patrykandpatrick.vico.compose.chart.Chart
 import com.patrykandpatrick.vico.compose.chart.column.columnChart
 import com.patrykandpatrick.vico.compose.component.lineComponent
-import com.patrykandpatrick.vico.compose.component.textComponent
 import com.patrykandpatrick.vico.core.axis.AxisItemPlacer
 import com.patrykandpatrick.vico.core.chart.column.ColumnChart
-import com.patrykandpatrick.vico.core.component.shape.LineComponent
 import com.patrykandpatrick.vico.core.entry.ChartEntryModelProducer
 import com.patrykandpatrick.vico.core.entry.entryOf
 import java.text.NumberFormat
@@ -79,12 +74,7 @@ fun AnalyticsScreen(
                             contentDescription = "Back"
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                }
             )
         }
     ) { paddingValues ->
@@ -123,9 +113,6 @@ fun AnalyticsScreen(
                 // Chart Card
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp)
@@ -153,11 +140,11 @@ fun AnalyticsScreen(
                             val columnChart = columnChart(
                                 columns = listOf(
                                     lineComponent(
-                                        color = ChartIncome,
+                                        color = MaterialTheme.colorScheme.primary,
                                         thickness = 16.dp
                                     ),
                                     lineComponent(
-                                        color = ChartExpense,
+                                        color = MaterialTheme.colorScheme.error,
                                         thickness = 16.dp
                                     )
                                 ),
@@ -188,8 +175,8 @@ fun AnalyticsScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceEvenly
                             ) {
-                                LegendItem(color = ChartIncome, label = "Income")
-                                LegendItem(color = ChartExpense, label = "Expense")
+                                LegendItem(color = MaterialTheme.colorScheme.primary, label = "Income")
+                                LegendItem(color = MaterialTheme.colorScheme.error, label = "Expense")
                             }
                         } else {
                             Box(
@@ -230,14 +217,14 @@ fun AnalyticsScreen(
                         val avgIncome = if (uiState.monthlyData.isNotEmpty()) totalIncome / uiState.monthlyData.size else 0.0
                         val avgExpense = if (uiState.monthlyData.isNotEmpty()) totalExpense / uiState.monthlyData.size else 0.0
 
-                        SummaryRow("Total Income", currencyFormat.format(totalIncome), ChartIncome)
-                        SummaryRow("Total Expense", currencyFormat.format(totalExpense), ChartExpense)
-                        SummaryRow("Avg. Monthly Income", currencyFormat.format(avgIncome), ChartIncome)
-                        SummaryRow("Avg. Monthly Expense", currencyFormat.format(avgExpense), ChartExpense)
+                        SummaryRow("Total Income", currencyFormat.format(totalIncome), MaterialTheme.colorScheme.primary)
+                        SummaryRow("Total Expense", currencyFormat.format(totalExpense), MaterialTheme.colorScheme.error)
+                        SummaryRow("Avg. Monthly Income", currencyFormat.format(avgIncome), MaterialTheme.colorScheme.primary)
+                        SummaryRow("Avg. Monthly Expense", currencyFormat.format(avgExpense), MaterialTheme.colorScheme.error)
                         SummaryRow(
                             "Net Savings",
                             currencyFormat.format(totalIncome - totalExpense),
-                            if (totalIncome >= totalExpense) ChartIncome else ChartExpense
+                            if (totalIncome >= totalExpense) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                         )
                     }
                 }
@@ -272,12 +259,12 @@ fun AnalyticsScreen(
                                     Text(
                                         text = "+${currencyFormat.format(data.income)}",
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = ChartIncome
+                                        color = MaterialTheme.colorScheme.primary
                                     )
                                     Text(
                                         text = "-${currencyFormat.format(data.expense)}",
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = ChartExpense
+                                        color = MaterialTheme.colorScheme.error
                                     )
                                 }
                             }

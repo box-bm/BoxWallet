@@ -20,10 +20,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.boxdev.boxwallet.domain.model.FinancialSummary
-import com.boxdev.boxwallet.ui.theme.BalanceNegative
-import com.boxdev.boxwallet.ui.theme.BalancePositive
-import com.boxdev.boxwallet.ui.theme.ExpenseRed
-import com.boxdev.boxwallet.ui.theme.IncomeGreen
 import java.text.NumberFormat
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
@@ -39,10 +35,6 @@ fun SummaryCard(
 
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(
             modifier = Modifier.padding(20.dp),
@@ -51,7 +43,6 @@ fun SummaryCard(
             Text(
                 text = currentMonth,
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
             )
 
             // Balance
@@ -67,19 +58,17 @@ fun SummaryCard(
                     Icon(
                         imageVector = Icons.Default.AccountBalance,
                         contentDescription = "Balance",
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                     Text(
                         text = "Monthly Balance",
                         style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 }
                 Text(
                     text = currencyFormat.format(summary.monthlyBalance),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
-                    color = if (summary.monthlyBalance >= 0) BalancePositive else BalanceNegative
+                    color = if (summary.monthlyBalance >= 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                 )
             }
 
@@ -98,7 +87,7 @@ fun SummaryCard(
                         Icon(
                             imageVector = Icons.Default.ArrowDownward,
                             contentDescription = "Income",
-                            tint = IncomeGreen
+                            tint = MaterialTheme.colorScheme.primary
                         )
                         Text(
                             text = "Income",
@@ -110,7 +99,7 @@ fun SummaryCard(
                         text = currencyFormat.format(summary.monthlyIncome),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = IncomeGreen
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
 
@@ -125,7 +114,7 @@ fun SummaryCard(
                         Icon(
                             imageVector = Icons.Default.ArrowUpward,
                             contentDescription = "Expense",
-                            tint = ExpenseRed
+                            tint = MaterialTheme.colorScheme.error
                         )
                         Text(
                             text = "Expense",
@@ -137,16 +126,13 @@ fun SummaryCard(
                         text = currencyFormat.format(summary.monthlyExpense),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = ExpenseRed
+                        color = MaterialTheme.colorScheme.error
                     )
                 }
             }
 
             // Total balance
             Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
             ) {
                 Row(
                     modifier = Modifier
@@ -158,13 +144,12 @@ fun SummaryCard(
                     Text(
                         text = "Total Balance",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = currencyFormat.format(summary.balance),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = if (summary.balance >= 0) BalancePositive else BalanceNegative
+                        color = if (summary.balance >= 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                     )
                 }
             }

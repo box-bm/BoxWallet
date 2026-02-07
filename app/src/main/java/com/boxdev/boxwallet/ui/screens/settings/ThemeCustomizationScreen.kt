@@ -70,11 +70,6 @@ fun ThemeCustomizationScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
             )
         }
     ) { paddingValues ->
@@ -89,9 +84,6 @@ fun ThemeCustomizationScreen(
             // Dark Mode Toggle
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
             ) {
                 Row(
                     modifier = Modifier
@@ -108,7 +100,6 @@ fun ThemeCustomizationScreen(
                         Text(
                             text = "Use dark theme",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     Switch(
@@ -121,9 +112,6 @@ fun ThemeCustomizationScreen(
             // Dynamic Colors Toggle (Android 12+)
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
             ) {
                 Row(
                     modifier = Modifier
@@ -140,7 +128,6 @@ fun ThemeCustomizationScreen(
                         Text(
                             text = "Use colors from your wallpaper (Android 12+)",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     Switch(
@@ -149,160 +136,6 @@ fun ThemeCustomizationScreen(
                     )
                 }
             }
-
-            // Primary Color Selection
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        text = "Primary Color",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Text(
-                        text = "Disabled when dynamic colors is on",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(4),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.height(120.dp)
-                    ) {
-                        items(ThemeColors) { color ->
-                            ColorOption(
-                                color = color,
-                                isSelected = themeSettings.primaryColor == color.value.toLong() && !themeSettings.useDynamicColors,
-                                enabled = !themeSettings.useDynamicColors,
-                                onClick = { viewModel.updatePrimaryColor(color.value.toLong()) }
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Preview Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        text = "Preview",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer
-                        )
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp)
-                        ) {
-                            Text(
-                                text = "Sample Card",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                            Text(
-                                text = "This is how your cards will look",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        }
-                    }
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .background(MaterialTheme.colorScheme.primary, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "P",
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .background(MaterialTheme.colorScheme.secondary, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "S",
-                                color = MaterialTheme.colorScheme.onSecondary,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .background(MaterialTheme.colorScheme.tertiary, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "T",
-                                color = MaterialTheme.colorScheme.onTertiary,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ColorOption(
-    color: Color,
-    isSelected: Boolean,
-    enabled: Boolean,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .size(48.dp)
-            .clip(CircleShape)
-            .background(color.copy(alpha = if (enabled) 1f else 0.4f))
-            .then(
-                if (isSelected) Modifier.border(
-                    width = 3.dp,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    shape = CircleShape
-                ) else Modifier
-            )
-            .clickable(enabled = enabled, onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        if (isSelected) {
-            Icon(
-                imageVector = Icons.Default.Check,
-                contentDescription = "Selected",
-                tint = Color.White,
-                modifier = Modifier.size(24.dp)
-            )
         }
     }
 }

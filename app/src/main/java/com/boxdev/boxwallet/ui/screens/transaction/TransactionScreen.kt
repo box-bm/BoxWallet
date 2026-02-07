@@ -55,11 +55,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.boxdev.boxwallet.data.local.entity.TransactionType
-import com.boxdev.boxwallet.ui.theme.ExpenseRed
-import com.boxdev.boxwallet.ui.theme.IncomeGreen
 import java.text.NumberFormat
 import java.time.Instant
-import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -169,7 +166,7 @@ fun TransactionScreen(
                         viewModel.deleteTransaction()
                     }
                 ) {
-                    Text("Delete", color = ExpenseRed)
+                    Text("Delete")
                 }
             },
             dismissButton = {
@@ -203,17 +200,10 @@ fun TransactionScreen(
                             Icon(
                                 imageVector = Icons.Default.Delete,
                                 contentDescription = "Delete",
-                                tint = ExpenseRed
                             )
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
-                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -239,9 +229,6 @@ fun TransactionScreen(
                 // Transaction Type Selection
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
                 ) {
                     Row(
                         modifier = Modifier
@@ -306,9 +293,6 @@ fun TransactionScreen(
                 // Loan/Quota Section
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp),
@@ -327,7 +311,6 @@ fun TransactionScreen(
                                 Text(
                                     text = "Split into multiple installments",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                             Switch(
@@ -353,7 +336,6 @@ fun TransactionScreen(
                                     Text(
                                         text = "Each installment: ${currencyFormat.format(installmentAmount)}",
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.primary,
                                         fontWeight = FontWeight.Medium
                                     )
                                 }
@@ -365,9 +347,6 @@ fun TransactionScreen(
                 // Reminder Section
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp),
@@ -425,7 +404,7 @@ fun TransactionScreen(
                         .height(56.dp),
                     enabled = formState.isValid && !formState.isLoading,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (formState.type == TransactionType.EXPENSE) ExpenseRed else IncomeGreen
+                        containerColor = MaterialTheme.colorScheme.error
                     )
                 ) {
                     Text(
@@ -439,7 +418,7 @@ fun TransactionScreen(
                         onClick = { showDeleteDialog = true },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = ExpenseRed
+                            contentColor = MaterialTheme.colorScheme.error
                         )
                     ) {
                         Icon(

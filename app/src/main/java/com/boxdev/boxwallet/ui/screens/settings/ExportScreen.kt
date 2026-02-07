@@ -149,12 +149,7 @@ fun ExportScreen(
                             contentDescription = "Back"
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                }
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -170,9 +165,6 @@ fun ExportScreen(
             // Date Range Selection
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -221,9 +213,6 @@ fun ExportScreen(
             // Export Buttons
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -240,14 +229,10 @@ fun ExportScreen(
                         onClick = { viewModel.exportToExcel() },
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !uiState.isLoading,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF217346) // Excel green
-                        )
                     ) {
                         if (uiState.isLoading) {
                             CircularProgressIndicator(
                                 modifier = Modifier.padding(end = 8.dp),
-                                color = Color.White
                             )
                         } else {
                             Icon(
@@ -264,14 +249,10 @@ fun ExportScreen(
                         onClick = { viewModel.exportToPdf() },
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !uiState.isLoading,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFDC3545) // PDF red
-                        )
                     ) {
                         if (uiState.isLoading) {
                             CircularProgressIndicator(
                                 modifier = Modifier.padding(end = 8.dp),
-                                color = Color.White
                             )
                         } else {
                             Icon(
@@ -288,9 +269,6 @@ fun ExportScreen(
             // Info Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
@@ -301,13 +279,11 @@ fun ExportScreen(
                     Text(
                         text = "Documents/BoxWallet/Reports/",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Reports include all transactions within the selected date range along with a summary of income, expenses, and net balance.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -316,9 +292,6 @@ fun ExportScreen(
             uiState.exportedFilePath?.let { path ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    )
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
@@ -329,7 +302,6 @@ fun ExportScreen(
                         Text(
                             text = path.substringAfterLast("/"),
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     }
                 }

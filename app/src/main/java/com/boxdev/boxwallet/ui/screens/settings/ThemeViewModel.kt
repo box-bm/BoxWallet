@@ -23,24 +23,6 @@ class ThemeViewModel @Inject constructor(
             initialValue = ThemeSettings()
         )
 
-    fun updatePrimaryColor(color: Long) {
-        viewModelScope.launch {
-            themePreferences.updatePrimaryColor(color)
-        }
-    }
-
-    fun updateSecondaryColor(color: Long) {
-        viewModelScope.launch {
-            themePreferences.updateSecondaryColor(color)
-        }
-    }
-
-    fun updateTertiaryColor(color: Long) {
-        viewModelScope.launch {
-            themePreferences.updateTertiaryColor(color)
-        }
-    }
-
     fun updateDarkMode(isDark: Boolean) {
         viewModelScope.launch {
             themePreferences.updateDarkMode(isDark)

@@ -7,7 +7,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,29 +18,20 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -54,16 +44,32 @@ import com.boxdev.boxwallet.ui.components.TransactionItem
 @Composable
 fun HomeScreen(
     onNavigateToTransaction: (Long?) -> Unit,
-    onNavigateToAnalytics: () -> Unit,
-    onNavigateToSettings: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var showMenu by remember { mutableStateOf(false) }
 
     Scaffold(
+        floatingActionButton = {
+
+                AnimatedVisibility(
+                    visible = !uiState.isSelectionMode,
+                    enter = fadeIn() + slideInVertically { it },
+                    exit = fadeOut() + slideOutVertically { it }
+                ) {
+                    ExtendedFloatingActionButton(
+                        onClick = { onNavigateToTransaction(null) },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Add transaction"
+                            )
+                        },
+                        text = { Text("Add") },
+                    )
+            }
+        },
         topBar = {
-            TopAppBar(
+            MediumTopAppBar(
                 title = {
                     if (uiState.isSelectionMode) {
                         Text("${uiState.selectedTransactions.size} selected")
@@ -74,11 +80,6 @@ fun HomeScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary
-                ),
                 navigationIcon = {
                     if (uiState.isSelectionMode) {
                         IconButton(onClick = { viewModel.clearSelection() }) {
@@ -97,63 +98,10 @@ fun HomeScreen(
                                 contentDescription = "Delete selected"
                             )
                         }
-                    } else {
-                        IconButton(onClick = onNavigateToAnalytics) {
-                            Icon(
-                                imageVector = Icons.Default.Analytics,
-                                contentDescription = "Analytics"
-                            )
-                        }
-                        Box {
-                            IconButton(onClick = { showMenu = true }) {
-                                Icon(
-                                    imageVector = Icons.Default.MoreVert,
-                                    contentDescription = "More options"
-                                )
-                            }
-                            DropdownMenu(
-                                expanded = showMenu,
-                                onDismissRequest = { showMenu = false }
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text("Settings") },
-                                    onClick = {
-                                        showMenu = false
-                                        onNavigateToSettings()
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = Icons.Default.Settings,
-                                            contentDescription = null
-                                        )
-                                    }
-                                )
-                            }
-                        }
                     }
                 }
             )
         },
-        floatingActionButton = {
-            AnimatedVisibility(
-                visible = !uiState.isSelectionMode,
-                enter = fadeIn() + slideInVertically { it },
-                exit = fadeOut() + slideOutVertically { it }
-            ) {
-                ExtendedFloatingActionButton(
-                    onClick = { onNavigateToTransaction(null) },
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Add transaction"
-                        )
-                    },
-                    text = { Text("Add") },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            }
-        }
     ) { paddingValues ->
         if (uiState.isLoading) {
             Box(
@@ -271,12 +219,10 @@ private fun SectionHeader(
             text = title,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface
         )
         Text(
             text = "$count items",
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -295,7 +241,6 @@ private fun EmptyStateCard(
         Text(
             text = message,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }

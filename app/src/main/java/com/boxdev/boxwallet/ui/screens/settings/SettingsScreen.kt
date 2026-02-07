@@ -69,11 +69,6 @@ fun SettingsScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
             )
         }
     ) { paddingValues ->
@@ -136,7 +131,6 @@ fun SettingsScreen(
                 colors = CardDefaults.cardColors(
                     containerColor = Color(0xFFFFDD00)
                 ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
             ) {
                 Row(
                     modifier = Modifier
@@ -163,7 +157,6 @@ fun SettingsScreen(
                         Text(
                             text = "Support the development!",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.Black.copy(alpha = 0.7f)
                         )
                     }
                 }
@@ -183,15 +176,11 @@ private fun SettingsSection(
         Text(
             text = title,
             style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Medium,
             modifier = Modifier.padding(bottom = 8.dp, start = 4.dp)
         )
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant
-            )
         ) {
             Column {
                 content()
@@ -233,14 +222,12 @@ private fun SettingsItem(
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         if (showArrow) {
             Icon(
                 imageVector = Icons.Default.ChevronRight,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
