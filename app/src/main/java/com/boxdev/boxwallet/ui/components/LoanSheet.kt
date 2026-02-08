@@ -1,13 +1,13 @@
+@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+
 package com.boxdev.boxwallet.ui.components
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
@@ -24,7 +24,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun LoanSheet(
     loanId: Long?,
@@ -36,13 +36,8 @@ fun LoanSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showDatePicker by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
-    var showCategoryDialog by remember { mutableStateOf(false) }
+    var categoryExpanded by remember { mutableStateOf(false) }
     val dateFormatter = DateTimeFormatter.ofPattern("MMMM dd, yyyy")
-
-    val handleCloseDatePicker = { showDatePicker = false }
-    val handleCloseDeleteDialog = { showDeleteDialog = false }
-    val handleCloseCategoryDialog = { showCategoryDialog = false }
-
 
     LaunchedEffect(loanId) { viewModel.loadLoan(loanId) }
     LaunchedEffect(formState.isSaved) { if (formState.isSaved) onDismiss() }
@@ -71,7 +66,7 @@ fun LoanSheet(
 
             if (formState.isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                    LoadingIndicator()
                 }
             } else {
                 Column(
@@ -144,22 +139,44 @@ fun LoanSheet(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    Box(modifier = Modifier.fillMaxWidth()) {
+                    ExposedDropdownMenuBox(
+                        expanded = categoryExpanded,
+                        onExpandedChange = { categoryExpanded = it }
+                    ) {
                         OutlinedTextField(
                             value = formState.categoryId?.let { id -> categories.find { it.id == id }?.name } ?: "None",
                             onValueChange = {},
-                            label = { Text("Category (Optional)") },
                             readOnly = true,
-                            trailingIcon = { Icon(Icons.Default.Category, contentDescription = null) },
-                            modifier = Modifier.fillMaxWidth()
+                            label = { Text("Category (Optional)") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
+                            modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                         )
-                        Spacer(modifier = Modifier.matchParentSize().clickable { showCategoryDialog = true })
-                    }
-                    if (formState.categoryId != null) {
-                        TextButton(onClick = { viewModel.updateCategory(null) }, modifier = Modifier.align(Alignment.End)) {
-                            Icon(Icons.Default.Clear, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Clear")
+                        ExposedDropdownMenu(
+                            expanded = categoryExpanded,
+                            onDismissRequest = { categoryExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("None") },
+                                onClick = { viewModel.updateCategory(null); categoryExpanded = false },
+                                leadingIcon = { Icon(Icons.Default.Clear, contentDescription = null) }
+                            )
+                            categories.forEach { category ->
+                                DropdownMenuItem(
+                                    text = { Text(category.name) },
+                                    onClick = { viewModel.updateCategory(category.id); categoryExpanded = false },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = com.boxdev.boxwallet.util.categoryIconVector(category.icon),
+                                            contentDescription = null
+                                        )
+                                    },
+                                    trailingIcon = {
+                                        if (formState.categoryId == category.id) {
+                                            Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                        }
+                                    }
+                                )
+                            }
                         }
                     }
 
@@ -168,9 +185,7 @@ fun LoanSheet(
 
                 Column(modifier = Modifier.padding(vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
-                        onClick = {
-                            viewModel.save()
-                                  },
+                        onClick = { viewModel.save() },
                         modifier = Modifier.fillMaxWidth().height(56.dp),
                         enabled = formState.isValid
                     ) {
@@ -196,60 +211,28 @@ fun LoanSheet(
             initialSelectedDateMillis = formState.startDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         )
         DatePickerDialog(
-            onDismissRequest = handleCloseDatePicker,
+            onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
                     state.selectedDateMillis?.let { viewModel.updateStartDate(Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()) }
-                    handleCloseDatePicker()
+                    showDatePicker = false
                 }) { Text("OK") }
             },
-            dismissButton = { TextButton(onClick = handleCloseDatePicker) { Text("Cancel") } }
+            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel") } }
         ) { DatePicker(state = state) }
     }
 
     if (showDeleteDialog) {
         AlertDialog(
-            onDismissRequest = handleCloseDeleteDialog,
+            onDismissRequest = { showDeleteDialog = false },
             title = { Text("Delete Loan") },
             text = { Text("This will also delete all ${formState.installments} installments. This cannot be undone.") },
             confirmButton = {
-                TextButton(onClick = {
-                    viewModel.delete()
-                    handleCloseDeleteDialog()
-                }) {
+                TextButton(onClick = { viewModel.delete(); showDeleteDialog = false }) {
                     Text("Delete", color = MaterialTheme.colorScheme.error)
                 }
             },
-            dismissButton = { TextButton(onClick = handleCloseDeleteDialog) { Text("Cancel") } }
-        )
-    }
-
-    if (showCategoryDialog) {
-        AlertDialog(
-            onDismissRequest = handleCloseCategoryDialog,
-            title = { Text("Select Category") },
-            text = {
-                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                    if (categories.isEmpty()) {
-                        Text("No categories available.\nCreate one in Settings.", modifier = Modifier.padding(16.dp))
-                    } else {
-                        categories.forEach { category ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth()
-                                    .clickable { viewModel.updateCategory(category.id); }
-                                    .padding(vertical = 12.dp, horizontal = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(category.name, modifier = Modifier.weight(1f))
-                                if (formState.categoryId == category.id) {
-                                    Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = { TextButton(onClick = handleCloseCategoryDialog) { Text("Close") } }
+            dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") } }
         )
     }
 }

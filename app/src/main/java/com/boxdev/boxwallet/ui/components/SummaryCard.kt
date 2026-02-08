@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.boxdev.boxwallet.domain.model.FinancialSummary
+import com.boxdev.boxwallet.util.rememberCurrencyFormatter
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 
@@ -28,6 +29,7 @@ fun SummaryCard(
     modifier: Modifier = Modifier
 ) {
     val currentMonth = YearMonth.now().format(DateTimeFormatter.ofPattern("MMMM yyyy"))
+    val formatter = rememberCurrencyFormatter()
 
     Card(modifier = modifier.fillMaxWidth()) {
         Column(
@@ -49,7 +51,7 @@ fun SummaryCard(
                     Text(text = "Monthly Balance", style = MaterialTheme.typography.bodyLarge)
                 }
                 Text(
-                    text = "%.2f".format(summary.monthlyBalance),
+                    text = formatter.format(summary.monthlyBalance),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = if (summary.monthlyBalance >= 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
@@ -73,7 +75,7 @@ fun SummaryCard(
                         Text(text = "Income", style = MaterialTheme.typography.bodyMedium)
                     }
                     Text(
-                        text = "%.2f".format(summary.monthlyIncome),
+                        text = formatter.format(summary.monthlyIncome),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.primary
@@ -93,7 +95,7 @@ fun SummaryCard(
                         Text(text = "Expense", style = MaterialTheme.typography.bodyMedium)
                     }
                     Text(
-                        text = "%.2f".format(summary.monthlyExpense),
+                        text = formatter.format(summary.monthlyExpense),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.error
@@ -111,7 +113,7 @@ fun SummaryCard(
                 ) {
                     Text(text = "Total Balance", style = MaterialTheme.typography.bodyMedium)
                     Text(
-                        text = "%.2f".format(summary.balance),
+                        text = formatter.format(summary.balance),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = if (summary.balance >= 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error

@@ -73,5 +73,8 @@ class TransactionRepository @Inject constructor(
         transactionDao.getUpcomingReminders(System.currentTimeMillis())
             .map { it.map { e -> e.toDomain() } }
 
+    fun getInstallmentsByLoanId(loanId: Long): Flow<List<Transaction>> =
+        transactionDao.getInstallmentsByLoanIdFlow(loanId).map { it.map { e -> e.toDomain() } }
+
     suspend fun getAllTransactionsSync() = transactionDao.getAllTransactionsSync()
 }

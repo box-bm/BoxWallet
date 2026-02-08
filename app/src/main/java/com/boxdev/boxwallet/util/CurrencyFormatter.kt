@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
+import com.boxdev.boxwallet.data.datastore.CentralAmericanCurrency
 import com.boxdev.boxwallet.data.datastore.UserPreferences
 
 @Composable
@@ -24,3 +25,6 @@ class CurrencyFormatter(private val symbol: String = "$") {
         return "%.2f".format(amount)
     }
 }
+
+fun String.toCurrencySymbol(): String =
+    CentralAmericanCurrency.entries.find { it.currencyCode == this }?.symbol ?: this

@@ -1,6 +1,7 @@
+@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+
 package com.boxdev.boxwallet.ui.components
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -21,7 +22,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun TransactionSheet(
     transactionId: Long?,
@@ -34,13 +35,8 @@ fun TransactionSheet(
     var showDatePicker by remember { mutableStateOf(false) }
     var showReminderDatePicker by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
-    var showCategoryDialog by remember { mutableStateOf(false) }
+    var categoryExpanded by remember { mutableStateOf(false) }
     val dateFormatter = DateTimeFormatter.ofPattern("MMMM dd, yyyy")
-
-    val handleCloseDatePicker = { showDatePicker = false }
-    val handleCloseShowReminderDatePicker = { showReminderDatePicker = false }
-    val handleCloseDeleteDialog = { showDeleteDialog = false }
-    val handleCloseCategoryDialog = { showCategoryDialog = false }
 
     LaunchedEffect(transactionId) { viewModel.loadTransaction(transactionId) }
     LaunchedEffect(formState.isSaved) { if (formState.isSaved) onDismiss() }
@@ -69,7 +65,7 @@ fun TransactionSheet(
 
             if (formState.isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                    LoadingIndicator()
                 }
             } else {
                 Column(
@@ -117,33 +113,50 @@ fun TransactionSheet(
                         singleLine = true
                     )
 
-                    Box(modifier = Modifier.fillMaxWidth()) {
+                    ExposedDropdownMenuBox(
+                        expanded = categoryExpanded,
+                        onExpandedChange = { categoryExpanded = it }
+                    ) {
                         OutlinedTextField(
                             value = formState.categoryId?.let { id -> categories.find { it.id == id }?.name } ?: "None",
-                            onValueChange = {
-                                if (it == "None") viewModel.updateCategory(null)
-                                else viewModel.updateCategory(categories.find { c -> c.name == it }?.id)
-                            },
-                            label = { Text("Category (Optional)") },
+                            onValueChange = {},
                             readOnly = true,
-                            trailingIcon = { Icon(Icons.Default.Category, contentDescription = null) },
-                            modifier = Modifier.fillMaxWidth()
+                            label = { Text("Category (Optional)") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
+                            modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                         )
-                        Spacer(modifier = Modifier.matchParentSize().clickable { showCategoryDialog = true })
-                    }
-                    if (formState.categoryId != null) {
-                        TextButton(onClick = { viewModel.updateCategory(null) }, modifier = Modifier.align(Alignment.End)) {
-                            Icon(Icons.Default.Clear, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Clear")
+                        ExposedDropdownMenu(
+                            expanded = categoryExpanded,
+                            onDismissRequest = { categoryExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("None") },
+                                onClick = { viewModel.updateCategory(null); categoryExpanded = false },
+                                leadingIcon = { Icon(Icons.Default.Clear, contentDescription = null) }
+                            )
+                            categories.forEach { category ->
+                                DropdownMenuItem(
+                                    text = { Text(category.name) },
+                                    onClick = { viewModel.updateCategory(category.id); categoryExpanded = false },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = com.boxdev.boxwallet.util.categoryIconVector(category.icon),
+                                            contentDescription = null
+                                        )
+                                    },
+                                    trailingIcon = {
+                                        if (formState.categoryId == category.id) {
+                                            Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                        }
+                                    }
+                                )
+                            }
                         }
                     }
 
                     OutlinedTextField(
                         value = formState.date.format(dateFormatter),
-                        onValueChange = {
-                            viewModel.updateDate(formState.date)
-                        },
+                        onValueChange = {},
                         label = { Text("Date") },
                         readOnly = true,
                         trailingIcon = {
@@ -169,37 +182,35 @@ fun TransactionSheet(
                         }
                     }
 
-                    if(!formState.isCleared)
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text("Reminder", style = MaterialTheme.typography.titleMedium)
-                                Text("Get notified", style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (!formState.isCleared)
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text("Reminder", style = MaterialTheme.typography.titleMedium)
+                                    Text("Get notified", style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                Switch(checked = formState.hasReminder, onCheckedChange = { viewModel.updateHasReminder(it) })
                             }
-                            Switch(checked = formState.hasReminder, onCheckedChange = { viewModel.updateHasReminder(it) })
+                            if (formState.hasReminder) {
+                                OutlinedTextField(
+                                    value = formState.reminderDate?.format(dateFormatter) ?: "",
+                                    onValueChange = {},
+                                    label = { Text("Reminder Date") },
+                                    readOnly = true,
+                                    trailingIcon = {
+                                        IconButton(onClick = { showReminderDatePicker = true }) {
+                                            Icon(Icons.Default.CalendarMonth, contentDescription = null)
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 16.dp)
+                                )
+                            }
                         }
-                        if (formState.hasReminder) {
-                            OutlinedTextField(
-                                value = formState.reminderDate?.format(dateFormatter) ?: "",
-                                onValueChange = {
-                                    viewModel.updateReminderDate(formState.reminderDate)
-                                },
-                                label = { Text("Reminder Date") },
-                                readOnly = true,
-                                trailingIcon = {
-                                    IconButton(onClick = { showReminderDatePicker = true }) {
-                                        Icon(Icons.Default.CalendarMonth, contentDescription = null)
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 16.dp)
-                            )
-                        }
-                    }
 
                     Spacer(modifier = Modifier.height(16.dp))
                 }
@@ -232,14 +243,14 @@ fun TransactionSheet(
             initialSelectedDateMillis = formState.date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         )
         DatePickerDialog(
-            onDismissRequest = handleCloseDatePicker,
+            onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
                     state.selectedDateMillis?.let { viewModel.updateDate(Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()) }
-                    handleCloseDatePicker()
+                    showDatePicker = false
                 }) { Text("OK") }
             },
-            dismissButton = { TextButton(onClick = handleCloseDatePicker) { Text("Cancel") } }
+            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel") } }
         ) { DatePicker(state = state) }
     }
 
@@ -249,66 +260,28 @@ fun TransactionSheet(
                 .atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         )
         DatePickerDialog(
-            onDismissRequest = handleCloseShowReminderDatePicker,
+            onDismissRequest = { showReminderDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
                     state.selectedDateMillis?.let { viewModel.updateReminderDate(Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()) }
-                    handleCloseShowReminderDatePicker()
+                    showReminderDatePicker = false
                 }) { Text("OK") }
             },
-            dismissButton = { TextButton(onClick = handleCloseShowReminderDatePicker) { Text("Cancel") } }
+            dismissButton = { TextButton(onClick = { showReminderDatePicker = false }) { Text("Cancel") } }
         ) { DatePicker(state = state) }
     }
 
     if (showDeleteDialog) {
         AlertDialog(
-            onDismissRequest = handleCloseDeleteDialog,
+            onDismissRequest = { showDeleteDialog = false },
             title = { Text("Delete Transaction") },
             text = { Text("Are you sure? This cannot be undone.") },
             confirmButton = {
-                TextButton(onClick = {
-                    viewModel.delete()
-                    handleCloseDeleteDialog()
-                }) {
+                TextButton(onClick = { viewModel.delete(); showDeleteDialog = false }) {
                     Text("Delete", color = MaterialTheme.colorScheme.error)
                 }
             },
-            dismissButton = { TextButton(onClick = handleCloseDeleteDialog) { Text("Cancel") } }
-        )
-    }
-
-    if (showCategoryDialog) {
-        AlertDialog(
-            onDismissRequest = handleCloseCategoryDialog,
-            title = { Text("Select Category") },
-            text = {
-                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                    if (categories.isEmpty()) {
-                        Text("No categories available.\nCreate one in Settings.", modifier = Modifier.padding(16.dp))
-                    } else {
-                        categories.forEach { category ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth()
-                                    .clickable { viewModel.updateCategory(category.id); }
-                                    .padding(vertical = 12.dp, horizontal = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(category.name, style = MaterialTheme.typography.bodyLarge)
-                                    if (category.description.isNotBlank()) {
-                                        Text(category.description, style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                }
-                                if (formState.categoryId == category.id) {
-                                    Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = { TextButton(onClick = handleCloseCategoryDialog) { Text("Close") } }
+            dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") } }
         )
     }
 }

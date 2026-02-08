@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
+@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 
 package com.boxdev.boxwallet.ui.screens.loans
 
@@ -17,22 +17,19 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.boxdev.boxwallet.ui.components.LoanCard
 import com.boxdev.boxwallet.ui.components.LoanSheet
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun LoansScreen(
+    onNavigateToLoanDetail: (Long) -> Unit = {},
     viewModel: LoansViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showLoanSheet by remember { mutableStateOf(false) }
-    var selectedLoanId by remember { mutableStateOf<Long?>(null) }
-
-    val handleCloseLoanSheet = { showLoanSheet = false }
-
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Loans") }) },
         floatingActionButton = {
-            FloatingActionButton(onClick = { selectedLoanId = null; showLoanSheet = true }) {
+            FloatingActionButton(onClick = { showLoanSheet = true }) {
                 Icon(Icons.Default.Add, contentDescription = "Add Loan")
             }
         }
@@ -41,7 +38,7 @@ fun LoansScreen(
             uiState.isLoading -> Box(
                 modifier = Modifier.fillMaxSize().padding(paddingValues),
                 contentAlignment = Alignment.Center
-            ) { CircularProgressIndicator() }
+            ) { LoadingIndicator() }
 
             uiState.loans.isEmpty() -> Box(
                 modifier = Modifier.fillMaxSize().padding(bottom = 0.dp, top = paddingValues.calculateTopPadding()),
@@ -72,7 +69,7 @@ fun LoansScreen(
                 items(uiState.loans, key = { it.id }) { loan ->
                     LoanCard(
                         loan = loan,
-                        onClick = { selectedLoanId = loan.id; showLoanSheet = true }
+                        onClick = { onNavigateToLoanDetail(loan.id) }
                     )
                 }
             }
@@ -81,8 +78,8 @@ fun LoansScreen(
 
     if (showLoanSheet) {
         LoanSheet(
-            loanId = selectedLoanId,
-            onDismiss = handleCloseLoanSheet
+            loanId = null,
+            onDismiss = { showLoanSheet = false }
         )
     }
 }

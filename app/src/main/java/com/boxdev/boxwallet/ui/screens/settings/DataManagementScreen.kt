@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
+
 package com.boxdev.boxwallet.ui.screens.settings
 
 import androidx.compose.foundation.layout.*
@@ -242,10 +244,8 @@ private fun DangerousActionCard(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 if (isLoading) {
-                    CircularProgressIndicator(
+                    LoadingIndicator(
                         modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onError
                     )
                 } else {
                     Text(buttonText)

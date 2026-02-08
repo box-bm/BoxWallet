@@ -33,10 +33,10 @@ class CategoriesViewModel @Inject constructor(
         }
     }
 
-    fun addCategory(name: String, description: String) {
+    fun addCategory(name: String, description: String, icon: String = "Category") {
         viewModelScope.launch {
             try {
-                categoryRepository.insertCategory(Category(name = name, description = description))
+                categoryRepository.insertCategory(Category(name = name, description = description, icon = icon))
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(error = e.message)
             }

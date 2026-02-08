@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
+
 package com.boxdev.boxwallet.ui.screens.settings
 
 import androidx.compose.foundation.layout.Arrangement
@@ -17,10 +19,11 @@ import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -138,7 +141,7 @@ fun BackupScreen(
                 enabled = !uiState.isLoading
             ) {
                 if (uiState.isLoading) {
-                    CircularProgressIndicator(
+                    LoadingIndicator(
                         modifier = Modifier.padding(end = 8.dp),
                     )
                 } else {

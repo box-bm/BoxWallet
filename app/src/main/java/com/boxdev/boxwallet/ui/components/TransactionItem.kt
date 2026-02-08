@@ -24,7 +24,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.boxdev.boxwallet.data.local.entity.TransactionType
+import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Transaction
+import com.boxdev.boxwallet.util.categoryIconVector
+import com.boxdev.boxwallet.util.toCurrencySymbol
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -32,14 +35,22 @@ import java.time.format.DateTimeFormatter
 fun TransactionItem(
     transaction: Transaction,
     modifier: Modifier = Modifier,
+    category: Category? = null,
     onClick: () -> Unit = {},
     onLongClick: () -> Unit = {},
 ) {
     val dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy")
-
-    val (icon, color) = when (transaction.type) {
-        TransactionType.INCOME -> Icons.Default.ArrowDownward to MaterialTheme.colorScheme.primary
-        TransactionType.EXPENSE -> Icons.Default.ArrowUpward to MaterialTheme.colorScheme.error
+    val typeColor = when (transaction.type) {
+        TransactionType.INCOME -> MaterialTheme.colorScheme.primary
+        TransactionType.EXPENSE -> MaterialTheme.colorScheme.error
+    }
+    val displayIcon = if (category != null) {
+        categoryIconVector(category.icon)
+    } else {
+        when (transaction.type) {
+            TransactionType.INCOME -> Icons.Default.ArrowDownward
+            TransactionType.EXPENSE -> Icons.Default.ArrowUpward
+        }
     }
 
     Card(
@@ -61,9 +72,9 @@ fun TransactionItem(
                 modifier = Modifier.weight(1f)
             ) {
                 Icon(
-                    imageVector = icon,
-                    contentDescription = transaction.type.name,
-                    tint = color,
+                    imageVector = displayIcon,
+                    contentDescription = category?.name ?: transaction.type.name,
+                    tint = typeColor,
                     modifier = Modifier.size(40.dp)
                 )
                 Column(modifier = Modifier.weight(1f)) {
@@ -82,6 +93,13 @@ fun TransactionItem(
                             text = transaction.date.format(dateFormatter),
                             style = MaterialTheme.typography.bodySmall
                         )
+                        if (category != null) {
+                            Text(
+                                text = category.name,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
                         if (transaction.hasReminder) {
                             Icon(
                                 imageVector = Icons.Default.Notifications,
@@ -93,10 +111,13 @@ fun TransactionItem(
                     }
                 }
             }
+            val sign = if (transaction.type == TransactionType.EXPENSE) "-" else "+"
+            val symbol = transaction.currency.toCurrencySymbol()
             Text(
-                text = "${if (transaction.type == TransactionType.EXPENSE) "-" else "+"} ${transaction.currency} ${transaction.amount}",
+                text = "$sign$symbol${"%.2f".format(transaction.amount)}",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = typeColor
             )
         }
     }

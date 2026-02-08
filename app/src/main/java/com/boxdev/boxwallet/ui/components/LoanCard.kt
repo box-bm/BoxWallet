@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.boxdev.boxwallet.domain.model.Loan
+import com.boxdev.boxwallet.util.toCurrencySymbol
 import java.time.format.DateTimeFormatter
 
 @Composable
@@ -50,7 +51,7 @@ fun LoanCard(
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = "${loan.currency} ${"%.2f".format(loan.installmentAmount)}/mo",
+                    text = "${loan.currency.toCurrencySymbol()}${"%.2f".format(loan.installmentAmount)}/mo",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary
                 )

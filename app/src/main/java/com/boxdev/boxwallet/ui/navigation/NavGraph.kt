@@ -7,11 +7,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
 import androidx.navigation.navigation
 import com.boxdev.boxwallet.ui.screens.analytics.AnalyticsScreen
 import com.boxdev.boxwallet.ui.screens.home.HomeScreen
+import com.boxdev.boxwallet.ui.screens.loans.LoanDetailScreen
 import com.boxdev.boxwallet.ui.screens.loans.LoansScreen
 import com.boxdev.boxwallet.ui.screens.settings.BackupScreen
 import com.boxdev.boxwallet.ui.screens.settings.CategoriesScreen
@@ -47,7 +50,8 @@ fun NavGraph(
             HomeScreen(
                 onNavigateToAnalytics = { navController.navigate(NavRoutes.Analytics.route) },
                 onNavigateToSettings = { navController.navigate(NavRoutes.Settings.route) },
-                onSeeAllTransactions = { navController.navigate(NavRoutes.TransactionsList.route) }
+                onSeeAllTransactions = { navController.navigate(NavRoutes.TransactionsList.route) },
+                onNavigateToLoanDetail = { loanId -> navController.navigate(NavRoutes.LoanDetail.createRoute(loanId)) }
             )
         }
 
@@ -56,7 +60,16 @@ fun NavGraph(
         }
 
         composable(NavRoutes.Loans.route) {
-            LoansScreen()
+            LoansScreen(
+                onNavigateToLoanDetail = { loanId -> navController.navigate(NavRoutes.LoanDetail.createRoute(loanId)) }
+            )
+        }
+
+        composable(
+            route = NavRoutes.LoanDetail.route,
+            arguments = listOf(navArgument("loanId") { type = NavType.LongType })
+        ) {
+            LoanDetailScreen(onNavigateBack = { navController.popBackStack() })
         }
 
         composable(NavRoutes.Analytics.route) {

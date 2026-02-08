@@ -53,6 +53,9 @@ interface TransactionDao {
     fun getUpcomingReminders(currentTime: Long): Flow<List<TransactionEntity>>
 
     @Query("SELECT * FROM transactions WHERE loanId = :loanId ORDER BY installmentNumber ASC")
+    fun getInstallmentsByLoanIdFlow(loanId: Long): Flow<List<TransactionEntity>>
+
+    @Query("SELECT * FROM transactions WHERE loanId = :loanId ORDER BY installmentNumber ASC")
     suspend fun getInstallmentsByLoanId(loanId: Long): List<TransactionEntity>
 
     @Query("SELECT COUNT(*) FROM transactions WHERE loanId = :loanId AND isCleared = 1")

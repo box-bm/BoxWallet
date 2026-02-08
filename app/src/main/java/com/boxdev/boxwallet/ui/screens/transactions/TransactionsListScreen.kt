@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalMaterial3ExpressiveApi::class)
 
 package com.boxdev.boxwallet.ui.screens.transactions
 
@@ -7,10 +7,10 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,33 +21,20 @@ import com.boxdev.boxwallet.ui.components.TransactionItem
 import com.boxdev.boxwallet.ui.components.TransactionSheet
 import java.time.format.DateTimeFormatter
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun TransactionsListScreen(
     viewModel: TransactionsListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val categoryMap = remember(uiState.availableCategories) { uiState.availableCategories.associateBy { it.id } }
     var showFilters by remember { mutableStateOf(false) }
-    var showDatePicker by remember { mutableStateOf(false) }
-    var isSelectingStartDate by remember { mutableStateOf(true) }
     var showTransactionSheet by remember { mutableStateOf(false) }
     var selectedTransactionId by remember { mutableStateOf<Long?>(null) }
 
     val handleCloseTransactionSheet = { showTransactionSheet = false }
-    val toggleFilters = { showFilters = !showFilters }
-    val closeDatePicker = { showDatePicker = false }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Transactions") },
-                actions = {
-                    IconButton(onClick = toggleFilters) {
-                        Icon(Icons.Default.FilterList, contentDescription = "Filter")
-                    }
-                }
-            )
-        },
         floatingActionButton = {
             FloatingActionButton(onClick = { selectedTransactionId = null; showTransactionSheet = true }) {
                 Icon(Icons.Default.Add, contentDescription = "Add Transaction")
@@ -55,24 +42,40 @@ fun TransactionsListScreen(
         }
     ) { paddingValues ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(bottom = 0.dp, top = paddingValues.calculateTopPadding()),
+            modifier = Modifier.fillMaxSize().padding(paddingValues),
         ) {
-            OutlinedTextField(
-                value = uiState.filterState.searchQuery,
-                onValueChange = { viewModel.updateSearchQuery(it) },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                placeholder = { Text("Search transactions...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                trailingIcon = {
-                    if (uiState.filterState.searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.updateSearchQuery("") }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Clear")
+            SearchBar(
+                inputField = {
+                    SearchBarDefaults.InputField(
+                        query = uiState.filterState.searchQuery,
+                        onQueryChange = { viewModel.updateSearchQuery(it) },
+                        onSearch = {},
+                        expanded = false,
+                        onExpandedChange = {},
+                        placeholder = { Text("Search transactions…") },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                        trailingIcon = {
+                            Row {
+                                if (uiState.filterState.searchQuery.isNotEmpty()) {
+                                    IconButton(onClick = { viewModel.updateSearchQuery("") }) {
+                                        Icon(Icons.Default.Clear, contentDescription = "Clear")
+                                    }
+                                }
+                                IconButton(onClick = { showFilters = !showFilters }) {
+                                    Icon(
+                                        imageVector = Icons.Default.FilterList,
+                                        contentDescription = "Filter",
+                                        tint = if (showFilters) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                                    )
+                                }
+                            }
                         }
-                    }
+                    )
                 },
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp)
-            )
+                expanded = false,
+                onExpandedChange = {},
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            ) {}
 
             AnimatedVisibility(visible = showFilters) {
                 Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
@@ -129,7 +132,7 @@ fun TransactionsListScreen(
 
             when {
                 uiState.isLoading -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                    LoadingIndicator()
                 }
                 uiState.filteredTransactions.isEmpty() -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
@@ -159,6 +162,7 @@ fun TransactionsListScreen(
                             items(transactions, key = { it.id }) { transaction ->
                                 TransactionItem(
                                     transaction = transaction,
+                                    category = transaction.categoryId?.let { categoryMap[it] },
                                     onClick = { selectedTransactionId = transaction.id; showTransactionSheet = true }
                                 )
                             }
@@ -167,24 +171,6 @@ fun TransactionsListScreen(
                 }
             }
         }
-    }
-
-    if (showDatePicker) {
-        val datePickerState = rememberDatePickerState()
-        DatePickerDialog(
-            onDismissRequest = closeDatePicker,
-            confirmButton = {
-                TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let { millis ->
-                        val date = java.time.Instant.ofEpochMilli(millis).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
-                        if (isSelectingStartDate) viewModel.updateDateRange(date, uiState.filterState.endDate)
-                        else viewModel.updateDateRange(uiState.filterState.startDate, date)
-                        closeDatePicker()
-                    }
-                }) { Text("OK") }
-            },
-            dismissButton = { TextButton(onClick = closeDatePicker) { Text("Cancel") } }
-        ) { DatePicker(state = datePickerState) }
     }
 
     if (showTransactionSheet) {
