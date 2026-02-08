@@ -10,7 +10,6 @@ import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -20,32 +19,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.boxdev.boxwallet.domain.model.FinancialSummary
-import java.text.NumberFormat
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 @Composable
 fun SummaryCard(
     summary: FinancialSummary,
     modifier: Modifier = Modifier
 ) {
-    val currencyFormat = NumberFormat.getCurrencyInstance(Locale.getDefault())
     val currentMonth = YearMonth.now().format(DateTimeFormatter.ofPattern("MMMM yyyy"))
 
-    Card(
-        modifier = modifier.fillMaxWidth(),
-    ) {
+    Card(modifier = modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = currentMonth,
-                style = MaterialTheme.typography.titleMedium,
-            )
+            Text(text = currentMonth, style = MaterialTheme.typography.titleMedium)
 
-            // Balance
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -55,17 +45,11 @@ fun SummaryCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.AccountBalance,
-                        contentDescription = "Balance",
-                    )
-                    Text(
-                        text = "Monthly Balance",
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
+                    Icon(imageVector = Icons.Default.AccountBalance, contentDescription = "Balance")
+                    Text(text = "Monthly Balance", style = MaterialTheme.typography.bodyLarge)
                 }
                 Text(
-                    text = currencyFormat.format(summary.monthlyBalance),
+                    text = "%.2f".format(summary.monthlyBalance),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = if (summary.monthlyBalance >= 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
@@ -76,10 +60,7 @@ fun SummaryCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                // Income
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -89,24 +70,17 @@ fun SummaryCard(
                             contentDescription = "Income",
                             tint = MaterialTheme.colorScheme.primary
                         )
-                        Text(
-                            text = "Income",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+                        Text(text = "Income", style = MaterialTheme.typography.bodyMedium)
                     }
                     Text(
-                        text = currencyFormat.format(summary.monthlyIncome),
+                        text = "%.2f".format(summary.monthlyIncome),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
 
-                // Expense
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -116,14 +90,10 @@ fun SummaryCard(
                             contentDescription = "Expense",
                             tint = MaterialTheme.colorScheme.error
                         )
-                        Text(
-                            text = "Expense",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+                        Text(text = "Expense", style = MaterialTheme.typography.bodyMedium)
                     }
                     Text(
-                        text = currencyFormat.format(summary.monthlyExpense),
+                        text = "%.2f".format(summary.monthlyExpense),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.error
@@ -131,9 +101,7 @@ fun SummaryCard(
                 }
             }
 
-            // Total balance
-            Card(
-            ) {
+            Card {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -141,12 +109,9 @@ fun SummaryCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Text(text = "Total Balance", style = MaterialTheme.typography.bodyMedium)
                     Text(
-                        text = "Total Balance",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Text(
-                        text = currencyFormat.format(summary.balance),
+                        text = "%.2f".format(summary.balance),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = if (summary.balance >= 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error

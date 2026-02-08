@@ -8,18 +8,16 @@ data class TransactionEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val amount: Double,
-    val comment: String,
-    val date: Long, // Timestamp in milliseconds
-    val type: TransactionType,
-    val isLoan: Boolean = false,
-    val totalInstallments: Int? = null,
-    val currentInstallment: Int? = null,
-    val installmentAmount: Double? = null,
-    val parentLoanId: Long? = null, // Links installments to parent loan
+    val currency: String,
+    val description: String = "",
+    val date: Long,
+    val type: String, // "INCOME" or "EXPENSE"
+    val isCleared: Boolean = false,
     val hasReminder: Boolean = false,
     val reminderDate: Long? = null,
-    val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    val categoryId: Long? = null,
+    val loanId: Long? = null,
+    val installmentNumber: Int? = null
 )
 
 enum class TransactionType {

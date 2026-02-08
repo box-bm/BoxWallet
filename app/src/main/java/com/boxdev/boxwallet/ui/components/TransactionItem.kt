@@ -11,9 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -27,20 +25,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.domain.model.Transaction
-import java.text.NumberFormat
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TransactionItem(
     transaction: Transaction,
-    isSelected: Boolean = false,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
     onLongClick: () -> Unit = {},
-    modifier: Modifier = Modifier
 ) {
-    val currencyFormat = NumberFormat.getCurrencyInstance(Locale.getDefault())
     val dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy")
 
     val (icon, color) = when (transaction.type) {
@@ -51,17 +45,8 @@ fun TransactionItem(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
-            ),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant
-            }
-        ),
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Row(
             modifier = Modifier
@@ -75,27 +60,15 @@ fun TransactionItem(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f)
             ) {
-                if (isSelected) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = "Selected",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(40.dp)
-                    )
-                } else {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = transaction.type.name,
-                        tint = color,
-                        modifier = Modifier.size(40.dp)
-                    )
-                }
-
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = transaction.type.name,
+                    tint = color,
+                    modifier = Modifier.size(40.dp)
+                )
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = transaction.comment.ifEmpty { transaction.type.name },
+                        text = transaction.description.ifEmpty { transaction.type.name },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Medium,
                         maxLines = 1,
@@ -107,19 +80,8 @@ fun TransactionItem(
                     ) {
                         Text(
                             text = transaction.date.format(dateFormatter),
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.bodySmall
                         )
-                        if (transaction.isLoan && transaction.currentInstallment != null) {
-                            Icon(
-                                imageVector = Icons.Default.Schedule,
-                                contentDescription = "Installment",
-                                modifier = Modifier.size(14.dp),
-                            )
-                            Text(
-                                text = "${transaction.currentInstallment}/${transaction.totalInstallments}",
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        }
                         if (transaction.hasReminder) {
                             Icon(
                                 imageVector = Icons.Default.Notifications,
@@ -131,11 +93,10 @@ fun TransactionItem(
                     }
                 }
             }
-
             Text(
-                text = "${if (transaction.type == TransactionType.EXPENSE) "-" else "+"} ${currencyFormat.format(transaction.amount)}",
+                text = "${if (transaction.type == TransactionType.EXPENSE) "-" else "+"} ${transaction.currency} ${transaction.amount}",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.Bold
             )
         }
     }

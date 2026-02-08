@@ -216,19 +216,3 @@ val surfaceContainerLowDarkHighContrast = Color(0xFF1E201A)
 val surfaceContainerDarkHighContrast = Color(0xFF2F312A)
 val surfaceContainerHighDarkHighContrast = Color(0xFF3A3C35)
 val surfaceContainerHighestDarkHighContrast = Color(0xFF454840)
-
-
-
-
-
-// Predefined theme colors for customization
-val ThemeColors = listOf(
-    Color(0xFF6750A4), // Purple (Default)
-    Color(0xFF006D40), // Green
-    Color(0xFF0061A4), // Blue
-    Color(0xFFBA1A1A), // Red
-    Color(0xFF7D5260), // Pink
-    Color(0xFF785900), // Gold
-    Color(0xFF006970), // Teal
-    Color(0xFF984061), // Magenta
-)

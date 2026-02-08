@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Restore
@@ -39,7 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -52,32 +52,31 @@ fun BackupScreen(
     viewModel: BackupViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val snackbarHostState = remember { SnackbarHostState() }
+    val snackBarHostState = remember { SnackbarHostState() }
     var showRestoreDialog by remember { mutableStateOf<File?>(null) }
     var showDeleteDialog by remember { mutableStateOf<File?>(null) }
 
     LaunchedEffect(uiState.message) {
         uiState.message?.let {
-            snackbarHostState.showSnackbar(it)
+            snackBarHostState.showSnackbar(it)
             viewModel.clearMessage()
         }
     }
 
     showRestoreDialog?.let { file ->
         AlertDialog(
-            onDismissRequest = { showRestoreDialog = null },
+            onDismissRequest = { },
             title = { Text("Restore Backup") },
             text = { Text("This will replace all current data with the backup. Are you sure?") },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.restoreBackup(file)
-                    showRestoreDialog = null
                 }) {
                     Text("Restore")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showRestoreDialog = null }) {
+                TextButton(onClick = {  }) {
                     Text("Cancel")
                 }
             }
@@ -86,19 +85,19 @@ fun BackupScreen(
 
     showDeleteDialog?.let { file ->
         AlertDialog(
-            onDismissRequest = { showDeleteDialog = null },
+            onDismissRequest = {  },
             title = { Text("Delete Backup") },
             text = { Text("Are you sure you want to delete this backup file?") },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.deleteBackup(file)
-                    showDeleteDialog = null
+
                 }) {
                     Text("Delete", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = null }) {
+                TextButton(onClick = {  }) {
                     Text("Cancel")
                 }
             }
@@ -116,14 +115,14 @@ fun BackupScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
-                            imageVector = Icons.Filled.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back"
                         )
                     }
                 },
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackBarHostState) }
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -196,8 +195,8 @@ fun BackupScreen(
                     items(uiState.backupFiles) { file ->
                         BackupFileItem(
                             file = file,
-                            onRestore = { showRestoreDialog = file },
-                            onDelete = { showDeleteDialog = file }
+                            onRestore = {  },
+                            onDelete = {  }
                         )
                     }
                 }

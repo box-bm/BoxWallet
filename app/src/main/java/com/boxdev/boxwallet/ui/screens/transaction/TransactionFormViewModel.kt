@@ -1,0 +1,150 @@
+package com.boxdev.boxwallet.ui.screens.transaction
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.boxdev.boxwallet.data.local.entity.TransactionType
+import com.boxdev.boxwallet.data.datastore.UserPreferences
+import com.boxdev.boxwallet.data.repository.CategoryRepository
+import com.boxdev.boxwallet.data.repository.TransactionRepository
+import com.boxdev.boxwallet.domain.model.Category
+import com.boxdev.boxwallet.domain.model.Transaction
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import java.time.LocalDate
+import javax.inject.Inject
+
+data class TransactionFormState(
+    val id: Long = 0,
+    val amount: String = "",
+    val description: String = "",
+    val categoryId: Long? = null,
+    val date: LocalDate = LocalDate.now(),
+    val type: TransactionType = TransactionType.EXPENSE,
+    val isCleared: Boolean = false,
+    val hasReminder: Boolean = false,
+    val reminderDate: LocalDate? = null,
+    val currency: String = "USD",
+    val isEditing: Boolean = false,
+    val isLoading: Boolean = false,
+    val isSaved: Boolean = false,
+    val error: String? = null
+) {
+    val isValid: Boolean
+        get() = amount.toDoubleOrNull()?.let { it > 0 } == true
+}
+
+@HiltViewModel
+class TransactionFormViewModel @Inject constructor(
+    private val transactionRepository: TransactionRepository,
+    private val categoryRepository: CategoryRepository,
+    private val userPreferences: UserPreferences
+) : ViewModel() {
+
+    private val _formState = MutableStateFlow(TransactionFormState())
+    val formState: StateFlow<TransactionFormState> = _formState.asStateFlow()
+
+    private val _categories = MutableStateFlow<List<Category>>(emptyList())
+    val categories: StateFlow<List<Category>> = _categories.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            categoryRepository.getAllCategories().collect { _categories.value = it }
+        }
+        viewModelScope.launch {
+            val currency = userPreferences.defaultCurrency.first()
+            _formState.update { it.copy(currency = currency.name) }
+        }
+    }
+
+    fun loadTransaction(transactionId: Long?) {
+        if (transactionId == null || transactionId == -1L) {
+            _formState.value = _formState.value.copy(id = 0, isEditing = false)
+            return
+        }
+        viewModelScope.launch {
+            _formState.update { it.copy(isLoading = true) }
+            val t = transactionRepository.getTransactionById(transactionId)
+            if (t != null) {
+                _formState.value = TransactionFormState(
+                    id = t.id,
+                    amount = t.amount.toString(),
+                    description = t.description,
+                    categoryId = t.categoryId,
+                    date = t.date,
+                    type = t.type,
+                    isCleared = t.isCleared,
+                    hasReminder = t.hasReminder,
+                    reminderDate = t.reminderDate,
+                    currency = t.currency,
+                    isEditing = true,
+                    isLoading = false
+                )
+            } else {
+                _formState.update { it.copy(isLoading = false, error = "Transaction not found") }
+            }
+        }
+    }
+
+    fun updateAmount(value: String) {
+        if (value.isEmpty() || value.matches(Regex("^\\d*\\.?\\d*$"))) {
+            _formState.update { it.copy(amount = value, error = null) }
+        }
+    }
+
+    fun updateDescription(value: String) = _formState.update { it.copy(description = value) }
+    fun updateCategory(id: Long?) = _formState.update { it.copy(categoryId = id) }
+    fun updateDate(value: LocalDate) = _formState.update { it.copy(date = value) }
+    fun updateType(value: TransactionType) = _formState.update { it.copy(type = value) }
+    fun updateIsCleared(value: Boolean) = _formState.update { it.copy(isCleared = value) }
+    fun updateHasReminder(value: Boolean) = _formState.update { it.copy(hasReminder = value, reminderDate = if (value) LocalDate.now() else null) }
+    fun updateReminderDate(value: LocalDate?) = _formState.update { it.copy(reminderDate = value) }
+
+    fun save() {
+        val s = _formState.value
+        if (!s.isValid) {
+            _formState.update { it.copy(error = "Please enter a valid amount") }
+            return
+        }
+        viewModelScope.launch {
+            _formState.update { it.copy(isLoading = true) }
+            try {
+                val transaction = Transaction(
+                    id = if (s.isEditing) s.id else 0,
+                    amount = s.amount.toDouble(),
+                    currency = s.currency,
+                    description = s.description,
+                    date = s.date,
+                    type = s.type,
+                    isCleared = s.isCleared,
+                    hasReminder = s.hasReminder,
+                    reminderDate = s.reminderDate,
+                    categoryId = s.categoryId
+                )
+                if (s.isEditing) transactionRepository.updateTransaction(transaction)
+                else transactionRepository.insertTransaction(transaction)
+                _formState.update { it.copy(isLoading = false, isSaved = true) }
+            } catch (e: Exception) {
+                _formState.update { it.copy(isLoading = false, error = e.message ?: "Error saving") }
+            }
+        }
+    }
+
+    fun delete() {
+        val s = _formState.value
+        if (!s.isEditing) return
+        viewModelScope.launch {
+            _formState.update { it.copy(isLoading = true) }
+            try {
+                transactionRepository.deleteTransaction(s.id)
+                _formState.update { it.copy(isLoading = false, isSaved = true) }
+            } catch (e: Exception) {
+                _formState.update { it.copy(isLoading = false, error = e.message ?: "Error deleting") }
+            }
+        }
+    }
+}

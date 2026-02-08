@@ -1,7 +1,6 @@
 package com.boxdev.boxwallet.ui.screens.settings
 
 import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,24 +14,27 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Backup
+import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Coffee
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,13 +43,18 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
+    onNavigateBack: () -> Unit,
+    onNavigateToGeneral: () -> Unit,
+    onNavigateToCategories: () -> Unit,
     onNavigateToTheme: () -> Unit,
     onNavigateToBackup: () -> Unit,
-    onNavigateToExport: () -> Unit
+    onNavigateToExport: () -> Unit,
+    onNavigateToDataManagement: () -> Unit
 ) {
     val context = LocalContext.current
 
@@ -59,6 +66,15 @@ fun SettingsScreen(
                         text = "Settings",
                     )
                 },
+
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                }
             )
         }
     ) { paddingValues ->
@@ -70,6 +86,23 @@ fun SettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // General Section
+            SettingsSection(title = "General") {
+                SettingsItem(
+                    icon = Icons.Default.Settings,
+                    title = "General Settings",
+                    subtitle = "Currency, language, and regional settings",
+                    onClick = onNavigateToGeneral
+                )
+                HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
+                SettingsItem(
+                    icon = Icons.Default.Category,
+                    title = "Categories",
+                    subtitle = "Manage transaction categories",
+                    onClick = onNavigateToCategories
+                )
+            }
+
             // Appearance Section
             SettingsSection(title = "Appearance") {
                 SettingsItem(
@@ -88,12 +121,19 @@ fun SettingsScreen(
                     subtitle = "Save and restore your data",
                     onClick = onNavigateToBackup
                 )
-                Divider(modifier = Modifier.padding(start = 56.dp))
+                HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
                 SettingsItem(
                     icon = Icons.Default.Description,
                     title = "Export Reports",
                     subtitle = "Generate Excel and PDF reports",
                     onClick = onNavigateToExport
+                )
+                HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
+                SettingsItem(
+                    icon = Icons.Default.DeleteForever,
+                    title = "Data Management",
+                    subtitle = "Clear device and cloud data",
+                    onClick = onNavigateToDataManagement
                 )
             }
 
@@ -113,7 +153,8 @@ fun SettingsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://buymeacoffee.com/boxdev"))
+                        val intent = Intent(Intent.ACTION_VIEW,
+                            "https://buymeacoffee.com/boxdev".toUri())
                         context.startActivity(intent)
                     },
                 colors = CardDefaults.cardColors(
@@ -145,6 +186,7 @@ fun SettingsScreen(
                         Text(
                             text = "Support the development!",
                             style = MaterialTheme.typography.bodySmall,
+                            color = Color.Black
                         )
                     }
                 }

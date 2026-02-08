@@ -1,15 +1,12 @@
 package com.boxdev.boxwallet.ui.screens.settings
 
-import android.content.Context
 import android.os.Environment
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 import com.boxdev.boxwallet.data.repository.TransactionRepository
 import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,7 +28,6 @@ data class BackupUiState(
 
 @HiltViewModel
 class BackupViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
     private val transactionRepository: TransactionRepository
 ) : ViewModel() {
 

@@ -1,6 +1,5 @@
 package com.boxdev.boxwallet.ui.screens.settings
 
-import android.content.Context
 import android.os.Environment
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -17,11 +16,11 @@ import com.itextpdf.layout.element.Table
 import com.itextpdf.layout.properties.TextAlignment
 import com.itextpdf.layout.properties.UnitValue
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
@@ -46,7 +45,6 @@ data class ExportUiState(
 
 @HiltViewModel
 class ExportViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
     private val transactionRepository: TransactionRepository
 ) : ViewModel() {
 
@@ -78,13 +76,15 @@ class ExportViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(isLoading = true, message = null)
 
             try {
-                val transactions = transactionRepository.getTransactionsBetweenDatesSync(
+                val transactions = transactionRepository.getTransactionsBetweenDates(
                     _uiState.value.startDate,
                     _uiState.value.endDate
                 )
 
+                val transactionList = transactions.toList().flatten()
+
                 val filePath = withContext(Dispatchers.IO) {
-                    createExcelFile(transactions)
+                    createExcelFile(transactionList)
                 }
 
                 _uiState.value = _uiState.value.copy(
@@ -108,13 +108,16 @@ class ExportViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(isLoading = true, message = null)
 
             try {
-                val transactions = transactionRepository.getTransactionsBetweenDatesSync(
+                val transactions = transactionRepository.getTransactionsBetweenDates(
                     _uiState.value.startDate,
                     _uiState.value.endDate
                 )
 
+                val transactionsList = transactions.toList().flatten()
+
+
                 val filePath = withContext(Dispatchers.IO) {
-                    createPdfFile(transactions)
+                    createPdfFile(transactionsList)
                 }
 
                 _uiState.value = _uiState.value.copy(
@@ -142,7 +145,7 @@ class ExportViewModel @Inject constructor(
 
             // Header row
             val headerRow = sheet.createRow(0)
-            listOf("Date", "Type", "Amount", "Comment", "Is Loan", "Installment").forEachIndexed { index, title ->
+            listOf("Date", "Type", "Amount", "Description", "Is Loan", "Installment").forEachIndexed { index, title ->
                 headerRow.createCell(index).setCellValue(title)
             }
 
@@ -152,11 +155,11 @@ class ExportViewModel @Inject constructor(
                 row.createCell(0).setCellValue(transaction.date.format(dateFormatter))
                 row.createCell(1).setCellValue(transaction.type.name)
                 row.createCell(2).setCellValue(transaction.amount)
-                row.createCell(3).setCellValue(transaction.comment)
-                row.createCell(4).setCellValue(if (transaction.isLoan) "Yes" else "No")
+                row.createCell(3).setCellValue(transaction.description)
+                row.createCell(4).setCellValue(if (transaction.loanId != null) "Yes" else "No")
                 row.createCell(5).setCellValue(
-                    if (transaction.currentInstallment != null)
-                        "${transaction.currentInstallment}/${transaction.totalInstallments}"
+                    if (transaction.installmentNumber != null)
+                        "${transaction.installmentNumber}"
                     else ""
                 )
             }
@@ -197,7 +200,6 @@ class ExportViewModel @Inject constructor(
         document.add(
             Paragraph("BoxWallet Financial Report")
                 .setFontSize(20f)
-                .setBold()
                 .setTextAlignment(TextAlignment.CENTER)
         )
 
@@ -213,21 +215,21 @@ class ExportViewModel @Inject constructor(
         val incomeTotal = transactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
         val expenseTotal = transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
 
-        document.add(Paragraph("Summary").setFontSize(16f).setBold())
+        document.add(Paragraph("Summary").setFontSize(16f))
         document.add(Paragraph("Total Income: ${currencyFormat.format(incomeTotal)}"))
         document.add(Paragraph("Total Expense: ${currencyFormat.format(expenseTotal)}"))
         document.add(Paragraph("Net Balance: ${currencyFormat.format(incomeTotal - expenseTotal)}").setMarginBottom(20f))
 
         // Transactions Table
-        document.add(Paragraph("Transactions").setFontSize(16f).setBold().setMarginBottom(10f))
+        document.add(Paragraph("Transactions").setFontSize(16f).setMarginBottom(10f))
 
         val table = Table(UnitValue.createPercentArray(floatArrayOf(2f, 1f, 2f, 3f)))
             .useAllAvailableWidth()
 
         // Table header
-        listOf("Date", "Type", "Amount", "Comment").forEach { header ->
+        listOf("Date", "Type", "Amount", "Description").forEach { header ->
             table.addHeaderCell(
-                Cell().add(Paragraph(header).setBold())
+                Cell().add(Paragraph(header))
                     .setBackgroundColor(ColorConstants.LIGHT_GRAY)
             )
         }
@@ -239,7 +241,7 @@ class ExportViewModel @Inject constructor(
             table.addCell(Cell().add(
                 Paragraph(currencyFormat.format(transaction.amount))
             ))
-            table.addCell(Cell().add(Paragraph(transaction.comment)))
+            table.addCell(Cell().add(Paragraph(transaction.description)))
         }
 
         document.add(table)

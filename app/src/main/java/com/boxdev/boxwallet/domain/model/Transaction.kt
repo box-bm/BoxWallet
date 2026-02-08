@@ -8,48 +8,44 @@ import java.time.ZoneId
 data class Transaction(
     val id: Long = 0,
     val amount: Double,
-    val comment: String,
+    val currency: String,
+    val description: String = "",
     val date: LocalDate,
     val type: TransactionType,
-    val isLoan: Boolean = false,
-    val totalInstallments: Int? = null,
-    val currentInstallment: Int? = null,
-    val installmentAmount: Double? = null,
-    val parentLoanId: Long? = null,
+    val isCleared: Boolean = false,
     val hasReminder: Boolean = false,
-    val reminderDate: LocalDate? = null
+    val reminderDate: LocalDate? = null,
+    val categoryId: Long? = null,
+    val loanId: Long? = null,
+    val installmentNumber: Int? = null
 )
 
-fun TransactionEntity.toDomain(): Transaction {
-    return Transaction(
-        id = id,
-        amount = amount,
-        comment = comment,
-        date = LocalDate.ofEpochDay(date / (24 * 60 * 60 * 1000)),
-        type = type,
-        isLoan = isLoan,
-        totalInstallments = totalInstallments,
-        currentInstallment = currentInstallment,
-        installmentAmount = installmentAmount,
-        parentLoanId = parentLoanId,
-        hasReminder = hasReminder,
-        reminderDate = reminderDate?.let { LocalDate.ofEpochDay(it / (24 * 60 * 60 * 1000)) }
-    )
-}
+fun TransactionEntity.toDomain(): Transaction = Transaction(
+    id = id,
+    amount = amount,
+    currency = currency,
+    description = description,
+    date = LocalDate.ofEpochDay(date / (24 * 60 * 60 * 1000)),
+    type = TransactionType.valueOf(type),
+    isCleared = isCleared,
+    hasReminder = hasReminder,
+    reminderDate = reminderDate?.let { LocalDate.ofEpochDay(it / (24 * 60 * 60 * 1000)) },
+    categoryId = categoryId,
+    loanId = loanId,
+    installmentNumber = installmentNumber
+)
 
-fun Transaction.toEntity(): TransactionEntity {
-    return TransactionEntity(
-        id = id,
-        amount = amount,
-        comment = comment,
-        date = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(),
-        type = type,
-        isLoan = isLoan,
-        totalInstallments = totalInstallments,
-        currentInstallment = currentInstallment,
-        installmentAmount = installmentAmount,
-        parentLoanId = parentLoanId,
-        hasReminder = hasReminder,
-        reminderDate = reminderDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli()
-    )
-}
+fun Transaction.toEntity(): TransactionEntity = TransactionEntity(
+    id = id,
+    amount = amount,
+    currency = currency,
+    description = description,
+    date = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+    type = type.name,
+    isCleared = isCleared,
+    hasReminder = hasReminder,
+    reminderDate = reminderDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli(),
+    categoryId = categoryId,
+    loanId = loanId,
+    installmentNumber = installmentNumber
+)

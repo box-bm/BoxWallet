@@ -2,9 +2,7 @@ package com.boxdev.boxwallet.worker
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.hilt.work.HiltWorker
@@ -15,7 +13,6 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.data.local.dao.TransactionDao
-import com.boxdev.boxwallet.data.local.entity.TransactionType
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first
@@ -49,18 +46,18 @@ class ReminderWorker @AssistedInject constructor(
         upcomingReminders
             .filter { it.reminderDate != null && it.reminderDate <= oneDayFromNow }
             .forEach { transaction ->
-                val title = if (transaction.type == TransactionType.EXPENSE) {
+                val title = if (transaction.type == "EXPENSE") {
                     "Upcoming Payment"
                 } else {
                     "Expected Income"
                 }
 
                 val message = buildString {
-                    append(transaction.comment.ifEmpty { transaction.type.name })
+                    append(transaction.description.ifEmpty { transaction.type })
                     append(": ")
                     append(currencyFormat.format(transaction.amount))
-                    if (transaction.currentInstallment != null) {
-                        append(" (${transaction.currentInstallment}/${transaction.totalInstallments})")
+                    if (transaction.installmentNumber != null) {
+                        append(" (installment ${transaction.installmentNumber})")
                     }
                 }
 
@@ -87,7 +84,7 @@ class ReminderWorker @AssistedInject constructor(
         }
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_notification)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle(title)
             .setContentText(message)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
