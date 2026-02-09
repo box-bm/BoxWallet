@@ -1,8 +1,12 @@
 package com.boxdev.boxwallet.ui.navigation
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.CreditCard
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.sharp.CreditCard
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -29,11 +33,24 @@ enum class Destination(
     val route: String,
     val label: String,
     val icon: ImageVector,
+    val activeIcon: ImageVector,
     val contentDescription: String
 ) {
-    HOME(NavRoutes.Home.route, "Home", Icons.Default.Home, "Home"),
-    TRANSACTIONS(NavRoutes.TransactionsList.route, "Transactions", Icons.AutoMirrored.Filled.List, "Transactions"),
-    LOANS(NavRoutes.Loans.route, "Loans", Icons.AutoMirrored.Filled.List, "Loans")
+    HOME(NavRoutes.Home.route, "Home", Icons.Outlined.Home, Icons.Filled.Home, "Home"),
+    LOANS(
+        NavRoutes.Loans.route,
+        "Loans",
+        Icons.Outlined.CreditCard,
+        Icons.Sharp.CreditCard,
+        "Loans"
+    ),
+    SETTINGS(
+        NavRoutes.Settings.route,
+        "Settings",
+        Icons.Outlined.Settings,
+        Icons.Filled.Settings,
+        "Settings"
+    ),
 }
 
 @Composable
@@ -51,17 +68,34 @@ fun NavGraph(
                 onNavigateToAnalytics = { navController.navigate(NavRoutes.Analytics.route) },
                 onNavigateToSettings = { navController.navigate(NavRoutes.Settings.route) },
                 onSeeAllTransactions = { navController.navigate(NavRoutes.TransactionsList.route) },
-                onNavigateToLoanDetail = { loanId -> navController.navigate(NavRoutes.LoanDetail.createRoute(loanId)) }
+                onSeeAllLoans = { navController.navigate(NavRoutes.Loans.route) },
+                onNavigateToLoanDetail = { loanId ->
+                    navController.navigate(
+                        NavRoutes.LoanDetail.createRoute(
+                            loanId
+                        )
+                    )
+                }
             )
         }
 
         composable(NavRoutes.TransactionsList.route) {
-            TransactionsListScreen()
+            TransactionsListScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
         }
 
         composable(NavRoutes.Loans.route) {
             LoansScreen(
-                onNavigateToLoanDetail = { loanId -> navController.navigate(NavRoutes.LoanDetail.createRoute(loanId)) }
+                onNavigateToLoanDetail = { loanId ->
+                    navController.navigate(
+                        NavRoutes.LoanDetail.createRoute(
+                            loanId
+                        )
+                    )
+                }
             )
         }
 

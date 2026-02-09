@@ -41,7 +41,7 @@ fun NavigationTab(modifier: Modifier = Modifier) {
                             },
                             icon = {
                                 Icon(
-                                    destination.icon,
+                                    imageVector = if (currentRoute == destination.route) destination.activeIcon else destination.icon,
                                     contentDescription = destination.contentDescription
                                 )
                             },

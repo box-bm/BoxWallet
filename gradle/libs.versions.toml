@@ -1,5 +1,6 @@
 [versions]
 agp = "9.0.0"
+biometric = "1.1.0"
 coreKtx = "1.17.0"
 datastorePreferences = "1.2.0"
 gson = "2.13.2"
@@ -31,6 +32,7 @@ androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref =
 androidx-room-room-runtime = { module = "androidx.room:room-runtime", version.ref = "roomCompiler" }
 androidx-room-runtime = { module = "androidx.room:room-runtime" }
 androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "workRuntimeKtx" }
+androidx-biometric = { module = "androidx.biometric:biometric", version.ref = "biometric" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hiltAndroid" }
 hilt-android-compiler = { module = "com.google.dagger:hilt-android-compiler", version.ref = "hiltAndroid" }

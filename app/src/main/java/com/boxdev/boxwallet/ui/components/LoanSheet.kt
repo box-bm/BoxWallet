@@ -2,7 +2,16 @@
 
 package com.boxdev.boxwallet.ui.components
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -11,8 +20,37 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -46,9 +84,14 @@ fun LoanSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
     ) {
-        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+        Column(modifier = Modifier
+            .fillMaxWidth()
+            .wrapContentHeight()
+            .padding(horizontal = 16.dp)) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -59,7 +102,11 @@ fun LoanSheet(
                 )
                 if (formState.isEditing) {
                     IconButton(onClick = { showDeleteDialog = true }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "Delete",
+                            tint = MaterialTheme.colorScheme.error
+                        )
                     }
                 }
             }
@@ -70,7 +117,9 @@ fun LoanSheet(
                 }
             } else {
                 Column(
-                    modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     OutlinedTextField(
@@ -95,7 +144,12 @@ fun LoanSheet(
                         onValueChange = { viewModel.updateTotalAmount(it) },
                         label = { Text("Total Amount") },
                         placeholder = { Text("0.00") },
-                        leadingIcon = { Text(formState.currency, style = MaterialTheme.typography.bodyLarge) },
+                        leadingIcon = {
+                            Text(
+                                formState.currency,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
@@ -117,7 +171,11 @@ fun LoanSheet(
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
                         ) {
                             Text(
-                                text = "Each installment: ${formState.currency} ${"%.2f".format(amount)}",
+                                text = "Each installment: ${formState.currency} ${
+                                    "%.2f".format(
+                                        amount
+                                    )
+                                }",
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.padding(16.dp),
@@ -144,12 +202,15 @@ fun LoanSheet(
                         onExpandedChange = { categoryExpanded = it }
                     ) {
                         OutlinedTextField(
-                            value = formState.categoryId?.let { id -> categories.find { it.id == id }?.name } ?: "None",
+                            value = formState.categoryId?.let { id -> categories.find { it.id == id }?.name }
+                                ?: "None",
                             onValueChange = {},
                             readOnly = true,
                             label = { Text("Category (Optional)") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
-                            modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                         )
                         ExposedDropdownMenu(
                             expanded = categoryExpanded,
@@ -157,22 +218,38 @@ fun LoanSheet(
                         ) {
                             DropdownMenuItem(
                                 text = { Text("None") },
-                                onClick = { viewModel.updateCategory(null); categoryExpanded = false },
-                                leadingIcon = { Icon(Icons.Default.Clear, contentDescription = null) }
+                                onClick = {
+                                    viewModel.updateCategory(null); categoryExpanded = false
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.Clear,
+                                        contentDescription = null
+                                    )
+                                }
                             )
                             categories.forEach { category ->
                                 DropdownMenuItem(
                                     text = { Text(category.name) },
-                                    onClick = { viewModel.updateCategory(category.id); categoryExpanded = false },
+                                    onClick = {
+                                        viewModel.updateCategory(category.id); categoryExpanded =
+                                        false
+                                    },
                                     leadingIcon = {
                                         Icon(
-                                            imageVector = com.boxdev.boxwallet.util.categoryIconVector(category.icon),
+                                            imageVector = com.boxdev.boxwallet.util.categoryIconVector(
+                                                category.icon
+                                            ),
                                             contentDescription = null
                                         )
                                     },
                                     trailingIcon = {
                                         if (formState.categoryId == category.id) {
-                                            Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                            Icon(
+                                                Icons.Default.Check,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
                                         }
                                     }
                                 )
@@ -183,13 +260,21 @@ fun LoanSheet(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                Column(modifier = Modifier.padding(vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    modifier = Modifier.padding(vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     Button(
                         onClick = { viewModel.save() },
-                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
                         enabled = formState.isValid
                     ) {
-                        Text(if (formState.isEditing) "Update" else "Create Loan", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            if (formState.isEditing) "Update" else "Create Loan",
+                            style = MaterialTheme.typography.titleMedium
+                        )
                     }
                     if (formState.isEditing) {
                         OutlinedButton(
@@ -197,7 +282,11 @@ fun LoanSheet(
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
                         ) {
-                            Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = null,
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
                             Text("Delete Loan")
                         }
                     }
@@ -208,13 +297,20 @@ fun LoanSheet(
 
     if (showDatePicker) {
         val state = rememberDatePickerState(
-            initialSelectedDateMillis = formState.startDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            initialSelectedDateMillis = formState.startDate.atStartOfDay(ZoneId.systemDefault())
+                .toInstant().toEpochMilli()
         )
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    state.selectedDateMillis?.let { viewModel.updateStartDate(Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()) }
+                    state.selectedDateMillis?.let {
+                        viewModel.updateStartDate(
+                            Instant.ofEpochMilli(
+                                it
+                            ).atZone(ZoneId.systemDefault()).toLocalDate()
+                        )
+                    }
                     showDatePicker = false
                 }) { Text("OK") }
             },
@@ -232,7 +328,11 @@ fun LoanSheet(
                     Text("Delete", color = MaterialTheme.colorScheme.error)
                 }
             },
-            dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") } }
+            dismissButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                }) { Text("Cancel") }
+            }
         )
     }
 }

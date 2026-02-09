@@ -26,6 +26,7 @@ class UserPreferences @Inject constructor(
         private val LANGUAGE_KEY = stringPreferencesKey("language")
         private val DEFAULT_CATEGORY_ID_KEY = stringPreferencesKey("default_category_id")
         private val IS_FIRST_LAUNCH_KEY = booleanPreferencesKey("is_first_launch")
+        private val IS_BIOMETRIC_ENABLED_KEY = booleanPreferencesKey("is_biometric_enabled")
     }
 
     val currency: Flow<String> = context.userPreferencesDataStore.data
@@ -59,6 +60,11 @@ class UserPreferences @Inject constructor(
             preferences[IS_FIRST_LAUNCH_KEY] ?: true
         }
 
+    val isBiometricEnabled: Flow<Boolean> = context.userPreferencesDataStore.data
+        .map { preferences ->
+            preferences[IS_BIOMETRIC_ENABLED_KEY] ?: false
+        }
+
     suspend fun setCurrency(currencyCode: String, symbol: String) {
         context.userPreferencesDataStore.edit { preferences ->
             preferences[CURRENCY_KEY] = currencyCode
@@ -79,6 +85,12 @@ class UserPreferences @Inject constructor(
             } else {
                 preferences.remove(DEFAULT_CATEGORY_ID_KEY)
             }
+        }
+    }
+
+    suspend fun setBiometricEnabled(enabled: Boolean) {
+        context.userPreferencesDataStore.edit { preferences ->
+            preferences[IS_BIOMETRIC_ENABLED_KEY] = enabled
         }
     }
 
