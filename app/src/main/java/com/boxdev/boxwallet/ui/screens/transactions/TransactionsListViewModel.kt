@@ -24,7 +24,8 @@ data class TransactionsFilterState(
     val categoryId: Long? = null,
     val startDate: LocalDate? = null,
     val endDate: LocalDate? = null,
-    val sortBy: SortBy = SortBy.DATE_DESC
+    val sortBy: SortBy = SortBy.DATE_DESC,
+    val showOnlyRecurrent: Boolean = false
 )
 
 data class TransactionsListUiState(
@@ -83,6 +84,11 @@ class TransactionsListViewModel @Inject constructor(
         applyFilters()
     }
 
+    fun updateRecurrentFilter(showOnlyRecurrent: Boolean) {
+        _uiState.value = _uiState.value.copy(filterState = _uiState.value.filterState.copy(showOnlyRecurrent = showOnlyRecurrent))
+        applyFilters()
+    }
+
     fun clearFilters() {
         _uiState.value = _uiState.value.copy(filterState = TransactionsFilterState())
         applyFilters()
@@ -113,6 +119,10 @@ class TransactionsListViewModel @Inject constructor(
                 (s.filterState.startDate?.let { start -> !it.date.isBefore(start) } ?: true) &&
                 (s.filterState.endDate?.let { end -> !it.date.isAfter(end) } ?: true)
             }
+        }
+
+        if (s.filterState.showOnlyRecurrent) {
+            filtered = filtered.filter { it.isRecurrent }
         }
 
         filtered = when (s.filterState.sortBy) {

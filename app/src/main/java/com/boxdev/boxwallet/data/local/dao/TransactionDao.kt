@@ -66,4 +66,10 @@ interface TransactionDao {
 
     @Query("DELETE FROM transactions")
     suspend fun deleteAll()
+
+    @Query("SELECT * FROM transactions WHERE isRecurrent = 1 AND loanId IS NULL ORDER BY date DESC")
+    fun getRecurrentTransactions(): Flow<List<TransactionEntity>>
+
+    @Query("SELECT * FROM transactions WHERE nextOccurrenceDate <= :currentDate AND isRecurrent = 1")
+    suspend fun getTransactionsDueForRecurrence(currentDate: Long): List<TransactionEntity>
 }

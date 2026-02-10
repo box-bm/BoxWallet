@@ -2,11 +2,11 @@
 
 package com.boxdev.boxwallet.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -57,6 +57,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.boxdev.boxwallet.domain.model.LoanType
+import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.ui.screens.loans.LoanFormViewModel
 import java.time.Instant
 import java.time.ZoneId
@@ -75,7 +77,9 @@ fun LoanSheet(
     var showDatePicker by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var categoryExpanded by remember { mutableStateOf(false) }
-    val dateFormatter = DateTimeFormatter.ofPattern("MMMM dd, yyyy")
+    var loanTypeExpanded by remember { mutableStateOf(false) }
+    var frequencyExpanded by remember { mutableStateOf(false) }
+    val dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy")
 
     LaunchedEffect(loanId) { viewModel.loadLoan(loanId) }
     LaunchedEffect(formState.isSaved) { if (formState.isSaved) onDismiss() }
@@ -84,20 +88,23 @@ fun LoanSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
     ) {
-        Column(modifier = Modifier
-            .fillMaxWidth()
-            .wrapContentHeight()
-            .padding(horizontal = 16.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight()
+                .padding(horizontal = 16.dp)
+        ) {
+            // Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp),
+                    .padding(bottom = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = if (formState.isEditing) "Edit Loan" else "New Loan",
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
                 if (formState.isEditing) {
@@ -118,10 +125,10 @@ fun LoanSheet(
             } else {
                 Column(
                     modifier = Modifier
-                        .weight(1f)
                         .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    // Loan name
                     OutlinedTextField(
                         value = formState.name,
                         onValueChange = { viewModel.updateName(it) },
@@ -131,150 +138,204 @@ fun LoanSheet(
                         singleLine = true
                     )
 
+                    // Description
                     OutlinedTextField(
                         value = formState.description,
                         onValueChange = { viewModel.updateDescription(it) },
                         label = { Text("Description (Optional)") },
                         modifier = Modifier.fillMaxWidth(),
-                        maxLines = 3
+                        singleLine = true
                     )
 
-                    OutlinedTextField(
-                        value = formState.totalAmount,
-                        onValueChange = { viewModel.updateTotalAmount(it) },
-                        label = { Text("Total Amount") },
-                        placeholder = { Text("0.00") },
-                        leadingIcon = {
-                            Text(
-                                formState.currency,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        isError = formState.error != null && formState.totalAmount.isEmpty()
-                    )
+                    // Amount + Installments side by side
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = formState.totalAmount,
+                            onValueChange = { viewModel.updateTotalAmount(it) },
+                            label = { Text("Total Amount") },
+                            placeholder = { Text("0.00") },
+                            leadingIcon = { Text(formState.currency, style = MaterialTheme.typography.bodyMedium) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                            isError = formState.error != null && formState.totalAmount.isEmpty()
+                        )
 
-                    OutlinedTextField(
-                        value = formState.installments,
-                        onValueChange = { viewModel.updateInstallments(it) },
-                        label = { Text("Number of Installments") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                        OutlinedTextField(
+                            value = formState.installments,
+                            onValueChange = { viewModel.updateInstallments(it) },
+                            label = { Text("Installments") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            modifier = Modifier.weight(0.7f)
+                        )
+                    }
 
+                    // Installment preview
                     formState.installmentAmount?.let { amount ->
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
                         ) {
                             Text(
-                                text = "Each installment: ${formState.currency} ${
-                                    "%.2f".format(
-                                        amount
-                                    )
-                                }",
+                                text = "Each installment: ${formState.currency} ${"%.2f".format(amount)} (${formState.frequency.getDisplayName()})",
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(16.dp),
+                                modifier = Modifier.padding(12.dp),
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
                     }
 
-                    OutlinedTextField(
-                        value = formState.startDate.format(dateFormatter),
-                        onValueChange = {},
-                        label = { Text("Start Date") },
-                        readOnly = true,
-                        trailingIcon = {
-                            IconButton(onClick = { showDatePicker = true }) {
-                                Icon(Icons.Default.CalendarMonth, contentDescription = null)
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    ExposedDropdownMenuBox(
-                        expanded = categoryExpanded,
-                        onExpandedChange = { categoryExpanded = it }
-                    ) {
+                    // Date + Category side by side
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedTextField(
-                            value = formState.categoryId?.let { id -> categories.find { it.id == id }?.name }
-                                ?: "None",
+                            value = formState.startDate.format(dateFormatter),
                             onValueChange = {},
+                            label = { Text("Start Date") },
                             readOnly = true,
-                            label = { Text("Category (Optional)") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                            trailingIcon = {
+                                IconButton(onClick = { showDatePicker = true }) {
+                                    Icon(Icons.Default.CalendarMonth, contentDescription = null)
+                                }
+                            },
+                            modifier = Modifier.weight(1f)
                         )
-                        ExposedDropdownMenu(
+
+                        ExposedDropdownMenuBox(
                             expanded = categoryExpanded,
-                            onDismissRequest = { categoryExpanded = false }
+                            onExpandedChange = { categoryExpanded = it },
+                            modifier = Modifier.weight(1f)
                         ) {
-                            DropdownMenuItem(
-                                text = { Text("None") },
-                                onClick = {
-                                    viewModel.updateCategory(null); categoryExpanded = false
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Default.Clear,
-                                        contentDescription = null
+                            OutlinedTextField(
+                                value = formState.categoryId?.let { id -> categories.find { it.id == id }?.name } ?: "None",
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Category") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
+                                modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                            )
+                            ExposedDropdownMenu(
+                                expanded = categoryExpanded,
+                                onDismissRequest = { categoryExpanded = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("None") },
+                                    onClick = { viewModel.updateCategory(null); categoryExpanded = false },
+                                    leadingIcon = { Icon(Icons.Default.Clear, contentDescription = null) }
+                                )
+                                categories.forEach { category ->
+                                    DropdownMenuItem(
+                                        text = { Text(category.name) },
+                                        onClick = { viewModel.updateCategory(category.id); categoryExpanded = false },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = com.boxdev.boxwallet.util.categoryIconVector(category.icon),
+                                                contentDescription = null
+                                            )
+                                        },
+                                        trailingIcon = {
+                                            if (formState.categoryId == category.id) {
+                                                Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                            }
+                                        }
                                     )
                                 }
-                            )
-                            categories.forEach { category ->
-                                DropdownMenuItem(
-                                    text = { Text(category.name) },
-                                    onClick = {
-                                        viewModel.updateCategory(category.id); categoryExpanded =
-                                        false
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = com.boxdev.boxwallet.util.categoryIconVector(
-                                                category.icon
-                                            ),
-                                            contentDescription = null
-                                        )
-                                    },
-                                    trailingIcon = {
-                                        if (formState.categoryId == category.id) {
-                                            Icon(
-                                                Icons.Default.Check,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary
-                                            )
-                                        }
-                                    }
-                                )
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    // Loan Type + Frequency side by side
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ExposedDropdownMenuBox(
+                            expanded = loanTypeExpanded,
+                            onExpandedChange = { loanTypeExpanded = it },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            OutlinedTextField(
+                                value = formState.loanType.name.lowercase().replaceFirstChar { it.uppercase() },
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Type") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = loanTypeExpanded) },
+                                modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                            )
+                            ExposedDropdownMenu(
+                                expanded = loanTypeExpanded,
+                                onDismissRequest = { loanTypeExpanded = false }
+                            ) {
+                                LoanType.entries.forEach { type ->
+                                    DropdownMenuItem(
+                                        text = { Text(type.name.lowercase().replaceFirstChar { it.uppercase() }) },
+                                        onClick = { viewModel.updateLoanType(type); loanTypeExpanded = false },
+                                        trailingIcon = {
+                                            if (formState.loanType == type) {
+                                                Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        ExposedDropdownMenuBox(
+                            expanded = frequencyExpanded,
+                            onExpandedChange = { frequencyExpanded = it },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            OutlinedTextField(
+                                value = formState.frequency.getDisplayName(),
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Frequency") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = frequencyExpanded) },
+                                modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                            )
+                            ExposedDropdownMenu(
+                                expanded = frequencyExpanded,
+                                onDismissRequest = { frequencyExpanded = false }
+                            ) {
+                                RecurrenceFrequency.entries.forEach { freq ->
+                                    DropdownMenuItem(
+                                        text = { Text(freq.getDisplayName()) },
+                                        onClick = { viewModel.updateFrequency(freq); frequencyExpanded = false },
+                                        trailingIcon = {
+                                            if (formState.frequency == freq) {
+                                                Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Custom interval (only when CUSTOM_MONTHS)
+                    AnimatedVisibility(visible = formState.frequency == RecurrenceFrequency.CUSTOM_MONTHS) {
+                        OutlinedTextField(
+                            value = formState.frequencyInterval,
+                            onValueChange = { viewModel.updateFrequencyInterval(it) },
+                            label = { Text("Every N months") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
 
+                // Buttons pinned at bottom
                 Column(
-                    modifier = Modifier.padding(vertical = 16.dp),
+                    modifier = Modifier.padding(vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
                         onClick = { viewModel.save() },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(56.dp),
+                            .height(48.dp),
                         enabled = formState.isValid
                     ) {
-                        Text(
-                            if (formState.isEditing) "Update" else "Create Loan",
-                            style = MaterialTheme.typography.titleMedium
-                        )
+                        Text(if (formState.isEditing) "Update" else "Create Loan")
                     }
                     if (formState.isEditing) {
                         OutlinedButton(
@@ -282,11 +343,7 @@ fun LoanSheet(
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
                         ) {
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = null,
-                                modifier = Modifier.padding(end = 8.dp)
-                            )
+                            Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
                             Text("Delete Loan")
                         }
                     }
@@ -305,11 +362,7 @@ fun LoanSheet(
             confirmButton = {
                 TextButton(onClick = {
                     state.selectedDateMillis?.let {
-                        viewModel.updateStartDate(
-                            Instant.ofEpochMilli(
-                                it
-                            ).atZone(ZoneId.systemDefault()).toLocalDate()
-                        )
+                        viewModel.updateStartDate(Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate())
                     }
                     showDatePicker = false
                 }) { Text("OK") }
@@ -328,11 +381,7 @@ fun LoanSheet(
                     Text("Delete", color = MaterialTheme.colorScheme.error)
                 }
             },
-            dismissButton = {
-                TextButton(onClick = {
-                    showDeleteDialog = false
-                }) { Text("Cancel") }
-            }
+            dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") } }
         )
     }
 }

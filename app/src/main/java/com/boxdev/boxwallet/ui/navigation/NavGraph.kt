@@ -68,7 +68,15 @@ fun NavGraph(
                 onNavigateToAnalytics = { navController.navigate(NavRoutes.Analytics.route) },
                 onNavigateToSettings = { navController.navigate(NavRoutes.Settings.route) },
                 onSeeAllTransactions = { navController.navigate(NavRoutes.TransactionsList.route) },
-                onSeeAllLoans = { navController.navigate(NavRoutes.Loans.route) },
+                onSeeAllLoans = {
+                    navController.navigate(NavRoutes.Loans.route) {
+                        popUpTo(navController.graph.startDestinationId) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
                 onNavigateToLoanDetail = { loanId ->
                     navController.navigate(
                         NavRoutes.LoanDetail.createRoute(

@@ -7,6 +7,7 @@ import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.TransactionRepository
 import com.boxdev.boxwallet.domain.model.Category
+import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.domain.model.Transaction
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,13 +30,19 @@ data class TransactionFormState(
     val hasReminder: Boolean = false,
     val reminderDate: LocalDate? = null,
     val currency: String = "USD",
+    val isRecurrent: Boolean = false,
+    val recurrenceFrequency: RecurrenceFrequency? = null,
+    val recurrenceInterval: String = "1",
     val isEditing: Boolean = false,
     val isLoading: Boolean = false,
     val isSaved: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val wasCleared: Boolean = false
 ) {
     val isValid: Boolean
-        get() = amount.toDoubleOrNull()?.let { it > 0 } == true
+        get() = amount.toDoubleOrNull()?.let { it > 0 } == true &&
+                (!isRecurrent || recurrenceFrequency != null) &&
+                (!isRecurrent || recurrenceFrequency != RecurrenceFrequency.CUSTOM_MONTHS || (recurrenceInterval.toIntOrNull() ?: 0) > 0)
 }
 
 @HiltViewModel
@@ -81,8 +88,12 @@ class TransactionFormViewModel @Inject constructor(
                     hasReminder = t.hasReminder,
                     reminderDate = t.reminderDate,
                     currency = t.currency,
+                    isRecurrent = t.isRecurrent,
+                    recurrenceFrequency = t.recurrenceFrequency,
+                    recurrenceInterval = t.recurrenceInterval?.toString() ?: "1",
                     isEditing = true,
-                    isLoading = false
+                    isLoading = false,
+                    wasCleared = t.isCleared
                 )
             } else {
                 _formState.update { it.copy(isLoading = false, error = "Transaction not found") }
@@ -103,6 +114,18 @@ class TransactionFormViewModel @Inject constructor(
     fun updateIsCleared(value: Boolean) = _formState.update { it.copy(isCleared = value) }
     fun updateHasReminder(value: Boolean) = _formState.update { it.copy(hasReminder = value, reminderDate = if (value) LocalDate.now() else null) }
     fun updateReminderDate(value: LocalDate?) = _formState.update { it.copy(reminderDate = value) }
+    fun updateIsRecurrent(value: Boolean) = _formState.update {
+        it.copy(
+            isRecurrent = value,
+            recurrenceFrequency = if (value && it.recurrenceFrequency == null) RecurrenceFrequency.MONTHLY else it.recurrenceFrequency
+        )
+    }
+    fun updateRecurrenceFrequency(freq: RecurrenceFrequency) = _formState.update { it.copy(recurrenceFrequency = freq) }
+    fun updateRecurrenceInterval(value: String) {
+        if (value.isEmpty() || value.matches(Regex("^\\d+$"))) {
+            _formState.update { it.copy(recurrenceInterval = value, error = null) }
+        }
+    }
 
     fun save() {
         val s = _formState.value
@@ -113,6 +136,19 @@ class TransactionFormViewModel @Inject constructor(
         viewModelScope.launch {
             _formState.update { it.copy(isLoading = true) }
             try {
+                // Calculate next occurrence date if recurrent
+                val nextOccurrenceDate = if (s.isRecurrent && s.recurrenceFrequency != null) {
+                    val interval = s.recurrenceInterval.toIntOrNull() ?: 1
+                    when (s.recurrenceFrequency) {
+                        RecurrenceFrequency.DAILY -> s.date.plusDays(interval.toLong())
+                        RecurrenceFrequency.WEEKLY -> s.date.plusWeeks(interval.toLong())
+                        RecurrenceFrequency.BIWEEKLY -> s.date.plusWeeks(2)
+                        RecurrenceFrequency.MONTHLY -> s.date.plusMonths(1)
+                        RecurrenceFrequency.YEARLY -> s.date.plusYears(1)
+                        RecurrenceFrequency.CUSTOM_MONTHS -> s.date.plusMonths(interval.toLong())
+                    }
+                } else null
+
                 val transaction = Transaction(
                     id = if (s.isEditing) s.id else 0,
                     amount = s.amount.toDouble(),
@@ -123,10 +159,23 @@ class TransactionFormViewModel @Inject constructor(
                     isCleared = s.isCleared,
                     hasReminder = s.hasReminder,
                     reminderDate = s.reminderDate,
-                    categoryId = s.categoryId
+                    categoryId = s.categoryId,
+                    isRecurrent = s.isRecurrent,
+                    recurrenceFrequency = s.recurrenceFrequency,
+                    recurrenceInterval = s.recurrenceInterval.toIntOrNull(),
+                    nextOccurrenceDate = nextOccurrenceDate
                 )
-                if (s.isEditing) transactionRepository.updateTransaction(transaction)
-                else transactionRepository.insertTransaction(transaction)
+
+                if (s.isEditing) {
+                    transactionRepository.updateTransaction(transaction)
+                    // If marking a recurrent transaction as cleared, create next instance
+                    if (transaction.isRecurrent && transaction.isCleared && !s.wasCleared) {
+                        transactionRepository.createNextRecurrence(transaction)
+                    }
+                } else {
+                    transactionRepository.insertTransaction(transaction)
+                }
+
                 _formState.update { it.copy(isLoading = false, isSaved = true) }
             } catch (e: Exception) {
                 _formState.update { it.copy(isLoading = false, error = e.message ?: "Error saving") }

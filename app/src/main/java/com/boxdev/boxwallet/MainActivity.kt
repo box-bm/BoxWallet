@@ -18,6 +18,7 @@ import com.boxdev.boxwallet.data.datastore.ThemeSettings
 import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.ui.LockScreen
 import com.boxdev.boxwallet.ui.navigation.NavigationTab
+import com.boxdev.boxwallet.ui.screens.onboarding.OnboardingScreen
 import com.boxdev.boxwallet.ui.theme.BoxWalletTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -40,15 +41,18 @@ class MainActivity : FragmentActivity() {
         setContent {
             val themeSettings by themePreferences.themeSettings.collectAsState(initial = ThemeSettings())
             val isBiometricEnabled by userPreferences.isBiometricEnabled.collectAsState(initial = false)
+            val isFirstLaunch by userPreferences.isFirstLaunch.collectAsState(initial = false)
 
             BoxWalletTheme(themeSettings = themeSettings) {
-                if (isBiometricEnabled && !isAuthenticated) {
-                    LockScreen(
+                when {
+                    isFirstLaunch -> OnboardingScreen(
+                        onComplete = { /* State updates automatically via DataStore flow */ }
+                    )
+                    isBiometricEnabled && !isAuthenticated -> LockScreen(
                         onUnlockClick = { showBiometricPrompt() },
                         errorMessage = authError
                     )
-                } else {
-                    NavigationTab(modifier = Modifier.fillMaxSize())
+                    else -> NavigationTab(modifier = Modifier.fillMaxSize())
                 }
             }
         }

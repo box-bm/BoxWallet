@@ -14,7 +14,10 @@ data class Loan(
     val categoryId: Long? = null,
     val startDate: LocalDate,
     val paidInstallments: Int = 0,
-    val nextDueDate: LocalDate? = null
+    val nextDueDate: LocalDate? = null,
+    val loanType: LoanType = LoanType.EXPENSE,
+    val frequency: RecurrenceFrequency = RecurrenceFrequency.MONTHLY,
+    val frequencyInterval: Int = 1
 ) {
     val installmentAmount: Double get() = if (totalInstallments > 0) totalAmount / totalInstallments else 0.0
     val remainingInstallments: Int get() = totalInstallments - paidInstallments
@@ -32,7 +35,10 @@ fun LoanEntity.toDomain(paidInstallments: Int = 0, nextDueDate: LocalDate? = nul
     categoryId = categoryId,
     startDate = LocalDate.ofEpochDay(startDate / (24 * 60 * 60 * 1000)),
     paidInstallments = paidInstallments,
-    nextDueDate = nextDueDate
+    nextDueDate = nextDueDate,
+    loanType = LoanType.valueOf(loanType),
+    frequency = RecurrenceFrequency.valueOf(frequency),
+    frequencyInterval = frequencyInterval
 )
 
 fun Loan.toEntity(): LoanEntity = LoanEntity(
@@ -43,5 +49,8 @@ fun Loan.toEntity(): LoanEntity = LoanEntity(
     currency = currency,
     totalInstallments = totalInstallments,
     categoryId = categoryId,
-    startDate = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+    startDate = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+    loanType = loanType.name,
+    frequency = frequency.name,
+    frequencyInterval = frequencyInterval
 )

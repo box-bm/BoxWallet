@@ -7,6 +7,8 @@ import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.LoanRepository
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Loan
+import com.boxdev.boxwallet.domain.model.LoanType
+import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,6 +28,9 @@ data class LoanFormState(
     val startDate: LocalDate = LocalDate.now(),
     val categoryId: Long? = null,
     val currency: String = "USD",
+    val loanType: LoanType = LoanType.EXPENSE,
+    val frequency: RecurrenceFrequency = RecurrenceFrequency.MONTHLY,
+    val frequencyInterval: String = "1",
     val isEditing: Boolean = false,
     val isLoading: Boolean = false,
     val isSaved: Boolean = false,
@@ -41,7 +46,8 @@ data class LoanFormState(
     val isValid: Boolean
         get() = name.isNotBlank() &&
                 totalAmount.toDoubleOrNull()?.let { it > 0 } == true &&
-                (installments.toIntOrNull() ?: 0) > 0
+                (installments.toIntOrNull() ?: 0) > 0 &&
+                (frequency != RecurrenceFrequency.CUSTOM_MONTHS || (frequencyInterval.toIntOrNull() ?: 0) > 0)
 }
 
 @HiltViewModel
@@ -85,6 +91,9 @@ class LoanFormViewModel @Inject constructor(
                     startDate = loan.startDate,
                     categoryId = loan.categoryId,
                     currency = loan.currency,
+                    loanType = loan.loanType,
+                    frequency = loan.frequency,
+                    frequencyInterval = loan.frequencyInterval.toString(),
                     isEditing = true,
                     isLoading = false
                 )
@@ -108,6 +117,13 @@ class LoanFormViewModel @Inject constructor(
     }
     fun updateStartDate(value: LocalDate) = _formState.update { it.copy(startDate = value) }
     fun updateCategory(id: Long?) = _formState.update { it.copy(categoryId = id) }
+    fun updateLoanType(type: LoanType) = _formState.update { it.copy(loanType = type) }
+    fun updateFrequency(freq: RecurrenceFrequency) = _formState.update { it.copy(frequency = freq) }
+    fun updateFrequencyInterval(value: String) {
+        if (value.isEmpty() || value.matches(Regex("^\\d+$"))) {
+            _formState.update { it.copy(frequencyInterval = value, error = null) }
+        }
+    }
 
     fun save() {
         val s = _formState.value
@@ -126,7 +142,10 @@ class LoanFormViewModel @Inject constructor(
                     currency = s.currency,
                     totalInstallments = s.installments.toInt(),
                     categoryId = s.categoryId,
-                    startDate = s.startDate
+                    startDate = s.startDate,
+                    loanType = s.loanType,
+                    frequency = s.frequency,
+                    frequencyInterval = s.frequencyInterval.toIntOrNull() ?: 1
                 )
                 if (s.isEditing) loanRepository.updateLoan(loan)
                 else loanRepository.insertLoanWithInstallments(loan)

@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -185,7 +186,7 @@ fun TransactionsListScreen(
                             }
                         }
 
-                        Column() {
+                        Column {
                             Text("Sort", style = MaterialTheme.typography.labelMedium)
                             SingleChoiceSegmentedButtonRow(
                                 modifier = Modifier.fillMaxWidth()
@@ -210,6 +211,12 @@ fun TransactionsListScreen(
                                 )
                             }
                         }
+
+                        FilterChip(
+                            selected = uiState.filterState.showOnlyRecurrent,
+                            onClick = { viewModel.updateRecurrentFilter(!uiState.filterState.showOnlyRecurrent) },
+                            label = { Text("Recurring Only") }
+                        )
                     }
                 }
             }

@@ -13,5 +13,8 @@ data class LoanEntity(
     val currency: String,
     val totalInstallments: Int,
     val categoryId: Long? = null,
-    val startDate: Long
+    val startDate: Long,
+    val loanType: String = "EXPENSE",
+    val frequency: String = "MONTHLY",
+    val frequencyInterval: Int = 1
 )

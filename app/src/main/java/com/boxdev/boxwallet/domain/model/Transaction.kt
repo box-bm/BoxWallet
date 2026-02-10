@@ -17,7 +17,12 @@ data class Transaction(
     val reminderDate: LocalDate? = null,
     val categoryId: Long? = null,
     val loanId: Long? = null,
-    val installmentNumber: Int? = null
+    val installmentNumber: Int? = null,
+    val isRecurrent: Boolean = false,
+    val recurrenceFrequency: RecurrenceFrequency? = null,
+    val recurrenceInterval: Int? = null,
+    val nextOccurrenceDate: LocalDate? = null,
+    val parentRecurrenceId: Long? = null
 )
 
 fun TransactionEntity.toDomain(): Transaction = Transaction(
@@ -32,7 +37,12 @@ fun TransactionEntity.toDomain(): Transaction = Transaction(
     reminderDate = reminderDate?.let { LocalDate.ofEpochDay(it / (24 * 60 * 60 * 1000)) },
     categoryId = categoryId,
     loanId = loanId,
-    installmentNumber = installmentNumber
+    installmentNumber = installmentNumber,
+    isRecurrent = isRecurrent,
+    recurrenceFrequency = recurrenceFrequency?.let { RecurrenceFrequency.valueOf(it) },
+    recurrenceInterval = recurrenceInterval,
+    nextOccurrenceDate = nextOccurrenceDate?.let { LocalDate.ofEpochDay(it / (24 * 60 * 60 * 1000)) },
+    parentRecurrenceId = parentRecurrenceId
 )
 
 fun Transaction.toEntity(): TransactionEntity = TransactionEntity(
@@ -47,5 +57,10 @@ fun Transaction.toEntity(): TransactionEntity = TransactionEntity(
     reminderDate = reminderDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli(),
     categoryId = categoryId,
     loanId = loanId,
-    installmentNumber = installmentNumber
+    installmentNumber = installmentNumber,
+    isRecurrent = isRecurrent,
+    recurrenceFrequency = recurrenceFrequency?.name,
+    recurrenceInterval = recurrenceInterval,
+    nextOccurrenceDate = nextOccurrenceDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli(),
+    parentRecurrenceId = parentRecurrenceId
 )

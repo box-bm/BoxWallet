@@ -3,6 +3,7 @@ package com.boxdev.boxwallet.data.repository
 import com.boxdev.boxwallet.data.local.dao.TransactionDao
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 import com.boxdev.boxwallet.domain.model.FinancialSummary
+import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.domain.model.toDomain
 import com.boxdev.boxwallet.domain.model.toEntity
@@ -77,4 +78,45 @@ class TransactionRepository @Inject constructor(
         transactionDao.getInstallmentsByLoanIdFlow(loanId).map { it.map { e -> e.toDomain() } }
 
     suspend fun getAllTransactionsSync() = transactionDao.getAllTransactionsSync()
+
+    fun getRecurrentTransactions(): Flow<List<Transaction>> =
+        transactionDao.getRecurrentTransactions().map { it.map { e -> e.toDomain() } }
+
+    suspend fun createNextRecurrence(transaction: Transaction) {
+        require(transaction.isRecurrent) { "Transaction must be recurrent" }
+        require(transaction.recurrenceFrequency != null) { "Recurrence frequency must be set" }
+
+        val nextDate = calculateNextOccurrence(
+            transaction.date,
+            transaction.recurrenceFrequency!!,
+            transaction.recurrenceInterval ?: 1
+        )
+
+        val nextTransaction = transaction.copy(
+            id = 0, // Auto-generate new ID
+            date = nextDate,
+            isCleared = false,
+            nextOccurrenceDate = calculateNextOccurrence(
+                nextDate,
+                transaction.recurrenceFrequency!!,
+                transaction.recurrenceInterval ?: 1
+            ),
+            parentRecurrenceId = if (transaction.parentRecurrenceId != null) transaction.parentRecurrenceId else transaction.id
+        )
+
+        transactionDao.insert(nextTransaction.toEntity())
+    }
+
+    private fun calculateNextOccurrence(
+        currentDate: LocalDate,
+        frequency: RecurrenceFrequency,
+        interval: Int
+    ): LocalDate = when (frequency) {
+        RecurrenceFrequency.DAILY -> currentDate.plusDays(interval.toLong())
+        RecurrenceFrequency.WEEKLY -> currentDate.plusWeeks(interval.toLong())
+        RecurrenceFrequency.BIWEEKLY -> currentDate.plusWeeks(2)
+        RecurrenceFrequency.MONTHLY -> currentDate.plusMonths(1)
+        RecurrenceFrequency.YEARLY -> currentDate.plusYears(1)
+        RecurrenceFrequency.CUSTOM_MONTHS -> currentDate.plusMonths(interval.toLong())
+    }
 }

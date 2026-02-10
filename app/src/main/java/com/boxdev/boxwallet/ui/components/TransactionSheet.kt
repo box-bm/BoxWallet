@@ -2,6 +2,7 @@
 
 package com.boxdev.boxwallet.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,7 +24,6 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenuItem
@@ -32,6 +32,7 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
@@ -60,6 +61,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.boxdev.boxwallet.data.local.entity.TransactionType
+import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.ui.screens.transaction.TransactionFormViewModel
 import com.boxdev.boxwallet.util.categoryIconVector
 import com.boxdev.boxwallet.util.toCurrencySymbol
@@ -82,7 +84,8 @@ fun TransactionSheet(
     var showReminderDatePicker by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var categoryExpanded by remember { mutableStateOf(false) }
-    val dateFormatter = DateTimeFormatter.ofPattern("MMMM dd, yyyy")
+    var frequencyExpanded by remember { mutableStateOf(false) }
+    val dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy")
 
     LaunchedEffect(transactionId) { viewModel.loadTransaction(transactionId) }
     LaunchedEffect(formState.isSaved) { if (formState.isSaved) onDismiss() }
@@ -97,16 +100,17 @@ fun TransactionSheet(
                 .wrapContentHeight()
                 .padding(horizontal = 16.dp)
         ) {
+            // Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp),
+                    .padding(bottom = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = if (formState.isEditing) "Edit Transaction" else "New Transaction",
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
                 if (formState.isEditing) {
@@ -128,181 +132,117 @@ fun TransactionSheet(
                 Column(
                     modifier = Modifier
                         .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    SingleChoiceSegmentedButtonRow(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
+                    // Type selector
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                         SegmentedButton(
                             selected = formState.type == TransactionType.EXPENSE,
                             onClick = { viewModel.updateType(TransactionType.EXPENSE) },
-                            label = {
-                                Text("Expense")
-                            },
-                            icon = {
-                                Icon(
-                                    Icons.AutoMirrored.Default.TrendingDown,
-                                    contentDescription = "Expense icon"
-                                )
-                            },
+                            label = { Text("Expense") },
+                            icon = { Icon(Icons.AutoMirrored.Default.TrendingDown, contentDescription = null) },
                             shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
                         )
                         SegmentedButton(
                             selected = formState.type == TransactionType.INCOME,
                             onClick = { viewModel.updateType(TransactionType.INCOME) },
-                            label = {
-                                Text("Income")
-                            },
-                            icon = {
-                                Icon(
-                                    Icons.AutoMirrored.Default.TrendingUp,
-                                    contentDescription = "Income Icon"
-                                )
-                            },
+                            label = { Text("Income") },
+                            icon = { Icon(Icons.AutoMirrored.Default.TrendingUp, contentDescription = null) },
                             shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
                         )
                     }
 
+                    // Amount
                     OutlinedTextField(
                         value = formState.amount,
                         onValueChange = { viewModel.updateAmount(it) },
                         label = { Text("Amount") },
                         placeholder = { Text("0.00") },
-                        prefix = {
-                            Text(
-                                formState.currency.toCurrencySymbol(),
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        },
+                        prefix = { Text(formState.currency.toCurrencySymbol(), style = MaterialTheme.typography.bodyLarge) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                         isError = formState.error != null && formState.amount.isEmpty()
                     )
 
+                    // Description
                     OutlinedTextField(
                         value = formState.description,
                         onValueChange = { viewModel.updateDescription(it) },
                         label = { Text("Description") },
                         placeholder = { Text("Enter a description") },
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = false,
+                        singleLine = true,
                     )
-                    ExposedDropdownMenuBox(
-                        expanded = categoryExpanded,
-                        onExpandedChange = { categoryExpanded = it }
-                    ) {
-                        OutlinedTextField(
-                            value = formState.categoryId?.let { id -> categories.find { it.id == id }?.name }
-                                ?: "None",
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Category (Optional)") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                        )
-                        ExposedDropdownMenu(
+
+                    // Category + Date side by side
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ExposedDropdownMenuBox(
                             expanded = categoryExpanded,
-                            onDismissRequest = { categoryExpanded = false }
+                            onExpandedChange = { categoryExpanded = it },
+                            modifier = Modifier.weight(1f)
                         ) {
-                            DropdownMenuItem(
-                                text = { Text("None") },
-                                onClick = {
-                                    viewModel.updateCategory(null); categoryExpanded = false
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Default.Clear,
-                                        contentDescription = null
+                            OutlinedTextField(
+                                value = formState.categoryId?.let { id -> categories.find { it.id == id }?.name } ?: "None",
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Category") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
+                                modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                            )
+                            ExposedDropdownMenu(
+                                expanded = categoryExpanded,
+                                onDismissRequest = { categoryExpanded = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("None") },
+                                    onClick = { viewModel.updateCategory(null); categoryExpanded = false },
+                                    leadingIcon = { Icon(Icons.Default.Clear, contentDescription = null) }
+                                )
+                                categories.forEach { category ->
+                                    DropdownMenuItem(
+                                        text = { Text(category.name) },
+                                        onClick = { viewModel.updateCategory(category.id); categoryExpanded = false },
+                                        leadingIcon = { Icon(imageVector = categoryIconVector(category.icon), contentDescription = null) },
+                                        trailingIcon = {
+                                            if (formState.categoryId == category.id) {
+                                                Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                            }
+                                        }
                                     )
                                 }
-                            )
-                            categories.forEach { category ->
-                                DropdownMenuItem(
-                                    text = { Text(category.name) },
-                                    onClick = {
-                                        viewModel.updateCategory(category.id); categoryExpanded =
-                                        false
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = categoryIconVector(category.icon),
-                                            contentDescription = null
-                                        )
-                                    },
-                                    trailingIcon = {
-                                        if (formState.categoryId == category.id) {
-                                            Icon(
-                                                Icons.Default.Check,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary
-                                            )
-                                        }
-                                    }
-                                )
                             }
                         }
+
+                        OutlinedTextField(
+                            value = formState.date.format(dateFormatter),
+                            onValueChange = {},
+                            label = { Text("Date") },
+                            readOnly = true,
+                            trailingIcon = {
+                                IconButton(onClick = { showDatePicker = true }) {
+                                    Icon(Icons.Default.CalendarMonth, contentDescription = null)
+                                }
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
                     }
 
-
-                    OutlinedTextField(
-                        value = formState.date.format(dateFormatter),
-                        onValueChange = {
-                        },
-                        label = { Text("Date") },
-                        trailingIcon = {
-                            IconButton(onClick = { showDatePicker = true }) {
-                                Icon(Icons.Default.CalendarMonth, contentDescription = null)
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth()
+                    // Options card — Cleared, Reminder, Recurring in one compact card
+                    CompactToggleRow(
+                        label = "Cleared",
+                        checked = formState.isCleared,
+                        onCheckedChange = { viewModel.updateIsCleared(it) }
                     )
 
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text("Cleared", style = MaterialTheme.typography.titleMedium)
-                                Text(
-                                    "Mark as reconciled",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Switch(
-                                checked = formState.isCleared,
-                                onCheckedChange = { viewModel.updateIsCleared(it) })
-                        }
-                    }
-
-                    if (!formState.isCleared)
-                        Card(modifier = Modifier.fillMaxWidth()) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
-                                    Text("Reminder", style = MaterialTheme.typography.titleMedium)
-                                    Text(
-                                        "Get notified", style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Switch(
-                                    checked = formState.hasReminder,
-                                    onCheckedChange = { viewModel.updateHasReminder(it) })
-                            }
-                            if (formState.hasReminder) {
+                    AnimatedVisibility(visible = !formState.isCleared) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            CompactToggleRow(
+                                label = "Reminder",
+                                checked = formState.hasReminder,
+                                onCheckedChange = { viewModel.updateHasReminder(it) }
+                            )
+                            AnimatedVisibility(visible = formState.hasReminder) {
                                 OutlinedTextField(
                                     value = formState.reminderDate?.format(dateFormatter) ?: "",
                                     onValueChange = {},
@@ -310,37 +250,81 @@ fun TransactionSheet(
                                     readOnly = true,
                                     trailingIcon = {
                                         IconButton(onClick = { showReminderDatePicker = true }) {
-                                            Icon(
-                                                Icons.Default.CalendarMonth,
-                                                contentDescription = null
-                                            )
+                                            Icon(Icons.Default.CalendarMonth, contentDescription = null)
                                         }
                                     },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 16.dp)
-                                        .padding(bottom = 16.dp)
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                             }
                         }
+                    }
+
+                    HorizontalDivider()
+
+                    CompactToggleRow(
+                        label = "Recurring",
+                        checked = formState.isRecurrent,
+                        onCheckedChange = { viewModel.updateIsRecurrent(it) }
+                    )
+
+                    AnimatedVisibility(visible = formState.isRecurrent) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            ExposedDropdownMenuBox(
+                                expanded = frequencyExpanded,
+                                onExpandedChange = { frequencyExpanded = it }
+                            ) {
+                                OutlinedTextField(
+                                    value = formState.recurrenceFrequency?.getDisplayName() ?: "Select frequency",
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text("Frequency") },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = frequencyExpanded) },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = frequencyExpanded,
+                                    onDismissRequest = { frequencyExpanded = false }
+                                ) {
+                                    RecurrenceFrequency.entries.forEach { freq ->
+                                        DropdownMenuItem(
+                                            text = { Text(freq.getDisplayName()) },
+                                            onClick = { viewModel.updateRecurrenceFrequency(freq); frequencyExpanded = false },
+                                            trailingIcon = {
+                                                if (formState.recurrenceFrequency == freq) {
+                                                    Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            AnimatedVisibility(visible = formState.recurrenceFrequency == RecurrenceFrequency.CUSTOM_MONTHS) {
+                                OutlinedTextField(
+                                    value = formState.recurrenceInterval,
+                                    onValueChange = { viewModel.updateRecurrenceInterval(it) },
+                                    label = { Text("Every N months") },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+                    }
                 }
 
-                Column(
-                    modifier = Modifier.padding(vertical = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                // Save button pinned at bottom
+                Button(
+                    onClick = { viewModel.save() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp)
+                        .height(48.dp),
+                    enabled = formState.isValid
                 ) {
-                    Button(
-                        onClick = { viewModel.save() },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp),
-                        enabled = formState.isValid
-                    ) {
-                        Text(
-                            if (formState.isEditing) "Update" else "Save",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                    }
+                    Text(if (formState.isEditing) "Update" else "Save")
                 }
             }
         }
@@ -356,9 +340,7 @@ fun TransactionSheet(
             confirmButton = {
                 TextButton(onClick = {
                     state.selectedDateMillis?.let {
-                        viewModel.updateDate(
-                            Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
-                        )
+                        viewModel.updateDate(Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate())
                     }
                     showDatePicker = false
                 }) { Text("OK") }
@@ -377,20 +359,12 @@ fun TransactionSheet(
             confirmButton = {
                 TextButton(onClick = {
                     state.selectedDateMillis?.let {
-                        viewModel.updateReminderDate(
-                            Instant.ofEpochMilli(
-                                it
-                            ).atZone(ZoneId.systemDefault()).toLocalDate()
-                        )
+                        viewModel.updateReminderDate(Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate())
                     }
                     showReminderDatePicker = false
                 }) { Text("OK") }
             },
-            dismissButton = {
-                TextButton(onClick = {
-                    showReminderDatePicker = false
-                }) { Text("Cancel") }
-            }
+            dismissButton = { TextButton(onClick = { showReminderDatePicker = false }) { Text("Cancel") } }
         ) { DatePicker(state = state) }
     }
 
@@ -404,11 +378,23 @@ fun TransactionSheet(
                     Text("Delete", color = MaterialTheme.colorScheme.error)
                 }
             },
-            dismissButton = {
-                TextButton(onClick = {
-                    showDeleteDialog = false
-                }) { Text("Cancel") }
-            }
+            dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") } }
         )
+    }
+}
+
+@Composable
+private fun CompactToggleRow(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyLarge)
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }

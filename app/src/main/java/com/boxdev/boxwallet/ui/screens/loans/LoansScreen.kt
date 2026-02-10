@@ -2,12 +2,14 @@
 
 package com.boxdev.boxwallet.ui.screens.loans
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,9 +27,19 @@ fun LoansScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showLoanSheet by remember { mutableStateOf(false) }
+    var showFilters by remember { mutableStateOf(false) }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Loans") }) },
+        topBar = {
+            TopAppBar(
+                title = { Text("Loans") },
+                actions = {
+                    IconButton(onClick = { showFilters = !showFilters }) {
+                        Icon(Icons.Default.FilterList, contentDescription = "Filter")
+                    }
+                }
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = { showLoanSheet = true }) {
                 Icon(Icons.Default.Add, contentDescription = "Add Loan")
@@ -66,7 +78,80 @@ fun LoansScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(uiState.loans, key = { it.id }) { loan ->
+                item {
+                    AnimatedVisibility(visible = showFilters) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Text("Status", style = MaterialTheme.typography.titleSmall)
+                                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                                    SegmentedButton(
+                                        selected = uiState.filterState.statusFilter == LoanStatusFilter.ALL,
+                                        onClick = { viewModel.updateStatusFilter(LoanStatusFilter.ALL) },
+                                        label = { Text("All") },
+                                        shape = SegmentedButtonDefaults.itemShape(0, 3)
+                                    )
+                                    SegmentedButton(
+                                        selected = uiState.filterState.statusFilter == LoanStatusFilter.CURRENT,
+                                        onClick = { viewModel.updateStatusFilter(LoanStatusFilter.CURRENT) },
+                                        label = { Text("Current") },
+                                        shape = SegmentedButtonDefaults.itemShape(1, 3)
+                                    )
+                                    SegmentedButton(
+                                        selected = uiState.filterState.statusFilter == LoanStatusFilter.CLOSED,
+                                        onClick = { viewModel.updateStatusFilter(LoanStatusFilter.CLOSED) },
+                                        label = { Text("Closed") },
+                                        shape = SegmentedButtonDefaults.itemShape(2, 3)
+                                    )
+                                }
+
+                                Text("Sort By", style = MaterialTheme.typography.titleSmall)
+                                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                                    SegmentedButton(
+                                        selected = uiState.filterState.sortBy == LoanSortBy.DATE_DESC,
+                                        onClick = { viewModel.updateSortBy(LoanSortBy.DATE_DESC) },
+                                        label = { Text("Latest") },
+                                        shape = SegmentedButtonDefaults.itemShape(0, 4)
+                                    )
+                                    SegmentedButton(
+                                        selected = uiState.filterState.sortBy == LoanSortBy.DATE_ASC,
+                                        onClick = { viewModel.updateSortBy(LoanSortBy.DATE_ASC) },
+                                        label = { Text("Oldest") },
+                                        shape = SegmentedButtonDefaults.itemShape(1, 4)
+                                    )
+                                    SegmentedButton(
+                                        selected = uiState.filterState.sortBy == LoanSortBy.AMOUNT_DESC,
+                                        onClick = { viewModel.updateSortBy(LoanSortBy.AMOUNT_DESC) },
+                                        label = { Text("Highest") },
+                                        shape = SegmentedButtonDefaults.itemShape(2, 4)
+                                    )
+                                    SegmentedButton(
+                                        selected = uiState.filterState.sortBy == LoanSortBy.AMOUNT_ASC,
+                                        onClick = { viewModel.updateSortBy(LoanSortBy.AMOUNT_ASC) },
+                                        label = { Text("Lowest") },
+                                        shape = SegmentedButtonDefaults.itemShape(3, 4)
+                                    )
+                                }
+
+                                TextButton(
+                                    onClick = { viewModel.clearFilters() },
+                                    modifier = Modifier.align(Alignment.End)
+                                ) {
+                                    Text("Clear All")
+                                }
+                            }
+                        }
+                    }
+                }
+
+                items(uiState.filteredLoans, key = { it.id }) { loan ->
                     LoanCard(
                         loan = loan,
                         onClick = { onNavigateToLoanDetail(loan.id) }

@@ -17,7 +17,12 @@ data class TransactionEntity(
     val reminderDate: Long? = null,
     val categoryId: Long? = null,
     val loanId: Long? = null,
-    val installmentNumber: Int? = null
+    val installmentNumber: Int? = null,
+    val isRecurrent: Boolean = false,
+    val recurrenceFrequency: String? = null,
+    val recurrenceInterval: Int? = null,
+    val nextOccurrenceDate: Long? = null,
+    val parentRecurrenceId: Long? = null
 )
 
 enum class TransactionType {
