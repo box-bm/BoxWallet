@@ -4,6 +4,7 @@ package com.boxdev.boxwallet.ui.screens.home
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,7 +19,6 @@ import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Receipt
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingActionButtonMenu
@@ -67,7 +67,7 @@ import com.boxdev.boxwallet.ui.components.TransactionSheet
 fun HomeScreen(
     @PreviewParameter(HomeUiStatePreviewParameterProvider::class) viewModel: HomeViewModel = hiltViewModel(),
     onNavigateToAnalytics: () -> Unit = {},
-    onNavigateToSettings: () -> Unit = {},
+
     onSeeAllTransactions: () -> Unit = {},
     onSeeAllLoans: () -> Unit = {},
     onNavigateToLoanDetail: (Long) -> Unit = {},
@@ -91,9 +91,6 @@ fun HomeScreen(
                 actions = {
                     IconButton(onClick = onNavigateToAnalytics) {
                         Icon(Icons.Default.Analytics, contentDescription = "Analytics")
-                    }
-                    IconButton(onClick = onNavigateToSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
                 }
             )
@@ -170,19 +167,19 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(
-                        bottom = 0.dp,
                         top = paddingValues.calculateTopPadding(),
-                        end = 16.dp,
-                        start = 16.dp
                     ),
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 item {
                     SummaryCard(summary = uiState.financialSummary)
                 }
                 item {
-                    Spacer(modifier = Modifier.height(4.dp))
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -207,7 +204,8 @@ fun HomeScreen(
                         ) {
                             Text(
                                 "No transactions yet",
-                                style = MaterialTheme.typography.bodyMedium
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -226,9 +224,10 @@ fun HomeScreen(
 
                 if (uiState.activeLoans.isNotEmpty()) {
                     item {
-                        Spacer(modifier = Modifier.height(4.dp))
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 12.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -245,12 +244,13 @@ fun HomeScreen(
                     items(uiState.activeLoans, key = { "loan_${it.id}" }) { loan ->
                         LoanCard(
                             loan = loan,
-                            onClick = { onNavigateToLoanDetail(loan.id) }
+                            onClick = { onNavigateToLoanDetail(loan.id) },
+                            modifier = Modifier.padding(vertical = 4.dp)
                         )
                     }
                 }
                 item {
-                    Spacer(modifier = Modifier.height(72.dp))
+                    Spacer(modifier = Modifier.height(88.dp))
                 }
             }
         }

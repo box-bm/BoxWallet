@@ -60,6 +60,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.boxdev.boxwallet.domain.model.LoanType
 import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.ui.screens.loans.LoanFormViewModel
+import com.boxdev.boxwallet.util.toCurrencySymbol
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -132,7 +133,7 @@ fun LoanSheet(
                     OutlinedTextField(
                         value = formState.name,
                         onValueChange = { viewModel.updateName(it) },
-                        label = { Text("Loan Name") },
+                        label = { Text("Loan Name *") },
                         placeholder = { Text("e.g. Car loan, Mortgage") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
@@ -152,9 +153,9 @@ fun LoanSheet(
                         OutlinedTextField(
                             value = formState.totalAmount,
                             onValueChange = { viewModel.updateTotalAmount(it) },
-                            label = { Text("Total Amount") },
+                            label = { Text("Total Amount *") },
                             placeholder = { Text("0.00") },
-                            leadingIcon = { Text(formState.currency, style = MaterialTheme.typography.bodyMedium) },
+                            prefix = { Text(formState.currency.toCurrencySymbol(), style = MaterialTheme.typography.bodyLarge) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             singleLine = true,
                             modifier = Modifier.weight(1f),
@@ -164,7 +165,7 @@ fun LoanSheet(
                         OutlinedTextField(
                             value = formState.installments,
                             onValueChange = { viewModel.updateInstallments(it) },
-                            label = { Text("Installments") },
+                            label = { Text("Installments *") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             singleLine = true,
                             modifier = Modifier.weight(0.7f)
@@ -178,7 +179,7 @@ fun LoanSheet(
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
                         ) {
                             Text(
-                                text = "Each installment: ${formState.currency} ${"%.2f".format(amount)} (${formState.frequency.getDisplayName()})",
+                                text = "Each installment: ${formState.currency.toCurrencySymbol()}${"%.2f".format(amount)} (${formState.frequency.getDisplayName()})",
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.padding(12.dp),

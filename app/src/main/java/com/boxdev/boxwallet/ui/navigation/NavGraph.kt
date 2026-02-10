@@ -66,7 +66,6 @@ fun NavGraph(
         composable(NavRoutes.Home.route) {
             HomeScreen(
                 onNavigateToAnalytics = { navController.navigate(NavRoutes.Analytics.route) },
-                onNavigateToSettings = { navController.navigate(NavRoutes.Settings.route) },
                 onSeeAllTransactions = { navController.navigate(NavRoutes.TransactionsList.route) },
                 onSeeAllLoans = {
                     navController.navigate(NavRoutes.Loans.route) {

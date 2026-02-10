@@ -10,9 +10,8 @@ import com.boxdev.boxwallet.domain.model.Transaction
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.flatMapConcat
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.YearMonth
@@ -118,13 +117,9 @@ class AnalyticsViewModel @Inject constructor(
     }
 
     private suspend fun calculateCategoryBreakdown(transactions: List<Transaction>): List<CategoryData> {
-        val categoriesMap = mutableMapOf<Long, String>()
-        val categories =
-            categoryRepository.getAllCategories().flatMapConcat { list -> list.asFlow() }
-
-        categories.collect { category ->
-            categoriesMap[category.id] = category.name
-        }
+        val categoriesMap = categoryRepository.getAllCategories()
+            .first()
+            .associate { it.id to it.name }
 
 
         val expenseTransactions = transactions.filter { it.type == TransactionType.EXPENSE }
