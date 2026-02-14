@@ -55,7 +55,9 @@ enum class Destination(
 @Composable
 fun NavGraph(
     navController: NavHostController,
-    modifier: Modifier
+    modifier: Modifier,
+    onAddTransaction: () -> Unit = {},
+    onEditTransaction: (Long) -> Unit = {},
 ) {
     NavHost(
         navController = navController,
@@ -81,7 +83,8 @@ fun NavGraph(
                             loanId
                         )
                     )
-                }
+                },
+                onEditTransaction = onEditTransaction
             )
         }
 

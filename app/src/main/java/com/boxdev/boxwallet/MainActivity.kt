@@ -7,6 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,6 +34,7 @@ class MainActivity : FragmentActivity() {
 
     private var isAuthenticated by mutableStateOf(false)
     private var authError by mutableStateOf<String?>(null)
+    private var biometricEnabledCache = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,6 +44,8 @@ class MainActivity : FragmentActivity() {
             val themeSettings by themePreferences.themeSettings.collectAsState(initial = ThemeSettings())
             val isBiometricEnabled by userPreferences.isBiometricEnabled.collectAsState(initial = false)
             val isFirstLaunch by userPreferences.isFirstLaunch.collectAsState(initial = false)
+
+            LaunchedEffect(isBiometricEnabled) { biometricEnabledCache = isBiometricEnabled }
 
             BoxWalletTheme(themeSettings = themeSettings) {
                 when {
@@ -58,12 +62,11 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        // Re-lock when coming back from background
-        val isBiometricEnabled = userPreferences.isBiometricEnabled
-        // We use a simple flag: if auth was done, keep it valid for the session
-        // The lock triggers again on next cold start or when explicitly toggled
+    override fun onStop() {
+        super.onStop()
+        if (biometricEnabledCache) {
+            isAuthenticated = false
+        }
     }
 
     private fun showBiometricPrompt() {

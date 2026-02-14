@@ -8,7 +8,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -17,7 +16,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.boxdev.boxwallet.ui.components.LoanCard
-import com.boxdev.boxwallet.ui.components.LoanSheet
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -26,7 +24,6 @@ fun LoansScreen(
     viewModel: LoansViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var showLoanSheet by remember { mutableStateOf(false) }
     var showFilters by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -40,11 +37,6 @@ fun LoansScreen(
                 }
             )
         },
-        floatingActionButton = {
-            FloatingActionButton(onClick = { showLoanSheet = true }) {
-                Icon(Icons.Default.Add, contentDescription = "Add Loan")
-            }
-        }
     ) { paddingValues ->
         when {
             uiState.isLoading -> Box(
@@ -159,12 +151,5 @@ fun LoansScreen(
                 }
             }
         }
-    }
-
-    if (showLoanSheet) {
-        LoanSheet(
-            loanId = null,
-            onDismiss = { showLoanSheet = false }
-        )
     }
 }

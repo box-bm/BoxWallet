@@ -26,9 +26,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Backup
-import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.AlertDialog
@@ -75,18 +73,8 @@ private val onboardingPages = listOf(
     ),
     OnboardingPage(
         icon = Icons.Default.Receipt,
-        title = "Track Transactions",
-        description = "Log income & expenses, set reminders, and manage recurring transactions"
-    ),
-    OnboardingPage(
-        icon = Icons.Default.CreditCard,
-        title = "Manage Loans",
-        description = "Track loans with installments and payment schedules"
-    ),
-    OnboardingPage(
-        icon = Icons.Default.Analytics,
-        title = "Analytics & Reports",
-        description = "Visualize your spending with charts, export PDF & Excel reports"
+        title = "Track & Manage",
+        description = "Log transactions, manage loans with installments and payment schedules"
     )
 )
 
