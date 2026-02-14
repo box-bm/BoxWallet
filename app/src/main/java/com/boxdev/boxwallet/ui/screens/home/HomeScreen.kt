@@ -2,11 +2,15 @@
 
 package com.boxdev.boxwallet.ui.screens.home
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -28,17 +32,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleFloatingActionButton
 import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
-import androidx.compose.material3.TooltipAnchorPosition
-import androidx.compose.material3.TooltipBox
-import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.animateFloatingActionButton
-import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -82,9 +81,10 @@ fun HomeScreen(
         showTransactionSheet = false
         selectedTransactionId = null
     }
-
+    var fabExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             LargeFlexibleTopAppBar(
                 title = { Text("BoxWallet", fontWeight = FontWeight.Bold) },
@@ -96,24 +96,16 @@ fun HomeScreen(
             )
         },
         floatingActionButton = {
-            var expanded: Boolean by remember { mutableStateOf(false) }
-
             FloatingActionButtonMenu(
-                expanded = expanded,
-                modifier = Modifier,
+                expanded = fabExpanded,
                 button = {
-                    TooltipBox(
-                        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(if (expanded) TooltipAnchorPosition.Start else TooltipAnchorPosition.Above),
-                        tooltip = { PlainTooltip { Text("Toggle menu") } },
-                        state = rememberTooltipState()
-                    ) {
-                        ToggleFloatingActionButton(
-                            modifier = Modifier.animateFloatingActionButton(
-                                visible = true,
-                                alignment = Alignment.BottomEnd
-                            ),
-                            checked = expanded,
-                            onCheckedChange = { checked -> expanded = checked },
+                    ToggleFloatingActionButton(
+                        modifier = Modifier.animateFloatingActionButton(
+                            visible = true,
+                            alignment = Alignment.BottomEnd
+                        ),
+                        checked = fabExpanded,
+                        onCheckedChange = { checked -> fabExpanded = checked },
                         ) {
                             val imageVector by remember {
                                 derivedStateOf {
@@ -126,11 +118,11 @@ fun HomeScreen(
                                 modifier = Modifier.animateIcon({ checkedProgress }),
                             )
                         }
-                    }
                 },
             ) {
                 FloatingActionButtonMenuItem(
                     onClick = {
+                        fabExpanded = false
                         selectedTransactionId = null
                         showTransactionSheet = true
                     },
@@ -143,7 +135,10 @@ fun HomeScreen(
                     }
                 )
                 FloatingActionButtonMenuItem(
-                    onClick = { showLoanSheet = true },
+                    onClick = {
+                        fabExpanded = false
+                        showLoanSheet = true
+                    },
                     text = { Text("Add Loan") },
                     icon = {
                         Icon(
@@ -254,6 +249,18 @@ fun HomeScreen(
                 }
             }
         }
+    }
+
+    if (fabExpanded) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) { fabExpanded = false }
+        )
     }
 
     if (showTransactionSheet) {

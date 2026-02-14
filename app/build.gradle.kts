@@ -41,6 +41,9 @@ android {
         resources {
             excludes += "META-INF/DEPENDENCIES"
             excludes += "META-INF/NOTICE.md"
+            excludes += "META-INF/LICENSE.md"
+            excludes += "META-INF/INDEX.LIST"
+            excludes += "META-INF/MANIFEST.MF"
         }
     }
 }
@@ -79,4 +82,10 @@ dependencies {
     implementation(libs.itext7.core)
     implementation(libs.poi)
     implementation(libs.poi.ooxml)
+
+    // Google Drive backup
+    implementation(libs.play.services.auth)
+    implementation(libs.google.api.services.drive)
+    implementation(libs.google.api.client.android)
+    implementation(libs.google.http.client.gson)
 }

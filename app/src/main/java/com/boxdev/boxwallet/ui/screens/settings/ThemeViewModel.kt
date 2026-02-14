@@ -2,6 +2,7 @@ package com.boxdev.boxwallet.ui.screens.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.boxdev.boxwallet.data.datastore.ThemeMode
 import com.boxdev.boxwallet.data.datastore.ThemePreferences
 import com.boxdev.boxwallet.data.datastore.ThemeSettings
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,9 +24,9 @@ class ThemeViewModel @Inject constructor(
             initialValue = ThemeSettings()
         )
 
-    fun updateDarkMode(isDark: Boolean) {
+    fun updateThemeMode(mode: ThemeMode) {
         viewModelScope.launch {
-            themePreferences.updateDarkMode(isDark)
+            themePreferences.updateThemeMode(mode)
         }
     }
 

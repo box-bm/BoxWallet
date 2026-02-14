@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import com.boxdev.boxwallet.data.datastore.ThemeMode
 import com.boxdev.boxwallet.data.datastore.ThemeSettings
 
 private val DarkColorScheme = darkColorScheme(
@@ -97,7 +98,11 @@ surfaceBright = surfaceBrightLightMediumContrast,
 @Composable
 fun BoxWalletTheme(
     themeSettings: ThemeSettings = ThemeSettings(),
-    darkTheme: Boolean = themeSettings.isDarkMode || isSystemInDarkTheme(),
+    darkTheme: Boolean = when (themeSettings.themeMode) {
+        ThemeMode.DARK -> true
+        ThemeMode.LIGHT -> false
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+    },
     dynamicColor: Boolean = themeSettings.useDynamicColors,
     content: @Composable () -> Unit
 ) {

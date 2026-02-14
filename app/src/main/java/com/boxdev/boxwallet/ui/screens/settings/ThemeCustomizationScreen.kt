@@ -16,6 +16,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -26,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.boxdev.boxwallet.data.datastore.ThemeMode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,6 +38,8 @@ fun ThemeCustomizationScreen(
     viewModel: ThemeViewModel = hiltViewModel()
 ) {
     val themeSettings by viewModel.themeSettings.collectAsState()
+    val themeModes = ThemeMode.entries
+    val selectedIndex = themeModes.indexOf(themeSettings.themeMode)
 
     Scaffold(
         topBar = {
@@ -62,31 +68,47 @@ fun ThemeCustomizationScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Dark Mode Toggle
+            // Theme Mode Selector
             Card(
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Column {
-                        Text(
-                            text = "Dark Mode",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Text(
-                            text = "Use dark theme",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                    Switch(
-                        checked = themeSettings.isDarkMode,
-                        onCheckedChange = { viewModel.updateDarkMode(it) }
+                    Text(
+                        text = "Appearance",
+                        style = MaterialTheme.typography.titleMedium
                     )
+                    Text(
+                        text = "Choose your preferred theme mode",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    SingleChoiceSegmentedButtonRow(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        themeModes.forEachIndexed { index, mode ->
+                            SegmentedButton(
+                                shape = SegmentedButtonDefaults.itemShape(
+                                    index = index,
+                                    count = themeModes.size
+                                ),
+                                onClick = { viewModel.updateThemeMode(mode) },
+                                selected = index == selectedIndex,
+                                label = {
+                                    Text(
+                                        when (mode) {
+                                            ThemeMode.LIGHT -> "Light"
+                                            ThemeMode.DARK -> "Dark"
+                                            ThemeMode.SYSTEM -> "System"
+                                        }
+                                    )
+                                }
+                            )
+                        }
+                    }
                 }
             }
 

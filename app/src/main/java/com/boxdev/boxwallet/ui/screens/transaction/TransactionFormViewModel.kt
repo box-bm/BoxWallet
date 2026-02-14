@@ -70,7 +70,7 @@ class TransactionFormViewModel @Inject constructor(
 
     fun loadTransaction(transactionId: Long?) {
         if (transactionId == null || transactionId == -1L) {
-            _formState.value = _formState.value.copy(id = 0, isEditing = false)
+            _formState.value = _formState.value.copy(id = 0, isEditing = false, isSaved = false)
             return
         }
         viewModelScope.launch {

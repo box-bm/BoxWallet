@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -14,8 +15,12 @@ import javax.inject.Singleton
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "theme_preferences")
 
+enum class ThemeMode {
+    LIGHT, DARK, SYSTEM
+}
+
 data class ThemeSettings(
-    val isDarkMode: Boolean = false,
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val useDynamicColors: Boolean = true
 )
 
@@ -24,20 +29,32 @@ class ThemePreferences @Inject constructor(
     @param:ApplicationContext private val context: Context
 ) {
     private object PreferencesKeys {
-        val IS_DARK_MODE = booleanPreferencesKey("is_dark_mode")
+        val THEME_MODE = stringPreferencesKey("theme_mode")
         val USE_DYNAMIC_COLORS = booleanPreferencesKey("use_dynamic_colors")
+        // Legacy key for migration
+        val IS_DARK_MODE = booleanPreferencesKey("is_dark_mode")
     }
 
     val themeSettings: Flow<ThemeSettings> = context.dataStore.data.map { preferences ->
+        val themeMode = preferences[PreferencesKeys.THEME_MODE]?.let { value ->
+            ThemeMode.entries.find { it.name.equals(value, ignoreCase = true) }
+        } ?: run {
+            // Migrate from old isDarkMode boolean if present
+            val isDark = preferences[PreferencesKeys.IS_DARK_MODE]
+            if (isDark == true) ThemeMode.DARK else ThemeMode.SYSTEM
+        }
+
         ThemeSettings(
-            isDarkMode = preferences[PreferencesKeys.IS_DARK_MODE] ?: false,
+            themeMode = themeMode,
             useDynamicColors = preferences[PreferencesKeys.USE_DYNAMIC_COLORS] ?: true
         )
     }
 
-    suspend fun updateDarkMode(isDark: Boolean) {
+    suspend fun updateThemeMode(mode: ThemeMode) {
         context.dataStore.edit { preferences ->
-            preferences[PreferencesKeys.IS_DARK_MODE] = isDark
+            preferences[PreferencesKeys.THEME_MODE] = mode.name
+            // Remove legacy key
+            preferences.remove(PreferencesKeys.IS_DARK_MODE)
         }
     }
 

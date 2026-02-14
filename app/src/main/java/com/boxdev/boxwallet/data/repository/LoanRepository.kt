@@ -2,6 +2,7 @@ package com.boxdev.boxwallet.data.repository
 
 import com.boxdev.boxwallet.data.local.dao.LoanDao
 import com.boxdev.boxwallet.data.local.dao.TransactionDao
+import com.boxdev.boxwallet.data.local.entity.LoanEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 import com.boxdev.boxwallet.domain.model.Loan
 import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
@@ -84,6 +85,12 @@ class LoanRepository @Inject constructor(
     suspend fun deleteLoan(id: Long) {
         transactionDao.deleteByLoanId(id)
         loanDao.deleteById(id)
+    }
+
+    suspend fun getAllLoansSync(): List<LoanEntity> = loanDao.getAllLoansSync()
+
+    suspend fun restoreLoans(loans: List<LoanEntity>) {
+        loans.forEach { loanDao.insert(it) }
     }
 
     private fun calculateInstallmentDate(

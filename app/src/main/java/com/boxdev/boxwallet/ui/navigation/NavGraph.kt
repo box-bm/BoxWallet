@@ -15,7 +15,6 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import androidx.navigation.navigation
 import com.boxdev.boxwallet.ui.screens.analytics.AnalyticsScreen
 import com.boxdev.boxwallet.ui.screens.home.HomeScreen
 import com.boxdev.boxwallet.ui.screens.loans.LoanDetailScreen
@@ -119,45 +118,43 @@ fun NavGraph(
             )
         }
 
-        navigation(
-            startDestination = NavRoutes.Settings.route,
-            route = "settings_graph"
-        ) {
-            composable(NavRoutes.Settings.route) {
-                SettingsScreen(
-                    onNavigateBack = { navController.popBackStack() },
-                    onNavigateToGeneral = { navController.navigate(NavRoutes.GeneralSettings.route) },
-                    onNavigateToCategories = { navController.navigate(NavRoutes.Categories.route) },
-                    onNavigateToTheme = { navController.navigate(NavRoutes.ThemeCustomization.route) },
-                    onNavigateToBackup = { navController.navigate(NavRoutes.Backup.route) },
-                    onNavigateToExport = { navController.navigate(NavRoutes.Export.route) },
-                    onNavigateToDataManagement = { navController.navigate(NavRoutes.DataManagement.route) },
-                )
-            }
+        composable(NavRoutes.Settings.route) {
+            SettingsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToGeneral = { navController.navigate(NavRoutes.GeneralSettings.route) },
+                onNavigateToCategories = { navController.navigate(NavRoutes.Categories.route) },
+                onNavigateToTheme = { navController.navigate(NavRoutes.ThemeCustomization.route) },
+                onNavigateToBackup = { navController.navigate(NavRoutes.Backup.route) },
+                onNavigateToExport = { navController.navigate(NavRoutes.Export.route) },
+                onNavigateToDataManagement = { navController.navigate(NavRoutes.DataManagement.route) },
+            )
+        }
 
-            composable(NavRoutes.GeneralSettings.route) {
-                GeneralSettingsScreen(onNavigateBack = { navController.popBackStack() })
-            }
+        composable(NavRoutes.GeneralSettings.route) {
+            GeneralSettingsScreen(onNavigateBack = { navController.popBackStack() })
+        }
 
-            composable(NavRoutes.Categories.route) {
-                CategoriesScreen(onNavigateBack = { navController.popBackStack() })
-            }
+        composable(NavRoutes.Categories.route) {
+            CategoriesScreen(onNavigateBack = { navController.popBackStack() })
+        }
 
-            composable(NavRoutes.ThemeCustomization.route) {
-                ThemeCustomizationScreen(onNavigateBack = { navController.popBackStack() })
-            }
+        composable(NavRoutes.ThemeCustomization.route) {
+            ThemeCustomizationScreen(onNavigateBack = { navController.popBackStack() })
+        }
 
-            composable(NavRoutes.Backup.route) {
-                BackupScreen(onNavigateBack = { navController.popBackStack() })
-            }
+        composable(NavRoutes.Backup.route) {
+            BackupScreen(onNavigateBack = { navController.popBackStack() })
+        }
 
-            composable(NavRoutes.Export.route) {
-                ExportScreen(onNavigateBack = { navController.popBackStack() })
-            }
+        composable(NavRoutes.Export.route) {
+            ExportScreen(onNavigateBack = { navController.popBackStack() })
+        }
 
-            composable(NavRoutes.DataManagement.route) {
-                DataManagementScreen(onNavigateBack = { navController.popBackStack() })
-            }
+        composable(NavRoutes.DataManagement.route) {
+            DataManagementScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToBackup = { navController.navigate(NavRoutes.Backup.route) }
+            )
         }
     }
 }
