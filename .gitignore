@@ -33,6 +33,11 @@ Thumbs.db
 # Logs
 *.log
 
-# keys 
+# Database files
+*.db
+*.db-shm
+*.db-wal
+
+# keys
 .env
 *.jks
