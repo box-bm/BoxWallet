@@ -62,7 +62,6 @@ fun NavigationTab(modifier: Modifier = Modifier) {
 
     val showFab = currentRoute in listOf(
         NavRoutes.Home.route,
-        NavRoutes.TransactionsList.route,
         NavRoutes.Loans.route
     )
 
