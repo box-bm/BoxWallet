@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.Surface
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -115,6 +116,9 @@ fun OnboardingScreen(
         )
     }
 
+    Surface(
+        modifier = Modifier.fillMaxSize()
+    ) {
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -199,6 +203,7 @@ fun OnboardingScreen(
                 Spacer(modifier = Modifier.height(88.dp))
             }
         }
+    }
     }
 }
 

@@ -75,7 +75,7 @@ class LoanFormViewModel @Inject constructor(
 
     fun loadLoan(loanId: Long?) {
         if (loanId == null || loanId == -1L) {
-            _formState.value = _formState.value.copy(id = 0, isEditing = false, isSaved = false)
+            _formState.value = LoanFormState(currency = _formState.value.currency)
             return
         }
         viewModelScope.launch {
