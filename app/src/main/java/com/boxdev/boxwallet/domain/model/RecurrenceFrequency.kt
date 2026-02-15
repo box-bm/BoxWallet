@@ -11,3 +11,5 @@ enum class RecurrenceFrequency(@StringRes val displayNameRes: Int) {
     YEARLY(R.string.frequency_yearly),
     CUSTOM_MONTHS(R.string.frequency_custom);
 }
+
+
