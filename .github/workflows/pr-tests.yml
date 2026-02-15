@@ -1,0 +1,37 @@
+name: PR Tests
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get changed files
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            code:
+              - '**/*.kt'
+              - '**/*.kts'
+              - 'gradle/**'
+
+      - name: Set up JDK 17
+        if: steps.changes.outputs.code == 'true'
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Run unit tests
+        if: steps.changes.outputs.code == 'true'
+        run: ./gradlew testDebugUnitTest
+
+      - name: Skip tests
+        if: steps.changes.outputs.code != 'true'
+        run: echo "No code changes detected, skipping tests."
