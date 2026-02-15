@@ -63,8 +63,11 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val isBiometricEnabled by viewModel.isBiometricEnabled.collectAsState()
-    val biometricAvailable = BiometricManager.from(context).canAuthenticate(
+    val biometricManager = BiometricManager.from(context)
+    val biometricAvailable = biometricManager.canAuthenticate(
         BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL
+    ) == BiometricManager.BIOMETRIC_SUCCESS || biometricManager.canAuthenticate(
+        BiometricManager.Authenticators.DEVICE_CREDENTIAL
     ) == BiometricManager.BIOMETRIC_SUCCESS
 
     Scaffold(

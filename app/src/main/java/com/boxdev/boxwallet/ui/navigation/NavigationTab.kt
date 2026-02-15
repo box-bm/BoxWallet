@@ -2,6 +2,10 @@
 
 package com.boxdev.boxwallet.ui.navigation
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.WindowInsets
@@ -9,7 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingActionButtonMenu
@@ -77,10 +81,17 @@ fun NavigationTab(modifier: Modifier = Modifier) {
                                 }
                             },
                             icon = {
-                                Icon(
-                                    imageVector = if (currentRoute == destination.route) destination.activeIcon else destination.icon,
-                                    contentDescription = destination.contentDescription
-                                )
+                                val selected = currentRoute == destination.route
+                                AnimatedContent(
+                                    targetState = selected,
+                                    transitionSpec = { scaleIn() togetherWith scaleOut() },
+                                    label = "nav_icon_${destination.label}"
+                                ) { isSelected ->
+                                    Icon(
+                                        imageVector = if (isSelected) destination.activeIcon else destination.icon,
+                                        contentDescription = destination.contentDescription
+                                    )
+                                }
                             },
                             label = { Text(destination.label) }
                         )
@@ -89,7 +100,7 @@ fun NavigationTab(modifier: Modifier = Modifier) {
             }
         },
         floatingActionButton = {
-            if (currentRoute === NavRoutes.Settings.route) {
+            if (!listOf(NavRoutes.Home.route, NavRoutes.TransactionsList.route, NavRoutes.Loans.route).contains(currentRoute)){
                 return@Scaffold
             }
 
@@ -140,7 +151,7 @@ fun NavigationTab(modifier: Modifier = Modifier) {
                     text = { Text("Add Loan") },
                     icon = {
                         Icon(
-                            Icons.Default.CreditCard,
+                            Icons.Default.Payments,
                             contentDescription = "Credit Card icon",
                         )
                     }

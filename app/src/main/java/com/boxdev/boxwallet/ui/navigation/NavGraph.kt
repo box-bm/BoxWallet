@@ -2,11 +2,11 @@ package com.boxdev.boxwallet.ui.navigation
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.sharp.CreditCard
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -39,8 +39,8 @@ enum class Destination(
     LOANS(
         NavRoutes.Loans.route,
         "Loans",
-        Icons.Outlined.CreditCard,
-        Icons.Sharp.CreditCard,
+        Icons.Outlined.Payments,
+        Icons.Filled.Payments,
         "Loans"
     ),
     SETTINGS(
