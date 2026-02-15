@@ -2,11 +2,9 @@
 
 package com.boxdev.boxwallet.ui.navigation
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -14,11 +12,9 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonMenu
 import androidx.compose.material3.FloatingActionButtonMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItem
@@ -36,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.zIndex
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.boxdev.boxwallet.ui.components.LoanSheet
@@ -56,7 +53,14 @@ fun NavigationTab(modifier: Modifier = Modifier) {
     var selectedTransactionId by remember { mutableStateOf<Long?>(null) }
 
     Scaffold(
-        modifier = modifier,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        modifier = modifier
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                if (fabExpanded) fabExpanded = false
+            },
         bottomBar = {
             if (showBottomBar) {
                 NavigationBar(windowInsets = NavigationBarDefaults.windowInsets) {
@@ -85,66 +89,62 @@ fun NavigationTab(modifier: Modifier = Modifier) {
             }
         },
         floatingActionButton = {
-            when (currentRoute) {
-                NavRoutes.Home.route -> {
-                    FloatingActionButtonMenu(
-                        expanded = fabExpanded,
-                        button = {
-                            ToggleFloatingActionButton(
-                                modifier = Modifier.animateFloatingActionButton(
-                                    visible = true,
-                                    alignment = Alignment.BottomEnd
-                                ),
-                                checked = fabExpanded,
-                                onCheckedChange = { checked -> fabExpanded = checked },
-                            ) {
-                                val imageVector by remember {
-                                    derivedStateOf {
-                                        if (checkedProgress > 0.5f) Icons.Default.Close else Icons.Default.Add
-                                    }
-                                }
-                                Icon(
-                                    painter = rememberVectorPainter(imageVector),
-                                    contentDescription = null,
-                                    modifier = Modifier.animateIcon({ checkedProgress }),
-                                )
-                            }
-                        },
+            if (currentRoute === NavRoutes.Settings.route) {
+                return@Scaffold
+            }
+
+            FloatingActionButtonMenu(
+                modifier = Modifier.zIndex(999F),
+                expanded = fabExpanded,
+                button = {
+                    ToggleFloatingActionButton(
+                        modifier = Modifier.animateFloatingActionButton(
+                            visible = true,
+                            alignment = Alignment.BottomEnd
+                        ),
+                        checked = fabExpanded,
+                        onCheckedChange = { checked -> fabExpanded = checked },
                     ) {
-                        FloatingActionButtonMenuItem(
-                            onClick = {
-                                fabExpanded = false
-                                selectedTransactionId = null
-                                showTransactionSheet = true
-                            },
-                            text = { Text("Add Transaction") },
-                            icon = {
-                                Icon(
-                                    Icons.Default.Receipt,
-                                    contentDescription = "Receipt icon",
-                                )
+                        val imageVector by remember {
+                            derivedStateOf {
+                                if (checkedProgress > 0.5f) Icons.Default.Close else Icons.Default.Add
                             }
-                        )
-                        FloatingActionButtonMenuItem(
-                            onClick = {
-                                fabExpanded = false
-                                showLoanSheet = true
-                            },
-                            text = { Text("Add Loan") },
-                            icon = {
-                                Icon(
-                                    Icons.Default.CreditCard,
-                                    contentDescription = "Credit Card icon",
-                                )
-                            }
+                        }
+                        Icon(
+                            painter = rememberVectorPainter(imageVector),
+                            contentDescription = null,
+                            modifier = Modifier.animateIcon({ checkedProgress }),
                         )
                     }
-                }
-                NavRoutes.Loans.route -> {
-                    FloatingActionButton(onClick = { showLoanSheet = true }) {
-                        Icon(Icons.Default.Add, contentDescription = "Add Loan")
+                },
+            ) {
+                FloatingActionButtonMenuItem(
+                    onClick = {
+                        fabExpanded = false
+                        selectedTransactionId = null
+                        showTransactionSheet = true
+                    },
+                    text = { Text("Add Transaction") },
+                    icon = {
+                        Icon(
+                            Icons.Default.Receipt,
+                            contentDescription = "Receipt icon",
+                        )
                     }
-                }
+                )
+                FloatingActionButtonMenuItem(
+                    onClick = {
+                        fabExpanded = false
+                        showLoanSheet = true
+                    },
+                    text = { Text("Add Loan") },
+                    icon = {
+                        Icon(
+                            Icons.Default.CreditCard,
+                            contentDescription = "Credit Card icon",
+                        )
+                    }
+                )
             }
         }
     ) { contentPadding ->
@@ -162,17 +162,6 @@ fun NavigationTab(modifier: Modifier = Modifier) {
         )
     }
 
-    if (fabExpanded) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null
-                ) { fabExpanded = false }
-        )
-    }
 
     if (showTransactionSheet) {
         TransactionSheet(

@@ -55,7 +55,7 @@ fun HomeScreen(
     val categoryMap = remember(uiState.categories) { uiState.categories.associateBy { it.id } }
 
     Scaffold(
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        contentWindowInsets = WindowInsets(bottom = 0),
         topBar = {
             LargeFlexibleTopAppBar(
                 title = { Text("BoxWallet", fontWeight = FontWeight.Bold) },
