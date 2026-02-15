@@ -52,9 +52,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.ui.components.TransactionItem
 import com.boxdev.boxwallet.ui.components.TransactionSheet
 import java.time.format.DateTimeFormatter
@@ -77,12 +79,12 @@ fun TransactionsListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Transactions") },
+                title = { Text(stringResource(R.string.transactions_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.action_back)
                         )
                     }
                 }
@@ -92,7 +94,7 @@ fun TransactionsListScreen(
             FloatingActionButton(onClick = {
                 selectedTransactionId = null; showTransactionSheet = true
             }) {
-                Icon(Icons.Default.Add, contentDescription = "Add Transaction")
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.fab_add_transaction))
             }
         }
     ) { paddingValues ->
@@ -109,19 +111,19 @@ fun TransactionsListScreen(
                         onSearch = {},
                         expanded = false,
                         onExpandedChange = {},
-                        placeholder = { Text("Search transactions…") },
+                        placeholder = { Text(stringResource(R.string.transactions_search_placeholder)) },
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                         trailingIcon = {
                             Row {
                                 if (uiState.filterState.searchQuery.isNotEmpty()) {
                                     IconButton(onClick = { viewModel.updateSearchQuery("") }) {
-                                        Icon(Icons.Default.Clear, contentDescription = "Clear")
+                                        Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.action_clear))
                                     }
                                 }
                                 IconButton(onClick = { showFilters = !showFilters }) {
                                     Icon(
                                         imageVector = Icons.Default.FilterList,
-                                        contentDescription = "Filter",
+                                        contentDescription = stringResource(R.string.action_filter),
                                         tint = if (showFilters) MaterialTheme.colorScheme.primary else LocalContentColor.current
                                     )
                                 }
@@ -152,60 +154,60 @@ fun TransactionsListScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                "Filters",
+                                stringResource(R.string.transactions_filter_title),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
-                            TextButton(onClick = { viewModel.clearFilters() }) { Text("Clear All") }
+                            TextButton(onClick = { viewModel.clearFilters() }) { Text(stringResource(R.string.action_clear_all)) }
                         }
 
                         Column() {
-                            Text("Type", style = MaterialTheme.typography.labelMedium)
+                            Text(stringResource(R.string.transactions_filter_type), style = MaterialTheme.typography.labelMedium)
                             SingleChoiceSegmentedButtonRow(
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 SegmentedButton(
                                     selected = uiState.filterState.transactionType == TransactionTypeFilter.ALL,
                                     onClick = { viewModel.updateTypeFilter(TransactionTypeFilter.ALL) },
-                                    label = { Text("All") },
+                                    label = { Text(stringResource(R.string.transactions_filter_all)) },
                                     shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3)
                                 )
                                 SegmentedButton(
                                     selected = uiState.filterState.transactionType == TransactionTypeFilter.INCOME,
                                     onClick = { viewModel.updateTypeFilter(TransactionTypeFilter.INCOME) },
-                                    label = { Text("Income") },
+                                    label = { Text(stringResource(R.string.transaction_type_income)) },
                                     shape = SegmentedButtonDefaults.itemShape(1, 3)
                                 )
                                 SegmentedButton(
                                     selected = uiState.filterState.transactionType == TransactionTypeFilter.EXPENSE,
                                     onClick = { viewModel.updateTypeFilter(TransactionTypeFilter.EXPENSE) },
-                                    label = { Text("Expense") },
+                                    label = { Text(stringResource(R.string.transaction_type_expense)) },
                                     shape = SegmentedButtonDefaults.itemShape(2, 3)
                                 )
                             }
                         }
 
                         Column {
-                            Text("Sort", style = MaterialTheme.typography.labelMedium)
+                            Text(stringResource(R.string.transactions_filter_sort), style = MaterialTheme.typography.labelMedium)
                             SingleChoiceSegmentedButtonRow(
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 SegmentedButton(
                                     selected = uiState.filterState.sortBy == SortBy.DATE_DESC,
                                     onClick = { viewModel.updateSortBy(SortBy.DATE_DESC) },
-                                    label = { Text("Latest") },
+                                    label = { Text(stringResource(R.string.transactions_filter_latest)) },
                                     shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3)
                                 )
                                 SegmentedButton(
                                     selected = uiState.filterState.sortBy == SortBy.DATE_ASC,
                                     onClick = { viewModel.updateSortBy(SortBy.DATE_ASC) },
-                                    label = { Text("Oldest") },
+                                    label = { Text(stringResource(R.string.transactions_filter_oldest)) },
                                     shape = SegmentedButtonDefaults.itemShape(1, 3)
                                 )
                                 SegmentedButton(
                                     selected = uiState.filterState.sortBy == SortBy.AMOUNT_DESC,
                                     onClick = { viewModel.updateSortBy(SortBy.AMOUNT_DESC) },
-                                    label = { Text("Highest") },
+                                    label = { Text(stringResource(R.string.transactions_filter_highest)) },
                                     shape = SegmentedButtonDefaults.itemShape(2, 3)
                                 )
                             }
@@ -214,7 +216,7 @@ fun TransactionsListScreen(
                         FilterChip(
                             selected = uiState.filterState.showOnlyRecurrent,
                             onClick = { viewModel.updateRecurrentFilter(!uiState.filterState.showOnlyRecurrent) },
-                            label = { Text("Recurring Only") }
+                            label = { Text(stringResource(R.string.transactions_filter_recurring_only)) }
                         )
                     }
                 }
@@ -233,7 +235,7 @@ fun TransactionsListScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (uiState.transactions.isEmpty()) "No transactions yet" else "No transactions found",
+                        text = if (uiState.transactions.isEmpty()) stringResource(R.string.transactions_no_transactions) else stringResource(R.string.transactions_no_results),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

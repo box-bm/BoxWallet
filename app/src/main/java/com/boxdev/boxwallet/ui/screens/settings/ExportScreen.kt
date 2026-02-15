@@ -42,9 +42,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.boxdev.boxwallet.R
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -86,12 +88,12 @@ fun ExportScreen(
                     }
 
                 }) {
-                    Text("OK")
+                    Text(stringResource(R.string.action_ok))
                 }
             },
             dismissButton = {
                 TextButton(onClick = {  }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         ) {
@@ -116,12 +118,12 @@ fun ExportScreen(
                     }
 
                 }) {
-                    Text("OK")
+                    Text(stringResource(R.string.action_ok))
                 }
             },
             dismissButton = {
                 TextButton(onClick = {  }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         ) {
@@ -134,14 +136,14 @@ fun ExportScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Export Reports",
+                        text = stringResource(R.string.export_title),
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Default.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.action_back)
                         )
                     }
                 }
@@ -166,7 +168,7 @@ fun ExportScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "Date Range",
+                        text = stringResource(R.string.export_date_range),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -174,13 +176,13 @@ fun ExportScreen(
                     OutlinedTextField(
                         value = uiState.startDate.format(dateFormatter),
                         onValueChange = {},
-                        label = { Text("Start Date") },
+                        label = { Text(stringResource(R.string.export_start_date)) },
                         readOnly = true,
                         trailingIcon = {
                             IconButton(onClick = {  }) {
                                 Icon(
                                     imageVector = Icons.Default.CalendarMonth,
-                                    contentDescription = "Select start date"
+                                    contentDescription = stringResource(R.string.export_select_start_date)
                                 )
                             }
                         },
@@ -190,13 +192,13 @@ fun ExportScreen(
                     OutlinedTextField(
                         value = uiState.endDate.format(dateFormatter),
                         onValueChange = {},
-                        label = { Text("End Date") },
+                        label = { Text(stringResource(R.string.export_end_date)) },
                         readOnly = true,
                         trailingIcon = {
                             IconButton(onClick = {  }) {
                                 Icon(
                                     imageVector = Icons.Default.CalendarMonth,
-                                    contentDescription = "Select end date"
+                                    contentDescription = stringResource(R.string.export_select_end_date)
                                 )
                             }
                         },
@@ -214,7 +216,7 @@ fun ExportScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "Export Format",
+                        text = stringResource(R.string.export_format),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -236,7 +238,7 @@ fun ExportScreen(
                                 modifier = Modifier.padding(end = 8.dp)
                             )
                         }
-                        Text("Export to Excel (.xlsx)")
+                        Text(stringResource(R.string.export_to_excel))
                     }
 
                     // PDF Export
@@ -256,7 +258,7 @@ fun ExportScreen(
                                 modifier = Modifier.padding(end = 8.dp)
                             )
                         }
-                        Text("Export to PDF")
+                        Text(stringResource(R.string.export_to_pdf))
                     }
                 }
             }
@@ -267,17 +269,17 @@ fun ExportScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Export Location",
+                        text = stringResource(R.string.export_location_title),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Medium
                     )
                     Text(
-                        text = "Documents/BoxWallet/Reports/",
+                        text = stringResource(R.string.export_location_path),
                         style = MaterialTheme.typography.bodySmall,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Reports include all transactions within the selected date range along with a summary of income, expenses, and net balance.",
+                        text = stringResource(R.string.export_location_description),
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
@@ -290,7 +292,7 @@ fun ExportScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "Last Export",
+                            text = stringResource(R.string.export_last_export),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Medium
                         )

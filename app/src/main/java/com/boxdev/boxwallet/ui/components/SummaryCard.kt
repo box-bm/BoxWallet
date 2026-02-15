@@ -24,11 +24,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
 import com.boxdev.boxwallet.data.previewParams.FinancialSummaryPreviewParameterProvider
+import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.domain.model.FinancialSummary
 import com.boxdev.boxwallet.util.rememberCurrencyFormatter
 import java.time.YearMonth
@@ -51,7 +53,7 @@ fun SummaryCard(
             modifier = Modifier.padding(16.dp),
         ) {
             Text(
-                text = "Total Balance",
+                text = stringResource(R.string.summary_total_balance),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )
@@ -89,7 +91,7 @@ fun SummaryCard(
                             ) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.TrendingUp,
-                                    contentDescription = "Outgoing icon",
+                                    contentDescription = stringResource(R.string.summary_income_icon),
                                     tint = MaterialTheme.colorScheme.onTertiaryContainer,
                                     modifier = Modifier
                                         .size(28.dp)
@@ -97,7 +99,7 @@ fun SummaryCard(
                                 )
                             }
                             Text(
-                                text = "Income",
+                                text = stringResource(R.string.summary_income),
                                 color = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.padding(start = 8.dp)
                             )
@@ -131,7 +133,7 @@ fun SummaryCard(
                             ) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.TrendingDown,
-                                    contentDescription = "Outgoing icon",
+                                    contentDescription = stringResource(R.string.summary_expense_icon),
                                     tint = MaterialTheme.colorScheme.onErrorContainer,
                                     modifier = Modifier
                                         .size(28.dp)
@@ -139,7 +141,7 @@ fun SummaryCard(
                                 )
                             }
                             Text(
-                                text = "Expense",
+                                text = stringResource(R.string.summary_expense),
                                 color = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.padding(start = 8.dp)
                             )

@@ -27,8 +27,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.data.datastore.ThemeMode
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -46,14 +48,14 @@ fun ThemeCustomizationScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Theme"
+                        text = stringResource(R.string.theme_title)
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.action_back)
                         )
                     }
                 },
@@ -79,11 +81,11 @@ fun ThemeCustomizationScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "Appearance",
+                        text = stringResource(R.string.theme_appearance),
                         style = MaterialTheme.typography.titleMedium
                     )
                     Text(
-                        text = "Choose your preferred theme mode",
+                        text = stringResource(R.string.theme_appearance_description),
                         style = MaterialTheme.typography.bodySmall,
                     )
                     SingleChoiceSegmentedButtonRow(
@@ -100,9 +102,9 @@ fun ThemeCustomizationScreen(
                                 label = {
                                     Text(
                                         when (mode) {
-                                            ThemeMode.LIGHT -> "Light"
-                                            ThemeMode.DARK -> "Dark"
-                                            ThemeMode.SYSTEM -> "System"
+                                            ThemeMode.LIGHT -> stringResource(R.string.theme_light)
+                                            ThemeMode.DARK -> stringResource(R.string.theme_dark)
+                                            ThemeMode.SYSTEM -> stringResource(R.string.theme_system)
                                         }
                                     )
                                 }
@@ -125,11 +127,11 @@ fun ThemeCustomizationScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Dynamic Colors",
+                            text = stringResource(R.string.theme_dynamic_colors),
                             style = MaterialTheme.typography.titleMedium
                         )
                         Text(
-                            text = "Use colors from your wallpaper (Android 12+)",
+                            text = stringResource(R.string.theme_dynamic_colors_description),
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }

@@ -15,9 +15,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.util.categoryIconOptions
 import com.boxdev.boxwallet.util.categoryIconVector
@@ -36,17 +38,17 @@ fun CategoriesScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Categories") },
+                title = { Text(stringResource(R.string.categories_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 }
             )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddDialog = true }) {
-                Icon(Icons.Default.Add, contentDescription = "Add Category")
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.categories_add))
             }
         }
     ) { paddingValues ->
@@ -70,9 +72,9 @@ fun CategoriesScreen(
                         modifier = Modifier.size(64.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                     )
-                    Text("No categories yet", style = MaterialTheme.typography.bodyLarge,
+                    Text(stringResource(R.string.categories_no_categories), style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("Tap + to create your first category", style = MaterialTheme.typography.bodySmall,
+                    Text(stringResource(R.string.categories_tap_to_create), style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
@@ -118,15 +120,15 @@ fun CategoriesScreen(
     deleteConfirmCategory?.let { category ->
         AlertDialog(
             onDismissRequest = { deleteConfirmCategory = null },
-            title = { Text("Delete Category") },
-            text = { Text("Are you sure you want to delete \"${category.name}\"? Transactions with this category will not be deleted.") },
+            title = { Text(stringResource(R.string.categories_delete_title)) },
+            text = { Text(stringResource(R.string.categories_delete_message, category.name)) },
             confirmButton = {
                 TextButton(onClick = { viewModel.deleteCategory(category.id); deleteConfirmCategory = null }) {
-                    Text("Delete")
+                    Text(stringResource(R.string.action_delete))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { deleteConfirmCategory = null }) { Text("Cancel") }
+                TextButton(onClick = { deleteConfirmCategory = null }) { Text(stringResource(R.string.action_cancel)) }
             }
         )
     }
@@ -165,10 +167,10 @@ private fun CategoryItem(
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 IconButton(onClick = onEdit) {
-                    Icon(Icons.Default.Edit, contentDescription = "Edit")
+                    Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.action_edit))
                 }
                 IconButton(onClick = onDelete) {
-                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                    Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.action_delete), tint = MaterialTheme.colorScheme.error)
                 }
             }
         }
@@ -188,24 +190,24 @@ private fun AddEditCategoryDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (category == null) "Add Category" else "Edit Category") },
+        title = { Text(if (category == null) stringResource(R.string.categories_add_title) else stringResource(R.string.categories_edit_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Name") },
+                    label = { Text(stringResource(R.string.categories_name_label)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
-                    label = { Text("Description (Optional)") },
+                    label = { Text(stringResource(R.string.description_optional)) },
                     maxLines = 3,
                     modifier = Modifier.fillMaxWidth()
                 )
-                Text("Icon", style = MaterialTheme.typography.labelMedium)
+                Text(stringResource(R.string.categories_icon_label), style = MaterialTheme.typography.labelMedium)
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(5),
                     modifier = Modifier.height(160.dp),
@@ -230,9 +232,9 @@ private fun AddEditCategoryDialog(
         },
         confirmButton = {
             TextButton(onClick = { onSave(name, description, selectedIcon) }, enabled = name.isNotBlank()) {
-                Text("Save")
+                Text(stringResource(R.string.action_save))
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } }
     )
 }

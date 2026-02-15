@@ -40,8 +40,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.ui.components.LoanCard
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -57,10 +59,10 @@ fun LoansScreen(
         contentWindowInsets = WindowInsets(bottom = 0),
         topBar = {
             TopAppBar(
-                title = { Text("Loans") },
+                title = { Text(stringResource(R.string.loans_title)) },
                 actions = {
                     IconButton(onClick = { showFilters = !showFilters }) {
-                        Icon(Icons.Default.FilterList, contentDescription = "Filter")
+                        Icon(Icons.Default.FilterList, contentDescription = stringResource(R.string.action_filter))
                     }
                 }
             )
@@ -86,9 +88,9 @@ fun LoansScreen(
                         modifier = Modifier.size(64.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                     )
-                    Text("No loans yet", style = MaterialTheme.typography.bodyLarge,
+                    Text(stringResource(R.string.loans_no_loans), style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("Tap + to add a loan", style = MaterialTheme.typography.bodySmall,
+                    Text(stringResource(R.string.loans_tap_to_add), style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
@@ -110,52 +112,52 @@ fun LoansScreen(
                                     .padding(16.dp),
                                 verticalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
-                                Text("Status", style = MaterialTheme.typography.titleSmall)
+                                Text(stringResource(R.string.loans_filter_status), style = MaterialTheme.typography.titleSmall)
                                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                                     SegmentedButton(
                                         selected = uiState.filterState.statusFilter == LoanStatusFilter.ALL,
                                         onClick = { viewModel.updateStatusFilter(LoanStatusFilter.ALL) },
-                                        label = { Text("All") },
+                                        label = { Text(stringResource(R.string.transactions_filter_all)) },
                                         shape = SegmentedButtonDefaults.itemShape(0, 3)
                                     )
                                     SegmentedButton(
                                         selected = uiState.filterState.statusFilter == LoanStatusFilter.CURRENT,
                                         onClick = { viewModel.updateStatusFilter(LoanStatusFilter.CURRENT) },
-                                        label = { Text("Current") },
+                                        label = { Text(stringResource(R.string.loans_filter_current)) },
                                         shape = SegmentedButtonDefaults.itemShape(1, 3)
                                     )
                                     SegmentedButton(
                                         selected = uiState.filterState.statusFilter == LoanStatusFilter.CLOSED,
                                         onClick = { viewModel.updateStatusFilter(LoanStatusFilter.CLOSED) },
-                                        label = { Text("Closed") },
+                                        label = { Text(stringResource(R.string.loans_filter_closed)) },
                                         shape = SegmentedButtonDefaults.itemShape(2, 3)
                                     )
                                 }
 
-                                Text("Sort By", style = MaterialTheme.typography.titleSmall)
+                                Text(stringResource(R.string.loans_filter_sort_by), style = MaterialTheme.typography.titleSmall)
                                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                                     SegmentedButton(
                                         selected = uiState.filterState.sortBy == LoanSortBy.DATE_DESC,
                                         onClick = { viewModel.updateSortBy(LoanSortBy.DATE_DESC) },
-                                        label = { Text("Latest") },
+                                        label = { Text(stringResource(R.string.transactions_filter_latest)) },
                                         shape = SegmentedButtonDefaults.itemShape(0, 4)
                                     )
                                     SegmentedButton(
                                         selected = uiState.filterState.sortBy == LoanSortBy.DATE_ASC,
                                         onClick = { viewModel.updateSortBy(LoanSortBy.DATE_ASC) },
-                                        label = { Text("Oldest") },
+                                        label = { Text(stringResource(R.string.transactions_filter_oldest)) },
                                         shape = SegmentedButtonDefaults.itemShape(1, 4)
                                     )
                                     SegmentedButton(
                                         selected = uiState.filterState.sortBy == LoanSortBy.AMOUNT_DESC,
                                         onClick = { viewModel.updateSortBy(LoanSortBy.AMOUNT_DESC) },
-                                        label = { Text("Highest") },
+                                        label = { Text(stringResource(R.string.transactions_filter_highest)) },
                                         shape = SegmentedButtonDefaults.itemShape(2, 4)
                                     )
                                     SegmentedButton(
                                         selected = uiState.filterState.sortBy == LoanSortBy.AMOUNT_ASC,
                                         onClick = { viewModel.updateSortBy(LoanSortBy.AMOUNT_ASC) },
-                                        label = { Text("Lowest") },
+                                        label = { Text(stringResource(R.string.loans_filter_lowest)) },
                                         shape = SegmentedButtonDefaults.itemShape(3, 4)
                                     )
                                 }
@@ -164,7 +166,7 @@ fun LoansScreen(
                                     onClick = { viewModel.clearFilters() },
                                     modifier = Modifier.align(Alignment.End)
                                 ) {
-                                    Text("Clear All")
+                                    Text(stringResource(R.string.action_clear_all))
                                 }
                             }
                         }

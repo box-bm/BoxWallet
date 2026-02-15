@@ -53,10 +53,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.domain.model.LoanType
 import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.ui.screens.loans.LoanFormViewModel
@@ -104,7 +106,7 @@ fun LoanSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (formState.isEditing) "Edit Loan" else "New Loan",
+                    text = if (formState.isEditing) stringResource(R.string.loan_edit_title) else stringResource(R.string.loan_new_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -112,7 +114,7 @@ fun LoanSheet(
                     IconButton(onClick = { showDeleteDialog = true }) {
                         Icon(
                             Icons.Default.Delete,
-                            contentDescription = "Delete",
+                            contentDescription = stringResource(R.string.action_delete),
                             tint = MaterialTheme.colorScheme.error
                         )
                     }
@@ -133,8 +135,8 @@ fun LoanSheet(
                     OutlinedTextField(
                         value = formState.name,
                         onValueChange = { viewModel.updateName(it) },
-                        label = { Text("Loan Name *") },
-                        placeholder = { Text("e.g. Car loan, Mortgage") },
+                        label = { Text(stringResource(R.string.loan_name_label)) },
+                        placeholder = { Text(stringResource(R.string.loan_name_placeholder)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
@@ -143,7 +145,7 @@ fun LoanSheet(
                     OutlinedTextField(
                         value = formState.description,
                         onValueChange = { viewModel.updateDescription(it) },
-                        label = { Text("Description (Optional)") },
+                        label = { Text(stringResource(R.string.description_optional)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
@@ -153,8 +155,8 @@ fun LoanSheet(
                         OutlinedTextField(
                             value = formState.totalAmount,
                             onValueChange = { viewModel.updateTotalAmount(it) },
-                            label = { Text("Total Amount *") },
-                            placeholder = { Text("0.00") },
+                            label = { Text(stringResource(R.string.loan_total_amount_label)) },
+                            placeholder = { Text(stringResource(R.string.transaction_amount_placeholder)) },
                             prefix = { Text(formState.currency.toCurrencySymbol(), style = MaterialTheme.typography.bodyLarge) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             singleLine = true,
@@ -165,7 +167,7 @@ fun LoanSheet(
                         OutlinedTextField(
                             value = formState.installments,
                             onValueChange = { viewModel.updateInstallments(it) },
-                            label = { Text("Installments *") },
+                            label = { Text(stringResource(R.string.loan_installments_label)) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             singleLine = true,
                             modifier = Modifier.weight(0.7f)
@@ -179,7 +181,7 @@ fun LoanSheet(
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
                         ) {
                             Text(
-                                text = "Each installment: ${formState.currency.toCurrencySymbol()}${"%.2f".format(amount)} (${formState.frequency.getDisplayName()})",
+                                text = stringResource(R.string.loan_each_installment, "${formState.currency.toCurrencySymbol()}${"%.2f".format(amount)}", stringResource(formState.frequency.displayNameRes)),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.padding(12.dp),
@@ -193,7 +195,7 @@ fun LoanSheet(
                         OutlinedTextField(
                             value = formState.startDate.format(dateFormatter),
                             onValueChange = {},
-                            label = { Text("Start Date") },
+                            label = { Text(stringResource(R.string.loan_start_date)) },
                             readOnly = true,
                             trailingIcon = {
                                 IconButton(onClick = { showDatePicker = true }) {
@@ -209,10 +211,10 @@ fun LoanSheet(
                             modifier = Modifier.weight(1f)
                         ) {
                             OutlinedTextField(
-                                value = formState.categoryId?.let { id -> categories.find { it.id == id }?.name } ?: "None",
+                                value = formState.categoryId?.let { id -> categories.find { it.id == id }?.name } ?: stringResource(R.string.transaction_category_none),
                                 onValueChange = {},
                                 readOnly = true,
-                                label = { Text("Category") },
+                                label = { Text(stringResource(R.string.transaction_category_label)) },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
                                 modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                             )
@@ -221,7 +223,7 @@ fun LoanSheet(
                                 onDismissRequest = { categoryExpanded = false }
                             ) {
                                 DropdownMenuItem(
-                                    text = { Text("None") },
+                                    text = { Text(stringResource(R.string.transaction_category_none)) },
                                     onClick = { viewModel.updateCategory(null); categoryExpanded = false },
                                     leadingIcon = { Icon(Icons.Default.Clear, contentDescription = null) }
                                 )
@@ -254,10 +256,10 @@ fun LoanSheet(
                             modifier = Modifier.weight(1f)
                         ) {
                             OutlinedTextField(
-                                value = formState.loanType.name.lowercase().replaceFirstChar { it.uppercase() },
+                                value = stringResource(formState.loanType.displayNameRes),
                                 onValueChange = {},
                                 readOnly = true,
-                                label = { Text("Type") },
+                                label = { Text(stringResource(R.string.loan_type_label)) },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = loanTypeExpanded) },
                                 modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                             )
@@ -267,7 +269,7 @@ fun LoanSheet(
                             ) {
                                 LoanType.entries.forEach { type ->
                                     DropdownMenuItem(
-                                        text = { Text(type.name.lowercase().replaceFirstChar { it.uppercase() }) },
+                                        text = { Text(stringResource(type.displayNameRes)) },
                                         onClick = { viewModel.updateLoanType(type); loanTypeExpanded = false },
                                         trailingIcon = {
                                             if (formState.loanType == type) {
@@ -285,10 +287,10 @@ fun LoanSheet(
                             modifier = Modifier.weight(1f)
                         ) {
                             OutlinedTextField(
-                                value = formState.frequency.getDisplayName(),
+                                value = stringResource(formState.frequency.displayNameRes),
                                 onValueChange = {},
                                 readOnly = true,
-                                label = { Text("Frequency") },
+                                label = { Text(stringResource(R.string.transaction_frequency_label)) },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = frequencyExpanded) },
                                 modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                             )
@@ -298,7 +300,7 @@ fun LoanSheet(
                             ) {
                                 RecurrenceFrequency.entries.forEach { freq ->
                                     DropdownMenuItem(
-                                        text = { Text(freq.getDisplayName()) },
+                                        text = { Text(stringResource(freq.displayNameRes)) },
                                         onClick = { viewModel.updateFrequency(freq); frequencyExpanded = false },
                                         trailingIcon = {
                                             if (formState.frequency == freq) {
@@ -316,7 +318,7 @@ fun LoanSheet(
                         OutlinedTextField(
                             value = formState.frequencyInterval,
                             onValueChange = { viewModel.updateFrequencyInterval(it) },
-                            label = { Text("Every N months") },
+                            label = { Text(stringResource(R.string.transaction_every_n_months)) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
@@ -336,7 +338,7 @@ fun LoanSheet(
                             .height(48.dp),
                         enabled = formState.isValid
                     ) {
-                        Text(if (formState.isEditing) "Update" else "Create Loan")
+                        Text(if (formState.isEditing) stringResource(R.string.transaction_update) else stringResource(R.string.loan_create))
                     }
                     if (formState.isEditing) {
                         OutlinedButton(
@@ -345,7 +347,7 @@ fun LoanSheet(
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
                         ) {
                             Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
-                            Text("Delete Loan")
+                            Text(stringResource(R.string.loan_delete_button))
                         }
                     }
                 }
@@ -366,23 +368,23 @@ fun LoanSheet(
                         viewModel.updateStartDate(Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate())
                     }
                     showDatePicker = false
-                }) { Text("OK") }
+                }) { Text(stringResource(R.string.action_ok)) }
             },
-            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel") } }
+            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text(stringResource(R.string.action_cancel)) } }
         ) { DatePicker(state = state) }
     }
 
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete Loan") },
-            text = { Text("This will also delete all ${formState.installments} installments. This cannot be undone.") },
+            title = { Text(stringResource(R.string.loan_delete_title)) },
+            text = { Text(stringResource(R.string.loan_delete_message, formState.installments)) },
             confirmButton = {
                 TextButton(onClick = { viewModel.delete(); showDeleteDialog = false }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error)
                 }
             },
-            dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") } }
+            dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text(stringResource(R.string.action_cancel)) } }
         )
     }
 }

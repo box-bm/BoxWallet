@@ -30,10 +30,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
+import com.boxdev.boxwallet.R
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.boxdev.boxwallet.data.previewParams.HomeUiStatePreviewParameterProvider
 import com.boxdev.boxwallet.ui.components.LoanCard
@@ -58,10 +60,10 @@ fun HomeScreen(
         contentWindowInsets = WindowInsets(bottom = 0),
         topBar = {
             LargeFlexibleTopAppBar(
-                title = { Text("BoxWallet", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.app_name), fontWeight = FontWeight.Bold) },
                 actions = {
                     IconButton(onClick = onNavigateToAnalytics) {
-                        Icon(Icons.Default.Analytics, contentDescription = "Analytics")
+                        Icon(Icons.Default.Analytics, contentDescription = stringResource(R.string.home_analytics))
                     }
                 }
             )
@@ -96,12 +98,12 @@ fun HomeScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Recent Transactions",
+                            text = stringResource(R.string.home_recent_transactions),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold
                         )
                         TextButton(onClick = onSeeAllTransactions) {
-                            Text("See all")
+                            Text(stringResource(R.string.home_see_all))
                         }
                     }
                 }
@@ -115,7 +117,7 @@ fun HomeScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                "No transactions yet",
+                                stringResource(R.string.home_no_transactions),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -141,12 +143,12 @@ fun HomeScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Active Loans",
+                                text = stringResource(R.string.home_active_loans),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold
                             )
                             TextButton(onClick = onSeeAllLoans) {
-                                Text("See all")
+                                Text(stringResource(R.string.home_see_all))
                             }
                         }
                     }

@@ -47,9 +47,9 @@ class ReminderWorker @AssistedInject constructor(
             .filter { it.reminderDate != null && it.reminderDate <= oneDayFromNow }
             .forEach { transaction ->
                 val title = if (transaction.type == "EXPENSE") {
-                    "Upcoming Payment"
+                    context.getString(R.string.reminder_upcoming_payment)
                 } else {
-                    "Expected Income"
+                    context.getString(R.string.reminder_expected_income)
                 }
 
                 val message = buildString {
@@ -57,7 +57,7 @@ class ReminderWorker @AssistedInject constructor(
                     append(": ")
                     append(currencyFormat.format(transaction.amount))
                     if (transaction.installmentNumber != null) {
-                        append(" (installment ${transaction.installmentNumber})")
+                        append(context.getString(R.string.reminder_installment_suffix, transaction.installmentNumber))
                     }
                 }
 
@@ -75,10 +75,10 @@ class ReminderWorker @AssistedInject constructor(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Payment Reminders",
+                context.getString(R.string.reminder_channel_name),
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
-                description = "Notifications for upcoming payments and incomes"
+                description = context.getString(R.string.reminder_channel_description)
             }
             notificationManager.createNotificationChannel(channel)
         }

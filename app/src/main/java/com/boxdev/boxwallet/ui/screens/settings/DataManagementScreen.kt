@@ -13,9 +13,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.boxdev.boxwallet.R
 
 enum class ClearDataType {
     ALL_DEVICE_DATA,
@@ -42,10 +44,10 @@ fun DataManagementScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Data Management") },
+                title = { Text(stringResource(R.string.data_management_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 }
             )
@@ -82,13 +84,13 @@ fun DataManagementScreen(
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = "Caution",
+                            text = stringResource(R.string.data_management_caution),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
                         Text(
-                            text = "Clearing data is permanent and cannot be undone. Make sure you have a backup before proceeding.",
+                            text = stringResource(R.string.data_management_caution_message),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
@@ -97,27 +99,27 @@ fun DataManagementScreen(
             }
 
             // Device Data Section
-            DataManagementSection(title = "Device Data") {
+            DataManagementSection(title = stringResource(R.string.data_management_device_data)) {
                 DangerousActionCard(
-                    title = "Clear All Device Data",
-                    description = "Delete all transactions, categories, and settings from this device",
-                    buttonText = "Clear All Data",
+                    title = stringResource(R.string.data_management_clear_all_title),
+                    description = stringResource(R.string.data_management_clear_all_description),
+                    buttonText = stringResource(R.string.data_management_clear_all_button),
                     isLoading = uiState.isClearing,
                     onClick = { showConfirmDialog = ClearDataType.ALL_DEVICE_DATA }
                 )
 
                 DangerousActionCard(
-                    title = "Clear Transactions",
-                    description = "Delete all transaction records while keeping categories and settings",
-                    buttonText = "Clear Transactions",
+                    title = stringResource(R.string.data_management_clear_transactions_title),
+                    description = stringResource(R.string.data_management_clear_transactions_description),
+                    buttonText = stringResource(R.string.data_management_clear_transactions_button),
                     isLoading = uiState.isClearing,
                     onClick = { showConfirmDialog = ClearDataType.TRANSACTIONS_ONLY }
                 )
 
                 DangerousActionCard(
-                    title = "Clear Categories",
-                    description = "Delete all categories. Transactions will keep their category references.",
-                    buttonText = "Clear Categories",
+                    title = stringResource(R.string.data_management_clear_categories_title),
+                    description = stringResource(R.string.data_management_clear_categories_description),
+                    buttonText = stringResource(R.string.data_management_clear_categories_button),
                     isLoading = uiState.isClearing,
                     onClick = { showConfirmDialog = ClearDataType.CATEGORIES_ONLY }
                 )
@@ -146,12 +148,12 @@ fun DataManagementScreen(
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Text(
-                                text = "Backup & Restore",
+                                text = stringResource(R.string.data_management_backup_title),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Medium
                             )
                             Text(
-                                text = "Back up your data to Google Drive before clearing",
+                                text = stringResource(R.string.data_management_backup_description),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -161,7 +163,7 @@ fun DataManagementScreen(
                         onClick = onNavigateToBackup,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Go to Backup & Restore")
+                        Text(stringResource(R.string.data_management_go_to_backup))
                     }
                 }
             }
@@ -282,16 +284,16 @@ private fun ClearDataConfirmationDialog(
 ) {
     val (title, message) = when (clearType) {
         ClearDataType.ALL_DEVICE_DATA -> Pair(
-            "Clear All Device Data?",
-            "This will permanently delete ALL transactions, categories, and settings from this device. This action cannot be undone."
+            stringResource(R.string.data_management_confirm_all_title),
+            stringResource(R.string.data_management_confirm_all_message)
         )
         ClearDataType.TRANSACTIONS_ONLY -> Pair(
-            "Clear All Transactions?",
-            "This will permanently delete ALL transaction records from this device. Categories and settings will be preserved. This action cannot be undone."
+            stringResource(R.string.data_management_confirm_transactions_title),
+            stringResource(R.string.data_management_confirm_transactions_message)
         )
         ClearDataType.CATEGORIES_ONLY -> Pair(
-            "Clear All Categories?",
-            "This will permanently delete ALL categories from this device. Transactions will keep their category references but won't show category names. This action cannot be undone."
+            stringResource(R.string.data_management_confirm_categories_title),
+            stringResource(R.string.data_management_confirm_categories_message)
         )
     }
 
@@ -323,12 +325,12 @@ private fun ClearDataConfirmationDialog(
                     containerColor = MaterialTheme.colorScheme.error
                 )
             ) {
-                Text("Clear Data")
+                Text(stringResource(R.string.data_management_clear_data))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )

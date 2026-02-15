@@ -3,8 +3,14 @@
 package com.boxdev.boxwallet.ui.navigation
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -28,6 +34,7 @@ import androidx.compose.material3.ToggleFloatingActionButton
 import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
 import androidx.compose.material3.animateFloatingActionButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,9 +43,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.zIndex
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.ui.components.LoanSheet
 import com.boxdev.boxwallet.ui.components.TransactionSheet
 
@@ -51,10 +60,20 @@ fun NavigationTab(modifier: Modifier = Modifier) {
     val tabRoutes = Destination.entries.map { it.route }.toSet()
     val showBottomBar = currentRoute in tabRoutes
 
+    val showFab = currentRoute in listOf(
+        NavRoutes.Home.route,
+        NavRoutes.TransactionsList.route,
+        NavRoutes.Loans.route
+    )
+
     var fabExpanded by remember { mutableStateOf(false) }
     var showTransactionSheet by remember { mutableStateOf(false) }
     var showLoanSheet by remember { mutableStateOf(false) }
     var selectedTransactionId by remember { mutableStateOf<Long?>(null) }
+
+    LaunchedEffect(currentRoute) {
+        fabExpanded = false
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -85,77 +104,85 @@ fun NavigationTab(modifier: Modifier = Modifier) {
                                 AnimatedContent(
                                     targetState = selected,
                                     transitionSpec = { scaleIn() togetherWith scaleOut() },
-                                    label = "nav_icon_${destination.label}"
+                                    label = "nav_icon_${destination.route}"
                                 ) { isSelected ->
                                     Icon(
                                         imageVector = if (isSelected) destination.activeIcon else destination.icon,
-                                        contentDescription = destination.contentDescription
+                                        contentDescription = stringResource(destination.labelRes)
                                     )
                                 }
                             },
-                            label = { Text(destination.label) }
+                            label = { Text(stringResource(destination.labelRes)) }
                         )
                     }
                 }
             }
         },
         floatingActionButton = {
-            if (!listOf(NavRoutes.Home.route, NavRoutes.TransactionsList.route, NavRoutes.Loans.route).contains(currentRoute)){
-                return@Scaffold
-            }
-
-            FloatingActionButtonMenu(
-                modifier = Modifier.zIndex(999F),
-                expanded = fabExpanded,
-                button = {
-                    ToggleFloatingActionButton(
-                        modifier = Modifier.animateFloatingActionButton(
-                            visible = true,
-                            alignment = Alignment.BottomEnd
-                        ),
-                        checked = fabExpanded,
-                        onCheckedChange = { checked -> fabExpanded = checked },
-                    ) {
-                        val imageVector by remember {
-                            derivedStateOf {
-                                if (checkedProgress > 0.5f) Icons.Default.Close else Icons.Default.Add
-                            }
-                        }
-                        Icon(
-                            painter = rememberVectorPainter(imageVector),
-                            contentDescription = null,
-                            modifier = Modifier.animateIcon({ checkedProgress }),
-                        )
-                    }
-                },
+            AnimatedVisibility(
+                visible = showFab,
+                enter = slideInVertically(
+                    animationSpec = tween(300),
+                    initialOffsetY = { it }
+                ) + fadeIn(animationSpec = tween(300)),
+                exit = slideOutVertically(
+                    animationSpec = tween(300),
+                    targetOffsetY = { it }
+                ) + fadeOut(animationSpec = tween(300))
             ) {
-                FloatingActionButtonMenuItem(
-                    onClick = {
-                        fabExpanded = false
-                        selectedTransactionId = null
-                        showTransactionSheet = true
+                FloatingActionButtonMenu(
+                    modifier = Modifier.zIndex(999F),
+                    expanded = fabExpanded,
+                    button = {
+                        ToggleFloatingActionButton(
+                            modifier = Modifier.animateFloatingActionButton(
+                                visible = true,
+                                alignment = Alignment.BottomEnd
+                            ),
+                            checked = fabExpanded,
+                            onCheckedChange = { checked -> fabExpanded = checked },
+                        ) {
+                            val imageVector by remember {
+                                derivedStateOf {
+                                    if (checkedProgress > 0.5f) Icons.Default.Close else Icons.Default.Add
+                                }
+                            }
+                            Icon(
+                                painter = rememberVectorPainter(imageVector),
+                                contentDescription = null,
+                                modifier = Modifier.animateIcon({ checkedProgress }),
+                            )
+                        }
                     },
-                    text = { Text("Add Transaction") },
-                    icon = {
-                        Icon(
-                            Icons.Default.Receipt,
-                            contentDescription = "Receipt icon",
-                        )
-                    }
-                )
-                FloatingActionButtonMenuItem(
-                    onClick = {
-                        fabExpanded = false
-                        showLoanSheet = true
-                    },
-                    text = { Text("Add Loan") },
-                    icon = {
-                        Icon(
-                            Icons.Default.Payments,
-                            contentDescription = "Credit Card icon",
-                        )
-                    }
-                )
+                ) {
+                    FloatingActionButtonMenuItem(
+                        onClick = {
+                            fabExpanded = false
+                            selectedTransactionId = null
+                            showTransactionSheet = true
+                        },
+                        text = { Text(stringResource(R.string.fab_add_transaction)) },
+                        icon = {
+                            Icon(
+                                Icons.Default.Receipt,
+                                contentDescription = stringResource(R.string.fab_receipt_icon),
+                            )
+                        }
+                    )
+                    FloatingActionButtonMenuItem(
+                        onClick = {
+                            fabExpanded = false
+                            showLoanSheet = true
+                        },
+                        text = { Text(stringResource(R.string.fab_add_loan)) },
+                        icon = {
+                            Icon(
+                                Icons.Default.Payments,
+                                contentDescription = stringResource(R.string.fab_credit_card_icon),
+                            )
+                        }
+                    )
+                }
             }
         }
     ) { contentPadding ->

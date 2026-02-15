@@ -56,10 +56,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.ui.screens.transaction.TransactionFormViewModel
@@ -109,7 +111,7 @@ fun TransactionSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (formState.isEditing) "Edit Transaction" else "New Transaction",
+                    text = if (formState.isEditing) stringResource(R.string.transaction_edit_title) else stringResource(R.string.transaction_new_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -117,7 +119,7 @@ fun TransactionSheet(
                     IconButton(onClick = { showDeleteDialog = true }) {
                         Icon(
                             Icons.Default.Delete,
-                            contentDescription = "Delete",
+                            contentDescription = stringResource(R.string.action_delete),
                             tint = MaterialTheme.colorScheme.error
                         )
                     }
@@ -139,14 +141,14 @@ fun TransactionSheet(
                         SegmentedButton(
                             selected = formState.type == TransactionType.EXPENSE,
                             onClick = { viewModel.updateType(TransactionType.EXPENSE) },
-                            label = { Text("Expense") },
+                            label = { Text(stringResource(R.string.transaction_type_expense)) },
                             icon = { Icon(Icons.AutoMirrored.Default.TrendingDown, contentDescription = null) },
                             shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
                         )
                         SegmentedButton(
                             selected = formState.type == TransactionType.INCOME,
                             onClick = { viewModel.updateType(TransactionType.INCOME) },
-                            label = { Text("Income") },
+                            label = { Text(stringResource(R.string.transaction_type_income)) },
                             icon = { Icon(Icons.AutoMirrored.Default.TrendingUp, contentDescription = null) },
                             shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
                         )
@@ -156,8 +158,8 @@ fun TransactionSheet(
                     OutlinedTextField(
                         value = formState.amount,
                         onValueChange = { viewModel.updateAmount(it) },
-                        label = { Text("Amount *") },
-                        placeholder = { Text("0.00") },
+                        label = { Text(stringResource(R.string.transaction_amount_label)) },
+                        placeholder = { Text(stringResource(R.string.transaction_amount_placeholder)) },
                         prefix = { Text(formState.currency.toCurrencySymbol(), style = MaterialTheme.typography.bodyLarge) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         singleLine = true,
@@ -169,8 +171,8 @@ fun TransactionSheet(
                     OutlinedTextField(
                         value = formState.description,
                         onValueChange = { viewModel.updateDescription(it) },
-                        label = { Text("Description") },
-                        placeholder = { Text("Enter a description") },
+                        label = { Text(stringResource(R.string.transaction_description_label)) },
+                        placeholder = { Text(stringResource(R.string.transaction_description_placeholder)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                     )
@@ -183,10 +185,10 @@ fun TransactionSheet(
                             modifier = Modifier.weight(1f)
                         ) {
                             OutlinedTextField(
-                                value = formState.categoryId?.let { id -> categories.find { it.id == id }?.name } ?: "None",
+                                value = formState.categoryId?.let { id -> categories.find { it.id == id }?.name } ?: stringResource(R.string.transaction_category_none),
                                 onValueChange = {},
                                 readOnly = true,
-                                label = { Text("Category") },
+                                label = { Text(stringResource(R.string.transaction_category_label)) },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
                                 modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                             )
@@ -195,7 +197,7 @@ fun TransactionSheet(
                                 onDismissRequest = { categoryExpanded = false }
                             ) {
                                 DropdownMenuItem(
-                                    text = { Text("None") },
+                                    text = { Text(stringResource(R.string.transaction_category_none)) },
                                     onClick = { viewModel.updateCategory(null); categoryExpanded = false },
                                     leadingIcon = { Icon(Icons.Default.Clear, contentDescription = null) }
                                 )
@@ -217,7 +219,7 @@ fun TransactionSheet(
                         OutlinedTextField(
                             value = formState.date.format(dateFormatter),
                             onValueChange = {},
-                            label = { Text("Date") },
+                            label = { Text(stringResource(R.string.transaction_date_label)) },
                             readOnly = true,
                             trailingIcon = {
                                 IconButton(onClick = { showDatePicker = true }) {
@@ -230,7 +232,7 @@ fun TransactionSheet(
 
                     // Options card — Cleared, Reminder, Recurring in one compact card
                     CompactToggleRow(
-                        label = "Cleared",
+                        label = stringResource(R.string.transaction_cleared),
                         checked = formState.isCleared,
                         onCheckedChange = { viewModel.updateIsCleared(it) }
                     )
@@ -238,7 +240,7 @@ fun TransactionSheet(
                     AnimatedVisibility(visible = !formState.isCleared) {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             CompactToggleRow(
-                                label = "Reminder",
+                                label = stringResource(R.string.transaction_reminder),
                                 checked = formState.hasReminder,
                                 onCheckedChange = { viewModel.updateHasReminder(it) }
                             )
@@ -246,7 +248,7 @@ fun TransactionSheet(
                                 OutlinedTextField(
                                     value = formState.reminderDate?.format(dateFormatter) ?: "",
                                     onValueChange = {},
-                                    label = { Text("Reminder Date") },
+                                    label = { Text(stringResource(R.string.transaction_reminder_date)) },
                                     readOnly = true,
                                     trailingIcon = {
                                         IconButton(onClick = { showReminderDatePicker = true }) {
@@ -262,7 +264,7 @@ fun TransactionSheet(
                     HorizontalDivider()
 
                     CompactToggleRow(
-                        label = "Recurring",
+                        label = stringResource(R.string.transaction_recurring),
                         checked = formState.isRecurrent,
                         onCheckedChange = { viewModel.updateIsRecurrent(it) }
                     )
@@ -274,10 +276,10 @@ fun TransactionSheet(
                                 onExpandedChange = { frequencyExpanded = it }
                             ) {
                                 OutlinedTextField(
-                                    value = formState.recurrenceFrequency?.getDisplayName() ?: "Select frequency",
+                                    value = formState.recurrenceFrequency?.let { stringResource(it.displayNameRes) } ?: stringResource(R.string.transaction_frequency_placeholder),
                                     onValueChange = {},
                                     readOnly = true,
-                                    label = { Text("Frequency") },
+                                    label = { Text(stringResource(R.string.transaction_frequency_label)) },
                                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = frequencyExpanded) },
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -289,7 +291,7 @@ fun TransactionSheet(
                                 ) {
                                     RecurrenceFrequency.entries.forEach { freq ->
                                         DropdownMenuItem(
-                                            text = { Text(freq.getDisplayName()) },
+                                            text = { Text(stringResource(freq.displayNameRes)) },
                                             onClick = { viewModel.updateRecurrenceFrequency(freq); frequencyExpanded = false },
                                             trailingIcon = {
                                                 if (formState.recurrenceFrequency == freq) {
@@ -305,7 +307,7 @@ fun TransactionSheet(
                                 OutlinedTextField(
                                     value = formState.recurrenceInterval,
                                     onValueChange = { viewModel.updateRecurrenceInterval(it) },
-                                    label = { Text("Every N months") },
+                                    label = { Text(stringResource(R.string.transaction_every_n_months)) },
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                     singleLine = true,
                                     modifier = Modifier.fillMaxWidth()
@@ -324,7 +326,7 @@ fun TransactionSheet(
                         .height(48.dp),
                     enabled = formState.isValid
                 ) {
-                    Text(if (formState.isEditing) "Update" else "Save")
+                    Text(if (formState.isEditing) stringResource(R.string.transaction_update) else stringResource(R.string.transaction_save))
                 }
             }
         }
@@ -343,9 +345,9 @@ fun TransactionSheet(
                         viewModel.updateDate(Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate())
                     }
                     showDatePicker = false
-                }) { Text("OK") }
+                }) { Text(stringResource(R.string.action_ok)) }
             },
-            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel") } }
+            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text(stringResource(R.string.action_cancel)) } }
         ) { DatePicker(state = state) }
     }
 
@@ -362,23 +364,23 @@ fun TransactionSheet(
                         viewModel.updateReminderDate(Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate())
                     }
                     showReminderDatePicker = false
-                }) { Text("OK") }
+                }) { Text(stringResource(R.string.action_ok)) }
             },
-            dismissButton = { TextButton(onClick = { showReminderDatePicker = false }) { Text("Cancel") } }
+            dismissButton = { TextButton(onClick = { showReminderDatePicker = false }) { Text(stringResource(R.string.action_cancel)) } }
         ) { DatePicker(state = state) }
     }
 
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete Transaction") },
-            text = { Text("Are you sure? This cannot be undone.") },
+            title = { Text(stringResource(R.string.transaction_delete_title)) },
+            text = { Text(stringResource(R.string.transaction_delete_message)) },
             confirmButton = {
                 TextButton(onClick = { viewModel.delete(); showDeleteDialog = false }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error)
                 }
             },
-            dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") } }
+            dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text(stringResource(R.string.action_cancel)) } }
         )
     }
 }

@@ -14,9 +14,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.ui.components.LoanSheet
 import com.boxdev.boxwallet.util.toCurrencySymbol
@@ -35,15 +37,15 @@ fun LoanDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(uiState.loan?.name ?: "Loan Detail") },
+                title = { Text(uiState.loan?.name ?: stringResource(R.string.loan_detail_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = { showEditSheet = true }) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit Loan")
+                        Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.loan_detail_edit))
                     }
                 }
             )
@@ -58,7 +60,7 @@ fun LoanDetailScreen(
             uiState.loan == null -> Box(
                 modifier = Modifier.fillMaxSize().padding(paddingValues),
                 contentAlignment = Alignment.Center
-            ) { Text("Loan not found", style = MaterialTheme.typography.bodyLarge) }
+            ) { Text(stringResource(R.string.loan_not_found), style = MaterialTheme.typography.bodyLarge) }
 
             else -> {
                 val loan = uiState.loan!!
@@ -76,7 +78,7 @@ fun LoanDetailScreen(
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Text(
-                                    text = "Loan Summary",
+                                    text = stringResource(R.string.loan_summary),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -85,7 +87,7 @@ fun LoanDetailScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text("Total Amount", style = MaterialTheme.typography.bodyMedium)
+                                    Text(stringResource(R.string.loan_total_amount), style = MaterialTheme.typography.bodyMedium)
                                     Text(
                                         "$symbol${"%.2f".format(loan.totalAmount)}",
                                         fontWeight = FontWeight.SemiBold
@@ -95,7 +97,7 @@ fun LoanDetailScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text("Per Installment", style = MaterialTheme.typography.bodyMedium)
+                                    Text(stringResource(R.string.loan_per_installment), style = MaterialTheme.typography.bodyMedium)
                                     Text(
                                         "$symbol${"%.2f".format(loan.installmentAmount)}",
                                         fontWeight = FontWeight.SemiBold
@@ -105,9 +107,9 @@ fun LoanDetailScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text("Progress", style = MaterialTheme.typography.bodyMedium)
+                                    Text(stringResource(R.string.loan_progress), style = MaterialTheme.typography.bodyMedium)
                                     Text(
-                                        "${loan.paidInstallments}/${loan.totalInstallments} paid",
+                                        stringResource(R.string.loan_paid_progress, loan.paidInstallments, loan.totalInstallments),
                                         fontWeight = FontWeight.SemiBold,
                                         color = MaterialTheme.colorScheme.primary
                                     )
@@ -121,7 +123,7 @@ fun LoanDetailScreen(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        Text("Next Payment", style = MaterialTheme.typography.bodyMedium)
+                                        Text(stringResource(R.string.loan_next_payment), style = MaterialTheme.typography.bodyMedium)
                                         Text(
                                             dueDate.format(dateFormatter),
                                             fontWeight = FontWeight.SemiBold,
@@ -133,7 +135,7 @@ fun LoanDetailScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text("Start Date", style = MaterialTheme.typography.bodyMedium)
+                                    Text(stringResource(R.string.loan_detail_start_date), style = MaterialTheme.typography.bodyMedium)
                                     Text(loan.startDate.format(dateFormatter))
                                 }
                                 if (loan.description.isNotBlank()) {
@@ -149,7 +151,7 @@ fun LoanDetailScreen(
 
                     item {
                         Text(
-                            text = "Installments",
+                            text = stringResource(R.string.loan_installments_section),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -209,13 +211,13 @@ private fun InstallmentRow(
                 IconButton(onClick = onToggleCleared) {
                     Icon(
                         imageVector = if (installment.isCleared) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
-                        contentDescription = if (installment.isCleared) "Mark as unpaid" else "Mark as paid",
+                        contentDescription = if (installment.isCleared) stringResource(R.string.loan_mark_as_unpaid) else stringResource(R.string.loan_mark_as_paid),
                         tint = if (installment.isCleared) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Column {
                     Text(
-                        text = "Installment #${installment.installmentNumber}",
+                        text = stringResource(R.string.loan_installment_number, installment.installmentNumber ?: 0),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium
                     )

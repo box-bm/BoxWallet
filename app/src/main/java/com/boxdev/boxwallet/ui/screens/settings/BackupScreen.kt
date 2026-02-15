@@ -49,10 +49,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.data.remote.DriveBackupFile
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -87,19 +89,19 @@ fun BackupScreen(
     showRestoreDialog?.let { fileId ->
         AlertDialog(
             onDismissRequest = { showRestoreDialog = null },
-            title = { Text("Restore Backup") },
-            text = { Text("This will replace all current data with the backup. Are you sure?") },
+            title = { Text(stringResource(R.string.backup_restore_title)) },
+            text = { Text(stringResource(R.string.backup_restore_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     showRestoreDialog = null
                     viewModel.restoreBackup(fileId)
                 }) {
-                    Text("Restore")
+                    Text(stringResource(R.string.backup_restore_button))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showRestoreDialog = null }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         )
@@ -108,19 +110,19 @@ fun BackupScreen(
     showDeleteDialog?.let { fileId ->
         AlertDialog(
             onDismissRequest = { showDeleteDialog = null },
-            title = { Text("Delete Backup") },
-            text = { Text("Are you sure you want to delete this backup from Google Drive?") },
+            title = { Text(stringResource(R.string.backup_delete_title)) },
+            text = { Text(stringResource(R.string.backup_delete_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     showDeleteDialog = null
                     viewModel.deleteBackup(fileId)
                 }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = null }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         )
@@ -129,12 +131,12 @@ fun BackupScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(text = "Backup & Restore") },
+                title = { Text(text = stringResource(R.string.backup_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.action_back)
                         )
                     }
                 },
@@ -179,11 +181,11 @@ fun BackupScreen(
                             modifier = Modifier.padding(end = 8.dp)
                         )
                     }
-                    Text("Backup to Google Drive")
+                    Text(stringResource(R.string.backup_to_drive))
                 }
 
                 Text(
-                    text = "Available Backups",
+                    text = stringResource(R.string.backup_available),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -205,7 +207,7 @@ fun BackupScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "No backups found",
+                            text = stringResource(R.string.backup_no_backups),
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     }
@@ -246,13 +248,13 @@ private fun SignedOutContent(
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Google Drive Backup",
+            text = stringResource(R.string.backup_drive_title),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.SemiBold
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Sign in with your Google account to back up your transactions, categories, and loans to Google Drive.",
+            text = stringResource(R.string.backup_drive_description),
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 32.dp)
@@ -267,7 +269,7 @@ private fun SignedOutContent(
                     modifier = Modifier.padding(end = 8.dp),
                 )
             }
-            Text("Sign in with Google")
+            Text(stringResource(R.string.backup_sign_in))
         }
     }
 }
@@ -307,7 +309,7 @@ private fun AccountInfoCard(
                         .size(18.dp)
                         .padding(end = 4.dp)
                 )
-                Text("Sign out")
+                Text(stringResource(R.string.backup_sign_out))
             }
         }
     }
@@ -345,14 +347,14 @@ private fun DriveBackupFileItem(
                 IconButton(onClick = onRestore) {
                     Icon(
                         imageVector = Icons.Default.Restore,
-                        contentDescription = "Restore",
+                        contentDescription = stringResource(R.string.backup_restore_button),
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
                 IconButton(onClick = onDelete) {
                     Icon(
                         imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete",
+                        contentDescription = stringResource(R.string.action_delete),
                         tint = MaterialTheme.colorScheme.error
                     )
                 }

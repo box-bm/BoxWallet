@@ -19,11 +19,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
+import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.data.previewParams.TransactionPreviewParameterProvider
 import com.boxdev.boxwallet.domain.model.Category
@@ -94,7 +96,7 @@ fun TransactionItem(
                 if (transaction.hasReminder) {
                     Icon(
                         imageVector = Icons.Default.Notifications,
-                        contentDescription = "Has reminder",
+                        contentDescription = stringResource(R.string.transaction_has_reminder),
                         modifier = Modifier.size(14.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )

@@ -5,6 +5,7 @@ package com.boxdev.boxwallet.ui.screens.onboarding
 import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
@@ -50,11 +51,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.Surface
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.boxdev.boxwallet.R
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -62,20 +65,20 @@ import java.util.Locale
 
 private data class OnboardingPage(
     val icon: ImageVector,
-    val title: String,
-    val description: String
+    @StringRes val titleRes: Int,
+    @StringRes val descriptionRes: Int
 )
 
 private val onboardingPages = listOf(
     OnboardingPage(
         icon = Icons.Default.AccountBalance,
-        title = "Welcome to BoxWallet",
-        description = "Your personal finance manager"
+        titleRes = R.string.onboarding_welcome_title,
+        descriptionRes = R.string.onboarding_welcome_description
     ),
     OnboardingPage(
         icon = Icons.Default.Receipt,
-        title = "Track & Manage",
-        description = "Log transactions, manage loans with installments and payment schedules"
+        titleRes = R.string.onboarding_track_title,
+        descriptionRes = R.string.onboarding_track_description
     )
 )
 
@@ -185,7 +188,7 @@ fun OnboardingScreen(
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Next")
+                    Text(stringResource(R.string.onboarding_next))
                 }
 
                 // Skip button
@@ -196,7 +199,7 @@ fun OnboardingScreen(
                         }
                     }
                 ) {
-                    Text("Skip")
+                    Text(stringResource(R.string.onboarding_skip))
                 }
             } else {
                 // Spacer to maintain consistent layout height
@@ -226,7 +229,7 @@ private fun FeaturePage(page: OnboardingPage) {
         Spacer(modifier = Modifier.height(32.dp))
 
         Text(
-            text = page.title,
+            text = stringResource(page.titleRes),
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center
@@ -235,7 +238,7 @@ private fun FeaturePage(page: OnboardingPage) {
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = page.description,
+            text = stringResource(page.descriptionRes),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -266,7 +269,7 @@ private fun GetStartedPage(
         Spacer(modifier = Modifier.height(32.dp))
 
         Text(
-            text = "Get Started",
+            text = stringResource(R.string.onboarding_get_started_title),
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center
@@ -275,7 +278,7 @@ private fun GetStartedPage(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "Start fresh or restore your data from a previous backup",
+            text = stringResource(R.string.onboarding_get_started_description),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -288,7 +291,7 @@ private fun GetStartedPage(
             onClick = onGetStarted,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Get Started")
+            Text(stringResource(R.string.onboarding_get_started_button))
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -300,7 +303,7 @@ private fun GetStartedPage(
                 modifier = Modifier.size(18.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Restore from Backup")
+            Text(stringResource(R.string.onboarding_restore_from_backup))
         }
     }
 }
@@ -316,7 +319,7 @@ private fun RestoreFromBackupDialog(
         onDismissRequest = {
             if (!uiState.isRestoring) onDismiss()
         },
-        title = { Text("Restore from Backup") },
+        title = { Text(stringResource(R.string.onboarding_restore_title)) },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -330,13 +333,13 @@ private fun RestoreFromBackupDialog(
                     ) {
                         LoadingIndicator()
                         Text(
-                            text = "Restoring your data...",
+                            text = stringResource(R.string.onboarding_restoring),
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
                 } else if (!uiState.isSignedIn) {
                     Text(
-                        text = "Sign in with Google to access your backups on Google Drive.",
+                        text = stringResource(R.string.onboarding_sign_in_message),
                         style = MaterialTheme.typography.bodyMedium
                     )
                     if (uiState.isSigningIn) {
@@ -351,7 +354,7 @@ private fun RestoreFromBackupDialog(
                             onClick = onSignIn,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Sign in with Google")
+                            Text(stringResource(R.string.backup_sign_in))
                         }
                     }
                 } else if (uiState.isLoadingBackups) {
@@ -365,14 +368,14 @@ private fun RestoreFromBackupDialog(
                     }
                 } else if (uiState.backupFiles.isEmpty()) {
                     Text(
-                        text = "No backups found on your Google Drive.",
+                        text = stringResource(R.string.onboarding_no_backups),
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth()
                     )
                 } else {
                     Text(
-                        text = "Select a backup to restore:",
+                        text = stringResource(R.string.onboarding_select_backup),
                         style = MaterialTheme.typography.bodyMedium
                     )
                     LazyColumn(
@@ -418,7 +421,7 @@ private fun RestoreFromBackupDialog(
         dismissButton = {
             if (!uiState.isRestoring) {
                 TextButton(onClick = onDismiss) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         }

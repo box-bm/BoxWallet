@@ -44,10 +44,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.boxdev.boxwallet.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,7 +78,7 @@ fun SettingsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Settings",
+                        text = stringResource(R.string.settings_title),
                     )
                 },
 
@@ -93,39 +95,39 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // General Section
-            SettingsSection(title = "General") {
+            SettingsSection(title = stringResource(R.string.settings_general_section)) {
                 SettingsItem(
                     icon = Icons.Default.Settings,
-                    title = "General Settings",
-                    subtitle = "Currency, language, and regional settings",
+                    title = stringResource(R.string.settings_general_title),
+                    subtitle = stringResource(R.string.settings_general_subtitle),
                     onClick = onNavigateToGeneral
                 )
                 HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
                 SettingsItem(
                     icon = Icons.Default.Category,
-                    title = "Categories",
-                    subtitle = "Manage transaction categories",
+                    title = stringResource(R.string.settings_categories_title),
+                    subtitle = stringResource(R.string.settings_categories_subtitle),
                     onClick = onNavigateToCategories
                 )
             }
 
             // Appearance Section
-            SettingsSection(title = "Appearance") {
+            SettingsSection(title = stringResource(R.string.settings_appearance_section)) {
                 SettingsItem(
                     icon = Icons.Default.Palette,
-                    title = "Theme Customization",
-                    subtitle = "Change app colors and dark mode",
+                    title = stringResource(R.string.settings_theme_title),
+                    subtitle = stringResource(R.string.settings_theme_subtitle),
                     onClick = onNavigateToTheme
                 )
             }
 
             // Security Section
-            SettingsSection(title = "Security") {
+            SettingsSection(title = stringResource(R.string.settings_security_section)) {
                 SettingsToggleItem(
                     icon = Icons.Default.Fingerprint,
-                    title = "App Lock",
-                    subtitle = if (biometricAvailable) "Require fingerprint or device credentials on open"
-                               else "No biometric or screen lock configured on this device",
+                    title = stringResource(R.string.settings_app_lock_title),
+                    subtitle = if (biometricAvailable) stringResource(R.string.settings_app_lock_available)
+                               else stringResource(R.string.settings_app_lock_unavailable),
                     checked = isBiometricEnabled,
                     enabled = biometricAvailable,
                     onCheckedChange = { viewModel.setBiometricEnabled(it) }
@@ -133,34 +135,34 @@ fun SettingsScreen(
             }
 
             // Data Section
-            SettingsSection(title = "Data") {
+            SettingsSection(title = stringResource(R.string.settings_data_section)) {
                 SettingsItem(
                     icon = Icons.Default.Backup,
-                    title = "Backup & Restore",
-                    subtitle = "Save and restore your data",
+                    title = stringResource(R.string.settings_backup_title),
+                    subtitle = stringResource(R.string.settings_backup_subtitle),
                     onClick = onNavigateToBackup
                 )
                 HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
                 SettingsItem(
                     icon = Icons.Default.Description,
-                    title = "Export Reports",
-                    subtitle = "Generate Excel and PDF reports",
+                    title = stringResource(R.string.settings_export_title),
+                    subtitle = stringResource(R.string.settings_export_subtitle),
                     onClick = onNavigateToExport
                 )
                 HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
                 SettingsItem(
                     icon = Icons.Default.DeleteForever,
-                    title = "Data Management",
-                    subtitle = "Clear device and cloud data",
+                    title = stringResource(R.string.settings_data_management_title),
+                    subtitle = stringResource(R.string.settings_data_management_subtitle),
                     onClick = onNavigateToDataManagement
                 )
             }
 
             // About Section
-            SettingsSection(title = "About") {
+            SettingsSection(title = stringResource(R.string.settings_about_section)) {
                 SettingsItem(
                     icon = Icons.Default.Info,
-                    title = "App Version",
+                    title = stringResource(R.string.settings_app_version_title),
                     subtitle = "1.0.0",
                 )
             }
@@ -189,7 +191,7 @@ fun SettingsScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Coffee,
-                        contentDescription = "Coffee",
+                        contentDescription = stringResource(R.string.settings_buy_coffee),
                         modifier = Modifier.size(32.dp),
                         tint = Color.Black
                     )
@@ -197,13 +199,13 @@ fun SettingsScreen(
                         modifier = Modifier.padding(start = 16.dp)
                     ) {
                         Text(
-                            text = "Buy Me a Coffee",
+                            text = stringResource(R.string.settings_buy_coffee),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = Color.Black
                         )
                         Text(
-                            text = "Support the development!",
+                            text = stringResource(R.string.settings_buy_coffee_subtitle),
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.Black
                         )

@@ -72,8 +72,8 @@ class MainActivity : FragmentActivity() {
     private fun showBiometricPrompt() {
         authError = null
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Unlock BoxWallet")
-            .setSubtitle("Use your fingerprint or device credentials")
+            .setTitle(getString(R.string.biometric_title))
+            .setSubtitle(getString(R.string.biometric_subtitle))
             .setAllowedAuthenticators(
                 BiometricManager.Authenticators.BIOMETRIC_STRONG or
                 BiometricManager.Authenticators.DEVICE_CREDENTIAL
@@ -98,7 +98,7 @@ class MainActivity : FragmentActivity() {
                 }
 
                 override fun onAuthenticationFailed() {
-                    authError = "Authentication failed. Try again."
+                    authError = getString(R.string.biometric_failed)
                 }
             }
         )

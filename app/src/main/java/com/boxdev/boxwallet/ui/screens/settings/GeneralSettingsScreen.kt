@@ -32,9 +32,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.data.datastore.CentralAmericanCurrency
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,10 +55,10 @@ fun GeneralSettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("General Settings") },
+                title = { Text(stringResource(R.string.general_settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 }
             )
@@ -71,20 +73,20 @@ fun GeneralSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Currency Section
-            SettingsSection(title = "Regional") {
+            SettingsSection(title = stringResource(R.string.general_settings_regional)) {
                 SettingsItem(
-                    title = "Currency",
+                    title = stringResource(R.string.general_settings_currency),
                     subtitle = "${uiState.selectedCurrency.currencyName} (${uiState.selectedCurrency.symbol})",
                     onClick = { showCurrencyDialog = true }
                 )
             }
 
             // Transactions Section
-            SettingsSection(title = "Transactions") {
+            SettingsSection(title = stringResource(R.string.general_settings_transactions)) {
                 val defaultCategory = uiState.categories.find { it.id == uiState.defaultCategoryId }
                 SettingsItem(
-                    title = "Default Category",
-                    subtitle = defaultCategory?.name ?: "None",
+                    title = stringResource(R.string.general_settings_default_category),
+                    subtitle = defaultCategory?.name ?: stringResource(R.string.action_none),
                     onClick = { showCategoryDialog = true }
                 )
             }
@@ -106,7 +108,7 @@ fun GeneralSettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Current Currency",
+                            text = stringResource(R.string.general_settings_current_currency),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -118,7 +120,7 @@ fun GeneralSettingsScreen(
                         )
                     }
                     Text(
-                        text = "This currency will be displayed across all screens including transactions, summaries, and analytics.",
+                        text = stringResource(R.string.general_settings_currency_description),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
@@ -217,7 +219,7 @@ private fun CurrencySelectionDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "Select Currency",
+                text = stringResource(R.string.general_settings_select_currency),
                 style = MaterialTheme.typography.titleLarge
             )
         },
@@ -236,7 +238,7 @@ private fun CurrencySelectionDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )
@@ -272,7 +274,7 @@ private fun CurrencyItem(
         if (isSelected) {
             Icon(
                 imageVector = Icons.Default.Check,
-                contentDescription = "Selected",
+                contentDescription = stringResource(R.string.action_selected),
                 tint = MaterialTheme.colorScheme.primary
             )
         }
@@ -290,7 +292,7 @@ private fun DefaultCategorySelectionDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "Select Default Category",
+                text = stringResource(R.string.general_settings_select_default_category),
                 style = MaterialTheme.typography.titleLarge
             )
         },
@@ -300,8 +302,8 @@ private fun DefaultCategorySelectionDialog(
             ) {
                 // None option
                 CategorySelectionItem(
-                    name = "None",
-                    description = "No default category",
+                    name = stringResource(R.string.action_none),
+                    description = stringResource(R.string.general_settings_no_default_category),
                     isSelected = currentCategoryId == null,
                     onClick = { onCategorySelected(null) }
                 )
@@ -321,7 +323,7 @@ private fun DefaultCategorySelectionDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )
@@ -360,7 +362,7 @@ private fun CategorySelectionItem(
         if (isSelected) {
             Icon(
                 imageVector = Icons.Default.Check,
-                contentDescription = "Selected",
+                contentDescription = stringResource(R.string.action_selected),
                 tint = MaterialTheme.colorScheme.primary
             )
         }

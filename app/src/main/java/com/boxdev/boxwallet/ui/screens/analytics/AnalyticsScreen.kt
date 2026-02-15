@@ -39,9 +39,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.ui.components.charts.BalanceTrendChart
 import com.boxdev.boxwallet.ui.components.charts.CategoryDonutChart
 import com.boxdev.boxwallet.ui.components.charts.ProjectionLineChart
@@ -58,10 +60,10 @@ fun AnalyticsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Analytics") },
+                title = { Text(stringResource(R.string.analytics_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 }
             )
@@ -85,7 +87,7 @@ fun AnalyticsScreen(
                         FilterChip(
                             selected = uiState.selectedPeriod == months,
                             onClick = { viewModel.updatePeriod(months) },
-                            label = { Text("$months months") }
+                            label = { Text(stringResource(R.string.analytics_months, months)) }
                         )
                     }
                 }
@@ -94,7 +96,7 @@ fun AnalyticsScreen(
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "Expenses by Category",
+                            text = stringResource(R.string.analytics_expenses_by_category),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -134,7 +136,7 @@ fun AnalyticsScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    "No category data available",
+                                    stringResource(R.string.analytics_no_category_data),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -148,18 +150,18 @@ fun AnalyticsScreen(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                 ) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("Period Summary", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.analytics_period_summary), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                         val totalIncome = uiState.monthlyData.sumOf { it.income }
                         val totalExpense = uiState.monthlyData.sumOf { it.expense }
                         val avgIncome = if (uiState.monthlyData.isNotEmpty()) totalIncome / uiState.monthlyData.size else 0.0
                         val avgExpense = if (uiState.monthlyData.isNotEmpty()) totalExpense / uiState.monthlyData.size else 0.0
 
-                        SummaryRow("Total Income", "%.2f".format(totalIncome), MaterialTheme.colorScheme.primary)
-                        SummaryRow("Total Expense", "%.2f".format(totalExpense), MaterialTheme.colorScheme.error)
-                        SummaryRow("Avg. Monthly Income", "%.2f".format(avgIncome), MaterialTheme.colorScheme.primary)
-                        SummaryRow("Avg. Monthly Expense", "%.2f".format(avgExpense), MaterialTheme.colorScheme.error)
+                        SummaryRow(stringResource(R.string.analytics_total_income), "%.2f".format(totalIncome), MaterialTheme.colorScheme.primary)
+                        SummaryRow(stringResource(R.string.analytics_total_expense), "%.2f".format(totalExpense), MaterialTheme.colorScheme.error)
+                        SummaryRow(stringResource(R.string.analytics_avg_monthly_income), "%.2f".format(avgIncome), MaterialTheme.colorScheme.primary)
+                        SummaryRow(stringResource(R.string.analytics_avg_monthly_expense), "%.2f".format(avgExpense), MaterialTheme.colorScheme.error)
                         SummaryRow(
-                            "Net Savings",
+                            stringResource(R.string.analytics_net_savings),
                             "%.2f".format(totalIncome - totalExpense),
                             if (totalIncome >= totalExpense) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                         )
@@ -171,7 +173,7 @@ fun AnalyticsScreen(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                 ) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("Monthly Breakdown", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.analytics_monthly_breakdown), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                         uiState.monthlyData.reversed().forEach { data ->
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text(
@@ -193,7 +195,7 @@ fun AnalyticsScreen(
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "Expense Projection",
+                            text = stringResource(R.string.analytics_expense_projection),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -214,7 +216,7 @@ fun AnalyticsScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    "Insufficient data for projection",
+                                    stringResource(R.string.analytics_insufficient_data),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -227,7 +229,7 @@ fun AnalyticsScreen(
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "Balance Trend",
+                            text = stringResource(R.string.analytics_balance_trend),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -252,7 +254,7 @@ fun AnalyticsScreen(
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        if (it.isIncreasing) "Balance increasing" else "Balance decreasing",
+                                        if (it.isIncreasing) stringResource(R.string.analytics_balance_increasing) else stringResource(R.string.analytics_balance_decreasing),
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = if (it.isIncreasing) Color(0xFF4CAF50) else Color(0xFFF44336)
                                     )
@@ -266,7 +268,7 @@ fun AnalyticsScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    "No trend data available",
+                                    stringResource(R.string.analytics_no_trend_data),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )

@@ -1,0 +1,307 @@
+<resources>
+    <string name="app_name">BoxWallet</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Inicio</string>
+    <string name="nav_loans">Pr\u00e9stamos</string>
+    <string name="nav_settings">Ajustes</string>
+
+    <!-- FAB Menu -->
+    <string name="fab_add_transaction">Agregar Transacci\u00f3n</string>
+    <string name="fab_add_loan">Agregar Pr\u00e9stamo</string>
+    <string name="fab_receipt_icon">Icono de recibo</string>
+    <string name="fab_credit_card_icon">Icono de tarjeta</string>
+
+    <!-- Home Screen -->
+    <string name="home_analytics">Estad\u00edsticas</string>
+    <string name="home_recent_transactions">Transacciones Recientes</string>
+    <string name="home_see_all">Ver todo</string>
+    <string name="home_no_transactions">A\u00fan no hay transacciones</string>
+    <string name="home_active_loans">Pr\u00e9stamos Activos</string>
+
+    <!-- Summary Card -->
+    <string name="summary_total_balance">Balance Total</string>
+    <string name="summary_income_icon">Icono de ingresos</string>
+    <string name="summary_income">Ingresos</string>
+    <string name="summary_expense_icon">Icono de gastos</string>
+    <string name="summary_expense">Gastos</string>
+
+    <!-- Transaction Item -->
+    <string name="transaction_has_reminder">Tiene recordatorio</string>
+
+    <!-- Transaction Sheet -->
+    <string name="transaction_edit_title">Editar Transacci\u00f3n</string>
+    <string name="transaction_new_title">Nueva Transacci\u00f3n</string>
+    <string name="transaction_type_expense">Gasto</string>
+    <string name="transaction_type_income">Ingreso</string>
+    <string name="transaction_amount_label">Monto *</string>
+    <string name="transaction_amount_placeholder">0.00</string>
+    <string name="transaction_description_label">Descripci\u00f3n</string>
+    <string name="transaction_description_placeholder">Ingrese una descripci\u00f3n</string>
+    <string name="transaction_category_label">Categor\u00eda</string>
+    <string name="transaction_category_none">Ninguna</string>
+    <string name="transaction_date_label">Fecha</string>
+    <string name="transaction_cleared">Liquidado</string>
+    <string name="transaction_reminder">Recordatorio</string>
+    <string name="transaction_reminder_date">Fecha de Recordatorio</string>
+    <string name="transaction_recurring">Recurrente</string>
+    <string name="transaction_frequency_label">Frecuencia</string>
+    <string name="transaction_frequency_placeholder">Seleccionar frecuencia</string>
+    <string name="transaction_every_n_months">Cada N meses</string>
+    <string name="transaction_save">Guardar</string>
+    <string name="transaction_update">Actualizar</string>
+    <string name="transaction_delete_title">Eliminar Transacci\u00f3n</string>
+    <string name="transaction_delete_message">\u00bfEst\u00e1s seguro? Esta acci\u00f3n no se puede deshacer.</string>
+
+    <!-- Loan Sheet -->
+    <string name="loan_edit_title">Editar Pr\u00e9stamo</string>
+    <string name="loan_new_title">Nuevo Pr\u00e9stamo</string>
+    <string name="loan_name_label">Nombre del Pr\u00e9stamo *</string>
+    <string name="loan_name_placeholder">ej. Pr\u00e9stamo de auto, Hipoteca</string>
+    <string name="loan_description_label">Descripci\u00f3n (Opcional)</string>
+    <string name="loan_total_amount_label">Monto Total *</string>
+    <string name="loan_installments_label">Cuotas *</string>
+    <string name="loan_each_installment">Cada cuota: %1$s (%2$s)</string>
+    <string name="loan_start_date">Fecha de Inicio</string>
+    <string name="loan_type_label">Tipo</string>
+    <string name="loan_create">Crear Pr\u00e9stamo</string>
+    <string name="loan_delete_title">Eliminar Pr\u00e9stamo</string>
+    <string name="loan_delete_message">Esto tambi\u00e9n eliminar\u00e1 las %1$s cuotas. Esta acci\u00f3n no se puede deshacer.</string>
+    <string name="loan_delete_button">Eliminar Pr\u00e9stamo</string>
+
+    <!-- Loan Card -->
+    <string name="loan_paid_progress">%1$d/%2$d pagadas</string>
+    <string name="loan_due_date">Vence: %1$s</string>
+
+    <!-- Loan Detail Screen -->
+    <string name="loan_detail_title">Detalle del Pr\u00e9stamo</string>
+    <string name="loan_detail_edit">Editar Pr\u00e9stamo</string>
+    <string name="loan_not_found">Pr\u00e9stamo no encontrado</string>
+    <string name="loan_summary">Resumen del Pr\u00e9stamo</string>
+    <string name="loan_total_amount">Monto Total</string>
+    <string name="loan_per_installment">Por Cuota</string>
+    <string name="loan_progress">Progreso</string>
+    <string name="loan_next_payment">Pr\u00f3ximo Pago</string>
+    <string name="loan_detail_start_date">Fecha de Inicio</string>
+    <string name="loan_installments_section">Cuotas</string>
+    <string name="loan_installment_number">Cuota #%1$d</string>
+    <string name="loan_mark_as_unpaid">Marcar como no pagada</string>
+    <string name="loan_mark_as_paid">Marcar como pagada</string>
+
+    <!-- Transactions List Screen -->
+    <string name="transactions_title">Transacciones</string>
+    <string name="transactions_search_placeholder">Buscar transacciones\u2026</string>
+    <string name="transactions_no_transactions">A\u00fan no hay transacciones</string>
+    <string name="transactions_no_results">No se encontraron transacciones</string>
+    <string name="transactions_filter_title">Filtros</string>
+    <string name="transactions_filter_type">Tipo</string>
+    <string name="transactions_filter_all">Todos</string>
+    <string name="transactions_filter_sort">Ordenar</string>
+    <string name="transactions_filter_latest">Recientes</string>
+    <string name="transactions_filter_oldest">Antiguos</string>
+    <string name="transactions_filter_highest">Mayor monto</string>
+    <string name="transactions_filter_recurring_only">Solo Recurrentes</string>
+
+    <!-- Loans Screen -->
+    <string name="loans_title">Pr\u00e9stamos</string>
+    <string name="loans_no_loans">A\u00fan no hay pr\u00e9stamos</string>
+    <string name="loans_tap_to_add">Toca + para agregar un pr\u00e9stamo</string>
+    <string name="loans_filter_status">Estado</string>
+    <string name="loans_filter_current">Activos</string>
+    <string name="loans_filter_closed">Cerrados</string>
+    <string name="loans_filter_sort_by">Ordenar por</string>
+    <string name="loans_filter_lowest">Menor monto</string>
+
+    <!-- Analytics Screen -->
+    <string name="analytics_title">Estad\u00edsticas</string>
+    <string name="analytics_months">%1$d meses</string>
+    <string name="analytics_expenses_by_category">Gastos por Categor\u00eda</string>
+    <string name="analytics_no_category_data">No hay datos de categor\u00edas disponibles</string>
+    <string name="analytics_period_summary">Resumen del Per\u00edodo</string>
+    <string name="analytics_total_income">Ingresos Totales</string>
+    <string name="analytics_total_expense">Gastos Totales</string>
+    <string name="analytics_avg_monthly_income">Ingreso Mensual Promedio</string>
+    <string name="analytics_avg_monthly_expense">Gasto Mensual Promedio</string>
+    <string name="analytics_net_savings">Ahorro Neto</string>
+    <string name="analytics_monthly_breakdown">Desglose Mensual</string>
+    <string name="analytics_expense_projection">Proyecci\u00f3n de Gastos</string>
+    <string name="analytics_insufficient_data">Datos insuficientes para la proyecci\u00f3n</string>
+    <string name="analytics_balance_trend">Tendencia del Balance</string>
+    <string name="analytics_balance_increasing">Balance en aumento</string>
+    <string name="analytics_balance_decreasing">Balance en descenso</string>
+    <string name="analytics_no_trend_data">No hay datos de tendencia disponibles</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">Ajustes</string>
+    <string name="settings_general_section">General</string>
+    <string name="settings_general_title">Ajustes Generales</string>
+    <string name="settings_general_subtitle">Moneda, idioma y configuraci\u00f3n regional</string>
+    <string name="settings_categories_title">Categor\u00edas</string>
+    <string name="settings_categories_subtitle">Administrar categor\u00edas de transacciones</string>
+    <string name="settings_appearance_section">Apariencia</string>
+    <string name="settings_theme_title">Personalizaci\u00f3n del Tema</string>
+    <string name="settings_theme_subtitle">Cambiar colores y modo oscuro</string>
+    <string name="settings_security_section">Seguridad</string>
+    <string name="settings_app_lock_title">Bloqueo de App</string>
+    <string name="settings_app_lock_available">Requerir huella digital o credenciales del dispositivo al abrir</string>
+    <string name="settings_app_lock_unavailable">No hay biom\u00e9tricos o bloqueo de pantalla configurado en este dispositivo</string>
+    <string name="settings_data_section">Datos</string>
+    <string name="settings_backup_title">Respaldo y Restauraci\u00f3n</string>
+    <string name="settings_backup_subtitle">Guardar y restaurar tus datos</string>
+    <string name="settings_export_title">Exportar Reportes</string>
+    <string name="settings_export_subtitle">Generar reportes en Excel y PDF</string>
+    <string name="settings_data_management_title">Gesti\u00f3n de Datos</string>
+    <string name="settings_data_management_subtitle">Borrar datos del dispositivo y la nube</string>
+    <string name="settings_about_section">Acerca de</string>
+    <string name="settings_app_version_title">Versi\u00f3n de la App</string>
+    <string name="settings_buy_coffee">Inv\u00edtame un Caf\u00e9</string>
+    <string name="settings_buy_coffee_subtitle">\u00a1Apoya el desarrollo!</string>
+
+    <!-- General Settings Screen -->
+    <string name="general_settings_title">Ajustes Generales</string>
+    <string name="general_settings_regional">Regional</string>
+    <string name="general_settings_currency">Moneda</string>
+    <string name="general_settings_transactions">Transacciones</string>
+    <string name="general_settings_default_category">Categor\u00eda Predeterminada</string>
+    <string name="general_settings_current_currency">Moneda Actual</string>
+    <string name="general_settings_currency_description">Esta moneda se mostrar\u00e1 en todas las pantallas incluyendo transacciones, res\u00famenes y estad\u00edsticas.</string>
+    <string name="general_settings_select_currency">Seleccionar Moneda</string>
+    <string name="general_settings_select_default_category">Seleccionar Categor\u00eda Predeterminada</string>
+    <string name="general_settings_no_default_category">Sin categor\u00eda predeterminada</string>
+
+    <!-- Categories Screen -->
+    <string name="categories_title">Categor\u00edas</string>
+    <string name="categories_add">Agregar Categor\u00eda</string>
+    <string name="categories_no_categories">A\u00fan no hay categor\u00edas</string>
+    <string name="categories_tap_to_create">Toca + para crear tu primera categor\u00eda</string>
+    <string name="categories_delete_title">Eliminar Categor\u00eda</string>
+    <string name="categories_delete_message">\u00bfEst\u00e1s seguro de eliminar \"%1$s\"? Las transacciones con esta categor\u00eda no ser\u00e1n eliminadas.</string>
+    <string name="categories_edit_title">Editar Categor\u00eda</string>
+    <string name="categories_add_title">Agregar Categor\u00eda</string>
+    <string name="categories_name_label">Nombre</string>
+    <string name="categories_icon_label">Icono</string>
+
+    <!-- Theme Screen -->
+    <string name="theme_title">Tema</string>
+    <string name="theme_appearance">Apariencia</string>
+    <string name="theme_appearance_description">Elige tu modo de tema preferido</string>
+    <string name="theme_light">Claro</string>
+    <string name="theme_dark">Oscuro</string>
+    <string name="theme_system">Sistema</string>
+    <string name="theme_dynamic_colors">Colores Din\u00e1micos</string>
+    <string name="theme_dynamic_colors_description">Usar colores de tu fondo de pantalla (Android 12+)</string>
+
+    <!-- Backup Screen -->
+    <string name="backup_title">Respaldo y Restauraci\u00f3n</string>
+    <string name="backup_restore_title">Restaurar Respaldo</string>
+    <string name="backup_restore_message">Esto reemplazar\u00e1 todos los datos actuales con el respaldo. \u00bfEst\u00e1s seguro?</string>
+    <string name="backup_restore_button">Restaurar</string>
+    <string name="backup_delete_title">Eliminar Respaldo</string>
+    <string name="backup_delete_message">\u00bfEst\u00e1s seguro de eliminar este respaldo de Google Drive?</string>
+    <string name="backup_to_drive">Respaldar en Google Drive</string>
+    <string name="backup_available">Respaldos Disponibles</string>
+    <string name="backup_no_backups">No se encontraron respaldos</string>
+    <string name="backup_drive_title">Respaldo en Google Drive</string>
+    <string name="backup_drive_description">Inicia sesi\u00f3n con tu cuenta de Google para respaldar tus transacciones, categor\u00edas y pr\u00e9stamos en Google Drive.</string>
+    <string name="backup_sign_in">Iniciar sesi\u00f3n con Google</string>
+    <string name="backup_sign_out">Cerrar sesi\u00f3n</string>
+
+    <!-- Data Management Screen -->
+    <string name="data_management_title">Gesti\u00f3n de Datos</string>
+    <string name="data_management_caution">Precauci\u00f3n</string>
+    <string name="data_management_caution_message">Borrar datos es permanente y no se puede deshacer. Aseg\u00farate de tener un respaldo antes de continuar.</string>
+    <string name="data_management_device_data">Datos del Dispositivo</string>
+    <string name="data_management_clear_all_title">Borrar Todos los Datos</string>
+    <string name="data_management_clear_all_description">Eliminar todas las transacciones, categor\u00edas y configuraciones de este dispositivo</string>
+    <string name="data_management_clear_all_button">Borrar Todos los Datos</string>
+    <string name="data_management_clear_transactions_title">Borrar Transacciones</string>
+    <string name="data_management_clear_transactions_description">Eliminar todos los registros de transacciones manteniendo categor\u00edas y configuraciones</string>
+    <string name="data_management_clear_transactions_button">Borrar Transacciones</string>
+    <string name="data_management_clear_categories_title">Borrar Categor\u00edas</string>
+    <string name="data_management_clear_categories_description">Eliminar todas las categor\u00edas. Las transacciones mantendr\u00e1n sus referencias de categor\u00eda.</string>
+    <string name="data_management_clear_categories_button">Borrar Categor\u00edas</string>
+    <string name="data_management_backup_title">Respaldo y Restauraci\u00f3n</string>
+    <string name="data_management_backup_description">Respalda tus datos en Google Drive antes de borrar</string>
+    <string name="data_management_go_to_backup">Ir a Respaldo y Restauraci\u00f3n</string>
+    <string name="data_management_confirm_all_title">\u00bfBorrar Todos los Datos?</string>
+    <string name="data_management_confirm_all_message">Esto eliminar\u00e1 permanentemente TODAS las transacciones, categor\u00edas y configuraciones de este dispositivo. Esta acci\u00f3n no se puede deshacer.</string>
+    <string name="data_management_confirm_transactions_title">\u00bfBorrar Todas las Transacciones?</string>
+    <string name="data_management_confirm_transactions_message">Esto eliminar\u00e1 permanentemente TODOS los registros de transacciones de este dispositivo. Las categor\u00edas y configuraciones se conservar\u00e1n. Esta acci\u00f3n no se puede deshacer.</string>
+    <string name="data_management_confirm_categories_title">\u00bfBorrar Todas las Categor\u00edas?</string>
+    <string name="data_management_confirm_categories_message">Esto eliminar\u00e1 permanentemente TODAS las categor\u00edas de este dispositivo. Las transacciones mantendr\u00e1n sus referencias de categor\u00eda pero no mostrar\u00e1n nombres de categor\u00eda. Esta acci\u00f3n no se puede deshacer.</string>
+    <string name="data_management_clear_data">Borrar Datos</string>
+
+    <!-- Export Screen -->
+    <string name="export_title">Exportar Reportes</string>
+    <string name="export_date_range">Rango de Fechas</string>
+    <string name="export_start_date">Fecha de Inicio</string>
+    <string name="export_select_start_date">Seleccionar fecha de inicio</string>
+    <string name="export_end_date">Fecha de Fin</string>
+    <string name="export_select_end_date">Seleccionar fecha de fin</string>
+    <string name="export_format">Formato de Exportaci\u00f3n</string>
+    <string name="export_to_excel">Exportar a Excel (.xlsx)</string>
+    <string name="export_to_pdf">Exportar a PDF</string>
+    <string name="export_location_title">Ubicaci\u00f3n de Exportaci\u00f3n</string>
+    <string name="export_location_path">Documents/BoxWallet/Reports/</string>
+    <string name="export_location_description">Los reportes incluyen todas las transacciones dentro del rango de fechas seleccionado junto con un resumen de ingresos, gastos y balance neto.</string>
+    <string name="export_last_export">\u00daltima Exportaci\u00f3n</string>
+
+    <!-- Onboarding Screen -->
+    <string name="onboarding_welcome_title">Bienvenido a BoxWallet</string>
+    <string name="onboarding_welcome_description">Tu gestor de finanzas personales</string>
+    <string name="onboarding_track_title">Registra y Administra</string>
+    <string name="onboarding_track_description">Registra transacciones, administra pr\u00e9stamos con cuotas y calendarios de pago</string>
+    <string name="onboarding_get_started_title">Comenzar</string>
+    <string name="onboarding_get_started_description">Comienza desde cero o restaura tus datos desde un respaldo anterior</string>
+    <string name="onboarding_get_started_button">Comenzar</string>
+    <string name="onboarding_restore_from_backup">Restaurar desde Respaldo</string>
+    <string name="onboarding_next">Siguiente</string>
+    <string name="onboarding_skip">Omitir</string>
+    <string name="onboarding_restore_title">Restaurar desde Respaldo</string>
+    <string name="onboarding_restoring">Restaurando tus datos\u2026</string>
+    <string name="onboarding_sign_in_message">Inicia sesi\u00f3n con Google para acceder a tus respaldos en Google Drive.</string>
+    <string name="onboarding_no_backups">No se encontraron respaldos en tu Google Drive.</string>
+    <string name="onboarding_select_backup">Selecciona un respaldo para restaurar:</string>
+
+    <!-- Lock Screen -->
+    <string name="lock_screen_title">BoxWallet est\u00e1 bloqueado</string>
+    <string name="lock_screen_unlock">Desbloquear</string>
+
+    <!-- Biometric -->
+    <string name="biometric_title">Desbloquear BoxWallet</string>
+    <string name="biometric_subtitle">Usa tu huella digital o credenciales del dispositivo</string>
+    <string name="biometric_failed">Autenticaci\u00f3n fallida. Int\u00e9ntalo de nuevo.</string>
+
+    <!-- Reminder Worker -->
+    <string name="reminder_upcoming_payment">Pago Pr\u00f3ximo</string>
+    <string name="reminder_expected_income">Ingreso Esperado</string>
+    <string name="reminder_installment_suffix"> (cuota %1$d)</string>
+    <string name="reminder_channel_name">Recordatorios de Pago</string>
+    <string name="reminder_channel_description">Notificaciones para pagos e ingresos pr\u00f3ximos</string>
+
+    <!-- Recurrence Frequency -->
+    <string name="frequency_daily">Diario</string>
+    <string name="frequency_weekly">Semanal</string>
+    <string name="frequency_biweekly">Quincenal</string>
+    <string name="frequency_monthly">Mensual</string>
+    <string name="frequency_yearly">Anual</string>
+    <string name="frequency_custom">Personalizado</string>
+
+    <!-- Loan Type -->
+    <string name="loan_type_expense">Gasto</string>
+    <string name="loan_type_income">Ingreso</string>
+
+    <!-- Common -->
+    <string name="action_back">Atr\u00e1s</string>
+    <string name="action_delete">Eliminar</string>
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_ok">Aceptar</string>
+    <string name="action_save">Guardar</string>
+    <string name="action_edit">Editar</string>
+    <string name="action_clear">Limpiar</string>
+    <string name="action_clear_all">Limpiar Todo</string>
+    <string name="action_filter">Filtrar</string>
+    <string name="action_none">Ninguno</string>
+    <string name="action_selected">Seleccionado</string>
+    <string name="description_optional">Descripci\u00f3n (Opcional)</string>
+</resources>

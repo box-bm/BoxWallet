@@ -19,8 +19,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.boxdev.boxwallet.R
 
 @Composable
 fun LockScreen(
@@ -45,7 +47,7 @@ fun LockScreen(
                 tint = MaterialTheme.colorScheme.primary
             )
             Text(
-                text = "BoxWallet is locked",
+                text = stringResource(R.string.lock_screen_title),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
@@ -63,7 +65,7 @@ fun LockScreen(
                     contentDescription = null,
                     modifier = Modifier.padding(end = 8.dp)
                 )
-                Text("Unlock")
+                Text(stringResource(R.string.lock_screen_unlock))
             }
         }
     }
