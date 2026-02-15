@@ -12,13 +12,27 @@ platform :android do
   desc "Build and upload to Play Store internal testing"
   lane :internal do
     build_release
-    upload_to_play_store(
+
+    # Check if we should deploy as draft
+    deploy_as_draft = ENV['DEPLOY_AS_DRAFT'] == 'true'
+
+    options = {
       track: "internal",
       aab: "app/build/outputs/bundle/release/app-release.aab",
       json_key: "play-store-key.json",
       skip_upload_metadata: true,
       skip_upload_images: true,
       skip_upload_screenshots: true
-    )
+    }
+
+    # Add release_status if deploying as draft
+    if deploy_as_draft
+      options[:release_status] = "draft"
+      UI.success("📝 Deploying as DRAFT release")
+    else
+      UI.success("🚀 Deploying to internal testing")
+    end
+
+    upload_to_play_store(options)
   end
 end

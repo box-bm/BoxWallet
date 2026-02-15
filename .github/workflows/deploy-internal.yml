@@ -2,6 +2,12 @@ name: Deploy to Internal Testing
 
 on:
   workflow_dispatch:
+    inputs:
+      deploy_as_draft:
+        description: 'Deploy as draft (for new apps)'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   deploy:
@@ -34,6 +40,7 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          DEPLOY_AS_DRAFT: ${{ inputs.deploy_as_draft }}
         run: bundle exec fastlane internal
 
       - name: Clean up secrets
