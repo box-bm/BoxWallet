@@ -1,6 +1,8 @@
 package com.boxdev.boxwallet.ui.screens.settings
 
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.biometric.BiometricManager
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Coffee
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Description
@@ -59,7 +62,6 @@ fun SettingsScreen(
     onNavigateToCategories: () -> Unit,
     onNavigateToTheme: () -> Unit,
     onNavigateToBackup: () -> Unit,
-    onNavigateToExport: () -> Unit,
     onNavigateToDataManagement: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
@@ -71,6 +73,17 @@ fun SettingsScreen(
     ) == BiometricManager.BIOMETRIC_SUCCESS || biometricManager.canAuthenticate(
         BiometricManager.Authenticators.DEVICE_CREDENTIAL
     ) == BiometricManager.BIOMETRIC_SUCCESS
+
+    val appVersion = try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.packageManager.getPackageInfo(context.packageName, PackageManager.PackageInfoFlags.of(0))
+        } else {
+            @Suppress("DEPRECATION")
+            context.packageManager.getPackageInfo(context.packageName, 0)
+        }.versionName
+    } catch (e: Exception) {
+        "Unknown"
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets(bottom = 0),
@@ -94,8 +107,8 @@ fun SettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // General Section
-            SettingsSection(title = stringResource(R.string.settings_general_section)) {
+            // Preferences
+            SettingsSection(title = stringResource(R.string.settings_preferences_section)) {
                 SettingsItem(
                     icon = Icons.Default.Settings,
                     title = stringResource(R.string.settings_general_title),
@@ -111,7 +124,7 @@ fun SettingsScreen(
                 )
             }
 
-            // Appearance Section
+            // Appearance
             SettingsSection(title = stringResource(R.string.settings_appearance_section)) {
                 SettingsItem(
                     icon = Icons.Default.Palette,
@@ -121,7 +134,7 @@ fun SettingsScreen(
                 )
             }
 
-            // Security Section
+            // Security
             SettingsSection(title = stringResource(R.string.settings_security_section)) {
                 SettingsToggleItem(
                     icon = Icons.Default.Fingerprint,
@@ -134,20 +147,13 @@ fun SettingsScreen(
                 )
             }
 
-            // Data Section
+            // Data
             SettingsSection(title = stringResource(R.string.settings_data_section)) {
                 SettingsItem(
                     icon = Icons.Default.Backup,
                     title = stringResource(R.string.settings_backup_title),
                     subtitle = stringResource(R.string.settings_backup_subtitle),
                     onClick = onNavigateToBackup
-                )
-                HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
-                SettingsItem(
-                    icon = Icons.Default.Description,
-                    title = stringResource(R.string.settings_export_title),
-                    subtitle = stringResource(R.string.settings_export_subtitle),
-                    onClick = onNavigateToExport
                 )
                 HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
                 SettingsItem(
@@ -158,62 +164,90 @@ fun SettingsScreen(
                 )
             }
 
-            // About Section
+            // About
             SettingsSection(title = stringResource(R.string.settings_about_section)) {
                 SettingsItem(
                     icon = Icons.Default.Info,
                     title = stringResource(R.string.settings_app_version_title),
-                    subtitle = "1.0.0",
+                    subtitle = appVersion ?: "Unknown",
+                )
+                HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
+                SettingsItem(
+                    icon = Icons.Default.Code,
+                    title = stringResource(R.string.settings_github_title),
+                    subtitle = stringResource(R.string.settings_github_subtitle),
+                    onClick = {
+                        val intent = Intent(Intent.ACTION_VIEW,
+                            "https://github.com/box-bm".toUri())
+                        context.startActivity(intent)
+                    }
+                )
+                HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
+                SettingsItem(
+                    icon = Icons.Default.Description,
+                    title = stringResource(R.string.settings_privacy_policy_title),
+                    subtitle = stringResource(R.string.settings_privacy_policy_subtitle),
+                    onClick = {
+                        val intent = Intent(Intent.ACTION_VIEW,
+                            "https://boxdev.me/en/legal/box-wallet/privacy-policy/".toUri())
+                        context.startActivity(intent)
+                    }
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Buy Me a Coffee Card
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        val intent = Intent(Intent.ACTION_VIEW,
-                            "https://buymeacoffee.com/boxdev".toUri())
-                        context.startActivity(intent)
-                    },
-                colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFFFFDD00)
-                ),
-            ) {
-                Row(
+            // Support
+            SettingsSection(title = stringResource(R.string.settings_support_section)) {
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(20.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
+                        .clickable {
+                            val intent = Intent(Intent.ACTION_VIEW,
+                                "https://buymeacoffee.com/boxdev".toUri())
+                            context.startActivity(intent)
+                        },
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color(0xFFFFDD00)
+                    ),
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Coffee,
-                        contentDescription = stringResource(R.string.settings_buy_coffee),
-                        modifier = Modifier.size(32.dp),
-                        tint = Color.Black
-                    )
-                    Column(
-                        modifier = Modifier.padding(start = 16.dp)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = stringResource(R.string.settings_buy_coffee),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.Black
+                        Icon(
+                            imageVector = Icons.Default.Coffee,
+                            contentDescription = stringResource(R.string.settings_buy_coffee),
+                            modifier = Modifier.size(40.dp),
+                            tint = Color(0xFF6B4423)
                         )
-                        Text(
-                            text = stringResource(R.string.settings_buy_coffee_subtitle),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.Black
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(horizontal = 16.dp)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.settings_buy_coffee),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF2D1810)
+                            )
+                            Text(
+                                text = stringResource(R.string.settings_buy_coffee_subtitle),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color(0xFF4A2F1A)
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = Color(0xFF6B4423)
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }

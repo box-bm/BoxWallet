@@ -103,7 +103,6 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.biometric)
     implementation(libs.gson)
-    implementation(libs.itext7.core)
     implementation(libs.poi)
     implementation(libs.poi.ooxml)
 

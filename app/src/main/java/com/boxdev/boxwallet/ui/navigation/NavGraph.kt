@@ -29,7 +29,6 @@ import com.boxdev.boxwallet.ui.screens.loans.LoansScreen
 import com.boxdev.boxwallet.ui.screens.settings.BackupScreen
 import com.boxdev.boxwallet.ui.screens.settings.CategoriesScreen
 import com.boxdev.boxwallet.ui.screens.settings.DataManagementScreen
-import com.boxdev.boxwallet.ui.screens.settings.ExportScreen
 import com.boxdev.boxwallet.ui.screens.settings.GeneralSettingsScreen
 import com.boxdev.boxwallet.ui.screens.settings.SettingsScreen
 import com.boxdev.boxwallet.ui.screens.settings.ThemeCustomizationScreen
@@ -172,7 +171,6 @@ fun NavGraph(
                 onNavigateToCategories = { navController.navigate(NavRoutes.Categories.route) },
                 onNavigateToTheme = { navController.navigate(NavRoutes.ThemeCustomization.route) },
                 onNavigateToBackup = { navController.navigate(NavRoutes.Backup.route) },
-                onNavigateToExport = { navController.navigate(NavRoutes.Export.route) },
                 onNavigateToDataManagement = { navController.navigate(NavRoutes.DataManagement.route) },
             )
         }
@@ -191,10 +189,6 @@ fun NavGraph(
 
         composable(NavRoutes.Backup.route) {
             BackupScreen(onNavigateBack = { navController.popBackStack() })
-        }
-
-        composable(NavRoutes.Export.route) {
-            ExportScreen(onNavigateBack = { navController.popBackStack() })
         }
 
         composable(NavRoutes.DataManagement.route) {
