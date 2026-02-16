@@ -6,15 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.data.repository.TransactionRepository
 import com.boxdev.boxwallet.domain.model.Transaction
-import com.itextpdf.kernel.colors.ColorConstants
-import com.itextpdf.kernel.pdf.PdfDocument
-import com.itextpdf.kernel.pdf.PdfWriter
-import com.itextpdf.layout.Document
-import com.itextpdf.layout.element.Cell
-import com.itextpdf.layout.element.Paragraph
-import com.itextpdf.layout.element.Table
-import com.itextpdf.layout.properties.TextAlignment
-import com.itextpdf.layout.properties.UnitValue
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -103,39 +94,6 @@ class ExportViewModel @Inject constructor(
         }
     }
 
-    fun exportToPdf() {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, message = null)
-
-            try {
-                val transactions = transactionRepository.getTransactionsBetweenDates(
-                    _uiState.value.startDate,
-                    _uiState.value.endDate
-                )
-
-                val transactionsList = transactions.toList().flatten()
-
-
-                val filePath = withContext(Dispatchers.IO) {
-                    createPdfFile(transactionsList)
-                }
-
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    message = "PDF report exported successfully",
-                    isSuccess = true,
-                    exportedFilePath = filePath
-                )
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    message = "Error exporting: ${e.message}",
-                    isSuccess = false
-                )
-            }
-        }
-    }
-
     private fun createExcelFile(transactions: List<Transaction>): String {
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
         val file = File(exportFolder, "BoxWallet_Report_$timestamp.xlsx")
@@ -184,77 +142,6 @@ class ExportViewModel @Inject constructor(
                 workbook.write(outputStream)
             }
         }
-
-        return file.absolutePath
-    }
-
-    private fun createPdfFile(transactions: List<Transaction>): String {
-        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        val file = File(exportFolder, "BoxWallet_Report_$timestamp.pdf")
-
-        val pdfWriter = PdfWriter(file)
-        val pdfDocument = PdfDocument(pdfWriter)
-        val document = Document(pdfDocument)
-
-        // Title
-        document.add(
-            Paragraph("BoxWallet Financial Report")
-                .setFontSize(20f)
-                .setTextAlignment(TextAlignment.CENTER)
-        )
-
-        // Period
-        document.add(
-            Paragraph("Period: ${_uiState.value.startDate.format(dateFormatter)} to ${_uiState.value.endDate.format(dateFormatter)}")
-                .setFontSize(12f)
-                .setTextAlignment(TextAlignment.CENTER)
-                .setMarginBottom(20f)
-        )
-
-        // Summary
-        val incomeTotal = transactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
-        val expenseTotal = transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
-
-        document.add(Paragraph("Summary").setFontSize(16f))
-        document.add(Paragraph("Total Income: ${currencyFormat.format(incomeTotal)}"))
-        document.add(Paragraph("Total Expense: ${currencyFormat.format(expenseTotal)}"))
-        document.add(Paragraph("Net Balance: ${currencyFormat.format(incomeTotal - expenseTotal)}").setMarginBottom(20f))
-
-        // Transactions Table
-        document.add(Paragraph("Transactions").setFontSize(16f).setMarginBottom(10f))
-
-        val table = Table(UnitValue.createPercentArray(floatArrayOf(2f, 1f, 2f, 3f)))
-            .useAllAvailableWidth()
-
-        // Table header
-        listOf("Date", "Type", "Amount", "Description").forEach { header ->
-            table.addHeaderCell(
-                Cell().add(Paragraph(header))
-                    .setBackgroundColor(ColorConstants.LIGHT_GRAY)
-            )
-        }
-
-        // Table data
-        transactions.forEach { transaction ->
-            table.addCell(Cell().add(Paragraph(transaction.date.format(dateFormatter))))
-            table.addCell(Cell().add(Paragraph(transaction.type.name)))
-            table.addCell(Cell().add(
-                Paragraph(currencyFormat.format(transaction.amount))
-            ))
-            table.addCell(Cell().add(Paragraph(transaction.description)))
-        }
-
-        document.add(table)
-
-        // Footer
-        document.add(
-            Paragraph("Generated by BoxWallet on ${SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())}")
-                .setFontSize(10f)
-                .setTextAlignment(TextAlignment.CENTER)
-                .setMarginTop(30f)
-        )
-
-        document.close()
 
         return file.absolutePath
     }

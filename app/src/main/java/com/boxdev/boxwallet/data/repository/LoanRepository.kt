@@ -80,7 +80,40 @@ class LoanRepository @Inject constructor(
         return loanId
     }
 
-    suspend fun updateLoan(loan: Loan) = loanDao.update(loan.toEntity())
+    suspend fun updateLoan(loan: Loan) {
+        val existingLoan = loanDao.getById(loan.id)
+        loanDao.update(loan.toEntity())
+
+        // If start date changed, update all installment dates
+        if (existingLoan != null) {
+            val oldStartDate = LocalDate.ofEpochDay(existingLoan.startDate / (24 * 60 * 60 * 1000))
+            if (oldStartDate != loan.startDate) {
+                updateInstallmentDates(loan.id, loan.startDate, loan.frequency, loan.frequencyInterval)
+            }
+        }
+    }
+
+    private suspend fun updateInstallmentDates(
+        loanId: Long,
+        newStartDate: LocalDate,
+        frequency: RecurrenceFrequency,
+        interval: Int
+    ) {
+        val installments = transactionDao.getInstallmentsByLoanId(loanId)
+        installments.forEach { installment ->
+            val installmentNumber = installment.installmentNumber ?: return@forEach
+            val newDate = calculateInstallmentDate(
+                newStartDate,
+                installmentNumber - 1,
+                frequency,
+                interval
+            )
+            val updatedInstallment = installment.copy(
+                date = newDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            )
+            transactionDao.update(updatedInstallment)
+        }
+    }
 
     suspend fun deleteLoan(id: Long) {
         transactionDao.deleteByLoanId(id)

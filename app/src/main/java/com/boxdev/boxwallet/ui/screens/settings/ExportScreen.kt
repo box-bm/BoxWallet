@@ -240,26 +240,6 @@ fun ExportScreen(
                         }
                         Text(stringResource(R.string.export_to_excel))
                     }
-
-                    // PDF Export
-                    Button(
-                        onClick = { viewModel.exportToPdf() },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !uiState.isLoading,
-                    ) {
-                        if (uiState.isLoading) {
-                            LoadingIndicator(
-                                modifier = Modifier.padding(end = 8.dp),
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.Description,
-                                contentDescription = null,
-                                modifier = Modifier.padding(end = 8.dp)
-                            )
-                        }
-                        Text(stringResource(R.string.export_to_pdf))
-                    }
                 }
             }
 

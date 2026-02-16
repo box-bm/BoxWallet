@@ -190,51 +190,97 @@ private fun AddEditCategoryDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (category == null) stringResource(R.string.categories_add_title) else stringResource(R.string.categories_edit_title)) },
+        title = {
+            Text(
+                text = if (category == null) stringResource(R.string.categories_add_title)
+                       else stringResource(R.string.categories_edit_title),
+                style = MaterialTheme.typography.headlineSmall
+            )
+        },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                // Name field
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text(stringResource(R.string.categories_name_label)) },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium
                 )
+
+                // Description field
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
                     label = { Text(stringResource(R.string.description_optional)) },
                     maxLines = 3,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium
                 )
-                Text(stringResource(R.string.categories_icon_label), style = MaterialTheme.typography.labelMedium)
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(5),
-                    modifier = Modifier.height(160.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    items(categoryIconOptions) { (iconName, iconVector) ->
-                        IconButton(
-                            onClick = { selectedIcon = iconName },
-                            modifier = Modifier.size(40.dp)
-                        ) {
-                            Icon(
-                                imageVector = iconVector,
-                                contentDescription = iconName,
-                                tint = if (selectedIcon == iconName) MaterialTheme.colorScheme.primary
-                                       else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+
+                // Icon selection section
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = stringResource(R.string.categories_icon_label),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(6),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(categoryIconOptions) { (iconName, iconVector) ->
+                            val isSelected = selectedIcon == iconName
+                            FilledIconButton(
+                                onClick = { selectedIcon = iconName },
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .aspectRatio(1f),
+                                colors = IconButtonDefaults.filledIconButtonColors(
+                                    containerColor = if (isSelected)
+                                        MaterialTheme.colorScheme.primaryContainer
+                                    else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    contentColor = if (isSelected)
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            ) {
+                                Icon(
+                                    imageVector = iconVector,
+                                    contentDescription = iconName,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         }
                     }
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSave(name, description, selectedIcon) }, enabled = name.isNotBlank()) {
+            Button(
+                onClick = { onSave(name, description, selectedIcon) },
+                enabled = name.isNotBlank(),
+                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 10.dp)
+            ) {
                 Text(stringResource(R.string.action_save))
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } }
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 10.dp)
+            ) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        }
     )
 }

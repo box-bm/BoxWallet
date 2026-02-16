@@ -133,11 +133,13 @@
 
     <!-- Settings Screen -->
     <string name="settings_title">Settings</string>
+    <string name="settings_preferences_section">Preferences</string>
     <string name="settings_general_section">General</string>
     <string name="settings_general_title">General Settings</string>
     <string name="settings_general_subtitle">Currency, language, and regional settings</string>
-    <string name="settings_categories_title">Categories</string>
-    <string name="settings_categories_subtitle">Manage transaction categories</string>
+    <string name="settings_categories_section">Categories</string>
+    <string name="settings_categories_title">Manage Categories</string>
+    <string name="settings_categories_subtitle">Organize your transaction categories</string>
     <string name="settings_appearance_section">Appearance</string>
     <string name="settings_theme_title">Theme Customization</string>
     <string name="settings_theme_subtitle">Change app colors and dark mode</string>
@@ -146,14 +148,21 @@
     <string name="settings_app_lock_available">Require fingerprint or device credentials on open</string>
     <string name="settings_app_lock_unavailable">No biometric or screen lock configured on this device</string>
     <string name="settings_data_section">Data</string>
+    <string name="settings_backup_export_section">Backup &amp; Export</string>
     <string name="settings_backup_title">Backup &amp; Restore</string>
     <string name="settings_backup_subtitle">Save and restore your data</string>
     <string name="settings_export_title">Export Reports</string>
     <string name="settings_export_subtitle">Generate Excel and PDF reports</string>
-    <string name="settings_data_management_title">Data Management</string>
-    <string name="settings_data_management_subtitle">Clear device and cloud data</string>
+    <string name="settings_data_management_section">Data Management</string>
+    <string name="settings_data_management_title">Clear Data</string>
+    <string name="settings_data_management_subtitle">Delete transactions, categories, or all data</string>
     <string name="settings_about_section">About</string>
     <string name="settings_app_version_title">App Version</string>
+    <string name="settings_github_title">Developer Profile</string>
+    <string name="settings_github_subtitle">Visit the developer\'s GitHub profile</string>
+    <string name="settings_privacy_policy_title">Privacy Policy</string>
+    <string name="settings_privacy_policy_subtitle">View our privacy policy</string>
+    <string name="settings_support_section">Support</string>
     <string name="settings_buy_coffee">Buy Me a Coffee</string>
     <string name="settings_buy_coffee_subtitle">Support the development!</string>
 

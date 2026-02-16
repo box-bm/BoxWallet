@@ -133,11 +133,13 @@
 
     <!-- Settings Screen -->
     <string name="settings_title">Ajustes</string>
+    <string name="settings_preferences_section">Preferencias</string>
     <string name="settings_general_section">General</string>
     <string name="settings_general_title">Ajustes Generales</string>
     <string name="settings_general_subtitle">Moneda, idioma y configuraci\u00f3n regional</string>
-    <string name="settings_categories_title">Categor\u00edas</string>
-    <string name="settings_categories_subtitle">Administrar categor\u00edas de transacciones</string>
+    <string name="settings_categories_section">Categor\u00edas</string>
+    <string name="settings_categories_title">Administrar Categor\u00edas</string>
+    <string name="settings_categories_subtitle">Organiza tus categor\u00edas de transacciones</string>
     <string name="settings_appearance_section">Apariencia</string>
     <string name="settings_theme_title">Personalizaci\u00f3n del Tema</string>
     <string name="settings_theme_subtitle">Cambiar colores y modo oscuro</string>
@@ -146,14 +148,21 @@
     <string name="settings_app_lock_available">Requerir huella digital o credenciales del dispositivo al abrir</string>
     <string name="settings_app_lock_unavailable">No hay biom\u00e9tricos o bloqueo de pantalla configurado en este dispositivo</string>
     <string name="settings_data_section">Datos</string>
+    <string name="settings_backup_export_section">Respaldo y Exportaci\u00f3n</string>
     <string name="settings_backup_title">Respaldo y Restauraci\u00f3n</string>
     <string name="settings_backup_subtitle">Guardar y restaurar tus datos</string>
     <string name="settings_export_title">Exportar Reportes</string>
     <string name="settings_export_subtitle">Generar reportes en Excel y PDF</string>
-    <string name="settings_data_management_title">Gesti\u00f3n de Datos</string>
-    <string name="settings_data_management_subtitle">Borrar datos del dispositivo y la nube</string>
+    <string name="settings_data_management_section">Gesti\u00f3n de Datos</string>
+    <string name="settings_data_management_title">Borrar Datos</string>
+    <string name="settings_data_management_subtitle">Eliminar transacciones, categor\u00edas o todos los datos</string>
     <string name="settings_about_section">Acerca de</string>
     <string name="settings_app_version_title">Versi\u00f3n de la App</string>
+    <string name="settings_github_title">Perfil del Desarrollador</string>
+    <string name="settings_github_subtitle">Visitar el perfil de GitHub del desarrollador</string>
+    <string name="settings_privacy_policy_title">Pol\u00edtica de Privacidad</string>
+    <string name="settings_privacy_policy_subtitle">Ver nuestra pol\u00edtica de privacidad</string>
+    <string name="settings_support_section">Apoyo</string>
     <string name="settings_buy_coffee">Inv\u00edtame un Caf\u00e9</string>
     <string name="settings_buy_coffee_subtitle">\u00a1Apoya el desarrollo!</string>
 

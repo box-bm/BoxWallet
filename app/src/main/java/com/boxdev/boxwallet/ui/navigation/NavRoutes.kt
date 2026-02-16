@@ -13,7 +13,6 @@ sealed class NavRoutes(val route: String) {
     data object Categories : NavRoutes("categories")
     data object ThemeCustomization : NavRoutes("theme_customization")
     data object Backup : NavRoutes("backup")
-    data object Export : NavRoutes("export")
     data object DataManagement : NavRoutes("data_management")
     data object Onboarding : NavRoutes("onboarding")
 }
