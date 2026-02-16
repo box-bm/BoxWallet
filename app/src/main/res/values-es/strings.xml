@@ -80,6 +80,7 @@
     <string name="loan_summary">Resumen del Pr\u00e9stamo</string>
     <string name="loan_total_amount">Monto Total</string>
     <string name="loan_per_installment">Por Cuota</string>
+    <string name="loan_amount_paid">Monto Pagado</string>
     <string name="loan_progress">Progreso</string>
     <string name="loan_next_payment">Pr\u00f3ximo Pago</string>
     <string name="loan_detail_start_date">Fecha de Inicio</string>
@@ -154,7 +155,7 @@
     <string name="settings_export_title">Exportar Reportes</string>
     <string name="settings_export_subtitle">Generar reportes en Excel y PDF</string>
     <string name="settings_data_management_section">Gesti\u00f3n de Datos</string>
-    <string name="settings_data_management_title">Borrar Datos</string>
+    <string name="settings_data_management_title">Gesti\u00f3n de Datos</string>
     <string name="settings_data_management_subtitle">Eliminar transacciones, categor\u00edas o todos los datos</string>
     <string name="settings_about_section">Acerca de</string>
     <string name="settings_app_version_title">Versi\u00f3n de la App</string>

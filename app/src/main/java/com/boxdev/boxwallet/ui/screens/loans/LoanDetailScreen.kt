@@ -2,18 +2,49 @@
 
 package com.boxdev.boxwallet.ui.screens.loans
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TwoRowsTopAppBar
+import androidx.compose.material3.rememberTopAppBarState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -33,19 +64,37 @@ fun LoanDetailScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showEditSheet by remember { mutableStateOf(false) }
     val dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy")
+    val scrollBehavior =
+        TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
-                title = { Text(uiState.loan?.name ?: stringResource(R.string.loan_detail_title)) },
+            TwoRowsTopAppBar(
+                modifier = Modifier.background(color = MaterialTheme.colorScheme.surface),
+                scrollBehavior = scrollBehavior,
+                title = {
+                    Text(uiState.loan?.name ?: stringResource(R.string.loan_detail_title))
+                },
+                subtitle = {
+                    if (uiState.loan?.description?.isNotBlank() == true) {
+                        Text(uiState.loan?.description ?: "")
+                    } else return@TwoRowsTopAppBar
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back)
+                        )
                     }
                 },
                 actions = {
                     IconButton(onClick = { showEditSheet = true }) {
-                        Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.loan_detail_edit))
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = stringResource(R.string.loan_detail_edit)
+                        )
                     }
                 }
             )
@@ -53,96 +102,214 @@ fun LoanDetailScreen(
     ) { paddingValues ->
         when {
             uiState.isLoading -> Box(
-                modifier = Modifier.fillMaxSize().padding(paddingValues),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
                 contentAlignment = Alignment.Center
             ) { LoadingIndicator() }
 
             uiState.loan == null -> Box(
-                modifier = Modifier.fillMaxSize().padding(paddingValues),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
                 contentAlignment = Alignment.Center
-            ) { Text(stringResource(R.string.loan_not_found), style = MaterialTheme.typography.bodyLarge) }
+            ) {
+                Text(
+                    stringResource(R.string.loan_not_found),
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
 
             else -> {
                 val loan = uiState.loan!!
                 val symbol = loan.currency.toCurrencySymbol()
 
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(bottom = 0.dp, top = paddingValues.calculateTopPadding()),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
                     contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     item {
-                        Card(modifier = Modifier.fillMaxWidth()) {
-                            Column(
-                                modifier = Modifier.padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            // Financial Overview Card
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                                )
                             ) {
-                                Text(
-                                    text = stringResource(R.string.loan_summary),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                HorizontalDivider()
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
-                                    Text(stringResource(R.string.loan_total_amount), style = MaterialTheme.typography.bodyMedium)
-                                    Text(
-                                        "$symbol${"%.2f".format(loan.totalAmount)}",
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(stringResource(R.string.loan_per_installment), style = MaterialTheme.typography.bodyMedium)
-                                    Text(
-                                        "$symbol${"%.2f".format(loan.installmentAmount)}",
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(stringResource(R.string.loan_progress), style = MaterialTheme.typography.bodyMedium)
-                                    Text(
-                                        stringResource(R.string.loan_paid_progress, loan.paidInstallments, loan.totalInstallments),
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                                LinearProgressIndicator(
-                                    progress = { loan.progressFraction },
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                loan.nextDueDate?.let { dueDate ->
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    // Total Amount with Type Badge
+                                    Column(
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
-                                        Text(stringResource(R.string.loan_next_payment), style = MaterialTheme.typography.bodyMedium)
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                stringResource(R.string.loan_total_amount),
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            // Loan Type Badge
+                                            Box(
+                                                modifier = Modifier
+                                                    .background(
+                                                        color = if (loan.loanType.toTransactionType() == com.boxdev.boxwallet.data.local.entity.TransactionType.INCOME)
+                                                            MaterialTheme.colorScheme.primaryContainer
+                                                        else MaterialTheme.colorScheme.errorContainer,
+                                                        shape = RoundedCornerShape(4.dp)
+                                                    )
+                                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                                            ) {
+                                                Text(
+                                                    text = stringResource(loan.loanType.displayNameRes),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = if (loan.loanType.toTransactionType() == com.boxdev.boxwallet.data.local.entity.TransactionType.INCOME)
+                                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                                    else MaterialTheme.colorScheme.onErrorContainer
+                                                )
+                                            }
+                                        }
                                         Text(
-                                            dueDate.format(dateFormatter),
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = MaterialTheme.colorScheme.secondary
+                                            "$symbol${"%.2f".format(loan.totalAmount)}",
+                                            style = MaterialTheme.typography.headlineMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface
                                         )
                                     }
+
+
+                                    // Installment Amount & Amount Paid
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.weight(1f),
+                                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Text(
+                                                stringResource(R.string.loan_per_installment),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Text(
+                                                "$symbol${"%.2f".format(loan.installmentAmount)}",
+                                                style = MaterialTheme.typography.titleLarge,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                        }
+
+                                        Column(
+                                            modifier = Modifier.weight(1f),
+                                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Text(
+                                                stringResource(R.string.loan_amount_paid),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Text(
+                                                "$symbol${"%.2f".format(loan.totalAmount * loan.progressFraction)}",
+                                                style = MaterialTheme.typography.titleLarge,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
+                                    HorizontalDivider()
+                                    Column(
+                                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        // Start Date
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(
+                                                stringResource(R.string.loan_detail_start_date),
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Text(
+                                                loan.startDate.format(dateFormatter),
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
+
+                                        // Next Payment Due
+                                        loan.nextDueDate?.let { dueDate ->
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                Text(
+                                                    stringResource(R.string.loan_next_payment),
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                                Text(
+                                                    dueDate.format(dateFormatter),
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.secondary
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                            }
+
+                            // Progress Card
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                                )
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
-                                    Text(stringResource(R.string.loan_detail_start_date), style = MaterialTheme.typography.bodyMedium)
-                                    Text(loan.startDate.format(dateFormatter))
-                                }
-                                if (loan.description.isNotBlank()) {
-                                    Text(
-                                        loan.description,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            stringResource(R.string.loan_progress),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        Text(
+                                            stringResource(
+                                                R.string.loan_paid_progress,
+                                                loan.paidInstallments,
+                                                loan.totalInstallments
+                                            ),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+
+                                    LinearProgressIndicator(
+                                        progress = { loan.progressFraction },
+                                        trackColor = MaterialTheme.colorScheme.surfaceBright,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(8.dp)
                                     )
                                 }
                             }
@@ -153,7 +320,8 @@ fun LoanDetailScreen(
                         Text(
                             text = stringResource(R.string.loan_installments_section),
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(vertical = 16.dp)
                         )
                     }
 
@@ -165,8 +333,6 @@ fun LoanDetailScreen(
                             onToggleCleared = { viewModel.toggleInstallmentCleared(installment) }
                         )
                     }
-
-                    item { Spacer(modifier = Modifier.height(72.dp)) }
                 }
             }
         }
@@ -187,53 +353,49 @@ private fun InstallmentRow(
     dateFormatter: DateTimeFormatter,
     onToggleCleared: () -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (installment.isCleared)
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
-            else
-                MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                IconButton(onClick = onToggleCleared) {
-                    Icon(
-                        imageVector = if (installment.isCleared) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
-                        contentDescription = if (installment.isCleared) stringResource(R.string.loan_mark_as_unpaid) else stringResource(R.string.loan_mark_as_paid),
-                        tint = if (installment.isCleared) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Column {
-                    Text(
-                        text = stringResource(R.string.loan_installment_number, installment.installmentNumber ?: 0),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Text(
-                        text = installment.date.format(dateFormatter),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+    ListItem(
+        selected = installment.isCleared,
+        onClick = onToggleCleared,
+        leadingContent = {
+            IconButton(onClick = onToggleCleared) {
+                Icon(
+                    imageVector = if (installment.isCleared) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                    contentDescription = if (installment.isCleared) stringResource(R.string.loan_mark_as_unpaid) else stringResource(
+                        R.string.loan_mark_as_paid
+                    ),
+                    tint = if (installment.isCleared) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
+        },
+        content = {
+            Text(
+                text = stringResource(
+                    R.string.loan_installment_number,
+                    installment.installmentNumber ?: 0
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium
+            )
+        },
+        supportingContent = {
+
+            Text(
+                text = installment.date.format(dateFormatter),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        trailingContent = {
             Text(
                 text = "$symbol${"%.2f".format(installment.amount)}",
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
                 color = if (installment.isCleared) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
             )
-        }
-    }
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 8.dp)
+
+    )
 }

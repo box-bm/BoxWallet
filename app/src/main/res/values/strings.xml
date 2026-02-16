@@ -80,6 +80,7 @@
     <string name="loan_summary">Loan Summary</string>
     <string name="loan_total_amount">Total Amount</string>
     <string name="loan_per_installment">Per Installment</string>
+    <string name="loan_amount_paid">Amount Paid</string>
     <string name="loan_progress">Progress</string>
     <string name="loan_next_payment">Next Payment</string>
     <string name="loan_detail_start_date">Start Date</string>
@@ -154,7 +155,7 @@
     <string name="settings_export_title">Export Reports</string>
     <string name="settings_export_subtitle">Generate Excel and PDF reports</string>
     <string name="settings_data_management_section">Data Management</string>
-    <string name="settings_data_management_title">Clear Data</string>
+    <string name="settings_data_management_title">Data Management</string>
     <string name="settings_data_management_subtitle">Delete transactions, categories, or all data</string>
     <string name="settings_about_section">About</string>
     <string name="settings_app_version_title">App Version</string>

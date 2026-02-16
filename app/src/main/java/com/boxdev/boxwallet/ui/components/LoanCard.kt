@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -22,6 +22,7 @@ import com.boxdev.boxwallet.domain.model.Loan
 import com.boxdev.boxwallet.util.toCurrencySymbol
 import java.time.format.DateTimeFormatter
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun LoanCard(
     loan: Loan,
@@ -34,7 +35,6 @@ fun LoanCard(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(
             modifier = Modifier
@@ -60,10 +60,9 @@ fun LoanCard(
             }
 
             LinearProgressIndicator(
-                progress = {
-                    loan.progressFraction
-                },
-                modifier = Modifier.fillMaxWidth()
+                progress = { loan.progressFraction },
+                trackColor = MaterialTheme.colorScheme.surfaceBright,
+                modifier = Modifier.fillMaxWidth(),
             )
 
             Row(
@@ -71,13 +70,20 @@ fun LoanCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = stringResource(R.string.loan_paid_progress, loan.paidInstallments, loan.totalInstallments),
+                    text = stringResource(
+                        R.string.loan_paid_progress,
+                        loan.paidInstallments,
+                        loan.totalInstallments
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 loan.nextDueDate?.let { dueDate ->
                     Text(
-                        text = stringResource(R.string.loan_due_date, dueDate.format(dateFormatter)),
+                        text = stringResource(
+                            R.string.loan_due_date,
+                            dueDate.format(dateFormatter)
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

@@ -44,7 +44,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.zIndex
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.boxdev.boxwallet.R
@@ -130,7 +129,6 @@ fun NavigationTab(modifier: Modifier = Modifier) {
                 ) + fadeOut(animationSpec = tween(300))
             ) {
                 FloatingActionButtonMenu(
-                    modifier = Modifier.zIndex(999F),
                     expanded = fabExpanded,
                     button = {
                         ToggleFloatingActionButton(
