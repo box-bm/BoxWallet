@@ -4,6 +4,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.biometric.BiometricManager
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -35,10 +36,12 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -46,6 +49,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -73,10 +77,15 @@ fun SettingsScreen(
     ) == BiometricManager.BIOMETRIC_SUCCESS || biometricManager.canAuthenticate(
         BiometricManager.Authenticators.DEVICE_CREDENTIAL
     ) == BiometricManager.BIOMETRIC_SUCCESS
+    val scrollBehavior =
+        TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
 
     val appVersion = try {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.packageManager.getPackageInfo(context.packageName, PackageManager.PackageInfoFlags.of(0))
+            context.packageManager.getPackageInfo(
+                context.packageName,
+                PackageManager.PackageInfoFlags.of(0)
+            )
         } else {
             @Suppress("DEPRECATION")
             context.packageManager.getPackageInfo(context.packageName, 0)
@@ -86,16 +95,17 @@ fun SettingsScreen(
     }
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         contentWindowInsets = WindowInsets(bottom = 0),
         topBar = {
-            TopAppBar(
+            MediumTopAppBar(
+                scrollBehavior = scrollBehavior,
+                modifier = Modifier.background(color = MaterialTheme.colorScheme.surface),
                 title = {
                     Text(
                         text = stringResource(R.string.settings_title),
                     )
-                },
-
-
+                }
             )
         }
     ) { paddingValues ->
@@ -103,9 +113,10 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding( horizontal = 16.dp)
+                .padding(top = 16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // Preferences
             SettingsSection(title = stringResource(R.string.settings_preferences_section)) {
@@ -140,7 +151,7 @@ fun SettingsScreen(
                     icon = Icons.Default.Fingerprint,
                     title = stringResource(R.string.settings_app_lock_title),
                     subtitle = if (biometricAvailable) stringResource(R.string.settings_app_lock_available)
-                               else stringResource(R.string.settings_app_lock_unavailable),
+                    else stringResource(R.string.settings_app_lock_unavailable),
                     checked = isBiometricEnabled,
                     enabled = biometricAvailable,
                     onCheckedChange = { viewModel.setBiometricEnabled(it) }
@@ -177,8 +188,10 @@ fun SettingsScreen(
                     title = stringResource(R.string.settings_github_title),
                     subtitle = stringResource(R.string.settings_github_subtitle),
                     onClick = {
-                        val intent = Intent(Intent.ACTION_VIEW,
-                            "https://github.com/box-bm".toUri())
+                        val intent = Intent(
+                            Intent.ACTION_VIEW,
+                            "https://github.com/box-bm".toUri()
+                        )
                         context.startActivity(intent)
                     }
                 )
@@ -188,8 +201,10 @@ fun SettingsScreen(
                     title = stringResource(R.string.settings_privacy_policy_title),
                     subtitle = stringResource(R.string.settings_privacy_policy_subtitle),
                     onClick = {
-                        val intent = Intent(Intent.ACTION_VIEW,
-                            "https://boxdev.me/en/legal/box-wallet/privacy-policy/".toUri())
+                        val intent = Intent(
+                            Intent.ACTION_VIEW,
+                            "https://boxdev.me/en/legal/box-wallet/privacy-policy/".toUri()
+                        )
                         context.startActivity(intent)
                     }
                 )
@@ -201,8 +216,10 @@ fun SettingsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
-                            val intent = Intent(Intent.ACTION_VIEW,
-                                "https://buymeacoffee.com/boxdev".toUri())
+                            val intent = Intent(
+                                Intent.ACTION_VIEW,
+                                "https://buymeacoffee.com/boxdev".toUri()
+                            )
                             context.startActivity(intent)
                         },
                     colors = CardDefaults.cardColors(
@@ -284,8 +301,10 @@ private fun SettingsItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = { onClick?.invoke() },
-                enabled = onClick != null)
+            .clickable(
+                onClick = { onClick?.invoke() },
+                enabled = onClick != null
+            )
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -336,7 +355,9 @@ private fun SettingsToggleItem(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+            tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(
+                alpha = 0.38f
+            ),
             modifier = Modifier.size(24.dp)
         )
         Column(
@@ -347,12 +368,16 @@ private fun SettingsToggleItem(
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyLarge,
-                color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(
+                    alpha = 0.38f
+                )
             )
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                color = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface.copy(
+                    alpha = 0.38f
+                )
             )
         }
         Switch(
