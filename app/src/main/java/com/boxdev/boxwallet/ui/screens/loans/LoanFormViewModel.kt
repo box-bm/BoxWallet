@@ -13,10 +13,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.time.LocalDate
+import java.time.LocalDateTime
 import javax.inject.Inject
 
 data class LoanFormState(
@@ -25,7 +24,7 @@ data class LoanFormState(
     val description: String = "",
     val totalAmount: String = "",
     val installments: String = "",
-    val startDate: LocalDate = LocalDate.now(),
+    val startDate: LocalDateTime = LocalDateTime.now(),
     val categoryId: Long? = null,
     val currency: String = "USD",
     val loanType: LoanType = LoanType.EXPENSE,
@@ -68,8 +67,11 @@ class LoanFormViewModel @Inject constructor(
             categoryRepository.getAllCategories().collect { _categories.value = it }
         }
         viewModelScope.launch {
-            val currency = userPreferences.defaultCurrency.first()
-            _formState.update { it.copy(currency = currency.name) }
+            userPreferences.defaultCurrency.collect { currency ->
+                _formState.update { state ->
+                    if (!state.isEditing) state.copy(currency = currency.name) else state
+                }
+            }
         }
     }
 
@@ -115,7 +117,8 @@ class LoanFormViewModel @Inject constructor(
             _formState.update { it.copy(installments = value, error = null) }
         }
     }
-    fun updateStartDate(value: LocalDate) = _formState.update { it.copy(startDate = value) }
+    fun updateStartDate(value: LocalDateTime) = _formState.update { it.copy(startDate = value) }
+    fun updateTime(hour: Int, minute: Int) = _formState.update { it.copy(startDate = it.startDate.withHour(hour).withMinute(minute)) }
     fun updateCategory(id: Long?) = _formState.update { it.copy(categoryId = id) }
     fun updateLoanType(type: LoanType) = _formState.update { it.copy(loanType = type) }
     fun updateFrequency(freq: RecurrenceFrequency) = _formState.update { it.copy(frequency = freq) }

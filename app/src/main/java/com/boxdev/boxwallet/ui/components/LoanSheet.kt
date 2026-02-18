@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -42,8 +43,10 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -64,7 +67,7 @@ import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.ui.screens.loans.LoanFormViewModel
 import com.boxdev.boxwallet.util.toCurrencySymbol
 import java.time.Instant
-import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -78,11 +81,13 @@ fun LoanSheet(
     val categories by viewModel.categories.collectAsState()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var categoryExpanded by remember { mutableStateOf(false) }
     var loanTypeExpanded by remember { mutableStateOf(false) }
     var frequencyExpanded by remember { mutableStateOf(false) }
     val dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy")
+    val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
     LaunchedEffect(loanId) { viewModel.loadLoan(loanId) }
     LaunchedEffect(formState.isSaved) { if (formState.isSaved) onDismiss() }
@@ -190,7 +195,7 @@ fun LoanSheet(
                         }
                     }
 
-                    // Date + Category side by side
+                    // Date + Time side by side
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedTextField(
                             value = formState.startDate.format(dateFormatter),
@@ -205,45 +210,61 @@ fun LoanSheet(
                             modifier = Modifier.weight(1f)
                         )
 
-                        ExposedDropdownMenuBox(
-                            expanded = categoryExpanded,
-                            onExpandedChange = { categoryExpanded = it },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            OutlinedTextField(
-                                value = formState.categoryId?.let { id -> categories.find { it.id == id }?.name } ?: stringResource(R.string.transaction_category_none),
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { Text(stringResource(R.string.transaction_category_label)) },
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
-                                modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                            )
-                            ExposedDropdownMenu(
-                                expanded = categoryExpanded,
-                                onDismissRequest = { categoryExpanded = false }
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.transaction_category_none)) },
-                                    onClick = { viewModel.updateCategory(null); categoryExpanded = false },
-                                    leadingIcon = { Icon(Icons.Default.Clear, contentDescription = null) }
-                                )
-                                categories.forEach { category ->
-                                    DropdownMenuItem(
-                                        text = { Text(category.name) },
-                                        onClick = { viewModel.updateCategory(category.id); categoryExpanded = false },
-                                        leadingIcon = {
-                                            Icon(
-                                                imageVector = com.boxdev.boxwallet.util.categoryIconVector(category.icon),
-                                                contentDescription = null
-                                            )
-                                        },
-                                        trailingIcon = {
-                                            if (formState.categoryId == category.id) {
-                                                Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                            }
-                                        }
-                                    )
+                        OutlinedTextField(
+                            value = formState.startDate.format(timeFormatter),
+                            onValueChange = {},
+                            label = { Text(stringResource(R.string.transaction_time_label)) },
+                            readOnly = true,
+                            trailingIcon = {
+                                IconButton(onClick = { showTimePicker = true }) {
+                                    Icon(Icons.Default.Schedule, contentDescription = null)
                                 }
+                            },
+                            modifier = Modifier.weight(0.7f)
+                        )
+                    }
+
+                    // Category
+                    ExposedDropdownMenuBox(
+                        expanded = categoryExpanded,
+                        onExpandedChange = { categoryExpanded = it },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        OutlinedTextField(
+                            value = formState.categoryId?.let { id -> categories.find { it.id == id }?.name } ?: stringResource(R.string.transaction_category_none),
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text(stringResource(R.string.transaction_category_label)) },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                        )
+                        ExposedDropdownMenu(
+                            expanded = categoryExpanded,
+                            onDismissRequest = { categoryExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.transaction_category_none)) },
+                                onClick = { viewModel.updateCategory(null); categoryExpanded = false },
+                                leadingIcon = { Icon(Icons.Default.Clear, contentDescription = null) }
+                            )
+                            categories.forEach { category ->
+                                DropdownMenuItem(
+                                    text = { Text(category.name) },
+                                    onClick = { viewModel.updateCategory(category.id); categoryExpanded = false },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = com.boxdev.boxwallet.util.categoryIconVector(category.icon),
+                                            contentDescription = null
+                                        )
+                                    },
+                                    trailingIcon = {
+                                        if (formState.categoryId == category.id) {
+                                            Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                        }
+                                    }
+                                )
                             }
                         }
                     }
@@ -357,21 +378,40 @@ fun LoanSheet(
 
     if (showDatePicker) {
         val state = rememberDatePickerState(
-            initialSelectedDateMillis = formState.startDate.atStartOfDay(ZoneId.systemDefault())
-                .toInstant().toEpochMilli()
+            initialSelectedDateMillis = formState.startDate.toLocalDate().atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
         )
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
                     state.selectedDateMillis?.let {
-                        viewModel.updateStartDate(Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate())
+                        val selectedDate = Instant.ofEpochMilli(it).atOffset(ZoneOffset.UTC).toLocalDate()
+                        viewModel.updateStartDate(formState.startDate.with(selectedDate))
                     }
                     showDatePicker = false
                 }) { Text(stringResource(R.string.action_ok)) }
             },
             dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text(stringResource(R.string.action_cancel)) } }
         ) { DatePicker(state = state) }
+    }
+
+    if (showTimePicker) {
+        val timePickerState = rememberTimePickerState(
+            initialHour = formState.startDate.hour,
+            initialMinute = formState.startDate.minute
+        )
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            title = { Text(stringResource(R.string.transaction_select_time)) },
+            text = { TimePicker(state = timePickerState) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.updateTime(timePickerState.hour, timePickerState.minute)
+                    showTimePicker = false
+                }) { Text(stringResource(R.string.action_ok)) }
+            },
+            dismissButton = { TextButton(onClick = { showTimePicker = false }) { Text(stringResource(R.string.action_cancel)) } }
+        )
     }
 
     if (showDeleteDialog) {

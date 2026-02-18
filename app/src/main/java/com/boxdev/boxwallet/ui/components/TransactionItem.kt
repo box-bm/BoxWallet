@@ -44,7 +44,7 @@ fun TransactionItem(
     onClick: () -> Unit = {},
     onLongClick: () -> Unit = {},
 ) {
-    val dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy")
+    val dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy - HH:mm")
     val typeColor = when (transaction.type) {
         TransactionType.INCOME -> MaterialTheme.colorScheme.onPrimaryContainer
         TransactionType.EXPENSE -> MaterialTheme.colorScheme.onErrorContainer

@@ -63,7 +63,7 @@ fun LoanDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showEditSheet by remember { mutableStateOf(false) }
-    val dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy")
+    val dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy - HH:mm")
     val scrollBehavior =
         TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
 

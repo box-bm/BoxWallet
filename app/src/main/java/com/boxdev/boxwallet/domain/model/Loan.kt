@@ -1,8 +1,10 @@
 package com.boxdev.boxwallet.domain.model
 
 import com.boxdev.boxwallet.data.local.entity.LoanEntity
+import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneId
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 
 data class Loan(
     val id: Long = 0,
@@ -12,7 +14,7 @@ data class Loan(
     val currency: String,
     val totalInstallments: Int,
     val categoryId: Long? = null,
-    val startDate: LocalDate,
+    val startDate: LocalDateTime,
     val paidInstallments: Int = 0,
     val nextDueDate: LocalDate? = null,
     val loanType: LoanType = LoanType.EXPENSE,
@@ -33,7 +35,7 @@ fun LoanEntity.toDomain(paidInstallments: Int = 0, nextDueDate: LocalDate? = nul
     currency = currency,
     totalInstallments = totalInstallments,
     categoryId = categoryId,
-    startDate = LocalDate.ofEpochDay(startDate / (24 * 60 * 60 * 1000)),
+    startDate = LocalDateTime.ofInstant(Instant.ofEpochMilli(startDate), ZoneOffset.UTC),
     paidInstallments = paidInstallments,
     nextDueDate = nextDueDate,
     loanType = LoanType.valueOf(loanType),
@@ -49,7 +51,7 @@ fun Loan.toEntity(): LoanEntity = LoanEntity(
     currency = currency,
     totalInstallments = totalInstallments,
     categoryId = categoryId,
-    startDate = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+    startDate = startDate.toInstant(ZoneOffset.UTC).toEpochMilli(),
     loanType = loanType.name,
     frequency = frequency.name,
     frequencyInterval = frequencyInterval

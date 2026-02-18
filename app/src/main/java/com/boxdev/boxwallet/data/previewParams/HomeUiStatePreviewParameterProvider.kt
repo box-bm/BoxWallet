@@ -10,7 +10,8 @@ class HomeUiStatePreviewParameterProvider: PreviewParameterProvider<HomeViewMode
     override val values = sequenceOf(
         HomeViewModel(
             transactionRepository = TransactionRepository(
-                transactionDao = TODO()
+                transactionDao = TODO(),
+                context = TODO()
             ),
             loanRepository = LoanRepository(
                 loanDao = TODO(),

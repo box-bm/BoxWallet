@@ -92,7 +92,7 @@ fun AnalyticsScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.FileDownload,
-                            contentDescription = "Export to Excel"
+                            contentDescription = stringResource(R.string.analytics_export_excel)
                         )
                     }
                 }
@@ -133,7 +133,7 @@ fun AnalyticsScreen(
                     ) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(
-                                "Financial Health",
+                                stringResource(R.string.analytics_financial_health),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -144,13 +144,13 @@ fun AnalyticsScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 MetricCard(
-                                    title = "Savings Rate",
+                                    title = stringResource(R.string.analytics_savings_rate),
                                     value = "${String.format("%.1f", metrics.savingsRate)}%",
                                     modifier = Modifier.weight(1f)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 MetricCard(
-                                    title = "Daily Spending",
+                                    title = stringResource(R.string.analytics_daily_spending),
                                     value = String.format("%.2f", metrics.avgDailySpending),
                                     modifier = Modifier.weight(1f)
                                 )
@@ -161,14 +161,14 @@ fun AnalyticsScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 MetricCard(
-                                    title = "Income Trend",
+                                    title = stringResource(R.string.analytics_income_trend),
                                     value = "${if (metrics.incomeGrowth >= 0) "+" else ""}${String.format("%.1f", metrics.incomeGrowth)}%",
                                     modifier = Modifier.weight(1f),
                                     valueColor = if (metrics.incomeGrowth >= 0) Color(0xFF4CAF50) else Color(0xFFF44336)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 MetricCard(
-                                    title = "Expense Trend",
+                                    title = stringResource(R.string.analytics_expense_trend),
                                     value = "${if (metrics.expenseGrowth >= 0) "+" else ""}${String.format("%.1f", metrics.expenseGrowth)}%",
                                     modifier = Modifier.weight(1f),
                                     valueColor = if (metrics.expenseGrowth <= 0) Color(0xFF4CAF50) else Color(0xFFF44336)
@@ -183,7 +183,7 @@ fun AnalyticsScreen(
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(
-                                "Insights & Recommendations",
+                                stringResource(R.string.analytics_insights_title),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -297,7 +297,7 @@ fun AnalyticsScreen(
                                                 fontWeight = FontWeight.Medium
                                             )
                                             Text(
-                                                text = "Net: ${if (netAmount >= 0) "+" else ""}${"%.2f".format(netAmount)}",
+                                                text = stringResource(R.string.analytics_net_label, "${if (netAmount >= 0) "+" else ""}${"%.2f".format(netAmount)}"),
                                                 style = MaterialTheme.typography.bodySmall,
                                                 color = if (netAmount >= 0) Color(0xFF4CAF50) else Color(0xFFF44336),
                                                 fontWeight = FontWeight.Medium
@@ -306,7 +306,7 @@ fun AnalyticsScreen(
                                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                             Column(horizontalAlignment = Alignment.End) {
                                                 Text(
-                                                    "Income",
+                                                    stringResource(R.string.analytics_income_label),
                                                     style = MaterialTheme.typography.labelSmall,
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
@@ -319,7 +319,7 @@ fun AnalyticsScreen(
                                             }
                                             Column(horizontalAlignment = Alignment.End) {
                                                 Text(
-                                                    "Expense",
+                                                    stringResource(R.string.analytics_expense_label),
                                                     style = MaterialTheme.typography.labelSmall,
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
