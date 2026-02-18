@@ -116,8 +116,9 @@ class TransactionsListViewModel @Inject constructor(
 
         if (s.filterState.startDate != null || s.filterState.endDate != null) {
             filtered = filtered.filter {
-                (s.filterState.startDate?.let { start -> !it.date.isBefore(start) } ?: true) &&
-                (s.filterState.endDate?.let { end -> !it.date.isAfter(end) } ?: true)
+                val txDate = it.date.toLocalDate()
+                (s.filterState.startDate?.let { start -> !txDate.isBefore(start) } ?: true) &&
+                (s.filterState.endDate?.let { end -> !txDate.isAfter(end) } ?: true)
             }
         }
 

@@ -37,16 +37,16 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE date BETWEEN :startDate AND :endDate AND loanId IS NULL ORDER BY date DESC")
     fun getTransactionsBetweenDates(startDate: Long, endDate: Long): Flow<List<TransactionEntity>>
 
-    @Query("SELECT SUM(amount) FROM transactions WHERE type = 'INCOME' AND loanId IS NULL")
+    @Query("SELECT SUM(amount) FROM transactions WHERE type = 'INCOME' AND isCleared = 1")
     fun getTotalIncome(): Flow<Double?>
 
-    @Query("SELECT SUM(amount) FROM transactions WHERE type = 'EXPENSE' AND loanId IS NULL")
+    @Query("SELECT SUM(amount) FROM transactions WHERE type = 'EXPENSE' AND isCleared = 1")
     fun getTotalExpense(): Flow<Double?>
 
-    @Query("SELECT SUM(amount) FROM transactions WHERE type = 'INCOME' AND loanId IS NULL AND date BETWEEN :startDate AND :endDate")
+    @Query("SELECT SUM(amount) FROM transactions WHERE type = 'INCOME' AND isCleared = 1 AND date BETWEEN :startDate AND :endDate")
     fun getTotalIncomeBetweenDates(startDate: Long, endDate: Long): Flow<Double?>
 
-    @Query("SELECT SUM(amount) FROM transactions WHERE type = 'EXPENSE' AND loanId IS NULL AND date BETWEEN :startDate AND :endDate")
+    @Query("SELECT SUM(amount) FROM transactions WHERE type = 'EXPENSE' AND isCleared = 1 AND date BETWEEN :startDate AND :endDate")
     fun getTotalExpenseBetweenDates(startDate: Long, endDate: Long): Flow<Double?>
 
     @Query("SELECT * FROM transactions WHERE hasReminder = 1 AND reminderDate > :currentTime ORDER BY reminderDate ASC")

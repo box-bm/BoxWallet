@@ -15,6 +15,7 @@ data class TransactionEntity(
     val isCleared: Boolean = false,
     val hasReminder: Boolean = false,
     val reminderDate: Long? = null,
+    val reminderSecondsBefore: Long? = null,
     val categoryId: Long? = null,
     val loanId: Long? = null,
     val installmentNumber: Int? = null,

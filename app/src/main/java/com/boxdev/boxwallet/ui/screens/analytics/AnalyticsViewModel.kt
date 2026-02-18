@@ -1,14 +1,17 @@
 package com.boxdev.boxwallet.ui.screens.analytics
 
+import android.content.Context
 import android.os.Environment
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.TransactionRepository
 import com.boxdev.boxwallet.domain.model.Transaction
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -89,7 +92,8 @@ data class AnalyticsUiState(
 @HiltViewModel
 class AnalyticsViewModel @Inject constructor(
     private val transactionRepository: TransactionRepository,
-    private val categoryRepository: CategoryRepository
+    private val categoryRepository: CategoryRepository,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AnalyticsUiState())
@@ -187,7 +191,7 @@ class AnalyticsViewModel @Inject constructor(
 
         return categoryTotals.entries.mapIndexed { index, (catId, amount) ->
             CategoryData(
-                categoryName = categoriesMap[catId] ?: "Uncategorized",
+                categoryName = categoriesMap[catId] ?: context.getString(R.string.analytics_uncategorized),
                 amount = amount,
                 percentage = ((amount / totalExpenses) * 100).toFloat(),
                 color = colors[index % colors.size]
@@ -288,35 +292,38 @@ class AnalyticsViewModel @Inject constructor(
     ): List<SpendingInsight> {
         if (metrics == null || monthlyData.isEmpty()) return emptyList()
 
+        val totalIncome = monthlyData.sumOf { it.income }
+        val totalExpense = monthlyData.sumOf { it.expense }
         val insights = mutableListOf<SpendingInsight>()
 
-        // Savings rate insights
+        // Savings rate insights — only show when there's actual financial activity
+        val rateStr = String.format("%.1f", metrics.savingsRate)
         when {
             metrics.savingsRate >= 20 -> insights.add(
                 SpendingInsight(
-                    "Excellent Savings!",
-                    "You're saving ${String.format("%.1f", metrics.savingsRate)}% of your income. Keep it up!",
+                    context.getString(R.string.analytics_insight_excellent_savings_title),
+                    context.getString(R.string.analytics_insight_excellent_savings_msg, rateStr),
                     InsightType.POSITIVE
                 )
             )
             metrics.savingsRate >= 10 -> insights.add(
                 SpendingInsight(
-                    "Good Savings Rate",
-                    "You're saving ${String.format("%.1f", metrics.savingsRate)}% of your income. Consider increasing to 20%.",
+                    context.getString(R.string.analytics_insight_good_savings_title),
+                    context.getString(R.string.analytics_insight_good_savings_msg, rateStr),
                     InsightType.NEUTRAL
                 )
             )
             metrics.savingsRate > 0 -> insights.add(
                 SpendingInsight(
-                    "Low Savings Rate",
-                    "Only ${String.format("%.1f", metrics.savingsRate)}% saved. Try to reduce expenses.",
+                    context.getString(R.string.analytics_insight_low_savings_title),
+                    context.getString(R.string.analytics_insight_low_savings_msg, rateStr),
                     InsightType.WARNING
                 )
             )
-            else -> insights.add(
+            totalExpense > totalIncome -> insights.add(
                 SpendingInsight(
-                    "Spending More Than Earning",
-                    "You're spending more than you earn. Review your budget immediately.",
+                    context.getString(R.string.analytics_insight_overspending_title),
+                    context.getString(R.string.analytics_insight_overspending_msg),
                     InsightType.ALERT
                 )
             )
@@ -326,16 +333,16 @@ class AnalyticsViewModel @Inject constructor(
         if (metrics.expenseGrowth > 15) {
             insights.add(
                 SpendingInsight(
-                    "Rising Expenses",
-                    "Your expenses increased by ${String.format("%.1f", metrics.expenseGrowth)}%. Monitor your spending.",
+                    context.getString(R.string.analytics_insight_rising_expenses_title),
+                    context.getString(R.string.analytics_insight_rising_expenses_msg, String.format("%.1f", metrics.expenseGrowth)),
                     InsightType.WARNING
                 )
             )
         } else if (metrics.expenseGrowth < -10) {
             insights.add(
                 SpendingInsight(
-                    "Reduced Spending",
-                    "Great job! Expenses decreased by ${String.format("%.1f", kotlin.math.abs(metrics.expenseGrowth))}%.",
+                    context.getString(R.string.analytics_insight_reduced_spending_title),
+                    context.getString(R.string.analytics_insight_reduced_spending_msg, String.format("%.1f", kotlin.math.abs(metrics.expenseGrowth))),
                     InsightType.POSITIVE
                 )
             )
@@ -345,16 +352,16 @@ class AnalyticsViewModel @Inject constructor(
         if (metrics.incomeGrowth > 10) {
             insights.add(
                 SpendingInsight(
-                    "Income Growth",
-                    "Your income increased by ${String.format("%.1f", metrics.incomeGrowth)}%!",
+                    context.getString(R.string.analytics_insight_income_growth_title),
+                    context.getString(R.string.analytics_insight_income_growth_msg, String.format("%.1f", metrics.incomeGrowth)),
                     InsightType.POSITIVE
                 )
             )
         } else if (metrics.incomeGrowth < -10) {
             insights.add(
                 SpendingInsight(
-                    "Declining Income",
-                    "Income decreased by ${String.format("%.1f", kotlin.math.abs(metrics.incomeGrowth))}%. Consider new income sources.",
+                    context.getString(R.string.analytics_insight_declining_income_title),
+                    context.getString(R.string.analytics_insight_declining_income_msg, String.format("%.1f", kotlin.math.abs(metrics.incomeGrowth))),
                     InsightType.WARNING
                 )
             )
@@ -366,8 +373,8 @@ class AnalyticsViewModel @Inject constructor(
             if (topCategory.percentage > 40) {
                 insights.add(
                     SpendingInsight(
-                        "Concentrated Spending",
-                        "${topCategory.categoryName} accounts for ${String.format("%.0f", topCategory.percentage)}% of expenses.",
+                        context.getString(R.string.analytics_insight_concentrated_title),
+                        context.getString(R.string.analytics_insight_concentrated_msg, topCategory.categoryName, String.format("%.0f", topCategory.percentage)),
                         InsightType.NEUTRAL
                     )
                 )
@@ -378,8 +385,8 @@ class AnalyticsViewModel @Inject constructor(
         if (metrics.burnRate < 90 && metrics.burnRate > 0) {
             insights.add(
                 SpendingInsight(
-                    "⚠️ Burn Rate Alert",
-                    "At current rate, funds depleted in ${metrics.burnRate.toInt()} days.",
+                    context.getString(R.string.analytics_insight_burn_rate_title),
+                    context.getString(R.string.analytics_insight_burn_rate_msg, metrics.burnRate.toInt()),
                     InsightType.ALERT
                 )
             )
@@ -409,12 +416,12 @@ class AnalyticsViewModel @Inject constructor(
 
                 _uiState.value = _uiState.value.copy(
                     isExporting = false,
-                    exportMessage = "Report exported successfully to $filePath"
+                    exportMessage = context.getString(R.string.analytics_export_success, filePath)
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isExporting = false,
-                    exportMessage = "Error exporting: ${e.message}"
+                    exportMessage = context.getString(R.string.analytics_export_error, e.message ?: "")
                 )
             }
         }

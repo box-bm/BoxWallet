@@ -21,6 +21,7 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): BoxWalletDatabase =
         Room.databaseBuilder(context, BoxWalletDatabase::class.java, BoxWalletDatabase.DATABASE_NAME)
+            .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
 
     @Provides

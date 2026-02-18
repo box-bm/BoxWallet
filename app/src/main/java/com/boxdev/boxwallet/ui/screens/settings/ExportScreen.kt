@@ -48,7 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.boxdev.boxwallet.R
 import java.time.Instant
-import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -73,8 +73,8 @@ fun ExportScreen(
 
     if (showStartDatePicker) {
         val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = uiState.startDate.atStartOfDay(ZoneId.systemDefault())
-                .toInstant().toEpochMilli()
+            initialSelectedDateMillis = uiState.startDate.atStartOfDay()
+                .toInstant(ZoneOffset.UTC).toEpochMilli()
         )
         DatePickerDialog(
             onDismissRequest = {  },
@@ -82,7 +82,7 @@ fun ExportScreen(
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let { millis ->
                         val date = Instant.ofEpochMilli(millis)
-                            .atZone(ZoneId.systemDefault())
+                            .atOffset(ZoneOffset.UTC)
                             .toLocalDate()
                         viewModel.updateStartDate(date)
                     }
@@ -103,8 +103,8 @@ fun ExportScreen(
 
     if (showEndDatePicker) {
         val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = uiState.endDate.atStartOfDay(ZoneId.systemDefault())
-                .toInstant().toEpochMilli()
+            initialSelectedDateMillis = uiState.endDate.atStartOfDay()
+                .toInstant(ZoneOffset.UTC).toEpochMilli()
         )
         DatePickerDialog(
             onDismissRequest = {  },
@@ -112,7 +112,7 @@ fun ExportScreen(
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let { millis ->
                         val date = Instant.ofEpochMilli(millis)
-                            .atZone(ZoneId.systemDefault())
+                            .atOffset(ZoneOffset.UTC)
                             .toLocalDate()
                         viewModel.updateEndDate(date)
                     }

@@ -14,8 +14,10 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneId
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -34,7 +36,7 @@ class LoanRepository @Inject constructor(
                 val loanFlows = loanEntities.map { entity ->
                     transactionDao.getPaidInstallmentCount(entity.id).map { paidCount ->
                         val nextDueDate = if (paidCount < entity.totalInstallments) {
-                            val startDate = LocalDate.ofEpochDay(entity.startDate / (24 * 60 * 60 * 1000))
+                            val startDate = LocalDateTime.ofInstant(Instant.ofEpochMilli(entity.startDate), ZoneOffset.UTC).toLocalDate()
                             calculateInstallmentDate(
                                 startDate,
                                 paidCount,
@@ -60,7 +62,7 @@ class LoanRepository @Inject constructor(
         val loanId = loanDao.insert(loan.toEntity())
         val installments = (1..loan.totalInstallments).map { number ->
             val installmentDate = calculateInstallmentDate(
-                loan.startDate,
+                loan.startDate.toLocalDate(),
                 number - 1,
                 loan.frequency,
                 loan.frequencyInterval
@@ -69,7 +71,7 @@ class LoanRepository @Inject constructor(
                 amount = loan.installmentAmount,
                 currency = loan.currency,
                 description = "${loan.name} - Installment $number/${loan.totalInstallments}",
-                date = installmentDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+                date = installmentDate.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli(),
                 type = loan.loanType.toTransactionType().name,
                 categoryId = loan.categoryId,
                 loanId = loanId,
@@ -84,11 +86,10 @@ class LoanRepository @Inject constructor(
         val existingLoan = loanDao.getById(loan.id)
         loanDao.update(loan.toEntity())
 
-        // If start date changed, update all installment dates
         if (existingLoan != null) {
-            val oldStartDate = LocalDate.ofEpochDay(existingLoan.startDate / (24 * 60 * 60 * 1000))
-            if (oldStartDate != loan.startDate) {
-                updateInstallmentDates(loan.id, loan.startDate, loan.frequency, loan.frequencyInterval)
+            val oldStartDate = LocalDateTime.ofInstant(Instant.ofEpochMilli(existingLoan.startDate), ZoneOffset.UTC).toLocalDate()
+            if (oldStartDate != loan.startDate.toLocalDate()) {
+                updateInstallmentDates(loan.id, loan.startDate.toLocalDate(), loan.frequency, loan.frequencyInterval)
             }
         }
     }
@@ -109,7 +110,7 @@ class LoanRepository @Inject constructor(
                 interval
             )
             val updatedInstallment = installment.copy(
-                date = newDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                date = newDate.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
             )
             transactionDao.update(updatedInstallment)
         }

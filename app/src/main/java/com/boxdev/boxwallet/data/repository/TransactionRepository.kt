@@ -1,33 +1,76 @@
 package com.boxdev.boxwallet.data.repository
 
+import android.content.Context
+import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.data.local.dao.TransactionDao
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
+import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.domain.model.FinancialSummary
 import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.domain.model.toDomain
 import com.boxdev.boxwallet.domain.model.toEntity
+import com.boxdev.boxwallet.worker.ReminderWorker
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.YearMonth
 import java.time.ZoneId
+import java.time.ZoneOffset
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class TransactionRepository @Inject constructor(
-    private val transactionDao: TransactionDao
+    private val transactionDao: TransactionDao,
+    @ApplicationContext private val context: Context
 ) {
 
-    suspend fun insertTransaction(transaction: Transaction): Long =
-        transactionDao.insert(transaction.toEntity())
+    suspend fun insertTransaction(transaction: Transaction): Long {
+        val entity = transaction.toEntity()
+        val id = transactionDao.insert(entity)
+        scheduleOrCancelReminder(transaction.copy(id = id))
+        return id
+    }
 
-    suspend fun updateTransaction(transaction: Transaction) =
+    suspend fun updateTransaction(transaction: Transaction) {
         transactionDao.update(transaction.toEntity())
+        scheduleOrCancelReminder(transaction)
+    }
 
-    suspend fun deleteTransaction(id: Long) = transactionDao.deleteById(id)
+    suspend fun deleteTransaction(id: Long) {
+        ReminderWorker.cancel(context, id)
+        transactionDao.deleteById(id)
+    }
+
+    private fun scheduleOrCancelReminder(transaction: Transaction) {
+        if (transaction.hasReminder && transaction.reminderSecondsBefore != null && !transaction.isCleared) {
+            // Use system default timezone to get the actual wall-clock moment,
+            // since transaction.date is a LocalDateTime representing local time
+            val transactionMillis = transaction.date.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            val reminderMillis = transactionMillis - (transaction.reminderSecondsBefore * 1000)
+            if (reminderMillis >= System.currentTimeMillis()) {
+                val title = if (transaction.type == TransactionType.EXPENSE) {
+                    context.getString(R.string.reminder_upcoming_payment)
+                } else {
+                    context.getString(R.string.reminder_expected_income)
+                }
+                val message = buildString {
+                    append(transaction.description.ifEmpty { transaction.type.name })
+                    append(": ${transaction.currency} ${transaction.amount}")
+                    if (transaction.installmentNumber != null) {
+                        append(context.getString(R.string.reminder_installment_suffix, transaction.installmentNumber))
+                    }
+                }
+                ReminderWorker.scheduleExact(context, transaction.id, reminderMillis, title, message)
+            }
+        } else {
+            ReminderWorker.cancel(context, transaction.id)
+        }
+    }
 
     suspend fun getTransactionById(id: Long): Transaction? = transactionDao.getById(id)?.toDomain()
 
@@ -38,16 +81,16 @@ class TransactionRepository @Inject constructor(
         transactionDao.getLatestTransactions(limit).map { it.map { e -> e.toDomain() } }
 
     fun getTransactionsBetweenDates(startDate: LocalDate, endDate: LocalDate): Flow<List<Transaction>> {
-        val startMillis = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        val endMillis = endDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val startMillis = startDate.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+        val endMillis = endDate.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
         return transactionDao.getTransactionsBetweenDates(startMillis, endMillis)
             .map { it.map { e -> e.toDomain() } }
     }
 
     fun getFinancialSummary(): Flow<FinancialSummary> {
         val currentMonth = YearMonth.now()
-        val startOfMonth = currentMonth.atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        val endOfMonth = currentMonth.atEndOfMonth().plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val startOfMonth = currentMonth.atDay(1).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+        val endOfMonth = currentMonth.atEndOfMonth().plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
 
         return combine(
             transactionDao.getTotalIncome(),
@@ -93,7 +136,7 @@ class TransactionRepository @Inject constructor(
         )
 
         val nextTransaction = transaction.copy(
-            id = 0, // Auto-generate new ID
+            id = 0,
             date = nextDate,
             isCleared = false,
             nextOccurrenceDate = calculateNextOccurrence(
@@ -108,10 +151,10 @@ class TransactionRepository @Inject constructor(
     }
 
     private fun calculateNextOccurrence(
-        currentDate: LocalDate,
+        currentDate: LocalDateTime,
         frequency: RecurrenceFrequency,
         interval: Int
-    ): LocalDate = when (frequency) {
+    ): LocalDateTime = when (frequency) {
         RecurrenceFrequency.DAILY -> currentDate.plusDays(interval.toLong())
         RecurrenceFrequency.WEEKLY -> currentDate.plusWeeks(interval.toLong())
         RecurrenceFrequency.BIWEEKLY -> currentDate.plusWeeks(2)
