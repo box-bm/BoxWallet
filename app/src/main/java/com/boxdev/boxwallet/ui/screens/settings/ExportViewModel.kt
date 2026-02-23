@@ -1,26 +1,24 @@
 package com.boxdev.boxwallet.ui.screens.settings
 
-import android.os.Environment
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.boxdev.boxwallet.data.local.entity.TransactionType
+import com.boxdev.boxwallet.data.repository.CategoryRepository
+import com.boxdev.boxwallet.data.repository.LoanRepository
 import com.boxdev.boxwallet.data.repository.TransactionRepository
-import com.boxdev.boxwallet.domain.model.Transaction
+import com.boxdev.boxwallet.util.ExcelReportGenerator
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import java.io.File
-import java.io.FileOutputStream
-import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
@@ -31,28 +29,22 @@ data class ExportUiState(
     val isLoading: Boolean = false,
     val message: String? = null,
     val isSuccess: Boolean = false,
-    val exportedFilePath: String? = null
+    val exportedFile: File? = null
 )
 
 @HiltViewModel
 class ExportViewModel @Inject constructor(
-    private val transactionRepository: TransactionRepository
+    private val transactionRepository: TransactionRepository,
+    private val categoryRepository: CategoryRepository,
+    private val loanRepository: LoanRepository,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ExportUiState())
     val uiState: StateFlow<ExportUiState> = _uiState.asStateFlow()
 
-    private val currencyFormat = NumberFormat.getCurrencyInstance(Locale.getDefault())
-    private val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-    private val exportFolder: File
-        get() {
-            val documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
-            val boxWalletDir = File(documentsDir, "BoxWallet/Reports")
-            if (!boxWalletDir.exists()) {
-                boxWalletDir.mkdirs()
-            }
-            return boxWalletDir
-        }
+    private val exportDir: File
+        get() = File(context.cacheDir, "reports").also { if (!it.exists()) it.mkdirs() }
 
     fun updateStartDate(date: LocalDate) {
         _uiState.value = _uiState.value.copy(startDate = date)
@@ -65,24 +57,23 @@ class ExportViewModel @Inject constructor(
     fun exportToExcel() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, message = null)
-
             try {
-                val transactions = transactionRepository.getTransactionsBetweenDates(
-                    _uiState.value.startDate,
-                    _uiState.value.endDate
-                )
+                val start = _uiState.value.startDate
+                val end = _uiState.value.endDate
+                val transactionList = transactionRepository.getTransactionsBetweenDates(start, end).first()
+                val categories = categoryRepository.getAllCategories().first().associate { it.id to it.name }
+                val loans = loanRepository.getAllLoans().first().associateBy { it.id }
 
-                val transactionList = transactions.toList().flatten()
-
-                val filePath = withContext(Dispatchers.IO) {
-                    createExcelFile(transactionList)
+                val file = withContext(Dispatchers.IO) {
+                    val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                    val f = File(exportDir, "BoxWallet_Report_$timestamp.xlsx")
+                    ExcelReportGenerator.create(f, transactionList, categories, loans, start, end)
                 }
 
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    message = "Excel report exported successfully",
                     isSuccess = true,
-                    exportedFilePath = filePath
+                    exportedFile = file
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
@@ -94,59 +85,11 @@ class ExportViewModel @Inject constructor(
         }
     }
 
-    private fun createExcelFile(transactions: List<Transaction>): String {
-        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        val file = File(exportFolder, "BoxWallet_Report_$timestamp.xlsx")
-
-        XSSFWorkbook().use { workbook ->
-            val sheet = workbook.createSheet("Transactions")
-
-            // Header row
-            val headerRow = sheet.createRow(0)
-            listOf("Date", "Type", "Amount", "Description", "Is Loan", "Installment").forEachIndexed { index, title ->
-                headerRow.createCell(index).setCellValue(title)
-            }
-
-            // Data rows
-            transactions.forEachIndexed { index, transaction ->
-                val row = sheet.createRow(index + 1)
-                row.createCell(0).setCellValue(transaction.date.format(dateFormatter))
-                row.createCell(1).setCellValue(transaction.type.name)
-                row.createCell(2).setCellValue(transaction.amount)
-                row.createCell(3).setCellValue(transaction.description)
-                row.createCell(4).setCellValue(if (transaction.loanId != null) "Yes" else "No")
-                row.createCell(5).setCellValue(
-                    if (transaction.installmentNumber != null)
-                        "${transaction.installmentNumber}"
-                    else ""
-                )
-            }
-
-            // Summary
-            val summarySheet = workbook.createSheet("Summary")
-            val incomeTotal = transactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
-            val expenseTotal = transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
-
-            summarySheet.createRow(0).createCell(0).setCellValue("Period")
-            summarySheet.createRow(1).createCell(0).setCellValue(
-                "${_uiState.value.startDate.format(dateFormatter)} to ${_uiState.value.endDate.format(dateFormatter)}"
-            )
-            summarySheet.createRow(3).createCell(0).setCellValue("Total Income")
-            summarySheet.getRow(3).createCell(1).setCellValue(incomeTotal)
-            summarySheet.createRow(4).createCell(0).setCellValue("Total Expense")
-            summarySheet.getRow(4).createCell(1).setCellValue(expenseTotal)
-            summarySheet.createRow(5).createCell(0).setCellValue("Net Balance")
-            summarySheet.getRow(5).createCell(1).setCellValue(incomeTotal - expenseTotal)
-
-            FileOutputStream(file).use { outputStream ->
-                workbook.write(outputStream)
-            }
-        }
-
-        return file.absolutePath
-    }
-
     fun clearMessage() {
         _uiState.value = _uiState.value.copy(message = null)
+    }
+
+    fun clearExportedFile() {
+        _uiState.value = _uiState.value.copy(exportedFile = null, isSuccess = false)
     }
 }

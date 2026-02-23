@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -27,14 +29,16 @@ import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonGroup
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
@@ -42,6 +46,7 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
@@ -58,7 +63,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDatePickerState
-import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -87,6 +91,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.time.temporal.ChronoUnit
 import java.util.Locale
@@ -138,6 +143,14 @@ fun AnalyticsScreen(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.analytics_title)) },
+                actions = {
+                    IconButton(onClick = { showExportSheet = true }) {
+                        Icon(
+                            imageVector = Icons.Outlined.Download,
+                            contentDescription = stringResource(R.string.analytics_export_report)
+                        )
+                    }
+                }
             )
         },
         snackbarHost = { SnackbarHost(snackBarHostState) }
@@ -473,15 +486,64 @@ private fun ExportRangeSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val today = LocalDate.now()
-    val dateRangeState = rememberDateRangePickerState(
-        selectableDates = object : SelectableDates {
-            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
-                val date =
-                    Instant.ofEpochMilli(utcTimeMillis).atOffset(ZoneOffset.UTC).toLocalDate()
-                return !date.isAfter(today)
+    val dateFormatter = remember { DateTimeFormatter.ofPattern("MMM d, yyyy") }
+
+    var startDate by remember { mutableStateOf<LocalDate?>(today.minusMonths(1)) }
+    var endDate by remember { mutableStateOf<LocalDate?>(today) }
+    var showStartPicker by remember { mutableStateOf(false) }
+    var showEndPicker by remember { mutableStateOf(false) }
+
+    if (showStartPicker) {
+        val pickerState = rememberDatePickerState(
+            initialSelectedDateMillis = startDate?.atStartOfDay()?.toInstant(ZoneOffset.UTC)?.toEpochMilli(),
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean =
+                    !Instant.ofEpochMilli(utcTimeMillis).atOffset(ZoneOffset.UTC).toLocalDate().isAfter(today)
             }
-        }
-    )
+        )
+        DatePickerDialog(
+            onDismissRequest = { showStartPicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    pickerState.selectedDateMillis?.let { ms ->
+                        val picked = Instant.ofEpochMilli(ms).atOffset(ZoneOffset.UTC).toLocalDate()
+                        startDate = picked
+                        if (endDate?.isBefore(picked) == true) endDate = picked
+                    }
+                    showStartPicker = false
+                }) { Text(stringResource(R.string.action_ok)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showStartPicker = false }) { Text(stringResource(R.string.action_cancel)) }
+            }
+        ) { DatePicker(state = pickerState) }
+    }
+
+    if (showEndPicker) {
+        val pickerState = rememberDatePickerState(
+            initialSelectedDateMillis = endDate?.atStartOfDay()?.toInstant(ZoneOffset.UTC)?.toEpochMilli(),
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                    val date = Instant.ofEpochMilli(utcTimeMillis).atOffset(ZoneOffset.UTC).toLocalDate()
+                    return !date.isAfter(today) && (startDate == null || !date.isBefore(startDate!!))
+                }
+            }
+        )
+        DatePickerDialog(
+            onDismissRequest = { showEndPicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    pickerState.selectedDateMillis?.let { ms ->
+                        endDate = Instant.ofEpochMilli(ms).atOffset(ZoneOffset.UTC).toLocalDate()
+                    }
+                    showEndPicker = false
+                }) { Text(stringResource(R.string.action_ok)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEndPicker = false }) { Text(stringResource(R.string.action_cancel)) }
+            }
+        ) { DatePicker(state = pickerState) }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -499,37 +561,70 @@ private fun ExportRangeSheet(
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
+
+            // Quick presets
             Text(
-                text = stringResource(R.string.analytics_export_select_range),
-                style = MaterialTheme.typography.bodyMedium,
+                text = stringResource(R.string.analytics_export_quick_range),
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-
-            DateRangePicker(
-                state = dateRangeState,
+            val presets = listOf(
+                Triple(stringResource(R.string.analytics_export_preset_7d), today.minusDays(6), today),
+                Triple(stringResource(R.string.analytics_export_preset_30d), today.minusDays(29), today),
+                Triple(stringResource(R.string.analytics_export_preset_3m), today.minusMonths(3).withDayOfMonth(1), today),
+                Triple(stringResource(R.string.analytics_export_preset_year), today.withDayOfYear(1), today),
+            )
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f),
-                title = null,
-                headline = null,
-                showModeToggle = false
-            )
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                presets.forEach { (label, start, end) ->
+                    FilterChip(
+                        selected = startDate == start && endDate == end,
+                        onClick = { startDate = start; endDate = end },
+                        label = { Text(label) }
+                    )
+                }
+            }
+
+            // From / To date fields
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(modifier = Modifier.weight(1f)) {
+                    OutlinedTextField(
+                        value = startDate?.format(dateFormatter) ?: "—",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(stringResource(R.string.analytics_export_from)) },
+                        trailingIcon = { Icon(Icons.Default.CalendarMonth, contentDescription = null) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Box(modifier = Modifier.matchParentSize().clickable { showStartPicker = true })
+                }
+                Box(modifier = Modifier.weight(1f)) {
+                    OutlinedTextField(
+                        value = endDate?.format(dateFormatter) ?: "—",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(stringResource(R.string.analytics_export_to)) },
+                        trailingIcon = { Icon(Icons.Default.CalendarMonth, contentDescription = null) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Box(modifier = Modifier.matchParentSize().clickable { showEndPicker = true })
+                }
+            }
 
             Button(
                 onClick = {
-                    val startMillis = dateRangeState.selectedStartDateMillis
-                    val endMillis = dateRangeState.selectedEndDateMillis
-                    if (startMillis != null && endMillis != null) {
-                        val start =
-                            Instant.ofEpochMilli(startMillis).atOffset(ZoneOffset.UTC).toLocalDate()
-                        val end =
-                            Instant.ofEpochMilli(endMillis).atOffset(ZoneOffset.UTC).toLocalDate()
-                        onGenerate(start, end)
-                    }
+                    val s = startDate
+                    val e = endDate
+                    if (s != null && e != null) onGenerate(s, e)
                 },
-                enabled = dateRangeState.selectedStartDateMillis != null
-                        && dateRangeState.selectedEndDateMillis != null
-                        && !isExporting,
+                enabled = startDate != null && endDate != null && !isExporting,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 if (isExporting) {
