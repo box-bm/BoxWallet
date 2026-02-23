@@ -2,6 +2,7 @@ package com.boxdev.boxwallet.ui.screens.transaction
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.boxdev.boxwallet.analytics.AnalyticsHelper
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.data.repository.CategoryRepository
@@ -49,7 +50,8 @@ data class TransactionFormState(
 class TransactionFormViewModel @Inject constructor(
     private val transactionRepository: TransactionRepository,
     private val categoryRepository: CategoryRepository,
-    private val userPreferences: UserPreferences
+    private val userPreferences: UserPreferences,
+    private val analyticsHelper: AnalyticsHelper
 ) : ViewModel() {
 
     private val _formState = MutableStateFlow(TransactionFormState())
@@ -183,6 +185,15 @@ class TransactionFormViewModel @Inject constructor(
                     transactionRepository.insertTransaction(transaction)
                 }
 
+                analyticsHelper.logEvent(
+                    if (s.isEditing) "transaction_updated" else "transaction_created",
+                    mapOf(
+                        "type" to s.type.name,
+                        "has_category" to (s.categoryId != null),
+                        "has_reminder" to s.hasReminder
+                    )
+                )
+
                 _formState.update { it.copy(isLoading = false, isSaved = true) }
             } catch (e: Exception) {
                 _formState.update { it.copy(isLoading = false, error = e.message ?: "Error saving") }
@@ -197,6 +208,7 @@ class TransactionFormViewModel @Inject constructor(
             _formState.update { it.copy(isLoading = true) }
             try {
                 transactionRepository.deleteTransaction(s.id)
+                analyticsHelper.logEvent("transaction_deleted", mapOf("type" to s.type.name))
                 _formState.update { it.copy(isLoading = false, isSaved = true) }
             } catch (e: Exception) {
                 _formState.update { it.copy(isLoading = false, error = e.message ?: "Error deleting") }

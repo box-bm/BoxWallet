@@ -28,6 +28,9 @@ jobs:
           ruby-version: "3.3"
           bundler-cache: true
 
+      - name: Decode google-services.json
+        run: echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > app/google-services.json
+
       - name: Decode keystore
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/keystore.jks
 
@@ -46,5 +49,6 @@ jobs:
       - name: Clean up secrets
         if: always()
         run: |
+          rm -f app/google-services.json
           rm -f app/keystore.jks
           rm -f play-store-key.json

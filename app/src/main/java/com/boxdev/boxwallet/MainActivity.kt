@@ -19,6 +19,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import com.boxdev.boxwallet.analytics.AnalyticsHelper
 import com.boxdev.boxwallet.data.datastore.ThemePreferences
 import com.boxdev.boxwallet.data.datastore.ThemeSettings
 import com.boxdev.boxwallet.data.datastore.UserPreferences
@@ -36,6 +37,9 @@ class MainActivity : FragmentActivity() {
 
     @Inject
     lateinit var userPreferences: UserPreferences
+
+    @Inject
+    lateinit var analyticsHelper: AnalyticsHelper
 
     private var isAuthenticated by mutableStateOf(false)
     private var authError by mutableStateOf<String?>(null)
@@ -66,7 +70,7 @@ class MainActivity : FragmentActivity() {
                         onUnlockClick = { showBiometricPrompt() },
                         errorMessage = authError
                     )
-                    else -> NavigationTab(modifier = Modifier.fillMaxSize())
+                    else -> NavigationTab(analyticsHelper = analyticsHelper, modifier = Modifier.fillMaxSize())
                 }
             }
         }

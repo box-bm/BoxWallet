@@ -47,11 +47,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.boxdev.boxwallet.R
+import com.boxdev.boxwallet.analytics.AnalyticsHelper
 import com.boxdev.boxwallet.ui.components.LoanSheet
 import com.boxdev.boxwallet.ui.components.TransactionSheet
 
 @Composable
-fun NavigationTab(modifier: Modifier = Modifier) {
+fun NavigationTab(analyticsHelper: AnalyticsHelper, modifier: Modifier = Modifier) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -212,6 +213,7 @@ fun NavigationTab(modifier: Modifier = Modifier) {
         NavGraph(
             navController = navController,
             modifier = Modifier.padding(contentPadding),
+            analyticsHelper = analyticsHelper,
             onAddTransaction = {
                 selectedTransactionId = null
                 showTransactionSheet = true

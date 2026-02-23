@@ -41,3 +41,4 @@ Thumbs.db
 # keys
 .env
 *.jks
+app/google-services.json

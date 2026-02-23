@@ -200,6 +200,14 @@
 -dontwarn com.zaxxer.sparsebits.**
 
 # ========================================
+# Firebase
+# ========================================
+
+# Keep Firebase Analytics
+-keep class com.google.firebase.analytics.** { *; }
+-dontwarn com.google.firebase.**
+
+# ========================================
 # Google Play Services & Drive API
 # ========================================
 

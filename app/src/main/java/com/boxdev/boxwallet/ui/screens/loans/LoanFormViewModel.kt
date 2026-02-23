@@ -2,6 +2,7 @@ package com.boxdev.boxwallet.ui.screens.loans
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.boxdev.boxwallet.analytics.AnalyticsHelper
 import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.LoanRepository
@@ -53,7 +54,8 @@ data class LoanFormState(
 class LoanFormViewModel @Inject constructor(
     private val loanRepository: LoanRepository,
     private val categoryRepository: CategoryRepository,
-    private val userPreferences: UserPreferences
+    private val userPreferences: UserPreferences,
+    private val analyticsHelper: AnalyticsHelper
 ) : ViewModel() {
 
     private val _formState = MutableStateFlow(LoanFormState())
@@ -152,6 +154,15 @@ class LoanFormViewModel @Inject constructor(
                 )
                 if (s.isEditing) loanRepository.updateLoan(loan)
                 else loanRepository.insertLoanWithInstallments(loan)
+
+                analyticsHelper.logEvent(
+                    if (s.isEditing) "loan_updated" else "loan_created",
+                    mapOf(
+                        "type" to s.loanType.name,
+                        "installments" to s.installments.toIntOrNull().let { it ?: 0 }
+                    )
+                )
+
                 _formState.update { it.copy(isLoading = false, isSaved = true) }
             } catch (e: Exception) {
                 _formState.update { it.copy(isLoading = false, error = e.message ?: "Error saving loan") }
@@ -166,6 +177,7 @@ class LoanFormViewModel @Inject constructor(
             _formState.update { it.copy(isLoading = true) }
             try {
                 loanRepository.deleteLoan(s.id)
+                analyticsHelper.logEvent("loan_deleted")
                 _formState.update { it.copy(isLoading = false, isSaved = true) }
             } catch (e: Exception) {
                 _formState.update { it.copy(isLoading = false, error = e.message ?: "Error deleting loan") }
