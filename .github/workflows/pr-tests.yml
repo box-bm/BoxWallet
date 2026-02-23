@@ -31,10 +31,11 @@ jobs:
         with:
           java-version: "17"
           distribution: "temurin"
+          cache: "gradle"
 
       - name: Run unit tests
         if: steps.changes.outputs.code == 'true'
-        run: ./gradlew testDebugUnitTest
+        run: ./gradlew testDebugUnitTest --build-cache
 
       - name: Skip tests
         if: steps.changes.outputs.code != 'true'
