@@ -16,5 +16,10 @@ enum class ReminderDuration(val label: String, val secondsBefore: Long, val debu
             if (seconds == null) return null
             return entries.find { it.secondsBefore == seconds }
         }
+
+        fun fromMinutes(minutes: Long?): ReminderDuration? {
+            if (minutes == null) return null
+            return entries.find { it.secondsBefore == minutes * 60 }
+        }
     }
 }

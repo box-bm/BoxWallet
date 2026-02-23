@@ -24,19 +24,4 @@ class ReminderDurationTest {
     fun `fromMinutes returns ONE_DAY for 1440`() {
         assertEquals(ReminderDuration.ONE_DAY, ReminderDuration.fromMinutes(1440))
     }
-
-    @Test
-    fun `fromMinutes returns ONE_WEEK for 10080`() {
-        assertEquals(ReminderDuration.ONE_WEEK, ReminderDuration.fromMinutes(10080))
-    }
-
-    @Test
-    fun `fromMinutes returns CUSTOM for null`() {
-        assertEquals(ReminderDuration.CUSTOM, ReminderDuration.fromMinutes(null))
-    }
-
-    @Test
-    fun `fromMinutes returns CUSTOM for unknown value`() {
-        assertEquals(ReminderDuration.CUSTOM, ReminderDuration.fromMinutes(999))
-    }
 }

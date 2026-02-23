@@ -1,8 +1,10 @@
 package com.boxdev.boxwallet.domain.model
 
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.time.LocalDate
+import java.time.LocalDateTime
 
 class LoanTest {
 
@@ -15,7 +17,7 @@ class LoanTest {
         totalAmount = totalAmount,
         currency = "USD",
         totalInstallments = totalInstallments,
-        startDate = LocalDate.of(2026, 1, 1),
+        startDate = LocalDateTime.of(2026, 1, 1, 3, 4, 5),
         paidInstallments = paidInstallments
     )
 
