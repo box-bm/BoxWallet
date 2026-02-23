@@ -195,6 +195,7 @@ fun NavigationTab(modifier: Modifier = Modifier) {
                     )
                     FloatingActionButtonMenuItem(
                         onClick = {
+                            openLoanSheet()
                         },
                         text = { Text(stringResource(R.string.fab_add_loan)) },
                         icon = {
