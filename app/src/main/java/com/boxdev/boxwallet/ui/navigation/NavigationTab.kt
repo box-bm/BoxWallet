@@ -61,6 +61,7 @@ fun NavigationTab(modifier: Modifier = Modifier) {
 
     val showFab = currentRoute in listOf(
         NavRoutes.Home.route,
+        NavRoutes.TransactionsList.route,
         NavRoutes.Loans.route
     )
 
@@ -68,6 +69,33 @@ fun NavigationTab(modifier: Modifier = Modifier) {
     var showTransactionSheet by remember { mutableStateOf(false) }
     var showLoanSheet by remember { mutableStateOf(false) }
     var selectedTransactionId by remember { mutableStateOf<Long?>(null) }
+
+    val openTransactionSheet = {
+        fabExpanded = false
+        selectedTransactionId = null
+        showTransactionSheet = true
+    }
+
+    val openLoanSheet = {
+        fabExpanded = false
+        showLoanSheet = true
+    }
+
+    val handlePressFab = { checked: Boolean ->
+        when (currentRoute) {
+            NavRoutes.Home.route -> {
+                fabExpanded = checked
+            }
+
+            NavRoutes.TransactionsList.route -> {
+                openTransactionSheet()
+            }
+
+            NavRoutes.Loans.route -> {
+                openLoanSheet()
+            }
+        }
+    }
 
     LaunchedEffect(currentRoute) {
         fabExpanded = false
@@ -134,10 +162,10 @@ fun NavigationTab(modifier: Modifier = Modifier) {
                         ToggleFloatingActionButton(
                             modifier = Modifier.animateFloatingActionButton(
                                 visible = true,
-                                alignment = Alignment.BottomEnd
+                                alignment = Alignment.BottomEnd,
                             ),
                             checked = fabExpanded,
-                            onCheckedChange = { checked -> fabExpanded = checked },
+                            onCheckedChange = { checked -> handlePressFab(checked) },
                         ) {
                             val imageVector by remember {
                                 derivedStateOf {
@@ -147,16 +175,15 @@ fun NavigationTab(modifier: Modifier = Modifier) {
                             Icon(
                                 painter = rememberVectorPainter(imageVector),
                                 contentDescription = null,
-                                modifier = Modifier.animateIcon({ checkedProgress }),
+                                modifier = Modifier
+                                    .animateIcon({ checkedProgress })
                             )
                         }
                     },
                 ) {
                     FloatingActionButtonMenuItem(
                         onClick = {
-                            fabExpanded = false
-                            selectedTransactionId = null
-                            showTransactionSheet = true
+                            openTransactionSheet()
                         },
                         text = { Text(stringResource(R.string.fab_add_transaction)) },
                         icon = {
@@ -168,8 +195,6 @@ fun NavigationTab(modifier: Modifier = Modifier) {
                     )
                     FloatingActionButtonMenuItem(
                         onClick = {
-                            fabExpanded = false
-                            showLoanSheet = true
                         },
                         text = { Text(stringResource(R.string.fab_add_loan)) },
                         icon = {
@@ -182,7 +207,7 @@ fun NavigationTab(modifier: Modifier = Modifier) {
                 }
             }
         }
-    ) { contentPadding ->
+    ) { contentPadding  ->
         NavGraph(
             navController = navController,
             modifier = Modifier.padding(contentPadding),
@@ -193,6 +218,9 @@ fun NavigationTab(modifier: Modifier = Modifier) {
             onEditTransaction = { id ->
                 selectedTransactionId = id
                 showTransactionSheet = true
+            },
+            onNavigateToSettings = {
+                navController.navigate(NavRoutes.Settings.route)
             }
         )
     }

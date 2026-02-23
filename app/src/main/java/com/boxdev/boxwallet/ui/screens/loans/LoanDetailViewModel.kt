@@ -3,8 +3,10 @@ package com.boxdev.boxwallet.ui.screens.loans
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.LoanRepository
 import com.boxdev.boxwallet.data.repository.TransactionRepository
+import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Loan
 import com.boxdev.boxwallet.domain.model.Transaction
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -18,6 +20,7 @@ import javax.inject.Inject
 data class LoanDetailUiState(
     val loan: Loan? = null,
     val installments: List<Transaction> = emptyList(),
+    val category: Category? = null,
     val isLoading: Boolean = true
 )
 
@@ -25,18 +28,22 @@ data class LoanDetailUiState(
 class LoanDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val loanRepository: LoanRepository,
-    private val transactionRepository: TransactionRepository
+    private val transactionRepository: TransactionRepository,
+    private val categoryRepository: CategoryRepository
 ) : ViewModel() {
 
     private val loanId: Long = checkNotNull(savedStateHandle["loanId"])
 
     val uiState: StateFlow<LoanDetailUiState> = combine(
         loanRepository.getAllLoans(),
-        transactionRepository.getInstallmentsByLoanId(loanId)
-    ) { loans, installments ->
+        transactionRepository.getInstallmentsByLoanId(loanId),
+        categoryRepository.getAllCategories()
+    ) { loans, installments, categories ->
+        val loan = loans.find { it.id == loanId }
         LoanDetailUiState(
-            loan = loans.find { it.id == loanId },
+            loan = loan,
             installments = installments,
+            category = categories.find { it.id == loan?.categoryId },
             isLoading = false
         )
     }.stateIn(

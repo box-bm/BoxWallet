@@ -5,6 +5,7 @@
     <string name="nav_home">Inicio</string>
     <string name="nav_loans">Pr\u00e9stamos</string>
     <string name="nav_settings">Ajustes</string>
+    <string name="nav_transactions">Registros</string>
 
     <!-- FAB Menu -->
     <string name="fab_add_transaction">Agregar Transacci\u00f3n</string>
@@ -13,7 +14,7 @@
     <string name="fab_credit_card_icon">Icono de tarjeta</string>
 
     <!-- Home Screen -->
-    <string name="home_analytics">Estad\u00edsticas</string>
+    <string name="home_analytics">Reportes</string>
     <string name="home_recent_transactions">Transacciones Recientes</string>
     <string name="home_see_all">Ver todo</string>
     <string name="home_no_transactions">A\u00fan no hay transacciones</string>
@@ -88,6 +89,12 @@
     <string name="loan_installment_number">Cuota #%1$d</string>
     <string name="loan_mark_as_unpaid">Marcar como no pagada</string>
     <string name="loan_mark_as_paid">Marcar como pagada</string>
+    <string name="loan_total_paid">Total Pagado</string>
+    <string name="loan_remaining">Restante</string>
+    <string name="loan_overdue">Vencida</string>
+    <string name="loan_incoming_payment">Por vencer</string>
+    <string name="loan_status_active">Activo</string>
+    <string name="loan_status_paid">Pagado</string>
 
     <!-- Transactions List Screen -->
     <string name="transactions_title">Transacciones</string>
@@ -107,14 +114,21 @@
     <string name="loans_title">Pr\u00e9stamos</string>
     <string name="loans_no_loans">A\u00fan no hay pr\u00e9stamos</string>
     <string name="loans_tap_to_add">Toca + para agregar un pr\u00e9stamo</string>
+    <string name="loans_search_placeholder">Buscar pr\u00e9stamos…</string>
+    <string name="loans_no_results">Ning\u00fan pr\u00e9stamo coincide con los filtros</string>
+    <string name="loans_filter_type">Tipo</string>
     <string name="loans_filter_status">Estado</string>
     <string name="loans_filter_current">Activos</string>
-    <string name="loans_filter_closed">Cerrados</string>
+    <string name="loans_filter_overdue">Vencidos</string>
+    <string name="loans_filter_paid">Pagados</string>
+    <string name="loans_filter_category">Categor\u00eda</string>
     <string name="loans_filter_sort_by">Ordenar por</string>
     <string name="loans_filter_lowest">Menor monto</string>
+    <string name="transactions_filter_category">Categor\u00eda</string>
+    <string name="transactions_filter_lowest">Menor monto</string>
 
-    <!-- Analytics Screen -->
-    <string name="analytics_title">Estad\u00edsticas</string>
+    <!-- Reports Screen -->
+    <string name="analytics_title">Reportes</string>
     <string name="analytics_months">%1$d meses</string>
     <string name="analytics_expenses_by_category">Gastos por Categor\u00eda</string>
     <string name="analytics_no_category_data">No hay datos de categor\u00edas disponibles</string>
@@ -131,6 +145,56 @@
     <string name="analytics_balance_increasing">Balance en aumento</string>
     <string name="analytics_balance_decreasing">Balance en descenso</string>
     <string name="analytics_no_trend_data">No hay datos de tendencia disponibles</string>
+    <string name="analytics_financial_health">Salud Financiera</string>
+    <string name="analytics_savings_rate">Tasa de Ahorro</string>
+    <string name="analytics_daily_spending">Gasto Diario</string>
+    <string name="analytics_income_trend">Tendencia de Ingresos</string>
+    <string name="analytics_expense_trend">Tendencia de Gastos</string>
+    <string name="analytics_insights_title">Consejos y Recomendaciones</string>
+    <string name="analytics_net_label">Neto: %1$s</string>
+    <string name="analytics_income_label">Ingresos</string>
+    <string name="analytics_expense_label">Gastos</string>
+    <string name="analytics_export_excel">Exportar a Excel</string>
+    <string name="analytics_uncategorized">Sin categoría</string>
+    <string name="analytics_export_success">Reporte exportado exitosamente a %1$s</string>
+    <string name="analytics_export_error">Error al exportar: %1$s</string>
+    <string name="analytics_insight_excellent_savings_title">¡Excelente Ahorro!</string>
+    <string name="analytics_insight_excellent_savings_msg">Estás ahorrando %1$s%% de tus ingresos. ¡Sigue así!</string>
+    <string name="analytics_insight_good_savings_title">Buena Tasa de Ahorro</string>
+    <string name="analytics_insight_good_savings_msg">Estás ahorrando %1$s%% de tus ingresos. Considera aumentar al 20%%.</string>
+    <string name="analytics_insight_low_savings_title">Baja Tasa de Ahorro</string>
+    <string name="analytics_insight_low_savings_msg">Solo %1$s%% ahorrado. Intenta reducir gastos.</string>
+    <string name="analytics_insight_overspending_title">Gastas Más de lo que Ganas</string>
+    <string name="analytics_insight_overspending_msg">Estás gastando más de lo que ganas. Revisa tu presupuesto inmediatamente.</string>
+    <string name="analytics_insight_rising_expenses_title">Gastos en Aumento</string>
+    <string name="analytics_insight_rising_expenses_msg">Tus gastos aumentaron %1$s%%. Monitorea tu gasto.</string>
+    <string name="analytics_insight_reduced_spending_title">Gasto Reducido</string>
+    <string name="analytics_insight_reduced_spending_msg">¡Buen trabajo! Los gastos disminuyeron %1$s%%.</string>
+    <string name="analytics_insight_income_growth_title">Crecimiento de Ingresos</string>
+    <string name="analytics_insight_income_growth_msg">¡Tus ingresos aumentaron %1$s%%!</string>
+    <string name="analytics_insight_declining_income_title">Ingresos en Descenso</string>
+    <string name="analytics_insight_declining_income_msg">Los ingresos disminuyeron %1$s%%. Considera nuevas fuentes de ingreso.</string>
+    <string name="analytics_insight_concentrated_title">Gasto Concentrado</string>
+    <string name="analytics_insight_concentrated_msg">%1$s representa el %2$s%% de los gastos.</string>
+    <string name="analytics_insight_burn_rate_title">Alerta de Ritmo de Gasto</string>
+    <string name="analytics_insight_burn_rate_msg">Al ritmo actual, los fondos se agotarán en %1$d días.</string>
+    <string name="analytics_frequency_label">Frecuencia</string>
+    <string name="analytics_frequency_daily">Diario</string>
+    <string name="analytics_frequency_weekly">Semanal</string>
+    <string name="analytics_frequency_monthly">Mensual</string>
+    <string name="analytics_frequency_yearly">Anual</string>
+    <string name="analytics_select_month">Seleccionar Mes</string>
+    <string name="analytics_select_year">Seleccionar Año</string>
+    <string name="analytics_month">Mes</string>
+    <string name="analytics_year">Año</string>
+    <string name="analytics_income_vs_expense">Ingresos vs Gastos</string>
+    <string name="analytics_monthly_trend">Tendencia Mensual</string>
+    <string name="analytics_no_data">Sin datos para este período</string>
+    <string name="analytics_today">Hoy</string>
+    <string name="analytics_export_report">Exportar Reporte</string>
+    <string name="analytics_export_select_range">Selecciona un rango de fechas para exportar</string>
+    <string name="analytics_export_generate">Generar Reporte</string>
+    <string name="analytics_export_share">Compartir reporte</string>
 
     <!-- Settings Screen -->
     <string name="settings_title">Ajustes</string>
@@ -174,7 +238,7 @@
     <string name="general_settings_transactions">Transacciones</string>
     <string name="general_settings_default_category">Categor\u00eda Predeterminada</string>
     <string name="general_settings_current_currency">Moneda Actual</string>
-    <string name="general_settings_currency_description">Esta moneda se mostrar\u00e1 en todas las pantallas incluyendo transacciones, res\u00famenes y estad\u00edsticas.</string>
+    <string name="general_settings_currency_description">Esta moneda se mostrar\u00e1 en todas las pantallas incluyendo transacciones, res\u00famenes y reportes.</string>
     <string name="general_settings_select_currency">Seleccionar Moneda</string>
     <string name="general_settings_select_default_category">Seleccionar Categor\u00eda Predeterminada</string>
     <string name="general_settings_no_default_category">Sin categor\u00eda predeterminada</string>
@@ -314,4 +378,5 @@
     <string name="action_none">Ninguno</string>
     <string name="action_selected">Seleccionado</string>
     <string name="description_optional">Descripci\u00f3n (Opcional)</string>
+    <string name="nav_analytics">Reportes</string>
 </resources>

@@ -7,12 +7,14 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AreaChart
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material.icons.outlined.AreaChart
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Payments
-import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -41,8 +43,24 @@ enum class Destination(
     val activeIcon: ImageVector,
 ) {
     HOME(NavRoutes.Home.route, R.string.nav_home, Icons.Outlined.Home, Icons.Filled.Home),
-    LOANS(NavRoutes.Loans.route, R.string.nav_loans, Icons.Outlined.Payments, Icons.Filled.Payments),
-    SETTINGS(NavRoutes.Settings.route, R.string.nav_settings, Icons.Outlined.Settings, Icons.Filled.Settings),
+    TRANSACTIONS(
+        NavRoutes.TransactionsList.route,
+        R.string.nav_transactions,
+        Icons.Outlined.Receipt,
+        Icons.Filled.Receipt
+    ),
+    LOANS(
+        NavRoutes.Loans.route,
+        R.string.nav_loans,
+        Icons.Outlined.Payments,
+        Icons.Filled.Payments
+    ),
+    ANALYTICS(
+        NavRoutes.Analytics.route,
+        R.string.nav_analytics,
+        Icons.Outlined.AreaChart,
+        Icons.Filled.AreaChart
+    ),
 }
 
 private const val TRANSITION_DURATION = 300
@@ -78,6 +96,7 @@ fun NavGraph(
     modifier: Modifier,
     onAddTransaction: () -> Unit = {},
     onEditTransaction: (Long) -> Unit = {},
+    onNavigateToSettings: () -> Unit = {},
 ) {
     NavHost(
         navController = navController,
@@ -97,8 +116,15 @@ fun NavGraph(
             popExitTransition = { fadeThroughExit() },
         ) {
             HomeScreen(
-                onNavigateToAnalytics = { navController.navigate(NavRoutes.Analytics.route) },
-                onSeeAllTransactions = { navController.navigate(NavRoutes.TransactionsList.route) },
+                onSeeAllTransactions = {
+                    navController.navigate(NavRoutes.TransactionsList.route) {
+                        popUpTo(navController.graph.startDestinationId) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
                 onSeeAllLoans = {
                     navController.navigate(NavRoutes.Loans.route) {
                         popUpTo(navController.graph.startDestinationId) {
@@ -115,15 +141,20 @@ fun NavGraph(
                         )
                     )
                 },
-                onEditTransaction = onEditTransaction
+                onEditTransaction = onEditTransaction,
+                onNavigateToSettings = onNavigateToSettings
             )
         }
 
-        composable(NavRoutes.TransactionsList.route) {
+        composable(
+            NavRoutes.TransactionsList.route,
+            enterTransition = { fadeThrough() },
+            exitTransition = { fadeThroughExit() },
+            popEnterTransition = { fadeThrough() },
+            popExitTransition = { fadeThroughExit() },
+        ) {
             TransactionsListScreen(
-                onNavigateBack = {
-                    navController.popBackStack()
-                }
+                onEditTransaction = onEditTransaction
             )
         }
 
@@ -152,19 +183,17 @@ fun NavGraph(
             LoanDetailScreen(onNavigateBack = { navController.popBackStack() })
         }
 
-        composable(NavRoutes.Analytics.route) {
-            AnalyticsScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-
         composable(
-            NavRoutes.Settings.route,
+            NavRoutes.Analytics.route,
             enterTransition = { fadeThrough() },
             exitTransition = { fadeThroughExit() },
             popEnterTransition = { fadeThrough() },
             popExitTransition = { fadeThroughExit() },
         ) {
+            AnalyticsScreen()
+        }
+
+        composable(NavRoutes.Settings.route) {
             SettingsScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToGeneral = { navController.navigate(NavRoutes.GeneralSettings.route) },

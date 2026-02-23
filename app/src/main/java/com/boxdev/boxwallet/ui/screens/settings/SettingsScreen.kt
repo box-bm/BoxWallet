@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
+
 package com.boxdev.boxwallet.ui.screens.settings
 
 import android.Manifest
@@ -12,7 +14,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,6 +23,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.ChevronRight
@@ -37,8 +39,9 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.Scaffold
@@ -70,7 +73,7 @@ import com.boxdev.boxwallet.R
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    onNavigateBack: () -> Unit,
+    onNavigateBack: () -> Unit = {},
     onNavigateToGeneral: () -> Unit,
     onNavigateToCategories: () -> Unit,
     onNavigateToTheme: () -> Unit,
@@ -112,7 +115,6 @@ fun SettingsScreen(
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        contentWindowInsets = WindowInsets(bottom = 0),
         topBar = {
             MediumTopAppBar(
                 scrollBehavior = scrollBehavior,
@@ -121,6 +123,14 @@ fun SettingsScreen(
                     Text(
                         text = stringResource(R.string.settings_title),
                     )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = null
+                        )
+                    }
                 }
             )
         }
@@ -129,8 +139,7 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding( horizontal = 16.dp)
-                .padding(top = 16.dp)
+                .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -192,7 +201,6 @@ fun SettingsScreen(
                     subtitle = stringResource(R.string.settings_general_subtitle),
                     onClick = onNavigateToGeneral
                 )
-                HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
                 SettingsItem(
                     icon = Icons.Default.Category,
                     title = stringResource(R.string.settings_categories_title),
@@ -214,7 +222,7 @@ fun SettingsScreen(
             // Security
             SettingsSection(title = stringResource(R.string.settings_security_section)) {
                 SettingsToggleItem(
-                    icon = Icons.Default.Fingerprint,
+                    icon = Icons.Filled.Fingerprint,
                     title = stringResource(R.string.settings_app_lock_title),
                     subtitle = if (biometricAvailable) stringResource(R.string.settings_app_lock_available)
                     else stringResource(R.string.settings_app_lock_unavailable),
@@ -232,7 +240,6 @@ fun SettingsScreen(
                     subtitle = stringResource(R.string.settings_backup_subtitle),
                     onClick = onNavigateToBackup
                 )
-                HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
                 SettingsItem(
                     icon = Icons.Default.DeleteForever,
                     title = stringResource(R.string.settings_data_management_title),
@@ -248,7 +255,6 @@ fun SettingsScreen(
                     title = stringResource(R.string.settings_app_version_title),
                     subtitle = appVersion ?: "Unknown",
                 )
-                HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
                 SettingsItem(
                     icon = Icons.Default.Code,
                     title = stringResource(R.string.settings_github_title),
@@ -261,7 +267,6 @@ fun SettingsScreen(
                         context.startActivity(intent)
                     }
                 )
-                HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
                 SettingsItem(
                     icon = Icons.Default.Description,
                     title = stringResource(R.string.settings_privacy_policy_title),
@@ -330,7 +335,7 @@ fun SettingsScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(4.dp))
         }
     }
 }
@@ -347,12 +352,10 @@ private fun SettingsSection(
             fontWeight = FontWeight.Medium,
             modifier = Modifier.padding(bottom = 8.dp, start = 4.dp)
         )
-        Card(
-            modifier = Modifier.fillMaxWidth(),
+        Column(
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Column {
-                content()
-            }
+            content()
         }
     }
 }
@@ -364,41 +367,39 @@ private fun SettingsItem(
     subtitle: String,
     onClick: (() -> Unit)? = null
 ) {
-    Row(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(
-                onClick = { onClick?.invoke() },
-                enabled = onClick != null
-            )
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .clickable(onClick = { onClick?.invoke() }, enabled = onClick != null),
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(24.dp)
-        )
-        Column(
+        Row(
             modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 16.dp)
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-            )
-        }
-        if (onClick != null) {
             Icon(
-                imageVector = Icons.Default.ChevronRight,
+                imageVector = icon,
                 contentDescription = null,
+                modifier = Modifier.size(24.dp)
             )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            if (onClick != null) {
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = null,
+                )
+            }
         }
     }
 }
@@ -412,44 +413,43 @@ private fun SettingsToggleItem(
     enabled: Boolean = true,
     onCheckedChange: (Boolean) -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(
-                alpha = 0.38f
-            ),
-            modifier = Modifier.size(24.dp)
-        )
-        Column(
+    Card() {
+        Row(
             modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 16.dp)
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(
-                    alpha = 0.38f
-                )
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp)
             )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface.copy(
-                    alpha = 0.38f
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(
+                        alpha = 0.38f
+                    )
                 )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface.copy(
+                        alpha = 0.38f
+                    )
+                )
+            }
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                enabled = enabled
             )
         }
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            enabled = enabled
-        )
     }
 }

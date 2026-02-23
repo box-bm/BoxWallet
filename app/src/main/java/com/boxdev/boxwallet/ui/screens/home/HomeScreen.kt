@@ -8,21 +8,24 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MediumFlexibleTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -52,11 +55,11 @@ import com.boxdev.boxwallet.ui.components.TransactionItem
 @Composable
 fun HomeScreen(
     @PreviewParameter(HomeUiStatePreviewParameterProvider::class) viewModel: HomeViewModel = hiltViewModel(),
-    onNavigateToAnalytics: () -> Unit = {},
     onSeeAllTransactions: () -> Unit = {},
     onSeeAllLoans: () -> Unit = {},
     onNavigateToLoanDetail: (Long) -> Unit = {},
     onEditTransaction: (Long) -> Unit = {},
+    onNavigateToSettings: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val categoryMap = remember(uiState.categories) { uiState.categories.associateBy { it.id } }
@@ -66,16 +69,16 @@ fun HomeScreen(
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        contentWindowInsets = WindowInsets(bottom = 0),
+        contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),
         topBar = {
-            LargeFlexibleTopAppBar(
+            MediumFlexibleTopAppBar(
                 scrollBehavior = scrollBehavior,
-                title = { Text(stringResource(R.string.app_name), fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.app_name)) },
                 actions = {
-                    IconButton(onClick = onNavigateToAnalytics) {
+                    IconButton(onClick = onNavigateToSettings) {
                         Icon(
-                            Icons.Default.Analytics,
-                            contentDescription = stringResource(R.string.home_analytics)
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = stringResource(R.string.nav_settings)
                         )
                     }
                 }
@@ -167,14 +170,14 @@ fun HomeScreen(
                         LoanCard(
                             loan = loan,
                             onClick = { onNavigateToLoanDetail(loan.id) },
-                            modifier = Modifier.padding(vertical = 4.dp)
+                            modifier = Modifier.padding(vertical = 4.dp),
+                            category = uiState.categories.find { it.id == loan.categoryId }
                         )
                     }
                 }
 
-                item {
-                    Spacer(modifier = Modifier.height(72.dp))
-                }
+                item { Spacer(modifier = Modifier.height(84.dp)) }
+
             }
         }
     }
