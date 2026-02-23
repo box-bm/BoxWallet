@@ -2,19 +2,18 @@
 
 package com.boxdev.boxwallet.ui.screens.settings
 
+import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -28,6 +27,7 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -42,12 +42,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.core.content.FileProvider
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.boxdev.boxwallet.R
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
@@ -61,6 +64,8 @@ fun ExportScreen(
     val snackBarHostState = remember { SnackbarHostState() }
     var showStartDatePicker by remember { mutableStateOf(false) }
     var showEndDatePicker by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val today = LocalDate.now()
 
     val dateFormatter = DateTimeFormatter.ofPattern("MMMM dd, yyyy")
 
@@ -71,74 +76,90 @@ fun ExportScreen(
         }
     }
 
-    if (showStartDatePicker) {
-        val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = uiState.startDate.atStartOfDay()
-                .toInstant(ZoneOffset.UTC).toEpochMilli()
-        )
-        DatePickerDialog(
-            onDismissRequest = {  },
-            confirmButton = {
-                TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let { millis ->
-                        val date = Instant.ofEpochMilli(millis)
-                            .atOffset(ZoneOffset.UTC)
-                            .toLocalDate()
-                        viewModel.updateStartDate(date)
-                    }
-
-                }) {
-                    Text(stringResource(R.string.action_ok))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = {  }) {
-                    Text(stringResource(R.string.action_cancel))
-                }
+    LaunchedEffect(uiState.exportedFile) {
+        uiState.exportedFile?.let { file ->
+            val uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                file
+            )
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-        ) {
-            DatePicker(state = datePickerState)
+            context.startActivity(
+                Intent.createChooser(shareIntent, context.getString(R.string.analytics_export_share))
+            )
+            viewModel.clearExportedFile()
         }
     }
 
-    if (showEndDatePicker) {
-        val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = uiState.endDate.atStartOfDay()
-                .toInstant(ZoneOffset.UTC).toEpochMilli()
+    if (showStartDatePicker) {
+        val pickerState = rememberDatePickerState(
+            initialSelectedDateMillis = uiState.startDate.atStartOfDay()
+                .toInstant(ZoneOffset.UTC).toEpochMilli(),
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean =
+                    !Instant.ofEpochMilli(utcTimeMillis).atOffset(ZoneOffset.UTC).toLocalDate()
+                        .isAfter(today)
+            }
         )
         DatePickerDialog(
-            onDismissRequest = {  },
+            onDismissRequest = { showStartDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let { millis ->
-                        val date = Instant.ofEpochMilli(millis)
-                            .atOffset(ZoneOffset.UTC)
-                            .toLocalDate()
-                        viewModel.updateEndDate(date)
+                    pickerState.selectedDateMillis?.let { millis ->
+                        val picked = Instant.ofEpochMilli(millis).atOffset(ZoneOffset.UTC).toLocalDate()
+                        viewModel.updateStartDate(picked)
+                        if (uiState.endDate.isBefore(picked)) viewModel.updateEndDate(picked)
                     }
-
-                }) {
-                    Text(stringResource(R.string.action_ok))
-                }
+                    showStartDatePicker = false
+                }) { Text(stringResource(R.string.action_ok)) }
             },
             dismissButton = {
-                TextButton(onClick = {  }) {
+                TextButton(onClick = { showStartDatePicker = false }) {
                     Text(stringResource(R.string.action_cancel))
                 }
             }
-        ) {
-            DatePicker(state = datePickerState)
-        }
+        ) { DatePicker(state = pickerState) }
+    }
+
+    if (showEndDatePicker) {
+        val pickerState = rememberDatePickerState(
+            initialSelectedDateMillis = uiState.endDate.atStartOfDay()
+                .toInstant(ZoneOffset.UTC).toEpochMilli(),
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                    val date = Instant.ofEpochMilli(utcTimeMillis).atOffset(ZoneOffset.UTC).toLocalDate()
+                    return !date.isAfter(today) && !date.isBefore(uiState.startDate)
+                }
+            }
+        )
+        DatePickerDialog(
+            onDismissRequest = { showEndDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    pickerState.selectedDateMillis?.let { millis ->
+                        viewModel.updateEndDate(
+                            Instant.ofEpochMilli(millis).atOffset(ZoneOffset.UTC).toLocalDate()
+                        )
+                    }
+                    showEndDatePicker = false
+                }) { Text(stringResource(R.string.action_ok)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEndDatePicker = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        ) { DatePicker(state = pickerState) }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.export_title),
-                    )
-                },
+                title = { Text(text = stringResource(R.string.export_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -160,9 +181,7 @@ fun ExportScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Date Range Selection
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-            ) {
+            Card(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -172,45 +191,46 @@ fun ExportScreen(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
-
-                    OutlinedTextField(
-                        value = uiState.startDate.format(dateFormatter),
-                        onValueChange = {},
-                        label = { Text(stringResource(R.string.export_start_date)) },
-                        readOnly = true,
-                        trailingIcon = {
-                            IconButton(onClick = {  }) {
-                                Icon(
-                                    imageVector = Icons.Default.CalendarMonth,
-                                    contentDescription = stringResource(R.string.export_select_start_date)
-                                )
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = uiState.endDate.format(dateFormatter),
-                        onValueChange = {},
-                        label = { Text(stringResource(R.string.export_end_date)) },
-                        readOnly = true,
-                        trailingIcon = {
-                            IconButton(onClick = {  }) {
-                                Icon(
-                                    imageVector = Icons.Default.CalendarMonth,
-                                    contentDescription = stringResource(R.string.export_select_end_date)
-                                )
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = uiState.startDate.format(dateFormatter),
+                            onValueChange = {},
+                            label = { Text(stringResource(R.string.export_start_date)) },
+                            readOnly = true,
+                            trailingIcon = {
+                                IconButton(onClick = { showStartDatePicker = true }) {
+                                    Icon(
+                                        imageVector = Icons.Default.CalendarMonth,
+                                        contentDescription = stringResource(R.string.export_select_start_date)
+                                    )
+                                }
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = uiState.endDate.format(dateFormatter),
+                            onValueChange = {},
+                            label = { Text(stringResource(R.string.export_end_date)) },
+                            readOnly = true,
+                            trailingIcon = {
+                                IconButton(onClick = { showEndDatePicker = true }) {
+                                    Icon(
+                                        imageVector = Icons.Default.CalendarMonth,
+                                        contentDescription = stringResource(R.string.export_select_end_date)
+                                    )
+                                }
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
             }
 
-            // Export Buttons
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-            ) {
+            // Export Button
+            Card(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -220,17 +240,13 @@ fun ExportScreen(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
-
-                    // Excel Export
                     Button(
                         onClick = { viewModel.exportToExcel() },
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !uiState.isLoading,
                     ) {
                         if (uiState.isLoading) {
-                            LoadingIndicator(
-                                modifier = Modifier.padding(end = 8.dp),
-                            )
+                            LoadingIndicator(modifier = Modifier.padding(end = 8.dp))
                         } else {
                             Icon(
                                 imageVector = Icons.Default.TableChart,
@@ -244,9 +260,7 @@ fun ExportScreen(
             }
 
             // Info Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-            ) {
+            Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
                         text = stringResource(R.string.export_location_title),
@@ -254,33 +268,10 @@ fun ExportScreen(
                         fontWeight = FontWeight.Medium
                     )
                     Text(
-                        text = stringResource(R.string.export_location_path),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
                         text = stringResource(R.string.export_location_description),
                         style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                }
-            }
-
-            // Last exported file
-            uiState.exportedFilePath?.let { path ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = stringResource(R.string.export_last_export),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Text(
-                            text = path.substringAfterLast("/"),
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
                 }
             }
         }

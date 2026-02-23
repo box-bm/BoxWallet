@@ -199,6 +199,13 @@
     <string name="analytics_export_select_range">Select a date range to export</string>
     <string name="analytics_export_generate">Generate Report</string>
     <string name="analytics_export_share">Share report</string>
+    <string name="analytics_export_quick_range">Quick range</string>
+    <string name="analytics_export_preset_7d">7 days</string>
+    <string name="analytics_export_preset_30d">30 days</string>
+    <string name="analytics_export_preset_3m">3 months</string>
+    <string name="analytics_export_preset_year">This year</string>
+    <string name="analytics_export_from">From</string>
+    <string name="analytics_export_to">To</string>
 
     <!-- Settings Screen -->
     <string name="settings_title">Settings</string>
