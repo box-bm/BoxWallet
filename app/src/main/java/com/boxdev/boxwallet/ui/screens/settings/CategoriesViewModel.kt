@@ -2,6 +2,7 @@ package com.boxdev.boxwallet.ui.screens.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.boxdev.boxwallet.analytics.AnalyticsHelper
 import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.domain.model.Category
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,7 +20,8 @@ data class CategoriesUiState(
 
 @HiltViewModel
 class CategoriesViewModel @Inject constructor(
-    private val categoryRepository: CategoryRepository
+    private val categoryRepository: CategoryRepository,
+    private val analyticsHelper: AnalyticsHelper
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CategoriesUiState())
@@ -37,6 +39,7 @@ class CategoriesViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 categoryRepository.insertCategory(Category(name = name, description = description, icon = icon))
+                analyticsHelper.logEvent("category_created")
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(error = e.message)
             }
@@ -47,6 +50,7 @@ class CategoriesViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 categoryRepository.updateCategory(category)
+                analyticsHelper.logEvent("category_updated")
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(error = e.message)
             }
@@ -57,6 +61,7 @@ class CategoriesViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 categoryRepository.deleteCategory(id)
+                analyticsHelper.logEvent("category_deleted")
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(error = e.message)
             }

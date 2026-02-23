@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt.android)
+    id("com.google.gms.google-services")
     id("com.google.devtools.ksp")
 }
 
@@ -106,6 +107,10 @@ dependencies {
     implementation(libs.gson)
     implementation(libs.poi)
     implementation(libs.poi.ooxml)
+
+    // Firebase
+    implementation(platform(libs.firebase.bom.v3490))
+    implementation(libs.firebase.analytics)
 
     // Google Drive backup
     implementation(libs.play.services.auth)

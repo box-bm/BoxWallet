@@ -16,13 +16,17 @@ import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
+import com.boxdev.boxwallet.analytics.AnalyticsHelper
 import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.ui.screens.analytics.AnalyticsScreen
 import com.boxdev.boxwallet.ui.screens.home.HomeScreen
@@ -94,10 +98,18 @@ private fun fadeThroughExit() = fadeOut(animationSpec = tween(TRANSITION_DURATIO
 fun NavGraph(
     navController: NavHostController,
     modifier: Modifier,
+    analyticsHelper: AnalyticsHelper,
     onAddTransaction: () -> Unit = {},
     onEditTransaction: (Long) -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
 ) {
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    LaunchedEffect(navBackStackEntry) {
+        navBackStackEntry?.destination?.route?.let { route ->
+            analyticsHelper.logScreenView(route.substringBefore("/"))
+        }
+    }
+
     NavHost(
         navController = navController,
         startDestination = NavRoutes.Home.route,

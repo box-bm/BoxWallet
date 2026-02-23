@@ -1,5 +1,6 @@
 package com.boxdev.boxwallet.ui.screens.settings
 
+import com.boxdev.boxwallet.analytics.AnalyticsHelper
 import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -40,7 +41,8 @@ class BackupViewModel @Inject constructor(
     private val loanRepository: LoanRepository,
     private val dataManagementRepository: DataManagementRepository,
     private val googleAuthManager: GoogleAuthManager,
-    private val googleDriveManager: GoogleDriveManager
+    private val googleDriveManager: GoogleDriveManager,
+    private val analyticsHelper: AnalyticsHelper
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BackupUiState())
@@ -131,6 +133,7 @@ class BackupViewModel @Inject constructor(
                 googleDriveManager.uploadBackup(fileName, json)
                 loadBackups()
 
+                analyticsHelper.logEvent("backup_created")
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     message = "Backup created successfully",
@@ -161,6 +164,7 @@ class BackupViewModel @Inject constructor(
                 loanRepository.restoreLoans(backupData.loans)
                 transactionRepository.restoreTransactions(backupData.transactions)
 
+                analyticsHelper.logEvent("backup_restored")
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     message = "Backup restored (${backupData.transactions.size} transactions, ${backupData.categories.size} categories, ${backupData.loans.size} loans)",

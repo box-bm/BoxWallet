@@ -3,6 +3,7 @@ package com.boxdev.boxwallet.ui.screens.loans
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.boxdev.boxwallet.analytics.AnalyticsHelper
 import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.LoanRepository
 import com.boxdev.boxwallet.data.repository.TransactionRepository
@@ -29,7 +30,8 @@ class LoanDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val loanRepository: LoanRepository,
     private val transactionRepository: TransactionRepository,
-    private val categoryRepository: CategoryRepository
+    private val categoryRepository: CategoryRepository,
+    private val analyticsHelper: AnalyticsHelper
 ) : ViewModel() {
 
     private val loanId: Long = checkNotNull(savedStateHandle["loanId"])
@@ -54,7 +56,9 @@ class LoanDetailViewModel @Inject constructor(
 
     fun toggleInstallmentCleared(transaction: Transaction) {
         viewModelScope.launch {
-            transactionRepository.updateTransaction(transaction.copy(isCleared = !transaction.isCleared))
+            val newCleared = !transaction.isCleared
+            transactionRepository.updateTransaction(transaction.copy(isCleared = newCleared))
+            analyticsHelper.logEvent("installment_toggled", mapOf("cleared" to newCleared))
         }
     }
 }

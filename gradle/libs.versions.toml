@@ -3,6 +3,7 @@ agp = "9.0.0"
 biometric = "1.1.0"
 coreKtx = "1.17.0"
 datastorePreferences = "1.2.0"
+firebaseBomVersion = "34.9.0"
 gson = "2.13.2"
 hiltAndroid = "2.59.1"
 hiltNavigationCompose = "1.3.0"
@@ -27,8 +28,10 @@ playServicesAuth = "21.3.0"
 googleApiServicesDrive = "v3-rev20241027-2.0.0"
 googleApiClientAndroid = "2.7.2"
 googleHttpClientGson = "1.45.3"
+googleServices = "4.4.2"
 
 [libraries]
+firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
 androidx-compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastorePreferences" }
@@ -40,6 +43,7 @@ androidx-room-room-runtime = { module = "androidx.room:room-runtime", version.re
 androidx-room-runtime = { module = "androidx.room:room-runtime" }
 androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "workRuntimeKtx" }
 androidx-biometric = { module = "androidx.biometric:biometric", version.ref = "biometric" }
+firebase-bom-v3490 = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBomVersion" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hiltAndroid" }
 hilt-android-compiler = { module = "com.google.dagger:hilt-android-compiler", version.ref = "hiltAndroid" }
@@ -72,6 +76,7 @@ google-http-client-gson = { module = "com.google.http-client:google-http-client-
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 hilt-android = { id = "com.google.dagger.hilt.android", version.ref = "hiltAndroid" }
 

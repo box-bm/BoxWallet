@@ -2,6 +2,7 @@ package com.boxdev.boxwallet.ui.screens.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.boxdev.boxwallet.analytics.AnalyticsHelper
 import com.boxdev.boxwallet.data.datastore.CentralAmericanCurrency
 import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.data.repository.CategoryRepository
@@ -23,7 +24,8 @@ data class GeneralSettingsUiState(
 @HiltViewModel
 class GeneralSettingsViewModel @Inject constructor(
     private val userPreferences: UserPreferences,
-    private val categoryRepository: CategoryRepository
+    private val categoryRepository: CategoryRepository,
+    private val analyticsHelper: AnalyticsHelper
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(GeneralSettingsUiState())
@@ -69,6 +71,7 @@ class GeneralSettingsViewModel @Inject constructor(
     fun updateCurrency(currency: CentralAmericanCurrency) {
         viewModelScope.launch {
             userPreferences.setCurrency(currency.currencyCode, currency.symbol)
+            analyticsHelper.logEvent("currency_changed", mapOf("currency" to currency.currencyCode))
             _uiState.value = _uiState.value.copy(selectedCurrency = currency)
         }
     }

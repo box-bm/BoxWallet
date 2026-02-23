@@ -1,5 +1,6 @@
 package com.boxdev.boxwallet.ui.screens.analytics
 
+import com.boxdev.boxwallet.analytics.AnalyticsHelper
 import android.content.Context
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
@@ -127,7 +128,8 @@ class AnalyticsViewModel @Inject constructor(
     private val transactionRepository: TransactionRepository,
     private val categoryRepository: CategoryRepository,
     private val loanRepository: LoanRepository,
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val analyticsHelper: AnalyticsHelper
 ) : ViewModel() {
 
     private val filterState = MutableStateFlow(FilterState())
@@ -219,6 +221,7 @@ class AnalyticsViewModel @Inject constructor(
 
     fun updateFrequency(frequency: AnalyticsFrequency) {
         filterState.value = FilterState(frequency = frequency, periodOffset = 0)
+        analyticsHelper.logEvent("analytics_frequency_changed", mapOf("frequency" to frequency.name))
     }
 
     fun navigatePeriod(delta: Int) {
@@ -481,6 +484,7 @@ class AnalyticsViewModel @Inject constructor(
                 }
 
                 _exportState.value = ExportState(file = file)
+                analyticsHelper.logEvent("analytics_exported")
             } catch (e: Exception) {
                 _exportState.value = ExportState(error = context.getString(R.string.analytics_export_error, e.message ?: ""))
             }
