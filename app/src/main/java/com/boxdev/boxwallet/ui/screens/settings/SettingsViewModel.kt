@@ -21,7 +21,7 @@ class SettingsViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     val isAnalyticsEnabled: StateFlow<Boolean> = userPreferences.isAnalyticsEnabled
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     fun setBiometricEnabled(enabled: Boolean) {
         viewModelScope.launch { userPreferences.setBiometricEnabled(enabled) }

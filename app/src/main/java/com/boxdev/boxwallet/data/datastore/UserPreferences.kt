@@ -68,7 +68,7 @@ class UserPreferences @Inject constructor(
 
     val isAnalyticsEnabled: Flow<Boolean> = context.userPreferencesDataStore.data
         .map { preferences ->
-            preferences[IS_ANALYTICS_ENABLED_KEY] ?: false
+            preferences[IS_ANALYTICS_ENABLED_KEY] ?: true
         }
 
     suspend fun setCurrency(currencyCode: String, symbol: String) {

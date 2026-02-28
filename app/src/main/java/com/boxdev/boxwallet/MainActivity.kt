@@ -58,7 +58,7 @@ class MainActivity : FragmentActivity() {
             val themeSettings by themePreferences.themeSettings.collectAsState(initial = ThemeSettings())
             val isBiometricEnabled by userPreferences.isBiometricEnabled.collectAsState(initial = false)
             val isFirstLaunch by userPreferences.isFirstLaunch.collectAsState(initial = false)
-            val isAnalyticsEnabled by userPreferences.isAnalyticsEnabled.collectAsState(initial = false)
+            val isAnalyticsEnabled by userPreferences.isAnalyticsEnabled.collectAsState(initial = true)
 
             LaunchedEffect(isBiometricEnabled) { biometricEnabledCache = isBiometricEnabled }
             LaunchedEffect(isAnalyticsEnabled) { analyticsHelper.setCollectionEnabled(isAnalyticsEnabled) }

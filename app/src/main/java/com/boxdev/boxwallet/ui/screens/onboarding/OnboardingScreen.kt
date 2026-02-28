@@ -100,7 +100,7 @@ fun OnboardingScreen(
     val coroutineScope = rememberCoroutineScope()
     val uiState by viewModel.uiState.collectAsState()
     var showRestoreDialog by remember { mutableStateOf(false) }
-    var analyticsEnabled by remember { mutableStateOf(false) }
+    var analyticsEnabled by remember { mutableStateOf(true) }
 
     val signInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
