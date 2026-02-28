@@ -27,6 +27,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Coffee
 import androidx.compose.material.icons.filled.DeleteForever
@@ -83,6 +84,7 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val isBiometricEnabled by viewModel.isBiometricEnabled.collectAsState()
+    val isAnalyticsEnabled by viewModel.isAnalyticsEnabled.collectAsState()
     val biometricManager = BiometricManager.from(context)
     val biometricAvailable = biometricManager.canAuthenticate(
         BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL
@@ -229,6 +231,17 @@ fun SettingsScreen(
                     checked = isBiometricEnabled,
                     enabled = biometricAvailable,
                     onCheckedChange = { viewModel.setBiometricEnabled(it) }
+                )
+            }
+
+            // Privacy
+            SettingsSection(title = stringResource(R.string.settings_privacy_section)) {
+                SettingsToggleItem(
+                    icon = Icons.Default.Analytics,
+                    title = stringResource(R.string.settings_analytics_title),
+                    subtitle = stringResource(R.string.settings_analytics_subtitle),
+                    checked = isAnalyticsEnabled,
+                    onCheckedChange = { viewModel.setAnalyticsEnabled(it) }
                 )
             }
 

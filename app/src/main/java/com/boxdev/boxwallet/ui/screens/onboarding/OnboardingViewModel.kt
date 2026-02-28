@@ -46,8 +46,9 @@ class OnboardingViewModel @Inject constructor(
 
     private val gson = Gson()
 
-    fun completeOnboarding() {
+    fun completeOnboarding(analyticsEnabled: Boolean = false) {
         viewModelScope.launch {
+            userPreferences.setAnalyticsEnabled(analyticsEnabled)
             userPreferences.completeFirstLaunch()
         }
     }
