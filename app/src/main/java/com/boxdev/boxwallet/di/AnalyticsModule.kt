@@ -16,6 +16,8 @@ object AnalyticsModule {
     @Provides
     @Singleton
     fun provideFirebaseAnalytics(@ApplicationContext context: Context): FirebaseAnalytics {
-        return FirebaseAnalytics.getInstance(context)
+        return FirebaseAnalytics.getInstance(context).apply {
+            setAnalyticsCollectionEnabled(false)
+        }
     }
 }

@@ -32,4 +32,8 @@ class AnalyticsHelper @Inject constructor(
     fun setUserProperty(name: String, value: String) {
         firebaseAnalytics.setUserProperty(name, value)
     }
+
+    fun setCollectionEnabled(enabled: Boolean) {
+        firebaseAnalytics.setAnalyticsCollectionEnabled(enabled)
+    }
 }

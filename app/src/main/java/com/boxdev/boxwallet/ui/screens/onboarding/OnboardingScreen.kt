@@ -27,6 +27,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Restore
@@ -37,6 +38,7 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -79,6 +81,11 @@ private val onboardingPages = listOf(
         icon = Icons.Default.Receipt,
         titleRes = R.string.onboarding_track_title,
         descriptionRes = R.string.onboarding_track_description
+    ),
+    OnboardingPage(
+        icon = Icons.Default.Analytics,
+        titleRes = R.string.onboarding_privacy_title,
+        descriptionRes = R.string.onboarding_privacy_description
     )
 )
 
@@ -88,10 +95,12 @@ fun OnboardingScreen(
     viewModel: OnboardingViewModel = hiltViewModel()
 ) {
     val totalPages = onboardingPages.size + 1 // feature pages + get started page
+    val privacyPageIndex = onboardingPages.size - 1 // privacy page is last feature page
     val pagerState = rememberPagerState(pageCount = { totalPages })
     val coroutineScope = rememberCoroutineScope()
     val uiState by viewModel.uiState.collectAsState()
     var showRestoreDialog by remember { mutableStateOf(false) }
+    var analyticsEnabled by remember { mutableStateOf(false) }
 
     val signInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -130,11 +139,19 @@ fun OnboardingScreen(
             modifier = Modifier.weight(1f)
         ) { page ->
             if (page < onboardingPages.size) {
-                FeaturePage(onboardingPages[page])
+                if (page == privacyPageIndex) {
+                    PrivacyPage(
+                        page = onboardingPages[page],
+                        analyticsEnabled = analyticsEnabled,
+                        onAnalyticsToggle = { analyticsEnabled = it }
+                    )
+                } else {
+                    FeaturePage(onboardingPages[page])
+                }
             } else {
                 GetStartedPage(
                     onGetStarted = {
-                        viewModel.completeOnboarding()
+                        viewModel.completeOnboarding(analyticsEnabled)
                         onComplete()
                     },
                     onRestoreFromBackup = { showRestoreDialog = true }
@@ -244,6 +261,67 @@ private fun FeaturePage(page: OnboardingPage) {
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 16.dp)
         )
+    }
+}
+
+@Composable
+private fun PrivacyPage(
+    page: OnboardingPage,
+    analyticsEnabled: Boolean,
+    onAnalyticsToggle: (Boolean) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = page.icon,
+            contentDescription = null,
+            modifier = Modifier.size(120.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Text(
+            text = stringResource(page.titleRes),
+            style = MaterialTheme.typography.displaySmall,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = stringResource(page.descriptionRes),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = stringResource(R.string.onboarding_analytics_toggle),
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f)
+            )
+            Switch(
+                checked = analyticsEnabled,
+                onCheckedChange = onAnalyticsToggle
+            )
+        }
     }
 }
 

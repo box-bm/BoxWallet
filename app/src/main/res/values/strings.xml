@@ -240,6 +240,9 @@
     <string name="settings_privacy_policy_subtitle">View our privacy policy</string>
     <string name="settings_notifications_disabled_title">Notifications are disabled</string>
     <string name="settings_notifications_disabled_subtitle">Enable notifications to receive transaction reminders. Tap to open settings.</string>
+    <string name="settings_privacy_section">Privacy</string>
+    <string name="settings_analytics_title">Usage Analytics</string>
+    <string name="settings_analytics_subtitle">Help improve BoxWallet by sharing anonymous usage data</string>
     <string name="settings_support_section">Support</string>
     <string name="settings_buy_coffee">Buy Me a Coffee</string>
     <string name="settings_buy_coffee_subtitle">Support the development!</string>
@@ -349,6 +352,9 @@
     <string name="onboarding_sign_in_message">Sign in with Google to access your backups on Google Drive.</string>
     <string name="onboarding_no_backups">No backups found on your Google Drive.</string>
     <string name="onboarding_select_backup">Select a backup to restore:</string>
+    <string name="onboarding_privacy_title">Privacy &amp; Analytics</string>
+    <string name="onboarding_privacy_description">Help improve BoxWallet by sharing anonymous usage data. No personal or financial information is ever collected.</string>
+    <string name="onboarding_analytics_toggle">Enable usage analytics</string>
 
     <!-- Lock Screen -->
     <string name="lock_screen_title">BoxWallet is locked</string>

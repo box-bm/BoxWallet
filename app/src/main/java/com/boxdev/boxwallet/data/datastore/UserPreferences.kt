@@ -27,6 +27,7 @@ class UserPreferences @Inject constructor(
         private val DEFAULT_CATEGORY_ID_KEY = stringPreferencesKey("default_category_id")
         private val IS_FIRST_LAUNCH_KEY = booleanPreferencesKey("is_first_launch")
         private val IS_BIOMETRIC_ENABLED_KEY = booleanPreferencesKey("is_biometric_enabled")
+        private val IS_ANALYTICS_ENABLED_KEY = booleanPreferencesKey("is_analytics_enabled")
     }
 
     val currency: Flow<String> = context.userPreferencesDataStore.data
@@ -65,6 +66,11 @@ class UserPreferences @Inject constructor(
             preferences[IS_BIOMETRIC_ENABLED_KEY] ?: false
         }
 
+    val isAnalyticsEnabled: Flow<Boolean> = context.userPreferencesDataStore.data
+        .map { preferences ->
+            preferences[IS_ANALYTICS_ENABLED_KEY] ?: false
+        }
+
     suspend fun setCurrency(currencyCode: String, symbol: String) {
         context.userPreferencesDataStore.edit { preferences ->
             preferences[CURRENCY_KEY] = currencyCode
@@ -91,6 +97,12 @@ class UserPreferences @Inject constructor(
     suspend fun setBiometricEnabled(enabled: Boolean) {
         context.userPreferencesDataStore.edit { preferences ->
             preferences[IS_BIOMETRIC_ENABLED_KEY] = enabled
+        }
+    }
+
+    suspend fun setAnalyticsEnabled(enabled: Boolean) {
+        context.userPreferencesDataStore.edit { preferences ->
+            preferences[IS_ANALYTICS_ENABLED_KEY] = enabled
         }
     }
 
