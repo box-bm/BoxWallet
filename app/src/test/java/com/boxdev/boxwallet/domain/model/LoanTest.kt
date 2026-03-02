@@ -15,7 +15,6 @@ class LoanTest {
     ) = Loan(
         name = "Test Loan",
         totalAmount = totalAmount,
-        currency = "USD",
         totalInstallments = totalInstallments,
         startDate = LocalDateTime.of(2026, 1, 1, 3, 4, 5),
         paidInstallments = paidInstallments
