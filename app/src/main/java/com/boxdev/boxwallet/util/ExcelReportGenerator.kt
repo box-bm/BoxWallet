@@ -84,7 +84,7 @@ object ExcelReportGenerator {
     ) {
         val sheet = wb.createSheet("Transactions")
 
-        val headers = listOf("#", "Date", "Time", "Type", "Category", "Description", "Amount", "Currency", "Status", "Loan", "Installment")
+        val headers = listOf("#", "Date", "Time", "Type", "Category", "Description", "Amount", "Status", "Loan", "Installment")
         val hr = sheet.createRow(0)
         headers.forEachIndexed { i, h -> hr.createCell(i).also { it.setCellValue(h); it.cellStyle = headerStyle } }
 
@@ -102,10 +102,9 @@ object ExcelReportGenerator {
             row.createCell(4).setCellValue(tx.categoryId?.let { categories[it] } ?: "Uncategorized")
             row.createCell(5).setCellValue(tx.description)
             row.createCell(6).setCellValue(tx.amount)
-            row.createCell(7).setCellValue(tx.currency)
-            row.createCell(8).setCellValue(if (tx.isCleared) "Cleared" else "Pending")
-            row.createCell(9).setCellValue(loan?.name ?: "")
-            row.createCell(10).setCellValue(installmentLabel)
+            row.createCell(7).setCellValue(if (tx.isCleared) "Cleared" else "Pending")
+            row.createCell(8).setCellValue(loan?.name ?: "")
+            row.createCell(9).setCellValue(installmentLabel)
         }
 
         sheet.setColumnWidth(0, 256 * 4)
@@ -116,9 +115,8 @@ object ExcelReportGenerator {
         sheet.setColumnWidth(5, 256 * 32)
         sheet.setColumnWidth(6, 256 * 14)
         sheet.setColumnWidth(7, 256 * 10)
-        sheet.setColumnWidth(8, 256 * 10)
-        sheet.setColumnWidth(9, 256 * 24)
-        sheet.setColumnWidth(10, 256 * 13)
+        sheet.setColumnWidth(8, 256 * 24)
+        sheet.setColumnWidth(9, 256 * 13)
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -337,7 +335,7 @@ object ExcelReportGenerator {
         val sheet = wb.createSheet("Loans")
 
         val headers = listOf(
-            "Loan", "Description", "Type", "Total Amount", "Currency",
+            "Loan", "Description", "Type", "Total Amount",
             "Installments", "Paid Amount", "Remaining Amount", "Progress",
             "Installment Amount", "Start Date", "Next Due Date", "Status"
         )
@@ -354,15 +352,14 @@ object ExcelReportGenerator {
             row.createCell(1).setCellValue(loan.description)
             row.createCell(2).setCellValue(loan.loanType.name.lowercase().replaceFirstChar { it.uppercase() })
             row.createCell(3).setCellValue(loan.totalAmount)
-            row.createCell(4).setCellValue(loan.currency)
-            row.createCell(5).setCellValue("${loan.paidInstallments}/${loan.totalInstallments}")
-            row.createCell(6).setCellValue(paidAmount)
-            row.createCell(7).setCellValue(remainingAmount)
-            row.createCell(8).setCellValue(String.format("%.1f%%", loan.progressFraction * 100))
-            row.createCell(9).setCellValue(loan.installmentAmount)
-            row.createCell(10).setCellValue(loan.startDate.format(dateFmt))
-            row.createCell(11).setCellValue(loan.nextDueDate?.format(dateFmt) ?: "—")
-            row.createCell(12).setCellValue(if (loan.isComplete) "Complete" else "In Progress")
+            row.createCell(4).setCellValue("${loan.paidInstallments}/${loan.totalInstallments}")
+            row.createCell(5).setCellValue(paidAmount)
+            row.createCell(6).setCellValue(remainingAmount)
+            row.createCell(7).setCellValue(String.format("%.1f%%", loan.progressFraction * 100))
+            row.createCell(8).setCellValue(loan.installmentAmount)
+            row.createCell(9).setCellValue(loan.startDate.format(dateFmt))
+            row.createCell(10).setCellValue(loan.nextDueDate?.format(dateFmt) ?: "—")
+            row.createCell(11).setCellValue(if (loan.isComplete) "Complete" else "In Progress")
         }
 
         // Portfolio summary section
@@ -428,7 +425,7 @@ object ExcelReportGenerator {
     ) {
         val sheet = wb.createSheet("Loan Installments")
 
-        val headers = listOf("Loan", "Installment", "of Total", "Amount", "Currency", "Date", "Status")
+        val headers = listOf("Loan", "Installment", "of Total", "Amount", "Date", "Status")
         val hr = sheet.createRow(0)
         headers.forEachIndexed { i, h -> hr.createCell(i).also { it.setCellValue(h); it.cellStyle = headerStyle } }
 
@@ -443,9 +440,8 @@ object ExcelReportGenerator {
             row.createCell(1).setCellValue((tx.installmentNumber ?: 0).toDouble())
             row.createCell(2).setCellValue((loan?.totalInstallments ?: 0).toDouble())
             row.createCell(3).setCellValue(tx.amount)
-            row.createCell(4).setCellValue(tx.currency)
-            row.createCell(5).setCellValue(tx.date.format(dateFmt))
-            row.createCell(6).setCellValue(if (tx.isCleared) "Paid" else "Pending")
+            row.createCell(4).setCellValue(tx.date.format(dateFmt))
+            row.createCell(5).setCellValue(if (tx.isCleared) "Paid" else "Pending")
         }
 
         // Per-loan subtotals
@@ -459,7 +455,7 @@ object ExcelReportGenerator {
                     val row = sheet.createRow(subtotalRow++)
                     row.createCell(0).also { it.setCellValue("${loan.name} — Subtotal"); it.cellStyle = boldStyle }
                     row.createCell(3).also { it.setCellValue(paid + pending); it.cellStyle = boldStyle }
-                    row.createCell(6).also { it.setCellValue("Paid: ${"%.2f".format(paid)} / Pending: ${"%.2f".format(pending)}") }
+                    row.createCell(5).also { it.setCellValue("Paid: ${"%.2f".format(paid)} / Pending: ${"%.2f".format(pending)}") }
                 }
         }
 
@@ -467,8 +463,7 @@ object ExcelReportGenerator {
         sheet.setColumnWidth(1, 256 * 13)
         sheet.setColumnWidth(2, 256 * 10)
         sheet.setColumnWidth(3, 256 * 14)
-        sheet.setColumnWidth(4, 256 * 10)
-        sheet.setColumnWidth(5, 256 * 12)
-        sheet.setColumnWidth(6, 256 * 32)
+        sheet.setColumnWidth(4, 256 * 12)
+        sheet.setColumnWidth(5, 256 * 32)
     }
 }

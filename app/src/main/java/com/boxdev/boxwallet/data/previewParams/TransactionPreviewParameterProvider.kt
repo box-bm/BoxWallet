@@ -10,7 +10,7 @@ class TransactionPreviewParameterProvider : PreviewParameterProvider<Transaction
         Transaction(
             id = 1,
             amount = 2000.0,
-            currency = "Q",
+
             description = "Transaction description",
             date = LocalDateTime.of(2026, 1, 1, 10, 0),
             type = TransactionType.INCOME,
@@ -23,7 +23,7 @@ class TransactionPreviewParameterProvider : PreviewParameterProvider<Transaction
         Transaction(
             id = 2,
             amount = 2000.0,
-            currency = "Q",
+
             description = "expense",
             date = LocalDateTime.of(2026, 1, 1, 14, 30),
             type = TransactionType.EXPENSE,
@@ -36,7 +36,7 @@ class TransactionPreviewParameterProvider : PreviewParameterProvider<Transaction
         Transaction(
             id = 3,
             amount = 2000.0,
-            currency = "Q",
+
             description = "expense",
             date = LocalDateTime.of(2026, 1, 1, 9, 0),
             type = TransactionType.EXPENSE,

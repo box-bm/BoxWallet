@@ -71,7 +71,7 @@ import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.domain.model.ReminderDuration
 import com.boxdev.boxwallet.ui.screens.transaction.TransactionFormViewModel
 import com.boxdev.boxwallet.util.categoryIconVector
-import com.boxdev.boxwallet.util.toCurrencySymbol
+import com.boxdev.boxwallet.util.rememberCurrencyFormatter
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
@@ -93,6 +93,7 @@ fun TransactionSheet(
     var categoryExpanded by remember { mutableStateOf(false) }
     var frequencyExpanded by remember { mutableStateOf(false) }
     var reminderExpanded by remember { mutableStateOf(false) }
+    val formatter = rememberCurrencyFormatter()
     val dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy")
     val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
     val availableReminders = remember {
@@ -170,7 +171,7 @@ fun TransactionSheet(
                         onValueChange = { viewModel.updateAmount(it) },
                         label = { Text(stringResource(R.string.transaction_amount_label)) },
                         placeholder = { Text(stringResource(R.string.transaction_amount_placeholder)) },
-                        prefix = { Text(formState.currency.toCurrencySymbol(), style = MaterialTheme.typography.bodyLarge) },
+                        prefix = { Text(formatter.symbol, style = MaterialTheme.typography.bodyLarge) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),

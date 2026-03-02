@@ -32,7 +32,7 @@ import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Loan
 import com.boxdev.boxwallet.util.categoryIconVector
-import com.boxdev.boxwallet.util.toCurrencySymbol
+import com.boxdev.boxwallet.util.rememberCurrencyFormatter
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -44,7 +44,7 @@ fun LoanCard(
     modifier: Modifier = Modifier
 ) {
     val dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy")
-    val symbol = loan.currency.toCurrencySymbol()
+    val formatter = rememberCurrencyFormatter()
     val status = loan.loanStatus()
 
     val animatedProgress by animateFloatAsState(
@@ -126,12 +126,12 @@ fun LoanCard(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "$symbol${"%.2f".format(loan.totalAmount)}",
+                        text = formatter.format(loan.totalAmount),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "$symbol${"%.2f".format(loan.remainingInstallments * loan.installmentAmount)}",
+                        text = formatter.format(loan.remainingInstallments * loan.installmentAmount),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

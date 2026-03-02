@@ -3,7 +3,6 @@ package com.boxdev.boxwallet.ui.screens.loans
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boxdev.boxwallet.analytics.AnalyticsHelper
-import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.LoanRepository
 import com.boxdev.boxwallet.domain.model.Category
@@ -27,7 +26,6 @@ data class LoanFormState(
     val installments: String = "",
     val startDate: LocalDateTime = LocalDateTime.now(),
     val categoryId: Long? = null,
-    val currency: String = "USD",
     val loanType: LoanType = LoanType.EXPENSE,
     val frequency: RecurrenceFrequency = RecurrenceFrequency.MONTHLY,
     val frequencyInterval: String = "1",
@@ -54,7 +52,6 @@ data class LoanFormState(
 class LoanFormViewModel @Inject constructor(
     private val loanRepository: LoanRepository,
     private val categoryRepository: CategoryRepository,
-    private val userPreferences: UserPreferences,
     private val analyticsHelper: AnalyticsHelper
 ) : ViewModel() {
 
@@ -68,18 +65,11 @@ class LoanFormViewModel @Inject constructor(
         viewModelScope.launch {
             categoryRepository.getAllCategories().collect { _categories.value = it }
         }
-        viewModelScope.launch {
-            userPreferences.defaultCurrency.collect { currency ->
-                _formState.update { state ->
-                    if (!state.isEditing) state.copy(currency = currency.name) else state
-                }
-            }
-        }
     }
 
     fun loadLoan(loanId: Long?) {
         if (loanId == null || loanId == -1L) {
-            _formState.value = LoanFormState(currency = _formState.value.currency)
+            _formState.value = LoanFormState()
             return
         }
         viewModelScope.launch {
@@ -94,7 +84,6 @@ class LoanFormViewModel @Inject constructor(
                     installments = loan.totalInstallments.toString(),
                     startDate = loan.startDate,
                     categoryId = loan.categoryId,
-                    currency = loan.currency,
                     loanType = loan.loanType,
                     frequency = loan.frequency,
                     frequencyInterval = loan.frequencyInterval.toString(),
@@ -144,7 +133,6 @@ class LoanFormViewModel @Inject constructor(
                     name = s.name,
                     description = s.description,
                     totalAmount = s.totalAmount.toDouble(),
-                    currency = s.currency,
                     totalInstallments = s.installments.toInt(),
                     categoryId = s.categoryId,
                     startDate = s.startDate,

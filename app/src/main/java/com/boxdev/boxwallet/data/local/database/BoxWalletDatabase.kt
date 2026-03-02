@@ -12,7 +12,7 @@ import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 
 @Database(
     entities = [TransactionEntity::class, CategoryEntity::class, LoanEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

@@ -8,7 +8,6 @@ data class TransactionEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val amount: Double,
-    val currency: String,
     val description: String = "",
     val date: Long,
     val type: String, // "INCOME" or "EXPENSE"
