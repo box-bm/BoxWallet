@@ -57,7 +57,7 @@ import com.boxdev.boxwallet.ui.components.LoanCategoryChip
 import com.boxdev.boxwallet.ui.components.LoanSheet
 import com.boxdev.boxwallet.ui.components.LoanStatusChip
 import com.boxdev.boxwallet.ui.components.loanStatus
-import com.boxdev.boxwallet.util.toCurrencySymbol
+import com.boxdev.boxwallet.util.rememberCurrencyFormatter
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
@@ -130,7 +130,7 @@ fun LoanDetailScreen(
 
             else -> {
                 val loan = uiState.loan!!
-                val symbol = loan.currency.toCurrencySymbol()
+                val formatter = rememberCurrencyFormatter()
                 val category = uiState.category
 
                 LazyColumn(
@@ -161,7 +161,7 @@ fun LoanDetailScreen(
                                     )
 
                                     Text(
-                                        "$symbol${"%.2f".format(loan.totalAmount)}",
+                                        formatter.format(loan.totalAmount),
                                         style = MaterialTheme.typography.headlineMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSurface
@@ -194,7 +194,7 @@ fun LoanDetailScreen(
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                             Text(
-                                                "$symbol${"%.2f".format(loan.paidInstallments * loan.installmentAmount)}",
+                                                formatter.format(loan.paidInstallments * loan.installmentAmount),
                                                 style = MaterialTheme.typography.titleLarge,
                                                 fontWeight = FontWeight.SemiBold,
                                                 color = MaterialTheme.colorScheme.primary
@@ -212,7 +212,7 @@ fun LoanDetailScreen(
                                                 modifier = Modifier.fillMaxWidth()
                                             )
                                             Text(
-                                                "$symbol${"%.2f".format(loan.remainingInstallments * loan.installmentAmount)}",
+                                                formatter.format(loan.remainingInstallments * loan.installmentAmount),
                                                 style = MaterialTheme.typography.titleLarge,
                                                 fontWeight = FontWeight.SemiBold,
                                                 textAlign = TextAlign.Right,
@@ -316,7 +316,7 @@ fun LoanDetailScreen(
                     items(uiState.installments, key = { it.id }) { installment ->
                         InstallmentRow(
                             installment = installment,
-                            symbol = symbol,
+                            formatter = formatter,
                             dateFormatter = dateFormatter,
                             onToggleCleared = { viewModel.toggleInstallmentCleared(installment) }
                         )
@@ -337,7 +337,7 @@ fun LoanDetailScreen(
 @Composable
 private fun InstallmentRow(
     installment: Transaction,
-    symbol: String,
+    formatter: com.boxdev.boxwallet.util.CurrencyFormatter,
     dateFormatter: DateTimeFormatter,
     onToggleCleared: () -> Unit
 ) {
@@ -375,7 +375,7 @@ private fun InstallmentRow(
         },
         trailingContent = {
             Text(
-                text = "$symbol${"%.2f".format(installment.amount)}",
+                text = formatter.format(installment.amount),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
                 color = if (installment.isCleared) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface

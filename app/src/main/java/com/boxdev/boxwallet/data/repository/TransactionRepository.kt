@@ -60,7 +60,7 @@ class TransactionRepository @Inject constructor(
                 }
                 val message = buildString {
                     append(transaction.description.ifEmpty { transaction.type.name })
-                    append(": ${transaction.currency} ${transaction.amount}")
+                    append(": ${"%.2f".format(transaction.amount)}")
                     if (transaction.installmentNumber != null) {
                         append(context.getString(R.string.reminder_installment_suffix, transaction.installmentNumber))
                     }

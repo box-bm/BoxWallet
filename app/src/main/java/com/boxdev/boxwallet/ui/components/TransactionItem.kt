@@ -31,7 +31,7 @@ import com.boxdev.boxwallet.data.previewParams.TransactionPreviewParameterProvid
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.util.categoryIconVector
-import com.boxdev.boxwallet.util.toCurrencySymbol
+import com.boxdev.boxwallet.util.rememberCurrencyFormatter
 import java.time.format.DateTimeFormatter
 
 @Preview()
@@ -63,7 +63,7 @@ fun TransactionItem(
     }
 
     val sign = if (transaction.type == TransactionType.EXPENSE) "-" else "+"
-    val symbol = transaction.currency.toCurrencySymbol()
+    val formatter = rememberCurrencyFormatter()
 
     ListItem(
         content = {
@@ -119,7 +119,7 @@ fun TransactionItem(
         },
         trailingContent = {
             Text(
-                text = "$sign$symbol${"%.2f".format(transaction.amount)}",
+                text = "$sign${formatter.format(transaction.amount)}",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = typeColor

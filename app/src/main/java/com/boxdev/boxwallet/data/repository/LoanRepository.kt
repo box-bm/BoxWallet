@@ -69,7 +69,6 @@ class LoanRepository @Inject constructor(
             )
             TransactionEntity(
                 amount = loan.installmentAmount,
-                currency = loan.currency,
                 description = "${loan.name} - Installment $number/${loan.totalInstallments}",
                 date = installmentDate.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli(),
                 type = loan.loanType.toTransactionType().name,

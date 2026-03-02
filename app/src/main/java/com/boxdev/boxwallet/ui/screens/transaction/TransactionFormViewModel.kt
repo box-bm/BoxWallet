@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boxdev.boxwallet.analytics.AnalyticsHelper
 import com.boxdev.boxwallet.data.local.entity.TransactionType
-import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.TransactionRepository
 import com.boxdev.boxwallet.domain.model.Category
@@ -30,7 +29,6 @@ data class TransactionFormState(
     val isCleared: Boolean = false,
     val hasReminder: Boolean = false,
     val reminderDuration: ReminderDuration? = null,
-    val currency: String = "USD",
     val isRecurrent: Boolean = false,
     val recurrenceFrequency: RecurrenceFrequency? = null,
     val recurrenceInterval: String = "1",
@@ -50,7 +48,6 @@ data class TransactionFormState(
 class TransactionFormViewModel @Inject constructor(
     private val transactionRepository: TransactionRepository,
     private val categoryRepository: CategoryRepository,
-    private val userPreferences: UserPreferences,
     private val analyticsHelper: AnalyticsHelper
 ) : ViewModel() {
 
@@ -64,18 +61,11 @@ class TransactionFormViewModel @Inject constructor(
         viewModelScope.launch {
             categoryRepository.getAllCategories().collect { _categories.value = it }
         }
-        viewModelScope.launch {
-            userPreferences.defaultCurrency.collect { currency ->
-                _formState.update { state ->
-                    if (!state.isEditing) state.copy(currency = currency.name) else state
-                }
-            }
-        }
     }
 
     fun loadTransaction(transactionId: Long?) {
         if (transactionId == null || transactionId == -1L) {
-            _formState.value = TransactionFormState(currency = _formState.value.currency)
+            _formState.value = TransactionFormState()
             return
         }
         viewModelScope.launch {
@@ -92,13 +82,12 @@ class TransactionFormViewModel @Inject constructor(
                     isCleared = t.isCleared,
                     hasReminder = t.hasReminder,
                     reminderDuration = ReminderDuration.fromSeconds(t.reminderSecondsBefore),
-                    currency = t.currency,
                     isRecurrent = t.isRecurrent,
                     recurrenceFrequency = t.recurrenceFrequency,
                     recurrenceInterval = t.recurrenceInterval?.toString() ?: "1",
                     isEditing = true,
                     isLoading = false,
-                    wasCleared = t.isCleared
+                    wasCleared = t.isCleared,
                 )
             } else {
                 _formState.update { it.copy(isLoading = false, error = "Transaction not found") }
@@ -162,7 +151,6 @@ class TransactionFormViewModel @Inject constructor(
                 val transaction = Transaction(
                     id = if (s.isEditing) s.id else 0,
                     amount = s.amount.toDouble(),
-                    currency = s.currency,
                     description = s.description,
                     date = s.date,
                     type = s.type,

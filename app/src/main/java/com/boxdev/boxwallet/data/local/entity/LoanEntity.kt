@@ -10,7 +10,6 @@ data class LoanEntity(
     val name: String,
     val description: String = "",
     val totalAmount: Double,
-    val currency: String,
     val totalInstallments: Int,
     val categoryId: Long? = null,
     val startDate: Long,

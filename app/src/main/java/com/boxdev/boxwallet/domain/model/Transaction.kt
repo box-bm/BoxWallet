@@ -10,7 +10,6 @@ import java.time.ZoneOffset
 data class Transaction(
     val id: Long = 0,
     val amount: Double,
-    val currency: String,
     val description: String = "",
     val date: LocalDateTime,
     val type: TransactionType,
@@ -30,7 +29,6 @@ data class Transaction(
 fun TransactionEntity.toDomain(): Transaction = Transaction(
     id = id,
     amount = amount,
-    currency = currency,
     description = description,
     date = LocalDateTime.ofInstant(Instant.ofEpochMilli(date), ZoneOffset.UTC),
     type = TransactionType.valueOf(type),
@@ -59,7 +57,6 @@ fun Transaction.toEntity(): TransactionEntity {
     return TransactionEntity(
         id = id,
         amount = amount,
-        currency = currency,
         description = description,
         date = dateMillis,
         type = type.name,
