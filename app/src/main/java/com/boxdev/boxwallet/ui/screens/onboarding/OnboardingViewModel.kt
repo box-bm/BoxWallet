@@ -7,12 +7,7 @@ import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.data.remote.DriveBackupFile
 import com.boxdev.boxwallet.data.remote.GoogleAuthManager
 import com.boxdev.boxwallet.data.remote.GoogleDriveManager
-import com.boxdev.boxwallet.data.repository.CategoryRepository
-import com.boxdev.boxwallet.data.repository.DataManagementRepository
-import com.boxdev.boxwallet.data.repository.LoanRepository
-import com.boxdev.boxwallet.data.repository.TransactionRepository
-import com.boxdev.boxwallet.domain.model.BackupData
-import com.google.gson.Gson
+import com.boxdev.boxwallet.data.repository.BackupRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,16 +30,11 @@ class OnboardingViewModel @Inject constructor(
     private val userPreferences: UserPreferences,
     private val googleAuthManager: GoogleAuthManager,
     private val googleDriveManager: GoogleDriveManager,
-    private val transactionRepository: TransactionRepository,
-    private val categoryRepository: CategoryRepository,
-    private val loanRepository: LoanRepository,
-    private val dataManagementRepository: DataManagementRepository
+    private val backupRepository: BackupRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(OnboardingUiState())
     val uiState: StateFlow<OnboardingUiState> = _uiState.asStateFlow()
-
-    private val gson = Gson()
 
     fun completeOnboarding(analyticsEnabled: Boolean = false) {
         viewModelScope.launch {
@@ -99,13 +89,7 @@ class OnboardingViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isRestoring = true, error = null)
             try {
-                val json = googleDriveManager.downloadBackup(fileId)
-                val backupData = gson.fromJson(json, BackupData::class.java)
-
-                dataManagementRepository.clearAll()
-                categoryRepository.restoreCategories(backupData.categories)
-                loanRepository.restoreLoans(backupData.loans)
-                transactionRepository.restoreTransactions(backupData.transactions)
+                backupRepository.restoreBackup(fileId)
 
                 _uiState.value = _uiState.value.copy(
                     isRestoring = false,

@@ -20,7 +20,9 @@ data class DriveBackupFile(
     val name: String,
     val createdTime: Long,
     val size: Long
-)
+) {
+    val formattedSize: String get() = "%.2f KB".format(size / 1024.0)
+}
 
 @Singleton
 class GoogleDriveManager @Inject constructor(

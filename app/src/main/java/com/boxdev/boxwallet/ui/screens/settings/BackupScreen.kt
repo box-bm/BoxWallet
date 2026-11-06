@@ -321,8 +321,7 @@ private fun DriveBackupFileItem(
     onRestore: () -> Unit,
     onDelete: () -> Unit
 ) {
-    val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
-    val fileSize = "%.2f KB".format(file.size / 1024.0)
+    val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault()) }
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -339,7 +338,7 @@ private fun DriveBackupFileItem(
                     fontWeight = FontWeight.Medium
                 )
                 Text(
-                    text = fileSize,
+                    text = file.formattedSize,
                     style = MaterialTheme.typography.bodySmall,
                 )
             }

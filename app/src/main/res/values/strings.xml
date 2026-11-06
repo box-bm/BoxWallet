@@ -158,9 +158,7 @@
     <string name="analytics_net_label">Net: %1$s</string>
     <string name="analytics_income_label">Income</string>
     <string name="analytics_expense_label">Expense</string>
-    <string name="analytics_export_excel">Export to Excel</string>
     <string name="analytics_uncategorized">Uncategorized</string>
-    <string name="analytics_export_success">Report exported successfully to %1$s</string>
     <string name="analytics_export_error">Error exporting: %1$s</string>
     <string name="analytics_insight_excellent_savings_title">Excellent Savings!</string>
     <string name="analytics_insight_excellent_savings_msg">You\'re saving %1$s%% of your income. Keep it up!</string>
@@ -196,7 +194,6 @@
     <string name="analytics_no_data">No data for this period</string>
     <string name="analytics_today">Today</string>
     <string name="analytics_export_report">Export Report</string>
-    <string name="analytics_export_select_range">Select a date range to export</string>
     <string name="analytics_export_generate">Generate Report</string>
     <string name="analytics_export_share">Share report</string>
     <string name="analytics_export_quick_range">Quick range</string>
@@ -224,11 +221,8 @@
     <string name="settings_app_lock_available">Require fingerprint or device credentials on open</string>
     <string name="settings_app_lock_unavailable">No biometric or screen lock configured on this device</string>
     <string name="settings_data_section">Data</string>
-    <string name="settings_backup_export_section">Backup &amp; Export</string>
     <string name="settings_backup_title">Backup &amp; Restore</string>
     <string name="settings_backup_subtitle">Save and restore your data</string>
-    <string name="settings_export_title">Export Reports</string>
-    <string name="settings_export_subtitle">Generate Excel and PDF reports</string>
     <string name="settings_data_management_section">Data Management</string>
     <string name="settings_data_management_title">Data Management</string>
     <string name="settings_data_management_subtitle">Delete transactions, categories, or all data</string>
@@ -322,19 +316,6 @@
     <string name="data_management_clear_data">Clear Data</string>
 
     <!-- Export Screen -->
-    <string name="export_title">Export Reports</string>
-    <string name="export_date_range">Date Range</string>
-    <string name="export_start_date">Start Date</string>
-    <string name="export_select_start_date">Select start date</string>
-    <string name="export_end_date">End Date</string>
-    <string name="export_select_end_date">Select end date</string>
-    <string name="export_format">Export Format</string>
-    <string name="export_to_excel">Export to Excel (.xlsx)</string>
-    <string name="export_to_pdf">Export to PDF</string>
-    <string name="export_location_title">Export Location</string>
-    <string name="export_location_path">Documents/BoxWallet/Reports/</string>
-    <string name="export_location_description">Reports include all transactions within the selected date range along with a summary of income, expenses, and net balance.</string>
-    <string name="export_last_export">Last Export</string>
 
     <!-- Onboarding Screen -->
     <string name="onboarding_welcome_title">Welcome to BoxWallet</string>

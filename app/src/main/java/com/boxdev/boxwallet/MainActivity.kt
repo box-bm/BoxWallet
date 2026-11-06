@@ -12,8 +12,10 @@ import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat as CoreContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -27,6 +29,8 @@ import com.boxdev.boxwallet.ui.LockScreen
 import com.boxdev.boxwallet.ui.navigation.NavigationTab
 import com.boxdev.boxwallet.ui.screens.onboarding.OnboardingScreen
 import com.boxdev.boxwallet.ui.theme.BoxWalletTheme
+import com.boxdev.boxwallet.util.CurrencyFormatter
+import com.boxdev.boxwallet.util.LocalCurrencyFormatter
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -59,20 +63,24 @@ class MainActivity : FragmentActivity() {
             val isBiometricEnabled by userPreferences.isBiometricEnabled.collectAsState(initial = false)
             val isFirstLaunch by userPreferences.isFirstLaunch.collectAsState(initial = false)
             val isAnalyticsEnabled by userPreferences.isAnalyticsEnabled.collectAsState(initial = true)
+            val currencySymbol by userPreferences.currencySymbol.collectAsState(initial = "$")
+            val currencyFormatter = remember(currencySymbol) { CurrencyFormatter(currencySymbol) }
 
             LaunchedEffect(isBiometricEnabled) { biometricEnabledCache = isBiometricEnabled }
             LaunchedEffect(isAnalyticsEnabled) { analyticsHelper.setCollectionEnabled(isAnalyticsEnabled) }
 
-            BoxWalletTheme(themeSettings = themeSettings) {
-                when {
-                    isFirstLaunch -> OnboardingScreen(
-                        onComplete = { /* State updates automatically via DataStore flow */ }
-                    )
-                    isBiometricEnabled && !isAuthenticated -> LockScreen(
-                        onUnlockClick = { showBiometricPrompt() },
-                        errorMessage = authError
-                    )
-                    else -> NavigationTab(analyticsHelper = analyticsHelper, modifier = Modifier.fillMaxSize())
+            CompositionLocalProvider(LocalCurrencyFormatter provides currencyFormatter) {
+                BoxWalletTheme(themeSettings = themeSettings) {
+                    when {
+                        isFirstLaunch -> OnboardingScreen(
+                            onComplete = { /* State updates automatically via DataStore flow */ }
+                        )
+                        isBiometricEnabled && !isAuthenticated -> LockScreen(
+                            onUnlockClick = { showBiometricPrompt() },
+                            errorMessage = authError
+                        )
+                        else -> NavigationTab(analyticsHelper = analyticsHelper, modifier = Modifier.fillMaxSize())
+                    }
                 }
             }
         }

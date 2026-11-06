@@ -16,6 +16,9 @@ interface TransactionDao {
     @Update
     suspend fun update(transaction: TransactionEntity)
 
+    @Update
+    suspend fun updateAll(transactions: List<TransactionEntity>)
+
     @Delete
     suspend fun delete(transaction: TransactionEntity)
 

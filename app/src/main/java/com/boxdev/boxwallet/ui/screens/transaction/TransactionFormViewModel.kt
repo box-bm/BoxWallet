@@ -13,6 +13,8 @@ import com.boxdev.boxwallet.domain.model.Transaction
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -47,21 +49,15 @@ data class TransactionFormState(
 @HiltViewModel
 class TransactionFormViewModel @Inject constructor(
     private val transactionRepository: TransactionRepository,
-    private val categoryRepository: CategoryRepository,
+    categoryRepository: CategoryRepository,
     private val analyticsHelper: AnalyticsHelper
 ) : ViewModel() {
 
     private val _formState = MutableStateFlow(TransactionFormState())
     val formState: StateFlow<TransactionFormState> = _formState.asStateFlow()
 
-    private val _categories = MutableStateFlow<List<Category>>(emptyList())
-    val categories: StateFlow<List<Category>> = _categories.asStateFlow()
-
-    init {
-        viewModelScope.launch {
-            categoryRepository.getAllCategories().collect { _categories.value = it }
-        }
-    }
+    val categories: StateFlow<List<Category>> = categoryRepository.getAllCategories()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun loadTransaction(transactionId: Long?) {
         if (transactionId == null || transactionId == -1L) {
@@ -137,15 +133,7 @@ class TransactionFormViewModel @Inject constructor(
             _formState.update { it.copy(isLoading = true) }
             try {
                 val nextOccurrenceDate = if (s.isRecurrent && s.recurrenceFrequency != null) {
-                    val interval = s.recurrenceInterval.toIntOrNull() ?: 1
-                    when (s.recurrenceFrequency) {
-                        RecurrenceFrequency.DAILY -> s.date.plusDays(interval.toLong())
-                        RecurrenceFrequency.WEEKLY -> s.date.plusWeeks(interval.toLong())
-                        RecurrenceFrequency.BIWEEKLY -> s.date.plusWeeks(2)
-                        RecurrenceFrequency.MONTHLY -> s.date.plusMonths(1)
-                        RecurrenceFrequency.YEARLY -> s.date.plusYears(1)
-                        RecurrenceFrequency.CUSTOM_MONTHS -> s.date.plusMonths(interval.toLong())
-                    }
+                    s.recurrenceFrequency.advance(s.date, s.recurrenceInterval.toIntOrNull() ?: 1)
                 } else null
 
                 val transaction = Transaction(

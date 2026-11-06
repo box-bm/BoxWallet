@@ -1,7 +1,6 @@
 package com.boxdev.boxwallet.data.repository
 
 import com.boxdev.boxwallet.data.local.dao.CategoryDao
-import com.boxdev.boxwallet.data.local.entity.CategoryEntity
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.toDomain
 import com.boxdev.boxwallet.domain.model.toEntity
@@ -25,10 +24,4 @@ class CategoryRepository @Inject constructor(
 
     fun getAllCategories(): Flow<List<Category>> =
         categoryDao.getAllCategories().map { it.map { e -> e.toDomain() } }
-
-    suspend fun getAllCategoriesSync(): List<CategoryEntity> = categoryDao.getAllCategoriesSync()
-
-    suspend fun restoreCategories(categories: List<CategoryEntity>) {
-        categories.forEach { categoryDao.insert(it) }
-    }
 }

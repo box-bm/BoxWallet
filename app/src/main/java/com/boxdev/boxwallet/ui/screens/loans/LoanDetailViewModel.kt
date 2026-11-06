@@ -37,11 +37,10 @@ class LoanDetailViewModel @Inject constructor(
     private val loanId: Long = checkNotNull(savedStateHandle["loanId"])
 
     val uiState: StateFlow<LoanDetailUiState> = combine(
-        loanRepository.getAllLoans(),
+        loanRepository.observeLoan(loanId),
         transactionRepository.getInstallmentsByLoanId(loanId),
         categoryRepository.getAllCategories()
-    ) { loans, installments, categories ->
-        val loan = loans.find { it.id == loanId }
+    ) { loan, installments, categories ->
         LoanDetailUiState(
             loan = loan,
             installments = installments,

@@ -22,8 +22,6 @@ class UserPreferences @Inject constructor(
 
     companion object {
         private val CURRENCY_KEY = stringPreferencesKey("currency")
-        private val CURRENCY_SYMBOL_KEY = stringPreferencesKey("currency_symbol")
-        private val LANGUAGE_KEY = stringPreferencesKey("language")
         private val DEFAULT_CATEGORY_ID_KEY = stringPreferencesKey("default_category_id")
         private val IS_FIRST_LAUNCH_KEY = booleanPreferencesKey("is_first_launch")
         private val IS_BIOMETRIC_ENABLED_KEY = booleanPreferencesKey("is_biometric_enabled")
@@ -35,21 +33,12 @@ class UserPreferences @Inject constructor(
             preferences[CURRENCY_KEY] ?: "USD"
         }
 
-    val currencySymbol: Flow<String> = context.userPreferencesDataStore.data
-        .map { preferences ->
-            preferences[CURRENCY_SYMBOL_KEY] ?: "$"
-        }
+    val selectedCurrency: Flow<CentralAmericanCurrency> = currency.map { code ->
+        CentralAmericanCurrency.entries.find { it.currencyCode == code } ?: CentralAmericanCurrency.USD
+    }
 
-    val language: Flow<String> = context.userPreferencesDataStore.data
-        .map { preferences ->
-            preferences[LANGUAGE_KEY] ?: "en"
-        }
-
-    val defaultCurrency: Flow<CentralAmericanCurrency> = context.userPreferencesDataStore.data
-        .map { preferences ->
-            val currencyCode = preferences[CURRENCY_KEY] ?: "USD"
-            CentralAmericanCurrency.entries.find { it.currencyCode == currencyCode } ?: CentralAmericanCurrency.USD
-        }
+    /** Derived from the stored currency code, so it can never drift from it. */
+    val currencySymbol: Flow<String> = selectedCurrency.map { it.symbol }
 
     val defaultCategoryId: Flow<Long?> = context.userPreferencesDataStore.data
         .map { preferences ->
@@ -71,16 +60,9 @@ class UserPreferences @Inject constructor(
             preferences[IS_ANALYTICS_ENABLED_KEY] ?: true
         }
 
-    suspend fun setCurrency(currencyCode: String, symbol: String) {
+    suspend fun setCurrency(currencyCode: String) {
         context.userPreferencesDataStore.edit { preferences ->
             preferences[CURRENCY_KEY] = currencyCode
-            preferences[CURRENCY_SYMBOL_KEY] = symbol
-        }
-    }
-
-    suspend fun setLanguage(languageCode: String) {
-        context.userPreferencesDataStore.edit { preferences ->
-            preferences[LANGUAGE_KEY] = languageCode
         }
     }
 

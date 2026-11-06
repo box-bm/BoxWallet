@@ -20,6 +20,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -129,22 +130,10 @@ fun NavGraph(
         ) {
             HomeScreen(
                 onSeeAllTransactions = {
-                    navController.navigate(NavRoutes.TransactionsList.route) {
-                        popUpTo(navController.graph.startDestinationId) {
-                            saveState = true
-                        }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
+                    navController.navigateToTab(NavRoutes.TransactionsList.route)
                 },
                 onSeeAllLoans = {
-                    navController.navigate(NavRoutes.Loans.route) {
-                        popUpTo(navController.graph.startDestinationId) {
-                            saveState = true
-                        }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
+                    navController.navigateToTab(NavRoutes.Loans.route)
                 },
                 onNavigateToLoanDetail = { loanId ->
                     navController.navigate(
@@ -238,5 +227,16 @@ fun NavGraph(
                 onNavigateToBackup = { navController.navigate(NavRoutes.Backup.route) }
             )
         }
+    }
+}
+
+/** Switches bottom-nav tabs, keeping one copy of each tab and restoring its saved state. */
+fun NavController.navigateToTab(route: String) {
+    navigate(route) {
+        popUpTo(graph.startDestinationId) {
+            saveState = true
+        }
+        launchSingleTop = true
+        restoreState = true
     }
 }
