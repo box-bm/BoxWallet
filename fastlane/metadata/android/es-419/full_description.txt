@@ -1,0 +1,25 @@
+BoxWallet es una app de finanzas personales simple y privada para mantener tu dinero en orden.
+
+<b>Todo en un vistazo</b>
+Ve tu balance, últimas transacciones y préstamos activos en un solo panel.
+
+<b>Ingresos y gastos</b>
+• Registra ingresos y gastos en segundos
+• Organízalos por categoría
+• Elige tu moneda
+
+<b>Préstamos y cuotas</b>
+• Controla tus préstamos cuota por cuota
+• Ve cuotas pagadas y pendientes con su progreso
+• Recibe recordatorios para no olvidar ningún pago
+
+<b>Analíticas</b>
+• Gráficas de tendencia de balance
+• Gastos por categoría
+
+<b>Reportes y respaldo</b>
+• Exporta tus reportes
+• Respalda y restaura tus datos con Google Drive
+
+<b>A tu estilo</b>
+Diseño Material You con tema claro/oscuro y colores dinámicos.

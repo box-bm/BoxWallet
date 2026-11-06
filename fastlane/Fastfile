@@ -1,38 +1,51 @@
 default_platform(:android)
 
+AAB_PATH     = "app/build/outputs/bundle/release/app-release.aab"
+MAPPING_PATH = "app/build/outputs/mapping/release/mapping.txt"
+METADATA_DIR = "fastlane/metadata/android"
+JSON_KEY     = "play-store-key.json"
+
 platform :android do
   desc "Build release AAB"
   lane :build_release do
-    gradle(
-      task: "bundleRelease",
-      project_dir: "./"
+    gradle(task: "bundleRelease", project_dir: "./")
+  end
+
+  desc "Upload the built AAB + changelogs + store listing to a Play track"
+  desc "Env: TRACK (internal), RELEASE_STATUS (completed|draft), UPLOAD_STORE_LISTING (true|false)"
+  lane :deploy do
+    track          = ENV.fetch("TRACK", "internal")
+    release_status = ENV.fetch("RELEASE_STATUS", "completed")
+    listing        = ENV.fetch("UPLOAD_STORE_LISTING", "true") == "true"
+    root           = File.expand_path("..", __dir__)
+
+    has_images      = Dir.glob("#{root}/#{METADATA_DIR}/*/images/*.{png,jpg,jpeg}").any?
+    has_screenshots = Dir.glob("#{root}/#{METADATA_DIR}/*/images/*Screenshots/*.{png,jpg,jpeg}").any?
+
+    UI.message("📦 track=#{track} status=#{release_status} listing=#{listing} " \
+               "images=#{has_images} screenshots=#{has_screenshots}")
+
+    upload_to_play_store(
+      track: track,
+      release_status: release_status,
+      json_key: JSON_KEY,
+      aab: AAB_PATH,
+      mapping: (File.exist?("#{root}/#{MAPPING_PATH}") ? MAPPING_PATH : nil),
+      metadata_path: METADATA_DIR,
+      # "What's new" from metadata/<locale>/changelogs/<versionCode>.txt (or default.txt)
+      skip_upload_changelogs: false,
+      # title / short_description / full_description / video
+      skip_upload_metadata: !listing,
+      # icon / featureGraphic / tvBanner — only if present in the repo
+      skip_upload_images: !(listing && has_images),
+      skip_upload_screenshots: !(listing && has_screenshots),
+      sync_image_upload: true # only uploads images whose checksum changed
     )
   end
 
-  desc "Build and upload to Play Store internal testing"
+  # Backwards-compatible alias for the old lane
   lane :internal do
     build_release
-
-    # Check if we should deploy as draft
-    deploy_as_draft = ENV['DEPLOY_AS_DRAFT'] == 'true'
-
-    options = {
-      track: "internal",
-      aab: "app/build/outputs/bundle/release/app-release.aab",
-      json_key: "play-store-key.json",
-      skip_upload_metadata: true,
-      skip_upload_images: true,
-      skip_upload_screenshots: true
-    }
-
-    # Add release_status if deploying as draft
-    if deploy_as_draft
-      options[:release_status] = "draft"
-      UI.success("📝 Deploying as DRAFT release")
-    else
-      UI.success("🚀 Deploying to internal testing")
-    end
-
-    upload_to_play_store(options)
+    deploy
   end
 end
