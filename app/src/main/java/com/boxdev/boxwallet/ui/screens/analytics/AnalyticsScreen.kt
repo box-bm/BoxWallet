@@ -31,6 +31,8 @@ import com.boxdev.boxwallet.ui.components.SectionHeader
 import com.boxdev.boxwallet.ui.components.trendIcon
 import com.boxdev.boxwallet.ui.components.charts.CategoryDonut
 import com.boxdev.boxwallet.ui.components.charts.CashFlowChart
+import com.boxdev.boxwallet.ui.components.charts.NetFlowChart
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import com.boxdev.boxwallet.ui.components.charts.SpendingPatternChart
 import com.boxdev.boxwallet.ui.components.EmptyState
 import com.boxdev.boxwallet.ui.components.SearchAction
@@ -153,6 +155,7 @@ fun AnalyticsScreen(
     onEditTransaction: (Long) -> Unit = {},
     onOpenLoan: (Long) -> Unit = {},
     onNavigateToLoans: () -> Unit = {},
+    onNavigateToMovements: () -> Unit = {},
     viewModel: AnalyticsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -217,6 +220,8 @@ fun AnalyticsScreen(
         }
 
         val periodEmpty = uiState.transactionCount == 0
+        // A single day is too small for shares, rankings or day-over-day swings: it lists its movements instead.
+        val daily = uiState.frequency == AnalyticsFrequency.DAILY
         val insightOf = { kind: InsightKind -> uiState.insights.firstOrNull { it.kind == kind } }
 
         // ---- The selected period ----
@@ -259,9 +264,16 @@ fun AnalyticsScreen(
             }
         }
         val categories: @Composable () -> Unit = {
-            if (uiState.categoryExpenses.isNotEmpty()) {
+            if (!daily && uiState.categoryExpenses.isNotEmpty()) {
                 ReportSection(stringResource(R.string.analytics_expenses_by_category)) {
-                    CategoryDonut(uiState.categoryExpenses, modifier = Modifier.fillMaxWidth())
+                    CategoryDonut(
+                        uiState.categoryExpenses,
+                        modifier = Modifier.fillMaxWidth(),
+                        onOpenCategory = { category ->
+                            viewModel.openCategoryMovements(category.id)
+                            onNavigateToMovements()
+                        },
+                    )
                     insightOf(InsightKind.CONCENTRATION)?.let { SectionNote(it) }
                 }
             }
@@ -269,9 +281,13 @@ fun AnalyticsScreen(
         val pattern: @Composable () -> Unit = {
             when {
                 periodEmpty -> Unit
-                uiState.frequency == AnalyticsFrequency.YEARLY -> ReportSection(stringResource(R.string.analytics_monthly_breakdown)) {
-                    CashFlowChart(uiState.yearlyMonthlySummary, modifier = Modifier.fillMaxWidth())
-                    ChartLegend()
+                // Yearly: net per month, so it says something the 12-month cash flow below doesn't.
+                uiState.frequency == AnalyticsFrequency.YEARLY -> ReportSection(stringResource(R.string.analytics_net_by_month)) {
+                    NetFlowChart(uiState.yearlyMonthlySummary, modifier = Modifier.fillMaxWidth())
+                    ChartLegend(
+                        stringResource(R.string.analytics_saved),
+                        stringResource(R.string.analytics_overspent),
+                    )
                 }
                 uiState.dailySpending.any { it.amount > 0 } -> ReportSection(stringResource(R.string.analytics_spending_pattern)) {
                     SpendingPatternChart(
@@ -283,16 +299,19 @@ fun AnalyticsScreen(
             }
         }
         val topExpenses: @Composable () -> Unit = {
-            if (uiState.topExpenses.isNotEmpty()) {
-                ReportSection(stringResource(R.string.analytics_top_expenses)) {
+            val list = if (daily) uiState.dayMovements else uiState.topExpenses
+            if (list.isNotEmpty()) {
+                ReportSection(
+                    stringResource(if (daily) R.string.analytics_day_movements else R.string.analytics_top_expenses)
+                ) {
                     Column {
-                        uiState.topExpenses.forEachIndexed { index, transaction ->
+                        list.forEachIndexed { index, transaction ->
                             TransactionItem(
                                 transaction = transaction,
                                 category = transaction.categoryId?.let { uiState.categories[it] },
                                 index = index,
-                                count = uiState.topExpenses.size,
-                                showDate = true,
+                                count = list.size,
+                                showDate = !daily,
                                 containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                                 onClick = { onEditTransaction(transaction.id) },
                                 modifier = Modifier.padding(bottom = ListItemDefaults.SegmentedGap),
@@ -412,16 +431,18 @@ private fun PeriodSummary(state: AnalyticsUiState) {
     val net = state.periodIncome - state.periodExpense
     val onContainer = MaterialTheme.colorScheme.onSecondaryContainer
     val formatter = rememberCurrencyFormatter()
+    val daily = state.frequency == AnalyticsFrequency.DAILY
     val verdict = when {
-        state.transactionCount == 0 -> null
+        state.transactionCount == 0 || daily -> null
         state.periodIncome <= 0 -> stringResource(R.string.analytics_verdict_no_income)
         net >= 0 -> stringResource(R.string.analytics_verdict_kept, "%.0f".format(net / state.periodIncome * 100))
         else -> stringResource(R.string.analytics_verdict_over, formatter.format(-net))
     }
     Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = MaterialTheme.shapes.extraLarge) {
         Column(Modifier.fillMaxWidth().padding(24.dp)) {
+            // The label carries the direction, so a shortfall never reads as "savings".
             Text(
-                stringResource(R.string.analytics_net_savings),
+                stringResource(if (net >= 0) R.string.analytics_net_savings else R.string.analytics_overspent),
                 style = MaterialTheme.typography.titleMedium,
                 color = onContainer,
             )
@@ -442,6 +463,7 @@ private fun PeriodSummary(state: AnalyticsUiState) {
                     amount = state.periodIncome, kind = AmountKind.Income,
                     container = money.incomeContainer, content = money.onIncomeContainer,
                     change = percentChange(state.periodIncome, state.previousIncome),
+                    showComparison = !daily,
                     modifier = Modifier.weight(1f).fillMaxHeight(),
                 )
                 FlowAmount(
@@ -449,6 +471,7 @@ private fun PeriodSummary(state: AnalyticsUiState) {
                     amount = state.periodExpense, kind = AmountKind.Expense,
                     container = money.expenseContainer, content = money.onExpenseContainer,
                     change = percentChange(state.periodExpense, state.previousExpense),
+                    showComparison = !daily,
                     modifier = Modifier.weight(1f).fillMaxHeight(),
                 )
             }
@@ -479,6 +502,7 @@ private fun FlowAmount(
     container: Color,
     content: Color,
     change: Double?,
+    showComparison: Boolean,
     modifier: Modifier = Modifier,
 ) {
     Surface(color = container, contentColor = content, shape = MaterialTheme.shapes.medium, modifier = modifier) {
@@ -488,6 +512,7 @@ private fun FlowAmount(
                 Text(label, style = MaterialTheme.typography.labelLarge)
             }
             AmountText(amount, kind = kind, style = BoxTheme.moneyType.medium, color = content, autoSize = true)
+            if (!showComparison) return@Column
             Spacer(Modifier.height(4.dp))
             if (change == null) {
                 Text(
@@ -567,26 +592,15 @@ private fun InstallmentsSection(
 ) {
     val formatter = rememberCurrencyFormatter()
     val dateFormatter = remember { DateTimeFormatter.ofPattern("MMM d", Locale.getDefault()) }
-    val progress = if (summary.amountDue > 0) (summary.amountPaid / summary.amountDue).toFloat() else 0f
     val visible = summary.pending.take(3)
     ReportSection(stringResource(R.string.analytics_installments_title)) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.analytics_installments_paid, summary.paidCount, summary.dueCount),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Text(
-                        stringResource(
-                            R.string.analytics_installments_amount,
-                            formatter.format(summary.amountPaid),
-                            formatter.format(summary.amountDue),
-                        ),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                Text(
+                    stringResource(R.string.analytics_installments_paid, summary.paidCount, summary.dueCount),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
                 if (summary.overdueCount > 0) {
                     Surface(color = MaterialTheme.colorScheme.errorContainer, shape = CircleShape) {
                         Text(
@@ -598,12 +612,28 @@ private fun InstallmentsSection(
                     }
                 }
             }
-            LinearWavyProgressIndicator(
-                progress = { progress },
-                modifier = Modifier.fillMaxWidth(),
-                color = if (summary.overdueCount > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-            )
+            InstallmentCountBar(summary.paidFlags, overdue = summary.overdueCount > 0)
+            // Money the user owes and money owed to them are never added together.
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                if (summary.toPayDue > 0) {
+                    DirectionAmount(
+                        label = stringResource(R.string.analytics_installments_to_pay),
+                        open = summary.toPayOpen,
+                        due = summary.toPayDue,
+                        kind = AmountKind.Expense,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                if (summary.toCollectDue > 0) {
+                    DirectionAmount(
+                        label = stringResource(R.string.analytics_installments_to_collect),
+                        open = summary.toCollectOpen,
+                        due = summary.toCollectDue,
+                        kind = AmountKind.Income,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
             if (summary.pending.isEmpty()) {
                 Text(
                     stringResource(R.string.analytics_installments_all_paid),
@@ -629,6 +659,46 @@ private fun InstallmentsSection(
                 }
             }
         }
+    }
+}
+
+/** One pill per installment due in the period: filled when paid, so progress reads as a count, not a mixed amount. */
+@Composable
+private fun InstallmentCountBar(paidFlags: List<Boolean>, overdue: Boolean) {
+    val paidColor = MaterialTheme.colorScheme.primary
+    val openColor = if (overdue) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainerHighest
+    if (paidFlags.size > 24) {
+        val paid = paidFlags.count { it }.toFloat() / paidFlags.size
+        Box(Modifier.fillMaxWidth().height(8.dp).clip(CircleShape).background(openColor)) {
+            Box(Modifier.fillMaxWidth(paid).fillMaxHeight().clip(CircleShape).background(paidColor))
+        }
+        return
+    }
+    Row(Modifier.fillMaxWidth().clearAndSetSemantics { }, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        paidFlags.forEach { paid ->
+            Box(
+                Modifier
+                    .weight(1f)
+                    .height(8.dp)
+                    .clip(CircleShape)
+                    .background(if (paid) paidColor else openColor)
+            )
+        }
+    }
+}
+
+/** Still-open amount in one direction (to pay or to collect), with the period's total beneath. */
+@Composable
+private fun DirectionAmount(label: String, open: Double, due: Double, kind: AmountKind, modifier: Modifier = Modifier) {
+    val formatter = rememberCurrencyFormatter()
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        AmountText(open, kind = kind, style = BoxTheme.moneyType.medium, autoSize = true)
+        Text(
+            stringResource(R.string.analytics_installments_of_due, formatter.format(due)),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -1174,10 +1244,13 @@ private fun NoDataPlaceholder() {
 }
 
 @Composable
-private fun ChartLegend() {
+private fun ChartLegend(
+    incomeLabel: String = stringResource(R.string.analytics_income_label),
+    expenseLabel: String = stringResource(R.string.analytics_expense_label),
+) {
     Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.padding(top = 12.dp)) {
-        LegendItem(BoxTheme.money.income, stringResource(R.string.analytics_income_label))
-        LegendItem(BoxTheme.money.expense, stringResource(R.string.analytics_expense_label))
+        LegendItem(BoxTheme.money.income, incomeLabel)
+        LegendItem(BoxTheme.money.expense, expenseLabel)
     }
 }
 

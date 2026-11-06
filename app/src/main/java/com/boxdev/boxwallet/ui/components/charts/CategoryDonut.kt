@@ -2,7 +2,19 @@
 
 package com.boxdev.boxwallet.ui.components.charts
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import com.boxdev.boxwallet.domain.model.Category
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -65,6 +77,7 @@ import kotlin.math.min
 fun CategoryDonut(
     data: List<CategoryExpenseData>,
     modifier: Modifier = Modifier,
+    onOpenCategory: ((Category) -> Unit)? = null,
 ) {
     if (data.isEmpty()) return
     val total = data.sumOf { it.amount }
@@ -156,6 +169,23 @@ fun CategoryDonut(
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                     )
+                }
+            }
+        }
+
+        // A focused real category can be opened as a filtered Movements list.
+        val focusedCategory = selected?.let { data[it].category }
+        AnimatedVisibility(
+            visible = onOpenCategory != null && focusedCategory != null,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut(),
+        ) {
+            val category = focusedCategory ?: return@AnimatedVisibility
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                FilledTonalButton(onClick = { onOpenCategory?.invoke(category) }) {
+                    Text(stringResource(R.string.analytics_see_category_movements, category.name))
+                    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
                 }
             }
         }

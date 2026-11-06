@@ -415,7 +415,7 @@
     <string name="analytics_movements">Movimientos</string>
     <string name="analytics_empty_period_title">Nada registrado en este periodo</string>
     <string name="analytics_empty_period_msg">Los movimientos que registres aparecerán aquí como gráficas e ideas.</string>
-    <string name="analytics_savings_rate_caption">de tus ingresos ahorrados en los últimos 12 meses</string>
+    <string name="analytics_savings_rate_caption">Tasa de ahorro · últimos 12 meses</string>
     <string name="analytics_net_label_short">Neto</string>
     <string name="analytics_verdict_kept">Conservaste el %1$s%% de lo que ingresó</string>
     <string name="analytics_verdict_over">Gastaste %1$s más de lo que ingresó</string>
@@ -435,4 +435,12 @@
     <string name="analytics_not_enough_history">Historial insuficiente</string>
     <string name="chart_a11y_previous">Anterior</string>
     <string name="chart_a11y_next">Siguiente</string>
+    <string name="analytics_saved">Ahorrado</string>
+    <string name="analytics_overspent">Gastaste de más</string>
+    <string name="analytics_net_by_month">Neto por mes</string>
+    <string name="analytics_day_movements">Movimientos del día</string>
+    <string name="analytics_see_category_movements">Ver movimientos de %1$s</string>
+    <string name="analytics_installments_to_pay">Por pagar</string>
+    <string name="analytics_installments_to_collect">Por cobrar</string>
+    <string name="analytics_installments_of_due">de %1$s en el período</string>
 </resources>

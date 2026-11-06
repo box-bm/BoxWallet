@@ -38,6 +38,7 @@ import java.time.temporal.ChronoUnit
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
+import com.boxdev.boxwallet.ui.navigation.MovementsFilterRequest
 
 enum class AnalyticsFrequency {
     DAILY, WEEKLY, MONTHLY, YEARLY
@@ -99,8 +100,14 @@ data class InstallmentSummary(
     val dueCount: Int,
     val paidCount: Int,
     val overdueCount: Int,
-    val amountDue: Double,
-    val amountPaid: Double,
+    /** Installments the user pays (expense loans): total due and what is still open. */
+    val toPayDue: Double,
+    val toPayOpen: Double,
+    /** Installments owed to the user (income loans). Never added to [toPayDue]. */
+    val toCollectDue: Double,
+    val toCollectOpen: Double,
+    /** Paid flags in due-date order, one per installment, for the count bar. */
+    val paidFlags: List<Boolean>,
     /** Unpaid installments, oldest first: overdue ones lead. */
     val pending: List<InstallmentDue>,
 )
@@ -129,6 +136,8 @@ data class AnalyticsUiState(
     /** Expense divided by the days of the period that have already happened. */
     val avgDailyExpense: Double = 0.0,
     val topExpenses: List<Transaction> = emptyList(),
+    /** Every movement of the day, newest first (Daily view only). */
+    val dayMovements: List<Transaction> = emptyList(),
     val categories: Map<Long, Category> = emptyMap(),
     /** Null when no installment falls due in the period. */
     val installments: InstallmentSummary? = null,
@@ -152,7 +161,8 @@ class AnalyticsViewModel @Inject constructor(
     private val categoryRepository: CategoryRepository,
     private val loanRepository: LoanRepository,
     @ApplicationContext private val context: Context,
-    private val analyticsHelper: AnalyticsHelper
+    private val analyticsHelper: AnalyticsHelper,
+    private val movementsFilter: MovementsFilterRequest,
 ) : ViewModel() {
 
     private val filterState = MutableStateFlow(FilterState())
@@ -219,6 +229,7 @@ class AnalyticsViewModel @Inject constructor(
                     dailySpending = dailySpending,
                     avgDailyExpense = if (startDate.isAfter(today)) 0.0 else periodExpense / elapsedDays,
                     topExpenses = expenses.sortedByDescending { it.amount }.take(5),
+                    dayMovements = if (filter.frequency == AnalyticsFrequency.DAILY) periodTx.sortedByDescending { it.date } else emptyList(),
                     categories = categoryMap,
                     installments = installments,
                     categoryExpenses = categoryExpenses,
@@ -236,6 +247,11 @@ class AnalyticsViewModel @Inject constructor(
             state.copy(isExporting = export.isExporting, exportFile = export.file, exportError = export.error)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AnalyticsUiState())
+
+    /** Asks the Movements tab to open filtered to [categoryId]; the screen then switches tabs. */
+    fun openCategoryMovements(categoryId: Long) {
+        movementsFilter.request(categoryId)
+    }
 
     fun updateFrequency(frequency: AnalyticsFrequency) {
         filterState.value = FilterState(frequency = frequency, periodOffset = 0)
@@ -448,8 +464,11 @@ class AnalyticsViewModel @Inject constructor(
             dueCount = installments.size,
             paidCount = paid.size,
             overdueCount = pending.count { it.isOverdue },
-            amountDue = installments.sumOf { it.amount },
-            amountPaid = paid.sumOf { it.amount },
+            toPayDue = installments.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount },
+            toPayOpen = installments.filter { it.type == TransactionType.EXPENSE && !it.isCleared }.sumOf { it.amount },
+            toCollectDue = installments.filter { it.type == TransactionType.INCOME }.sumOf { it.amount },
+            toCollectOpen = installments.filter { it.type == TransactionType.INCOME && !it.isCleared }.sumOf { it.amount },
+            paidFlags = installments.map { it.isCleared },
             pending = pending,
         )
     }

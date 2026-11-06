@@ -431,7 +431,7 @@
     <string name="analytics_movements">Movements</string>
     <string name="analytics_empty_period_title">Nothing recorded in this period</string>
     <string name="analytics_empty_period_msg">Movements you log will show up here as charts and insights.</string>
-    <string name="analytics_savings_rate_caption">of your income kept over the last 12 months</string>
+    <string name="analytics_savings_rate_caption">Savings rate · last 12 months</string>
     <string name="analytics_net_label_short">Net</string>
     <string name="analytics_verdict_kept">You kept %1$s%% of what came in</string>
     <string name="analytics_verdict_over">You spent %1$s more than came in</string>
@@ -451,4 +451,12 @@
     <string name="analytics_not_enough_history">Not enough history</string>
     <string name="chart_a11y_previous">Previous</string>
     <string name="chart_a11y_next">Next</string>
+    <string name="analytics_saved">Saved</string>
+    <string name="analytics_overspent">Overspent</string>
+    <string name="analytics_net_by_month">Net by month</string>
+    <string name="analytics_day_movements">Movements this day</string>
+    <string name="analytics_see_category_movements">See %1$s movements</string>
+    <string name="analytics_installments_to_pay">To pay</string>
+    <string name="analytics_installments_to_collect">To collect</string>
+    <string name="analytics_installments_of_due">of %1$s due</string>
 </resources>
