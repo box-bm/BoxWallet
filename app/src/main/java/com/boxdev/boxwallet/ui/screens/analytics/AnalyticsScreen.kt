@@ -42,6 +42,10 @@ import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ListItemDefaults
 import com.boxdev.boxwallet.ui.theme.BoxTheme
 import com.boxdev.boxwallet.ui.theme.isWide
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.Placeable
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -357,14 +361,13 @@ fun AnalyticsScreen(
         val gap = Arrangement.spacedBy(16.dp)
         if (wide) {
             Column(scroll.padding(horizontal = 24.dp, vertical = 8.dp), verticalArrangement = gap) {
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Column(Modifier.weight(1f), verticalArrangement = gap) {
-                        controls(); summary(); emptyPeriod(); categories()
-                    }
-                    Column(Modifier.weight(1f), verticalArrangement = gap) {
-                        pattern(); installments(); topExpenses()
-                    }
-                }
+                // Sections fill whichever column is shorter, so neither ends in a dead block.
+                BalancedColumns(
+                    listOf(
+                        { controls(); summary(); emptyPeriod() },
+                        pattern, categories, installments, topExpenses,
+                    )
+                )
                 yearHeader()
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Column(Modifier.weight(1f), verticalArrangement = gap) { cashFlow() }
@@ -432,6 +435,13 @@ private fun PeriodSummary(state: AnalyticsUiState) {
     val onContainer = MaterialTheme.colorScheme.onSecondaryContainer
     val formatter = rememberCurrencyFormatter()
     val daily = state.frequency == AnalyticsFrequency.DAILY
+    // "vs same point last month" while the period is in progress, so a partial period is never set against a full one.
+    val comparisonLabel = when {
+        !state.comparisonToDate -> R.string.analytics_vs_previous
+        state.frequency == AnalyticsFrequency.WEEKLY -> R.string.analytics_vs_same_point_week
+        state.frequency == AnalyticsFrequency.YEARLY -> R.string.analytics_vs_same_point_year
+        else -> R.string.analytics_vs_same_point_month
+    }
     val verdict = when {
         state.transactionCount == 0 || daily -> null
         state.periodIncome <= 0 -> stringResource(R.string.analytics_verdict_no_income)
@@ -464,6 +474,7 @@ private fun PeriodSummary(state: AnalyticsUiState) {
                     container = money.incomeContainer, content = money.onIncomeContainer,
                     change = percentChange(state.periodIncome, state.previousIncome),
                     showComparison = !daily,
+                    comparisonLabel = comparisonLabel,
                     modifier = Modifier.weight(1f).fillMaxHeight(),
                 )
                 FlowAmount(
@@ -472,6 +483,7 @@ private fun PeriodSummary(state: AnalyticsUiState) {
                     container = money.expenseContainer, content = money.onExpenseContainer,
                     change = percentChange(state.periodExpense, state.previousExpense),
                     showComparison = !daily,
+                    comparisonLabel = comparisonLabel,
                     modifier = Modifier.weight(1f).fillMaxHeight(),
                 )
             }
@@ -503,6 +515,7 @@ private fun FlowAmount(
     content: Color,
     change: Double?,
     showComparison: Boolean,
+    @androidx.annotation.StringRes comparisonLabel: Int,
     modifier: Modifier = Modifier,
 ) {
     Surface(color = container, contentColor = content, shape = MaterialTheme.shapes.medium, modifier = modifier) {
@@ -531,7 +544,7 @@ private fun FlowAmount(
                         )
                     }
                     Text(
-                        stringResource(R.string.analytics_vs_previous, "%.0f%%".format(kotlin.math.abs(change))),
+                        stringResource(comparisonLabel, "%.0f%%".format(kotlin.math.abs(change))),
                         style = MaterialTheme.typography.labelSmall,
                     )
                 }
@@ -543,6 +556,40 @@ private fun FlowAmount(
 /** Percent change from [previous] to [current]; null when there is nothing to compare against. */
 private fun percentChange(current: Double, previous: Double): Double? =
     if (previous > 0) (current - previous) / previous * 100 else null
+
+/**
+ * Two equal columns for [sections]. Every way of splitting them between the columns (order kept
+ * inside each column, the first section always top-left) is tried, and the split whose columns end
+ * closest together wins, so neither column trails off into a dead block. A section that draws
+ * nothing takes no space; one that emits several children stacks them.
+ */
+@Composable
+private fun BalancedColumns(sections: List<@Composable () -> Unit>, gap: Dp = 16.dp) {
+    Layout(contents = sections) { groups, constraints ->
+        val gapPx = gap.roundToPx()
+        val colWidth = ((constraints.maxWidth - gapPx) / 2).coerceAtLeast(0)
+        val child = Constraints(minWidth = colWidth, maxWidth = colWidth)
+        val measured = groups.map { group -> group.map { it.measure(child) }.filter { it.height > 0 } }
+            .filter { it.isNotEmpty() }
+        val heights = measured.map { ps -> ps.sumOf { it.height } + gapPx * (ps.size - 1) }
+
+        val best = bestColumnSplit(heights, gapPx)
+
+        val y = intArrayOf(0, 0)
+        val placements = mutableListOf<Triple<Placeable, Int, Int>>()
+        measured.forEachIndexed { i, ps ->
+            val col = if (i > 0 && (best shr (i - 1)) and 1 == 1) 1 else 0
+            ps.forEach { p ->
+                if (y[col] > 0) y[col] += gapPx
+                placements += Triple(p, col * (colWidth + gapPx), y[col])
+                y[col] += p.height
+            }
+        }
+        layout(constraints.maxWidth, maxOf(y[0], y[1])) {
+            placements.forEach { (p, px, py) -> p.place(px, py) }
+        }
+    }
+}
 
 @Composable
 private fun ReportSection(title: String, subtitle: String? = null, content: @Composable () -> Unit) {
@@ -815,12 +862,14 @@ private fun HealthSection(
                     modifier = Modifier.weight(1f),
                 )
             }
-            // Says what the trend percentages compare.
-            Text(
-                stringResource(R.string.analytics_trend_caption),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            // Says what the trend percentages compare, once there is a percentage to explain.
+            if (metrics.incomeGrowth != null || metrics.expenseGrowth != null) {
+                Text(
+                    stringResource(R.string.analytics_trend_caption),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             }
             burnRateInsight?.let { SectionNote(it, Modifier) }
         }

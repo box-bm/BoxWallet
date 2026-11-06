@@ -136,6 +136,8 @@ data class AnalyticsUiState(
     /** Totals for the period just before this one, for the "vs previous" deltas. */
     val previousIncome: Double = 0.0,
     val previousExpense: Double = 0.0,
+    /** True while the period is in progress: the previous totals then cover the same elapsed days only. */
+    val comparisonToDate: Boolean = false,
     val transactionCount: Int = 0,
     /** Expense per day across the period (weekly and monthly views only). */
     val dailySpending: List<DailySpend> = emptyList(),
@@ -184,14 +186,19 @@ class AnalyticsViewModel @Inject constructor(
     val uiState: StateFlow<AnalyticsUiState> = filterState
         .flatMapLatest { filter ->
             val (startDate, endDate) = calculateDateRange(filter.frequency, filter.periodOffset)
-            val (prevStart, prevEnd) = calculateDateRange(filter.frequency, filter.periodOffset - 1)
+            val (prevStart, fullPrevEnd) = calculateDateRange(filter.frequency, filter.periodOffset - 1)
+            // A period still in progress is compared with the same number of days of the previous one,
+            // never with all of it: 6 days of November against 6 days of October, not all of October.
+            val comparison = comparisonRange(startDate, endDate, prevStart, fullPrevEnd, LocalDate.now())
+            val inProgress = comparison.toDate
+            val prevEnd = comparison.end
             val trendStart = LocalDate.now().minusMonths(11).withDayOfMonth(1)
             val trendEnd = LocalDate.now()
 
             val installmentsFlow = combine(
                 transactionRepository.getInstallmentsBetweenDates(startDate, endDate),
                 loanRepository.getAllLoans(),
-            ) { installments, loans -> summarizeInstallments(installments, loans.associate { it.id to it.name }) }
+            ) { installments, loans -> summarizeInstallments(installments, loans.associate { it.id to it.name }, LocalDate.now()) }
 
             combine(
                 transactionRepository.getTransactionsBetweenDates(startDate, endDate),
@@ -230,6 +237,7 @@ class AnalyticsViewModel @Inject constructor(
                     periodIncome = periodTx.total(TransactionType.INCOME),
                     periodExpense = periodExpense,
                     previousIncome = previousTx.total(TransactionType.INCOME),
+                    comparisonToDate = inProgress,
                     previousExpense = previousTx.total(TransactionType.EXPENSE),
                     transactionCount = periodTx.size,
                     dailySpending = dailySpending,
@@ -456,44 +464,6 @@ class AnalyticsViewModel @Inject constructor(
         return insights
     }
 
-    private fun summarizeInstallments(installments: List<Transaction>, loanNames: Map<Long, String>): InstallmentSummary? {
-        if (installments.isEmpty()) return null
-        val today = LocalDate.now()
-        val paid = installments.filter { it.isCleared }
-        fun overdue(tx: Transaction) = !tx.isCleared && tx.date.toLocalDate().isBefore(today)
-        val pending = installments.filter { !it.isCleared }
-            .groupBy { it.loanId ?: -it.id }
-            .map { (_, txs) ->
-                val first = txs.minBy { it.date }
-                LoanInstallmentsDue(
-                    loanId = first.loanId ?: 0L,
-                    loanName = first.loanId?.let { loanNames[it] } ?: first.description,
-                    type = first.type,
-                    count = txs.size,
-                    overdueCount = txs.count(::overdue),
-                    amount = txs.sumOf { it.amount },
-                    firstDue = first.date.toLocalDate(),
-                )
-            }
-            .sortedWith(compareByDescending<LoanInstallmentsDue> { it.overdueCount > 0 }.thenBy { it.firstDue })
-        return InstallmentSummary(
-            dueCount = installments.size,
-            paidCount = paid.size,
-            overdueCount = installments.count(::overdue),
-            toPayDue = installments.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount },
-            toPayOpen = installments.filter { it.type == TransactionType.EXPENSE && !it.isCleared }.sumOf { it.amount },
-            toCollectDue = installments.filter { it.type == TransactionType.INCOME }.sumOf { it.amount },
-            toCollectOpen = installments.filter { it.type == TransactionType.INCOME && !it.isCleared }.sumOf { it.amount },
-            states = installments.sortedBy { it.date }.map {
-                when {
-                    it.isCleared -> InstallmentState.PAID
-                    overdue(it) -> InstallmentState.OVERDUE
-                    else -> InstallmentState.OPEN
-                }
-            },
-            pending = pending,
-        )
-    }
 
     fun exportToExcel(startDate: LocalDate, endDate: LocalDate) {
         viewModelScope.launch {

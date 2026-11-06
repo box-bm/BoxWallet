@@ -55,6 +55,7 @@ fun SpendingPatternChart(
     if (data.isEmpty()) return
     var selected by remember(data) { mutableIntStateOf(data.indexOfLast { !it.isFuture }.coerceAtLeast(0)) }
     val expense = BoxTheme.money.expense
+    val expenseMuted = mutedOnCard(expense)
     val track = MaterialTheme.colorScheme.surfaceContainerHighest
     val gridColor = MaterialTheme.colorScheme.outlineVariant
     val avgColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -123,7 +124,7 @@ fun SpendingPatternChart(
                         cornerRadius = CornerRadius(stub / 2f),
                     )
                 } else {
-                    val color = if (isSelected) expense else expense.copy(alpha = 0.4f)
+                    val color = if (isSelected) expense else expenseMuted
                     drawTopRoundedBar(color, x, baseline, barW, (h(d.amount) * reveal).coerceAtLeast(stub))
                 }
             }

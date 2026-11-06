@@ -57,6 +57,14 @@ internal fun rankedSliceColors(count: Int, otherIndex: Int? = null): List<Color>
     }
 }
 
+/**
+ * A de-emphasised series colour for the cards charts sit on: mixed toward the card surface rather
+ * than made transparent, so red and green stay recognisable hues in dark theme instead of going
+ * brown and olive.
+ */
+@Composable
+internal fun mutedOnCard(color: Color): Color = lerp(color, MaterialTheme.colorScheme.surfaceContainer, 0.45f)
+
 /** A bar with rounded top corners and a flat base sitting on [bottom]. */
 internal fun DrawScope.drawTopRoundedBar(
     color: Color,
