@@ -2,6 +2,19 @@
 
 package com.boxdev.boxwallet.ui.screens.settings
 
+import androidx.compose.material.icons.outlined.NotificationsOff
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.Category
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.Fingerprint
+import androidx.compose.material.icons.outlined.Insights
+import androidx.compose.material.icons.outlined.Backup
+import androidx.compose.material.icons.outlined.DeleteForever
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Code
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Coffee
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -115,353 +128,83 @@ fun SettingsScreen(
         "Unknown"
     }
 
-    Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = {
-            MediumTopAppBar(
-                scrollBehavior = scrollBehavior,
-                modifier = Modifier.background(color = MaterialTheme.colorScheme.surface),
-                title = {
-                    Text(
-                        text = stringResource(R.string.settings_title),
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = null
-                        )
-                    }
-                }
-            )
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            if (!notificationsEnabled.value) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-                                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                            }
-                            context.startActivity(intent)
-                        },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    ),
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.NotificationsOff,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onErrorContainer,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = stringResource(R.string.settings_notifications_disabled_title),
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onErrorContainer
-                            )
-                            Text(
-                                text = stringResource(R.string.settings_notifications_disabled_subtitle),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onErrorContainer
-                            )
-                        }
-                        Icon(
-                            imageVector = Icons.Default.ChevronRight,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                    }
-                }
-            }
+    val open = { url: String -> context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri())) }
 
-            // Preferences
-            SettingsSection(title = stringResource(R.string.settings_preferences_section)) {
-                SettingsItem(
-                    icon = Icons.Default.Settings,
-                    title = stringResource(R.string.settings_general_title),
-                    subtitle = stringResource(R.string.settings_general_subtitle),
-                    onClick = onNavigateToGeneral
-                )
-                SettingsItem(
-                    icon = Icons.Default.Category,
-                    title = stringResource(R.string.settings_categories_title),
-                    subtitle = stringResource(R.string.settings_categories_subtitle),
-                    onClick = onNavigateToCategories
-                )
-            }
-
-            // Appearance
-            SettingsSection(title = stringResource(R.string.settings_appearance_section)) {
-                SettingsItem(
-                    icon = Icons.Default.Palette,
-                    title = stringResource(R.string.settings_theme_title),
-                    subtitle = stringResource(R.string.settings_theme_subtitle),
-                    onClick = onNavigateToTheme
-                )
-            }
-
-            // Security
-            SettingsSection(title = stringResource(R.string.settings_security_section)) {
-                SettingsToggleItem(
-                    icon = Icons.Filled.Fingerprint,
-                    title = stringResource(R.string.settings_app_lock_title),
-                    subtitle = if (biometricAvailable) stringResource(R.string.settings_app_lock_available)
-                    else stringResource(R.string.settings_app_lock_unavailable),
-                    checked = isBiometricEnabled,
-                    enabled = biometricAvailable,
-                    onCheckedChange = { viewModel.setBiometricEnabled(it) }
-                )
-            }
-
-            // Privacy
-            SettingsSection(title = stringResource(R.string.settings_privacy_section)) {
-                SettingsToggleItem(
-                    icon = Icons.Default.Analytics,
-                    title = stringResource(R.string.settings_analytics_title),
-                    subtitle = stringResource(R.string.settings_analytics_subtitle),
-                    checked = isAnalyticsEnabled,
-                    onCheckedChange = { viewModel.setAnalyticsEnabled(it) }
-                )
-            }
-
-            // Data
-            SettingsSection(title = stringResource(R.string.settings_data_section)) {
-                SettingsItem(
-                    icon = Icons.Default.Backup,
-                    title = stringResource(R.string.settings_backup_title),
-                    subtitle = stringResource(R.string.settings_backup_subtitle),
-                    onClick = onNavigateToBackup
-                )
-                SettingsItem(
-                    icon = Icons.Default.DeleteForever,
-                    title = stringResource(R.string.settings_data_management_title),
-                    subtitle = stringResource(R.string.settings_data_management_subtitle),
-                    onClick = onNavigateToDataManagement
-                )
-            }
-
-            // About
-            SettingsSection(title = stringResource(R.string.settings_about_section)) {
-                SettingsItem(
-                    icon = Icons.Default.Info,
-                    title = stringResource(R.string.settings_app_version_title),
-                    subtitle = appVersion ?: "Unknown",
-                )
-                SettingsItem(
-                    icon = Icons.Default.Code,
-                    title = stringResource(R.string.settings_github_title),
-                    subtitle = stringResource(R.string.settings_github_subtitle),
+    SettingsScaffold(title = stringResource(R.string.settings_title), onNavigateBack = onNavigateBack) {
+        if (!notificationsEnabled.value) {
+            SettingsGroup(title = null) {
+                SettingsRow(
+                    index = 0, count = 1,
+                    icon = Icons.Outlined.NotificationsOff,
+                    iconContainer = MaterialTheme.colorScheme.error,
+                    iconContent = MaterialTheme.colorScheme.onError,
+                    title = stringResource(R.string.settings_notifications_disabled_title),
+                    subtitle = stringResource(R.string.settings_notifications_disabled_subtitle),
                     onClick = {
-                        val intent = Intent(
-                            Intent.ACTION_VIEW,
-                            "https://github.com/box-bm".toUri()
-                        )
-                        context.startActivity(intent)
-                    }
-                )
-                SettingsItem(
-                    icon = Icons.Default.Description,
-                    title = stringResource(R.string.settings_privacy_policy_title),
-                    subtitle = stringResource(R.string.settings_privacy_policy_subtitle),
-                    onClick = {
-                        val intent = Intent(
-                            Intent.ACTION_VIEW,
-                            "https://boxdev.me/en/legal/box-wallet/privacy-policy/".toUri()
-                        )
-                        context.startActivity(intent)
-                    }
+                        context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                            putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                        })
+                    },
                 )
             }
-
-            // Support
-            SettingsSection(title = stringResource(R.string.settings_support_section)) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            val intent = Intent(
-                                Intent.ACTION_VIEW,
-                                "https://buymeacoffee.com/boxdev".toUri()
-                            )
-                            context.startActivity(intent)
-                        },
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFFFFDD00)
-                    ),
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Coffee,
-                            contentDescription = stringResource(R.string.settings_buy_coffee),
-                            modifier = Modifier.size(40.dp),
-                            tint = Color(0xFF6B4423)
-                        )
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(horizontal = 16.dp)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.settings_buy_coffee),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF2D1810)
-                            )
-                            Text(
-                                text = stringResource(R.string.settings_buy_coffee_subtitle),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = Color(0xFF4A2F1A)
-                            )
-                        }
-                        Icon(
-                            imageVector = Icons.Default.ChevronRight,
-                            contentDescription = null,
-                            tint = Color(0xFF6B4423)
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
         }
-    }
-}
 
-@Composable
-private fun SettingsSection(
-    title: String,
-    content: @Composable () -> Unit
-) {
-    Column {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.padding(bottom = 8.dp, start = 4.dp)
-        )
-        Column(
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            content()
+        SettingsGroup(stringResource(R.string.settings_preferences_section)) {
+            SettingsRow(0, 3, Icons.Outlined.Tune, stringResource(R.string.settings_general_title),
+                stringResource(R.string.settings_general_subtitle), onNavigateToGeneral)
+            SettingsRow(1, 3, Icons.Outlined.Category, stringResource(R.string.settings_categories_title),
+                stringResource(R.string.settings_categories_subtitle), onNavigateToCategories)
+            SettingsRow(2, 3, Icons.Outlined.Palette, stringResource(R.string.settings_theme_title),
+                stringResource(R.string.settings_theme_subtitle), onNavigateToTheme)
         }
-    }
-}
 
-@Composable
-private fun SettingsItem(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: (() -> Unit)? = null
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = { onClick?.invoke() }, enabled = onClick != null),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(24.dp)
+        SettingsGroup(stringResource(R.string.settings_security_section)) {
+            SettingsSwitchRow(
+                index = 0, count = 2,
+                icon = Icons.Outlined.Fingerprint,
+                title = stringResource(R.string.settings_app_lock_title),
+                subtitle = stringResource(
+                    if (biometricAvailable) R.string.settings_app_lock_available else R.string.settings_app_lock_unavailable
+                ),
+                checked = isBiometricEnabled,
+                enabled = biometricAvailable,
+                onCheckedChange = viewModel::setBiometricEnabled,
             )
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyLarge
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-            if (onClick != null) {
-                Icon(
-                    imageVector = Icons.Default.ChevronRight,
-                    contentDescription = null,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SettingsToggleItem(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    enabled: Boolean = true,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Card() {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(24.dp)
+            SettingsSwitchRow(
+                index = 1, count = 2,
+                icon = Icons.Outlined.Insights,
+                title = stringResource(R.string.settings_analytics_title),
+                subtitle = stringResource(R.string.settings_analytics_subtitle),
+                checked = isAnalyticsEnabled,
+                onCheckedChange = viewModel::setAnalyticsEnabled,
             )
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(
-                        alpha = 0.38f
-                    )
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface.copy(
-                        alpha = 0.38f
-                    )
-                )
-            }
-            Switch(
-                checked = checked,
-                onCheckedChange = onCheckedChange,
-                enabled = enabled
+        }
+
+        SettingsGroup(stringResource(R.string.settings_data_section)) {
+            SettingsRow(0, 2, Icons.Outlined.Backup, stringResource(R.string.settings_backup_title),
+                stringResource(R.string.settings_backup_subtitle), onNavigateToBackup)
+            SettingsRow(1, 2, Icons.Outlined.DeleteForever, stringResource(R.string.settings_data_management_title),
+                stringResource(R.string.settings_data_management_subtitle), onNavigateToDataManagement)
+        }
+
+        SettingsGroup(stringResource(R.string.settings_about_section)) {
+            SettingsRow(0, 4, Icons.Outlined.Info, stringResource(R.string.settings_app_version_title), appVersion ?: "—")
+            SettingsRow(1, 4, Icons.Outlined.Code, stringResource(R.string.settings_github_title),
+                stringResource(R.string.settings_github_subtitle), { open("https://github.com/box-bm") },
+                trailing = { Icon(Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = null) })
+            SettingsRow(2, 4, Icons.Outlined.Description, stringResource(R.string.settings_privacy_policy_title),
+                stringResource(R.string.settings_privacy_policy_subtitle),
+                { open("https://boxdev.me/en/legal/box-wallet/privacy-policy/") },
+                trailing = { Icon(Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = null) })
+            SettingsRow(
+                index = 3, count = 4,
+                icon = Icons.Outlined.Coffee,
+                iconContainer = MaterialTheme.colorScheme.tertiaryContainer,
+                iconContent = MaterialTheme.colorScheme.onTertiaryContainer,
+                title = stringResource(R.string.settings_buy_coffee),
+                subtitle = stringResource(R.string.settings_buy_coffee_subtitle),
+                onClick = { open("https://buymeacoffee.com/boxdev") },
+                trailing = { Icon(Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = null) },
             )
         }
     }

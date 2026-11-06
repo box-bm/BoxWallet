@@ -2,6 +2,32 @@
 
 package com.boxdev.boxwallet.ui.screens.onboarding
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.outlined.RocketLaunch
+import androidx.compose.material.icons.outlined.Restore
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialShapes
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.semantics.Role
+import androidx.graphics.shapes.Morph
+import com.boxdev.boxwallet.ui.components.MorphShape
+import com.boxdev.boxwallet.ui.components.rememberReduceMotion
+import com.boxdev.boxwallet.ui.theme.BoxTheme
+import com.boxdev.boxwallet.ui.theme.isWide
+import kotlin.math.roundToInt
 import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -85,17 +111,17 @@ private data class OnboardingPage(
 
 private val onboardingPages = listOf(
     OnboardingPage(
-        icon = Icons.Default.AccountBalance,
+        icon = Icons.Outlined.AccountBalanceWallet,
         titleRes = R.string.onboarding_welcome_title,
         descriptionRes = R.string.onboarding_welcome_description
     ),
     OnboardingPage(
-        icon = Icons.Default.Receipt,
+        icon = Icons.AutoMirrored.Outlined.ReceiptLong,
         titleRes = R.string.onboarding_track_title,
         descriptionRes = R.string.onboarding_track_description
     ),
     OnboardingPage(
-        icon = Icons.Default.Analytics,
+        icon = Icons.Outlined.Shield,
         titleRes = R.string.onboarding_privacy_title,
         descriptionRes = R.string.onboarding_privacy_description
     )
@@ -144,403 +170,192 @@ fun OnboardingScreen(
         derivedStateOf { pagerState.currentPage == totalPages - 1 }
     }
 
-    Surface(
-        modifier = Modifier.fillMaxSize()
-    ) {
+    val wide = BoxTheme.widthClass.isWide
+    val heroPolygons = remember {
+        listOf(MaterialShapes.Cookie9Sided, MaterialShapes.Clover4Leaf, MaterialShapes.Gem, MaterialShapes.SoftBurst)
+    }
+    val heroIcons = onboardingPages.map { it.icon } + Icons.Outlined.RocketLaunch
+    val scheme = MaterialTheme.colorScheme
+    val heroColors = listOf(
+        scheme.primaryContainer to scheme.onPrimaryContainer,
+        scheme.tertiaryContainer to scheme.onTertiaryContainer,
+        scheme.secondaryContainer to scheme.onSecondaryContainer,
+        scheme.primary to scheme.onPrimary,
+    )
+
+    val hero: @Composable (Modifier) -> Unit = { modifier ->
+        OnboardingHero(pagerState, heroPolygons, heroIcons, heroColors, modifier)
+    }
+    val pager: @Composable (Modifier) -> Unit = { modifier ->
+        HorizontalPager(state = pagerState, modifier = modifier, verticalAlignment = Alignment.Top) { page ->
+            val title: Int
+            val body: Int
+            if (page < onboardingPages.size) {
+                title = onboardingPages[page].titleRes
+                body = onboardingPages[page].descriptionRes
+            } else {
+                title = R.string.onboarding_get_started_title
+                body = R.string.onboarding_get_started_description
+            }
+            Column(
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 28.dp),
+                horizontalAlignment = if (wide) Alignment.Start else Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    stringResource(title),
+                    style = MaterialTheme.typography.displaySmall,
+                    textAlign = if (wide) TextAlign.Start else TextAlign.Center,
+                )
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    stringResource(body),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = if (wide) TextAlign.Start else TextAlign.Center,
+                )
+                if (page == privacyPageIndex) {
+                    Spacer(Modifier.height(28.dp))
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        shape = MaterialTheme.shapes.large,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .toggleable(analyticsEnabled, role = Role.Switch, onValueChange = { analyticsEnabled = it }),
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                stringResource(R.string.onboarding_analytics_toggle),
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Switch(checked = analyticsEnabled, onCheckedChange = null)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    val controls: @Composable () -> Unit = {
         Column(
-            modifier = Modifier.fillMaxSize()
+            Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            // Top bar with Skip button
+            PageDots(pagerState.currentPage, totalPages)
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (isLastPage) {
+                    Button(
+                        onClick = { viewModel.completeOnboarding(analyticsEnabled); onComplete() },
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.MediumContentPadding,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                    ) { Text(stringResource(R.string.onboarding_get_started_button), style = MaterialTheme.typography.titleMedium) }
+                    FilledTonalButton(
+                        onClick = { showRestoreDialog = true },
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.MediumContentPadding,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                    ) {
+                        Icon(Icons.Outlined.Restore, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.onboarding_restore_from_backup), style = MaterialTheme.typography.titleMedium)
+                    }
+                } else {
+                    Button(
+                        onClick = { coroutineScope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) } },
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.MediumContentPadding,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                    ) { Text(stringResource(R.string.onboarding_next), style = MaterialTheme.typography.titleMedium) }
+                }
+            }
+        }
+    }
+
+    Surface(modifier = Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().safeDrawingPadding()) {
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                contentAlignment = Alignment.CenterEnd
+                Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 16.dp),
+                contentAlignment = Alignment.CenterEnd,
             ) {
                 if (!isLastPage) {
-                    TextButton(
-                        onClick = {
-                            coroutineScope.launch {
-                                pagerState.animateScrollToPage(totalPages - 1)
-                            }
-                        }
-                    ) {
+                    TextButton(onClick = { coroutineScope.launch { pagerState.animateScrollToPage(totalPages - 1) } }) {
                         Text(stringResource(R.string.onboarding_skip))
                     }
                 }
             }
-
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.weight(1f)
-            ) { page ->
-                val isCurrentPage by remember {
-                    derivedStateOf { pagerState.currentPage == page }
-                }
-
-                if (page < onboardingPages.size) {
-                    if (page == privacyPageIndex) {
-                        PrivacyPage(
-                            page = onboardingPages[page],
-                            analyticsEnabled = analyticsEnabled,
-                            onAnalyticsToggle = { analyticsEnabled = it },
-                            isActive = isCurrentPage
-                        )
-                    } else {
-                        FeaturePage(
-                            page = onboardingPages[page],
-                            isActive = isCurrentPage
-                        )
-                    }
-                } else {
-                    GetStartedPage(
-                        isActive = isCurrentPage
-                    )
-                }
-            }
-
-            // Bottom: dots + action button
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(20.dp)
-            ) {
-                // Dot indicators
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    repeat(totalPages) { index ->
-                        val isSelected = pagerState.currentPage == index
-                        val width by animateDpAsState(
-                            targetValue = if (isSelected) 28.dp else 8.dp,
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessMedium
-                            ),
-                            label = "dot_width"
-                        )
-                        val color by animateColorAsState(
-                            targetValue = if (isSelected)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.outlineVariant,
-                            label = "dot_color"
-                        )
-                        Box(
-                            modifier = Modifier
-                                .height(8.dp)
-                                .width(width)
-                                .clip(CircleShape)
-                                .background(color)
-                        )
+            if (wide) {
+                Row(Modifier.weight(1f).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    hero(Modifier.weight(1f))
+                    Column(Modifier.weight(1f).fillMaxHeight().widthIn(max = 520.dp), verticalArrangement = Arrangement.Center) {
+                        pager(Modifier.weight(1f, fill = false).heightIn(min = 240.dp))
+                        controls()
                     }
                 }
-
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    if (isLastPage) {
-                        Button(
-                            onClick = { showRestoreDialog = true },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.extraLarge
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Restore,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(stringResource(R.string.onboarding_restore_from_backup))
-                        }
-
-                        FilledTonalButton(
-                            onClick = {
-                                viewModel.completeOnboarding(analyticsEnabled)
-                                onComplete()
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.extraLarge
-                        ) {
-                            Text(stringResource(R.string.onboarding_get_started_button))
-                        }
-                    } else {
-                        Button(
-                            onClick = {
-                                coroutineScope.launch {
-                                    pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.extraLarge
-                        ) {
-                            Text(stringResource(R.string.onboarding_next))
-                        }
-                    }
-                }
+            } else {
+                hero(Modifier.fillMaxWidth().weight(0.9f))
+                pager(Modifier.fillMaxWidth().weight(1f))
+                controls()
             }
         }
     }
 }
 
+/**
+ * One hero shape for the whole flow: it morphs between each page's polygon as the pager moves,
+ * so swiping feels like reshaping one object rather than flipping cards.
+ */
 @Composable
-private fun FeaturePage(
-    page: OnboardingPage,
-    isActive: Boolean
+private fun OnboardingHero(
+    pagerState: androidx.compose.foundation.pager.PagerState,
+    polygons: List<androidx.graphics.shapes.RoundedPolygon>,
+    icons: List<ImageVector>,
+    colors: List<Pair<Color, Color>>,
+    modifier: Modifier = Modifier,
 ) {
-    val iconScale by animateFloatAsState(
-        targetValue = if (isActive) 1f else 0.6f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMediumLow
-        ),
-        label = "icon_scale"
-    )
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        // Large tonal icon container
+    val reduceMotion = rememberReduceMotion()
+    val morphs = remember(polygons) { polygons.zipWithNext { a, b -> Morph(a, b) } }
+    val position = pagerState.currentPage + pagerState.currentPageOffsetFraction
+    val from = position.toInt().coerceIn(0, morphs.lastIndex)
+    val fraction = (position - from).coerceIn(0f, 1f)
+    val nearest = position.roundToInt().coerceIn(0, icons.lastIndex)
+    val container = lerp(colors[from].first, colors[(from + 1).coerceAtMost(colors.lastIndex)].first, fraction)
+    val iconTint = colors[nearest].second
+    Box(modifier, contentAlignment = Alignment.Center) {
         Box(
-            modifier = Modifier
-                .size(160.dp)
-                .scale(iconScale)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = page.icon,
-                contentDescription = null,
-                modifier = Modifier.size(80.dp),
-                tint = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-        }
-
-        Spacer(modifier = Modifier.height(48.dp))
-
-        AnimatedVisibility(
-            visible = isActive,
-            enter = fadeIn(
-                animationSpec = spring(stiffness = Spring.StiffnessLow)
-            ) + slideInVertically(
-                initialOffsetY = { it / 4 },
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioLowBouncy,
-                    stiffness = Spring.StiffnessMediumLow
-                )
-            )
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = stringResource(page.titleRes),
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = stringResource(page.descriptionRes),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                )
-            }
+            Modifier
+                .fillMaxHeight(0.82f)
+                .aspectRatio(1f)
+                .graphicsLayer { rotationZ = if (reduceMotion) 0f else position * 45f }
+                .clip(MorphShape(morphs[from], fraction))
+                .background(container),
+        )
+        Crossfade(targetState = nearest, label = "heroIcon") { i ->
+            Icon(icons[i], contentDescription = null, tint = iconTint, modifier = Modifier.size(88.dp))
         }
     }
 }
 
 @Composable
-private fun PrivacyPage(
-    page: OnboardingPage,
-    analyticsEnabled: Boolean,
-    onAnalyticsToggle: (Boolean) -> Unit,
-    isActive: Boolean
-) {
-    val iconScale by animateFloatAsState(
-        targetValue = if (isActive) 1f else 0.6f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMediumLow
-        ),
-        label = "icon_scale"
-    )
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Box(
-            modifier = Modifier
-                .size(160.dp)
-                .scale(iconScale)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = page.icon,
-                contentDescription = null,
-                modifier = Modifier.size(80.dp),
-                tint = MaterialTheme.colorScheme.onPrimaryContainer
+private fun PageDots(current: Int, total: Int) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        repeat(total) { index ->
+            val selected = current == index
+            val width by animateDpAsState(
+                if (selected) 28.dp else 8.dp,
+                MaterialTheme.motionScheme.fastSpatialSpec(),
+                label = "dot",
             )
-        }
-
-        Spacer(modifier = Modifier.height(48.dp))
-
-        AnimatedVisibility(
-            visible = isActive,
-            enter = fadeIn(
-                animationSpec = spring(stiffness = Spring.StiffnessLow)
-            ) + slideInVertically(
-                initialOffsetY = { it / 4 },
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioLowBouncy,
-                    stiffness = Spring.StiffnessMediumLow
-                )
+            Box(
+                Modifier
+                    .height(8.dp)
+                    .width(width)
+                    .clip(CircleShape)
+                    .background(if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)
             )
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = stringResource(page.titleRes),
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = stringResource(page.descriptionRes),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                )
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                    ),
-                    shape = MaterialTheme.shapes.extraLarge
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = stringResource(R.string.onboarding_analytics_toggle),
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Switch(
-                            checked = analyticsEnabled,
-                            onCheckedChange = onAnalyticsToggle
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun GetStartedPage(
-    isActive: Boolean
-) {
-    val iconScale by animateFloatAsState(
-        targetValue = if (isActive) 1f else 0.6f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMediumLow
-        ),
-        label = "icon_scale"
-    )
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Box(
-            modifier = Modifier
-                .size(160.dp)
-                .scale(iconScale)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.tertiaryContainer),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.Backup,
-                contentDescription = null,
-                modifier = Modifier.size(80.dp),
-                tint = MaterialTheme.colorScheme.onTertiaryContainer
-            )
-        }
-
-        Spacer(modifier = Modifier.height(48.dp))
-
-        AnimatedVisibility(
-            visible = isActive,
-            enter = fadeIn(
-                animationSpec = spring(stiffness = Spring.StiffnessLow)
-            ) + slideInVertically(
-                initialOffsetY = { it / 4 },
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioLowBouncy,
-                    stiffness = Spring.StiffnessMediumLow
-                )
-            )
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = stringResource(R.string.onboarding_get_started_title),
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = stringResource(R.string.onboarding_get_started_description),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                )
-            }
         }
     }
 }

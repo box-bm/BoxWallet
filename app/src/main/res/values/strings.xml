@@ -380,4 +380,32 @@
     <string name="description_optional">Description (Optional)</string>
     <string name="nav_analytics">Reports</string>
 
+    <!-- Expressive redesign -->
+    <string name="fab_new">New</string>
+    <string name="home_this_month">This month · %1$s</string>
+    <string name="home_no_transactions_hint">Tap + to log your first income or expense.</string>
+    <string name="loan_next_due">Next due %1$s</string>
+    <string name="transaction_scheduled">Scheduled</string>
+    <string name="date_today">Today</string>
+    <string name="date_yesterday">Yesterday</string>
+    <plurals name="records_count">
+        <item quantity="one">%1$d movement</item>
+        <item quantity="other">%1$d movements</item>
+    </plurals>
+    <string name="loans_select_hint">Select a loan to see its installments</string>
+    <plurals name="loan_days_overdue">
+        <item quantity="one">%1$d day overdue</item>
+        <item quantity="other">%1$d days overdue</item>
+    </plurals>
+    <plurals name="loan_days_until">
+        <item quantity="one">In %1$d day</item>
+        <item quantity="other">In %1$d days</item>
+    </plurals>
+    <string name="analytics_previous_period">Previous period</string>
+    <string name="analytics_next_period">Next period</string>
+    <string name="form_when">Date &amp; time</string>
+    <string name="form_options">Options</string>
+    <string name="loan_terms">Terms</string>
+    <string name="home_month_net">Net</string>
+    <string name="theme_preview">Preview</string>
 </resources>

@@ -7,35 +7,23 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material.icons.outlined.EventRepeat
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -47,7 +35,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -55,9 +42,9 @@ import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.domain.model.LoanType
 import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.ui.screens.loans.LoanFormViewModel
+import com.boxdev.boxwallet.ui.theme.BoxTheme
 import com.boxdev.boxwallet.util.rememberCurrencyFormatter
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun LoanSheet(
     loanId: Long?,
@@ -68,236 +55,156 @@ fun LoanSheet(
     val categories by viewModel.categories.collectAsState()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showDeleteDialog by remember { mutableStateOf(false) }
-    var loanTypeExpanded by remember { mutableStateOf(false) }
-    var frequencyExpanded by remember { mutableStateOf(false) }
+    val pickers = rememberDateTimePickerState()
     val formatter = rememberCurrencyFormatter()
+    val money = BoxTheme.money
 
     LaunchedEffect(loanId) { viewModel.loadLoan(loanId) }
     LaunchedEffect(formState.isSaved) { if (formState.isSaved) onDismiss() }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .wrapContentHeight()
-                .padding(horizontal = 16.dp)
-        ) {
-            // Header
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = if (formState.isEditing) stringResource(R.string.loan_edit_title) else stringResource(R.string.loan_new_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                if (formState.isEditing) {
-                    IconButton(onClick = { showDeleteDialog = true }) {
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = stringResource(R.string.action_delete),
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
-            }
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+            SheetHeader(
+                title = stringResource(if (formState.isEditing) R.string.loan_edit_title else R.string.loan_new_title),
+                onDelete = if (formState.isEditing) ({ showDeleteDialog = true }) else null,
+            )
 
             if (formState.isLoading) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    LoadingIndicator()
-                }
-            } else {
-                Column(
-                    modifier = Modifier
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Loan name
+                Box(Modifier.fillMaxWidth().height(240.dp), contentAlignment = Alignment.Center) { LoadingIndicator() }
+                return@Column
+            }
+
+            Column(
+                modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+            ) {
+                ConnectedChoiceRow(
+                    options = LoanType.entries,
+                    selected = formState.loanType,
+                    onSelect = viewModel::updateLoanType,
+                    label = { stringResource(it.displayNameRes) },
+                    icon = { trendIcon(it == LoanType.INCOME) },
+                    colors = {
+                        val income = it == LoanType.INCOME
+                        ToggleButtonDefaults.toggleButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            checkedContainerColor = if (income) money.incomeContainer else money.expenseContainer,
+                            checkedContentColor = if (income) money.onIncomeContainer else money.onExpenseContainer,
+                        )
+                    },
+                )
+
+                AmountField(
+                    value = formState.totalAmount,
+                    onValueChange = viewModel::updateTotalAmount,
+                    symbol = formatter.symbol,
+                    kind = if (formState.loanType == LoanType.INCOME) AmountKind.Income else AmountKind.Expense,
+                    label = stringResource(R.string.loan_total_amount_label),
+                    isError = formState.error != null && formState.totalAmount.isEmpty(),
+                    autoFocus = !formState.isEditing,
+                )
+
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(
                         value = formState.name,
-                        onValueChange = { viewModel.updateName(it) },
+                        onValueChange = viewModel::updateName,
                         label = { Text(stringResource(R.string.loan_name_label)) },
                         placeholder = { Text(stringResource(R.string.loan_name_placeholder)) },
+                        shape = MaterialTheme.shapes.large,
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        singleLine = true,
                     )
-
-                    // Description
                     OutlinedTextField(
                         value = formState.description,
-                        onValueChange = { viewModel.updateDescription(it) },
+                        onValueChange = viewModel::updateDescription,
                         label = { Text(stringResource(R.string.description_optional)) },
+                        shape = MaterialTheme.shapes.large,
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        singleLine = true,
                     )
-
-                    // Amount + Installments side by side
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
-                            value = formState.totalAmount,
-                            onValueChange = { viewModel.updateTotalAmount(it) },
-                            label = { Text(stringResource(R.string.loan_total_amount_label)) },
-                            placeholder = { Text(stringResource(R.string.transaction_amount_placeholder)) },
-                            prefix = { Text(formatter.symbol, style = MaterialTheme.typography.bodyLarge) },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            singleLine = true,
-                            modifier = Modifier.weight(1f),
-                            isError = formState.error != null && formState.totalAmount.isEmpty()
-                        )
-
-                        OutlinedTextField(
-                            value = formState.installments,
-                            onValueChange = { viewModel.updateInstallments(it) },
-                            label = { Text(stringResource(R.string.loan_installments_label)) },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            singleLine = true,
-                            modifier = Modifier.weight(0.7f)
-                        )
-                    }
-
-                    // Installment preview
-                    formState.installmentAmount?.let { amount ->
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.loan_each_installment, formatter.format(amount), stringResource(formState.frequency.displayNameRes)),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(12.dp),
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        }
-                    }
-
-                    // Date + Time side by side
-                    DateTimeFields(
-                        dateTime = formState.startDate,
-                        dateLabel = stringResource(R.string.loan_start_date),
-                        onDateChange = viewModel::updateStartDate,
-                        onTimeChange = viewModel::updateTime
-                    )
-
-                    CategoryDropdownField(
-                        categories = categories,
-                        selectedCategoryId = formState.categoryId,
-                        onCategorySelected = viewModel::updateCategory
-                    )
-
-                    // Loan Type + Frequency side by side
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ExposedDropdownMenuBox(
-                            expanded = loanTypeExpanded,
-                            onExpandedChange = { loanTypeExpanded = it },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            OutlinedTextField(
-                                value = stringResource(formState.loanType.displayNameRes),
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { Text(stringResource(R.string.loan_type_label)) },
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = loanTypeExpanded) },
-                                modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                            )
-                            ExposedDropdownMenu(
-                                expanded = loanTypeExpanded,
-                                onDismissRequest = { loanTypeExpanded = false }
-                            ) {
-                                LoanType.entries.forEach { type ->
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(type.displayNameRes)) },
-                                        onClick = { viewModel.updateLoanType(type); loanTypeExpanded = false },
-                                        trailingIcon = {
-                                            if (formState.loanType == type) {
-                                                Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                            }
-                                        }
-                                    )
-                                }
-                            }
-                        }
-
-                        ExposedDropdownMenuBox(
-                            expanded = frequencyExpanded,
-                            onExpandedChange = { frequencyExpanded = it },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            OutlinedTextField(
-                                value = stringResource(formState.frequency.displayNameRes),
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { Text(stringResource(R.string.transaction_frequency_label)) },
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = frequencyExpanded) },
-                                modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                            )
-                            ExposedDropdownMenu(
-                                expanded = frequencyExpanded,
-                                onDismissRequest = { frequencyExpanded = false }
-                            ) {
-                                RecurrenceFrequency.entries.forEach { freq ->
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(freq.displayNameRes)) },
-                                        onClick = { viewModel.updateFrequency(freq); frequencyExpanded = false },
-                                        trailingIcon = {
-                                            if (formState.frequency == freq) {
-                                                Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                            }
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // Custom interval (only when CUSTOM_MONTHS)
-                    AnimatedVisibility(visible = formState.frequency == RecurrenceFrequency.CUSTOM_MONTHS) {
-                        OutlinedTextField(
-                            value = formState.frequencyInterval,
-                            onValueChange = { viewModel.updateFrequencyInterval(it) },
-                            label = { Text(stringResource(R.string.transaction_every_n_months)) },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
                 }
 
-                // Buttons pinned at bottom
-                Column(
-                    modifier = Modifier.padding(vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = { viewModel.save() },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        enabled = formState.isValid
-                    ) {
-                        Text(if (formState.isEditing) stringResource(R.string.transaction_update) else stringResource(R.string.loan_create))
-                    }
-                    if (formState.isEditing) {
-                        OutlinedButton(
-                            onClick = { showDeleteDialog = true },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                CategoryPicker(
+                    categories = categories,
+                    selectedCategoryId = formState.categoryId,
+                    onCategorySelected = viewModel::updateCategory,
+                )
+
+                // Terms: how many installments, how often, starting when.
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        stringResource(R.string.loan_terms),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 4.dp),
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = formState.installments,
+                            onValueChange = viewModel::updateInstallments,
+                            label = { Text(stringResource(R.string.loan_installments_label)) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            shape = MaterialTheme.shapes.large,
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                        )
+                        AnimatedVisibility(
+                            visible = formState.frequency == RecurrenceFrequency.CUSTOM_MONTHS,
+                            modifier = Modifier.weight(1f),
                         ) {
-                            Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
-                            Text(stringResource(R.string.loan_delete_button))
+                            OutlinedTextField(
+                                value = formState.frequencyInterval,
+                                onValueChange = viewModel::updateFrequencyInterval,
+                                label = { Text(stringResource(R.string.transaction_every_n_months)) },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                shape = MaterialTheme.shapes.large,
+                                singleLine = true,
+                            )
+                        }
+                    }
+                    OptionGroup {
+                        MenuRow(
+                            shape = groupShape(0, 3),
+                            icon = Icons.Outlined.EventRepeat,
+                            label = stringResource(R.string.transaction_frequency_label),
+                            value = stringResource(formState.frequency.displayNameRes),
+                            options = RecurrenceFrequency.entries,
+                            optionLabel = { stringResource(it.displayNameRes) },
+                            onSelect = viewModel::updateFrequency,
+                        )
+                        DateRow(groupShape(1, 3), stringResource(R.string.loan_start_date), formState.startDate, pickers)
+                        TimeRow(groupShape(2, 3), formState.startDate, pickers)
+                    }
+                    formState.installmentAmount?.let { amount ->
+                        Surface(
+                            color = MaterialTheme.colorScheme.tertiaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                            shape = MaterialTheme.shapes.large,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                text = stringResource(
+                                    R.string.loan_each_installment,
+                                    formatter.format(amount),
+                                    stringResource(formState.frequency.displayNameRes),
+                                ),
+                                style = MaterialTheme.typography.titleSmall,
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+                            )
                         }
                     }
                 }
             }
+
+            SheetPrimaryButton(
+                text = stringResource(if (formState.isEditing) R.string.transaction_update else R.string.loan_create),
+                enabled = formState.isValid,
+                onClick = viewModel::save,
+            )
         }
     }
+
+    DateTimePickerDialogs(pickers, formState.startDate, viewModel::updateStartDate, viewModel::updateTime)
 
     if (showDeleteDialog) {
         ConfirmDeleteDialog(

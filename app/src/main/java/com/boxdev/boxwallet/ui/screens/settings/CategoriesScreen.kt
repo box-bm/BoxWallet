@@ -2,6 +2,18 @@
 
 package com.boxdev.boxwallet.ui.screens.settings
 
+import com.boxdev.boxwallet.ui.components.segmentShapes
+
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material.icons.outlined.Category
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material3.MediumExtendedFloatingActionButton
+import androidx.compose.material3.SegmentedListItem
+import androidx.compose.material3.ListItemDefaults
+import com.boxdev.boxwallet.ui.components.CategoryBadge
+import com.boxdev.boxwallet.ui.components.ConfirmDeleteDialog
+import com.boxdev.boxwallet.ui.components.EmptyState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -24,7 +36,6 @@ import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.util.categoryIconOptions
 import com.boxdev.boxwallet.util.categoryIconVector
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun CategoriesScreen(
     onNavigateBack: () -> Unit,
@@ -35,64 +46,45 @@ fun CategoriesScreen(
     var editingCategory by remember { mutableStateOf<Category?>(null) }
     var deleteConfirmCategory by remember { mutableStateOf<Category?>(null) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.categories_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
-                    }
-                }
+    SettingsScaffold(
+        title = stringResource(R.string.categories_title),
+        onNavigateBack = onNavigateBack,
+        floatingActionButton = {
+            MediumExtendedFloatingActionButton(
+                onClick = { showAddDialog = true },
+                icon = { Icon(Icons.Default.Add, contentDescription = null) },
+                text = { Text(stringResource(R.string.categories_add)) },
             )
         },
-        floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDialog = true }) {
-                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.categories_add))
-            }
-        }
-    ) { paddingValues ->
-        if (uiState.isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) { LoadingIndicator() }
-        } else if (uiState.categories.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Category,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                    )
-                    Text(stringResource(R.string.categories_no_categories), style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(stringResource(R.string.categories_tap_to_create), style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(paddingValues),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(uiState.categories) { category ->
-                    CategoryItem(
-                        category = category,
-                        onEdit = { editingCategory = category },
-                        onDelete = { deleteConfirmCategory = category }
-                    )
+    ) {
+        when {
+            uiState.isLoading -> Box(Modifier.fillMaxWidth().height(240.dp), contentAlignment = Alignment.Center) { LoadingIndicator() }
+            uiState.categories.isEmpty() -> EmptyState(
+                icon = Icons.Outlined.Category,
+                title = stringResource(R.string.categories_no_categories),
+                message = stringResource(R.string.categories_tap_to_create),
+            )
+            else -> SettingsGroup(title = null) {
+                val count = uiState.categories.size
+                uiState.categories.forEachIndexed { index, category ->
+                    val interaction = remember { MutableInteractionSource() }
+                    SegmentedListItem(
+                        onClick = { editingCategory = category },
+                        shapes = segmentShapes(index = index, count = count),
+                        colors = settingsRowColors(),
+                        interactionSource = interaction,
+                        leadingContent = { CategoryBadge(category = category, interactionSource = interaction) },
+                        supportingContent = category.description.takeIf { it.isNotBlank() }?.let { { Text(it, maxLines = 2) } },
+                        trailingContent = {
+                            IconButton(onClick = { deleteConfirmCategory = category }) {
+                                Icon(Icons.Outlined.DeleteOutline, contentDescription = stringResource(R.string.action_delete))
+                            }
+                        },
+                    ) { Text(category.name) }
                 }
             }
         }
+        Spacer(Modifier.height(88.dp))
     }
 
     if (showAddDialog) {
@@ -118,62 +110,12 @@ fun CategoriesScreen(
     }
 
     deleteConfirmCategory?.let { category ->
-        AlertDialog(
-            onDismissRequest = { deleteConfirmCategory = null },
-            title = { Text(stringResource(R.string.categories_delete_title)) },
-            text = { Text(stringResource(R.string.categories_delete_message, category.name)) },
-            confirmButton = {
-                TextButton(onClick = { viewModel.deleteCategory(category.id); deleteConfirmCategory = null }) {
-                    Text(stringResource(R.string.action_delete))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { deleteConfirmCategory = null }) { Text(stringResource(R.string.action_cancel)) }
-            }
+        ConfirmDeleteDialog(
+            title = stringResource(R.string.categories_delete_title),
+            message = stringResource(R.string.categories_delete_message, category.name),
+            onConfirm = { viewModel.deleteCategory(category.id) },
+            onDismiss = { deleteConfirmCategory = null },
         )
-    }
-}
-
-@Composable
-private fun CategoryItem(
-    category: Category,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
-) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                Icon(
-                    imageVector = categoryIconVector(category.icon),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(32.dp)
-                )
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(text = category.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
-                    if (category.description.isNotBlank()) {
-                        Text(text = category.description, style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                IconButton(onClick = onEdit) {
-                    Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.action_edit))
-                }
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.action_delete), tint = MaterialTheme.colorScheme.error)
-                }
-            }
-        }
     }
 }
 

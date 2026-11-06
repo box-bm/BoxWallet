@@ -1,146 +1,122 @@
 package com.boxdev.boxwallet.ui.screens.settings
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
+import android.os.Build
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.outlined.LightMode
+import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.BrightnessAuto
+import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Switch
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.boxdev.boxwallet.R
+import com.boxdev.boxwallet.ui.components.ConnectedChoiceRow
+import com.boxdev.boxwallet.ui.theme.BoxTheme
 import com.boxdev.boxwallet.data.datastore.ThemeMode
 
-@OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
 fun ThemeCustomizationScreen(
     onNavigateBack: () -> Unit,
     viewModel: ThemeViewModel = hiltViewModel()
 ) {
     val themeSettings by viewModel.themeSettings.collectAsState()
-    val themeModes = ThemeMode.entries
-    val selectedIndex = themeModes.indexOf(themeSettings.themeMode)
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
+    SettingsScaffold(title = stringResource(R.string.theme_title), onNavigateBack = onNavigateBack) {
+        SettingsGroup(stringResource(R.string.theme_appearance)) {
+            Surface(color = MaterialTheme.colorScheme.surfaceContainer, shape = MaterialTheme.shapes.large) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text(
-                        text = stringResource(R.string.theme_title)
+                        stringResource(R.string.theme_appearance_description),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.action_back)
+                    ConnectedChoiceRow(
+                        options = ThemeMode.entries,
+                        selected = themeSettings.themeMode,
+                        onSelect = viewModel::updateThemeMode,
+                        label = {
+                            when (it) {
+                                ThemeMode.LIGHT -> stringResource(R.string.theme_light)
+                                ThemeMode.DARK -> stringResource(R.string.theme_dark)
+                                ThemeMode.SYSTEM -> stringResource(R.string.theme_system)
+                            }
+                        },
+                        icon = {
+                            when (it) {
+                                ThemeMode.LIGHT -> Icons.Outlined.LightMode
+                                ThemeMode.DARK -> Icons.Outlined.DarkMode
+                                ThemeMode.SYSTEM -> Icons.Outlined.BrightnessAuto
+                            }
+                        },
+                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            stringResource(R.string.theme_preview),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        PaletteStrip()
                     }
-                },
-            )
+                }
+            }
         }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Theme Mode Selector
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.theme_appearance),
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Text(
-                        text = stringResource(R.string.theme_appearance_description),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    SingleChoiceSegmentedButtonRow(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        themeModes.forEachIndexed { index, mode ->
-                            SegmentedButton(
-                                shape = SegmentedButtonDefaults.itemShape(
-                                    index = index,
-                                    count = themeModes.size
-                                ),
-                                onClick = { viewModel.updateThemeMode(mode) },
-                                selected = index == selectedIndex,
-                                label = {
-                                    Text(
-                                        when (mode) {
-                                            ThemeMode.LIGHT -> stringResource(R.string.theme_light)
-                                            ThemeMode.DARK -> stringResource(R.string.theme_dark)
-                                            ThemeMode.SYSTEM -> stringResource(R.string.theme_system)
-                                        }
-                                    )
-                                }
-                            )
-                        }
-                    }
-                }
-            }
 
-            // Dynamic Colors Toggle (Android 12+)
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.theme_dynamic_colors),
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Text(
-                            text = stringResource(R.string.theme_dynamic_colors_description),
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                    Switch(
-                        checked = themeSettings.useDynamicColors,
-                        onCheckedChange = { viewModel.updateUseDynamicColors(it) }
-                    )
-                }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            SettingsGroup(title = null) {
+                SettingsSwitchRow(
+                    index = 0, count = 1,
+                    icon = Icons.Outlined.Wallpaper,
+                    title = stringResource(R.string.theme_dynamic_colors),
+                    subtitle = stringResource(R.string.theme_dynamic_colors_description),
+                    checked = themeSettings.useDynamicColors,
+                    onCheckedChange = viewModel::updateUseDynamicColors,
+                )
             }
+        }
+    }
+}
+
+/** The live palette: what the current choice paints the app with. */
+@Composable
+private fun PaletteStrip() {
+    val scheme = MaterialTheme.colorScheme
+    val money = BoxTheme.money
+    val swatches = listOf(scheme.primary, scheme.secondaryContainer, scheme.tertiaryContainer, money.income, money.expense)
+    Row(Modifier.fillMaxWidth().height(32.dp).clearAndSetSemantics { }, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        swatches.forEachIndexed { i, color ->
+            Box(
+                Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clip(
+                        when (i) {
+                            0 -> RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp, topEnd = 6.dp, bottomEnd = 6.dp)
+                            swatches.lastIndex -> RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp, topEnd = 24.dp, bottomEnd = 24.dp)
+                            else -> RoundedCornerShape(6.dp)
+                        }
+                    )
+                    .background(color)
+            )
         }
     }
 }

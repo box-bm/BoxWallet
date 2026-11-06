@@ -55,7 +55,9 @@ data class CategoryExpenseData(
     val iconName: String,
     val amount: Double,
     val percentage: Float,
-    val color: Color
+    val color: Color,
+    /** The category itself, so the UI can draw its shape token. Null for uncategorized. */
+    val category: Category? = null,
 )
 
 data class FinancialMetrics(
@@ -249,7 +251,8 @@ class AnalyticsViewModel @Inject constructor(
                 iconName = icon,
                 amount = amount,
                 percentage = ((amount / totalExpenses) * 100).toFloat(),
-                color = colors[index % colors.size]
+                color = colors[index % colors.size],
+                category = category,
             )
         }.sortedByDescending { it.amount }
     }

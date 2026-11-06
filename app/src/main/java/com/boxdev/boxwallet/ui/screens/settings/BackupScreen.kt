@@ -2,6 +2,18 @@
 
 package com.boxdev.boxwallet.ui.screens.settings
 
+import com.boxdev.boxwallet.ui.components.segmentShapes
+
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.CloudUpload
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Restore
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.SegmentedListItem
+import androidx.compose.material3.ListItemDefaults
+import com.boxdev.boxwallet.ui.components.ConfirmDeleteDialog
+import com.boxdev.boxwallet.ui.components.EmptyState
 import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -108,254 +120,88 @@ fun BackupScreen(
     }
 
     showDeleteDialog?.let { fileId ->
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = null },
-            title = { Text(stringResource(R.string.backup_delete_title)) },
-            text = { Text(stringResource(R.string.backup_delete_message)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showDeleteDialog = null
-                    viewModel.deleteBackup(fileId)
-                }) {
-                    Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = null }) {
-                    Text(stringResource(R.string.action_cancel))
-                }
-            }
+        ConfirmDeleteDialog(
+            title = stringResource(R.string.backup_delete_title),
+            message = stringResource(R.string.backup_delete_message),
+            onConfirm = { viewModel.deleteBackup(fileId) },
+            onDismiss = { showDeleteDialog = null },
         )
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(text = stringResource(R.string.backup_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.action_back)
-                        )
+    val dateFormat = remember { SimpleDateFormat("MMM d, yyyy · HH:mm", Locale.getDefault()) }
+
+    SettingsScaffold(
+        title = stringResource(R.string.backup_title),
+        onNavigateBack = onNavigateBack,
+        snackbarHostState = snackBarHostState,
+    ) {
+        if (!uiState.isSignedIn) {
+            EmptyState(
+                icon = Icons.Outlined.CloudUpload,
+                title = stringResource(R.string.backup_drive_title),
+                message = stringResource(R.string.backup_drive_description),
+                modifier = Modifier.padding(top = 32.dp),
+                action = {
+                    Button(
+                        onClick = { signInLauncher.launch(viewModel.getSignInIntent()) },
+                        enabled = !uiState.isLoading,
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.MediumContentPadding,
+                        modifier = Modifier.heightIn(min = 56.dp),
+                    ) {
+                        if (uiState.isLoading) LoadingIndicator(Modifier.size(24.dp).padding(end = 8.dp))
+                        Text(stringResource(R.string.backup_sign_in), style = MaterialTheme.typography.titleMedium)
                     }
                 },
             )
-        },
-        snackbarHost = { SnackbarHost(snackBarHostState) }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            if (!uiState.isSignedIn) {
-                // Signed-out state
-                SignedOutContent(
-                    isLoading = uiState.isLoading,
-                    onSignIn = { signInLauncher.launch(viewModel.getSignInIntent()) }
-                )
-            } else {
-                // Signed-in state
-                AccountInfoCard(
-                    email = uiState.accountEmail ?: "",
-                    displayName = uiState.accountDisplayName,
-                    onSignOut = { viewModel.signOut() }
-                )
-
-                Button(
-                    onClick = { viewModel.createBackup() },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !uiState.isLoading
-                ) {
-                    if (uiState.isLoading) {
-                        LoadingIndicator(
-                            modifier = Modifier.padding(end = 8.dp),
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.CloudUpload,
-                            contentDescription = null,
-                            modifier = Modifier.padding(end = 8.dp)
-                        )
-                    }
-                    Text(stringResource(R.string.backup_to_drive))
-                }
-
-                Text(
-                    text = stringResource(R.string.backup_available),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-
-                if (uiState.isLoadingBackups) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        LoadingIndicator()
-                    }
-                } else if (uiState.backupFiles.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = stringResource(R.string.backup_no_backups),
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(uiState.backupFiles) { file ->
-                            DriveBackupFileItem(
-                                file = file,
-                                onRestore = { showRestoreDialog = file.id },
-                                onDelete = { showDeleteDialog = file.id }
-                            )
-                        }
-                    }
-                }
-            }
+            return@SettingsScaffold
         }
-    }
-}
 
-@Composable
-private fun SignedOutContent(
-    isLoading: Boolean,
-    onSignIn: () -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            imageVector = Icons.Default.Backup,
-            contentDescription = null,
-            modifier = Modifier.size(64.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = stringResource(R.string.backup_drive_title),
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.SemiBold
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = stringResource(R.string.backup_drive_description),
-            style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 32.dp)
-        )
-        Spacer(modifier = Modifier.height(24.dp))
-        Button(
-            onClick = onSignIn,
-            enabled = !isLoading
-        ) {
-            if (isLoading) {
-                LoadingIndicator(
-                    modifier = Modifier.padding(end = 8.dp),
-                )
-            }
-            Text(stringResource(R.string.backup_sign_in))
+        SettingsGroup(title = null) {
+            SettingsRow(
+                index = 0, count = 2,
+                icon = Icons.Outlined.AccountCircle,
+                title = uiState.accountDisplayName ?: (uiState.accountEmail ?: ""),
+                subtitle = uiState.accountEmail?.takeIf { uiState.accountDisplayName != null },
+                trailing = {
+                    TextButton(onClick = viewModel::signOut) { Text(stringResource(R.string.backup_sign_out)) }
+                },
+            )
+            SettingsRow(
+                index = 1, count = 2,
+                icon = Icons.Outlined.CloudUpload,
+                iconContainer = MaterialTheme.colorScheme.primary,
+                iconContent = MaterialTheme.colorScheme.onPrimary,
+                title = stringResource(R.string.backup_to_drive),
+                onClick = if (uiState.isLoading) null else viewModel::createBackup,
+                trailing = if (uiState.isLoading) ({ LoadingIndicator(Modifier.size(32.dp)) }) else null,
+            )
         }
-    }
-}
 
-@Composable
-private fun AccountInfoCard(
-    email: String,
-    displayName: String?,
-    onSignOut: () -> Unit
-) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                if (displayName != null) {
-                    Text(
-                        text = displayName,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Medium
-                    )
+        SettingsGroup(stringResource(R.string.backup_available)) {
+            when {
+                uiState.isLoadingBackups -> Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
+                    LoadingIndicator()
                 }
-                Text(
-                    text = email,
-                    style = MaterialTheme.typography.bodySmall,
+                uiState.backupFiles.isEmpty() -> Text(
+                    stringResource(R.string.backup_no_backups),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
-            }
-            OutlinedButton(onClick = onSignOut) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Logout,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(18.dp)
-                        .padding(end = 4.dp)
-                )
-                Text(stringResource(R.string.backup_sign_out))
-            }
-        }
-    }
-}
-
-@Composable
-private fun DriveBackupFileItem(
-    file: DriveBackupFile,
-    onRestore: () -> Unit,
-    onDelete: () -> Unit
-) {
-    val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault()) }
-
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = dateFormat.format(Date(file.createdTime)),
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = file.formattedSize,
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-            Row {
-                IconButton(onClick = onRestore) {
-                    Icon(
-                        imageVector = Icons.Default.Restore,
-                        contentDescription = stringResource(R.string.backup_restore_button),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = stringResource(R.string.action_delete),
-                        tint = MaterialTheme.colorScheme.error
-                    )
+                else -> uiState.backupFiles.forEachIndexed { index, file ->
+                    SegmentedListItem(
+                        onClick = { showRestoreDialog = file.id },
+                        shapes = segmentShapes(index = index, count = uiState.backupFiles.size),
+                        colors = settingsRowColors(),
+                        leadingContent = { SettingsIcon(Icons.Outlined.Restore) },
+                        supportingContent = { Text(file.formattedSize) },
+                        trailingContent = {
+                            IconButton(onClick = { showDeleteDialog = file.id }) {
+                                Icon(Icons.Outlined.DeleteOutline, contentDescription = stringResource(R.string.action_delete))
+                            }
+                        },
+                    ) { Text(dateFormat.format(Date(file.createdTime))) }
                 }
             }
         }
