@@ -1,7 +1,9 @@
 package com.boxdev.boxwallet.ui.navigation
 
 import androidx.annotation.StringRes
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -10,11 +12,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AreaChart
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.outlined.AreaChart
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Payments
-import androidx.compose.material.icons.outlined.Receipt
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -51,8 +53,8 @@ enum class Destination(
     TRANSACTIONS(
         NavRoutes.TransactionsList.route,
         R.string.nav_transactions,
-        Icons.Outlined.Receipt,
-        Icons.Filled.Receipt
+        Icons.AutoMirrored.Outlined.ReceiptLong,
+        Icons.AutoMirrored.Filled.ReceiptLong
     ),
     LOANS(
         NavRoutes.Loans.route,
@@ -68,32 +70,38 @@ enum class Destination(
     ),
 }
 
-private const val TRANSITION_DURATION = 300
+private const val TRANSITION_DURATION = 400
+
+/** Material emphasized-decelerate easing for incoming content; emphasized-accelerate for outgoing. */
+private val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
+private val EmphasizedAccelerate = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
 
 // Shared-axis-X: slight horizontal slide + fade for push/pop
+// Shared axis X for push/pop.
 private fun defaultEnterTransition() = slideInHorizontally(
-    animationSpec = tween(TRANSITION_DURATION),
-    initialOffsetX = { it / 4 }
-) + fadeIn(animationSpec = tween(TRANSITION_DURATION))
+    animationSpec = tween(TRANSITION_DURATION, easing = EmphasizedDecelerate),
+    initialOffsetX = { it / 10 }
+) + fadeIn(animationSpec = tween(TRANSITION_DURATION / 2, delayMillis = 50))
 
 private fun defaultExitTransition() = slideOutHorizontally(
-    animationSpec = tween(TRANSITION_DURATION),
-    targetOffsetX = { -it / 4 }
-) + fadeOut(animationSpec = tween(TRANSITION_DURATION))
+    animationSpec = tween(TRANSITION_DURATION / 2, easing = EmphasizedAccelerate),
+    targetOffsetX = { -it / 10 }
+) + fadeOut(animationSpec = tween(TRANSITION_DURATION / 4))
 
 private fun defaultPopEnterTransition() = slideInHorizontally(
-    animationSpec = tween(TRANSITION_DURATION),
-    initialOffsetX = { -it / 4 }
-) + fadeIn(animationSpec = tween(TRANSITION_DURATION))
+    animationSpec = tween(TRANSITION_DURATION, easing = EmphasizedDecelerate),
+    initialOffsetX = { -it / 10 }
+) + fadeIn(animationSpec = tween(TRANSITION_DURATION / 2, delayMillis = 50))
 
 private fun defaultPopExitTransition() = slideOutHorizontally(
-    animationSpec = tween(TRANSITION_DURATION),
-    targetOffsetX = { it / 4 }
-) + fadeOut(animationSpec = tween(TRANSITION_DURATION))
+    animationSpec = tween(TRANSITION_DURATION / 2, easing = EmphasizedAccelerate),
+    targetOffsetX = { it / 10 }
+) + fadeOut(animationSpec = tween(TRANSITION_DURATION / 4))
 
-// Fade-through for lateral tab switches
-private fun fadeThrough() = fadeIn(animationSpec = tween(TRANSITION_DURATION))
-private fun fadeThroughExit() = fadeOut(animationSpec = tween(TRANSITION_DURATION / 2))
+// Fade-through for lateral tab switches: outgoing fades fast, incoming fades + settles from 96%.
+private fun fadeThrough() = fadeIn(animationSpec = tween(TRANSITION_DURATION - 90, delayMillis = 90)) +
+    scaleIn(initialScale = 0.96f, animationSpec = tween(TRANSITION_DURATION - 90, delayMillis = 90, easing = EmphasizedDecelerate))
+private fun fadeThroughExit() = fadeOut(animationSpec = tween(90))
 
 @Composable
 fun NavGraph(
@@ -155,7 +163,8 @@ fun NavGraph(
             popExitTransition = { fadeThroughExit() },
         ) {
             TransactionsListScreen(
-                onEditTransaction = onEditTransaction
+                onEditTransaction = onEditTransaction,
+                onNavigateToSettings = onNavigateToSettings,
             )
         }
 
@@ -167,6 +176,7 @@ fun NavGraph(
             popExitTransition = { fadeThroughExit() },
         ) {
             LoansScreen(
+                onNavigateToSettings = onNavigateToSettings,
                 onNavigateToLoanDetail = { loanId ->
                     navController.navigate(
                         NavRoutes.LoanDetail.createRoute(
@@ -191,7 +201,7 @@ fun NavGraph(
             popEnterTransition = { fadeThrough() },
             popExitTransition = { fadeThroughExit() },
         ) {
-            AnalyticsScreen()
+            AnalyticsScreen(onNavigateToSettings = onNavigateToSettings)
         }
 
         composable(NavRoutes.Settings.route) {

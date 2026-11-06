@@ -6,9 +6,14 @@
 
 package com.boxdev.boxwallet.ui.screens.loans
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,304 +21,298 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material.icons.outlined.SearchOff
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.TouchApp
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LoadingIndicator
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.boxdev.boxwallet.R
+import com.boxdev.boxwallet.ui.components.ConnectedChoiceRow
+import com.boxdev.boxwallet.ui.components.EmptyState
+import com.boxdev.boxwallet.ui.components.FilterGroup
 import com.boxdev.boxwallet.ui.components.LoanCard
+import com.boxdev.boxwallet.ui.components.SearchFilterBar
+import com.boxdev.boxwallet.ui.theme.BoxTheme
+import com.boxdev.boxwallet.ui.theme.WidthClass
 
+/**
+ * Loans. Compact: a list that pushes to the detail screen. Medium/expanded (unfolded): a
+ * list-detail layout where the selected loan opens beside the list.
+ */
 @Composable
 fun LoansScreen(
     onNavigateToLoanDetail: (Long) -> Unit = {},
+    onNavigateToSettings: () -> Unit = {},
     viewModel: LoansViewModel = hiltViewModel()
 ) {
+    val widthClass = BoxTheme.widthClass
+    val twoPane = widthClass == WidthClass.Expanded
+    var selectedLoanId by rememberSaveable { mutableStateOf<Long?>(null) }
     val uiState by viewModel.uiState.collectAsState()
-    var showFilters by remember { mutableStateOf(false) }
+
+    // Keep a sensible selection in the detail pane.
+    LaunchedEffect(twoPane, uiState.filteredLoans) {
+        if (twoPane && uiState.filteredLoans.none { it.id == selectedLoanId }) {
+            selectedLoanId = uiState.filteredLoans.firstOrNull()?.id
+        }
+    }
+
+    if (!twoPane) {
+        LoansList(
+            viewModel = viewModel,
+            selectedLoanId = null,
+            onLoanClick = onNavigateToLoanDetail,
+            onNavigateToSettings = onNavigateToSettings,
+        )
+        return
+    }
+
+    Row(Modifier.fillMaxSize()) {
+        Box(Modifier.weight(0.46f)) {
+            LoansList(
+                viewModel = viewModel,
+                selectedLoanId = selectedLoanId,
+                onLoanClick = { selectedLoanId = it },
+                onNavigateToSettings = onNavigateToSettings,
+            )
+        }
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            shape = MaterialTheme.shapes.extraLarge,
+            modifier = Modifier
+                .weight(0.54f)
+                .fillMaxHeight()
+                .padding(top = 8.dp, end = 16.dp, bottom = 16.dp),
+        ) {
+            val enterSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+            val exitSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+            AnimatedContent(
+                targetState = selectedLoanId,
+                transitionSpec = { fadeIn(enterSpec) togetherWith fadeOut(exitSpec) },
+                label = "loanDetailPane",
+            ) { id ->
+                if (id == null) {
+                    EmptyState(
+                        icon = Icons.Outlined.TouchApp,
+                        title = stringResource(R.string.loans_select_hint),
+                        modifier = Modifier.padding(top = 96.dp),
+                    )
+                } else {
+                    LoanDetailScreen(onNavigateBack = null, loanId = id)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LoansList(
+    viewModel: LoansViewModel,
+    selectedLoanId: Long?,
+    onLoanClick: (Long) -> Unit,
+    onNavigateToSettings: () -> Unit,
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    val filter = uiState.filterState
+    var showFilters by rememberSaveable { mutableStateOf(false) }
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
+    val categoryMap = uiState.categories.associateBy { it.id }
+    val activeFilters = listOf(
+        filter.loanTypeFilter != LoanTypeFilter.ALL,
+        filter.statusFilter != LoanStatusFilter.ALL,
+        filter.categoryId != null,
+        filter.sortBy != LoanSortBy.DATE_DESC,
+    ).count { it }
+
+    BackHandler(enabled = showFilters) { showFilters = false }
 
     Scaffold(
-        contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            // Search bar
-            TextField(
-                value = uiState.filterState.searchQuery,
-                onValueChange = { viewModel.updateSearchQuery(it) },
-                singleLine = true,
-                placeholder = { Text(stringResource(R.string.loans_search_placeholder)) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                trailingIcon = {
-                    Row {
-                        if (uiState.filterState.searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { viewModel.updateSearchQuery("") }) {
-                                Icon(
-                                    Icons.Default.Clear,
-                                    contentDescription = stringResource(R.string.action_clear)
-                                )
-                            }
-                        }
-                        IconButton(onClick = { showFilters = !showFilters }) {
-                            Icon(
-                                imageVector = Icons.Default.FilterList,
-                                contentDescription = stringResource(R.string.action_filter),
-                                tint = if (showFilters) MaterialTheme.colorScheme.primary else LocalContentColor.current
-                            )
-                        }
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),
+        topBar = {
+            LargeFlexibleTopAppBar(
+                title = { Text(stringResource(R.string.nav_loans)) },
+                actions = {
+                    IconButton(onClick = onNavigateToSettings) {
+                        Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.nav_settings))
                     }
                 },
-                shape = MaterialTheme.shapes.extraLarge,
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    disabledIndicatorColor = Color.Transparent,
-                    errorIndicatorColor = Color.Transparent
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp)
-                    .padding(horizontal = 16.dp)
+                scrollBehavior = scrollBehavior,
+            )
+        },
+    ) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            SearchFilterBar(
+                query = filter.searchQuery,
+                onQueryChange = viewModel::updateSearchQuery,
+                placeholder = stringResource(R.string.loans_search_placeholder),
+                filtersOpen = showFilters,
+                onToggleFilters = { showFilters = it },
+                activeFilterCount = activeFilters,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             )
 
-            // Filter panel
             AnimatedVisibility(
                 visible = showFilters,
-                enter = expandVertically(),
-                exit = shrinkVertically()
+                enter = expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) + fadeIn(),
+                exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeOut(),
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    shape = MaterialTheme.shapes.large,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 ) {
-                    // Type
-                    Text(
-                        stringResource(R.string.loans_filter_type),
-                        style = MaterialTheme.typography.titleSmall
-                    )
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        SegmentedButton(
-                            selected = uiState.filterState.loanTypeFilter == LoanTypeFilter.ALL,
-                            onClick = { viewModel.updateLoanTypeFilter(LoanTypeFilter.ALL) },
-                            label = { Text(stringResource(R.string.transactions_filter_all)) },
-                            shape = SegmentedButtonDefaults.itemShape(0, 3)
-                        )
-                        SegmentedButton(
-                            selected = uiState.filterState.loanTypeFilter == LoanTypeFilter.INCOME,
-                            onClick = { viewModel.updateLoanTypeFilter(LoanTypeFilter.INCOME) },
-                            label = { Text(stringResource(R.string.transaction_type_income)) },
-                            shape = SegmentedButtonDefaults.itemShape(1, 3)
-                        )
-                        SegmentedButton(
-                            selected = uiState.filterState.loanTypeFilter == LoanTypeFilter.EXPENSE,
-                            onClick = { viewModel.updateLoanTypeFilter(LoanTypeFilter.EXPENSE) },
-                            label = { Text(stringResource(R.string.transaction_type_expense)) },
-                            shape = SegmentedButtonDefaults.itemShape(2, 3)
-                        )
-                    }
-
-                    // Status
-                    Text(
-                        stringResource(R.string.loans_filter_status),
-                        style = MaterialTheme.typography.titleSmall
-                    )
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        SegmentedButton(
-                            selected = uiState.filterState.statusFilter == LoanStatusFilter.ALL,
-                            onClick = { viewModel.updateStatusFilter(LoanStatusFilter.ALL) },
-                            label = { Text(stringResource(R.string.transactions_filter_all)) },
-                            shape = SegmentedButtonDefaults.itemShape(0, 4)
-                        )
-                        SegmentedButton(
-                            selected = uiState.filterState.statusFilter == LoanStatusFilter.CURRENT,
-                            onClick = { viewModel.updateStatusFilter(LoanStatusFilter.CURRENT) },
-                            label = { Text(stringResource(R.string.loans_filter_current)) },
-                            shape = SegmentedButtonDefaults.itemShape(1, 4)
-                        )
-                        SegmentedButton(
-                            selected = uiState.filterState.statusFilter == LoanStatusFilter.OVERDUE,
-                            onClick = { viewModel.updateStatusFilter(LoanStatusFilter.OVERDUE) },
-                            label = { Text(stringResource(R.string.loans_filter_overdue)) },
-                            shape = SegmentedButtonDefaults.itemShape(2, 4)
-                        )
-                        SegmentedButton(
-                            selected = uiState.filterState.statusFilter == LoanStatusFilter.PAID,
-                            onClick = { viewModel.updateStatusFilter(LoanStatusFilter.PAID) },
-                            label = { Text(stringResource(R.string.loans_filter_paid)) },
-                            shape = SegmentedButtonDefaults.itemShape(3, 4)
-                        )
-                    }
-
-                    // Category
-                    if (uiState.categories.isNotEmpty()) {
-                        Text(
-                            stringResource(R.string.loans_filter_category),
-                            style = MaterialTheme.typography.titleSmall
-                        )
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FilterChip(
-                                selected = uiState.filterState.categoryId == null,
-                                onClick = { viewModel.updateCategoryFilter(null) },
-                                label = { Text(stringResource(R.string.transactions_filter_all)) }
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                        FilterGroup(stringResource(R.string.loans_filter_status)) {
+                            ConnectedChoiceRow(
+                                options = LoanStatusFilter.entries,
+                                selected = filter.statusFilter,
+                                onSelect = viewModel::updateStatusFilter,
+                                label = {
+                                    when (it) {
+                                        LoanStatusFilter.ALL -> stringResource(R.string.transactions_filter_all)
+                                        LoanStatusFilter.CURRENT -> stringResource(R.string.loans_filter_current)
+                                        LoanStatusFilter.OVERDUE -> stringResource(R.string.loans_filter_overdue)
+                                        LoanStatusFilter.PAID -> stringResource(R.string.loans_filter_paid)
+                                    }
+                                },
                             )
-                            uiState.categories.forEach { cat ->
-                                FilterChip(
-                                    selected = uiState.filterState.categoryId == cat.id,
-                                    onClick = { viewModel.updateCategoryFilter(cat.id) },
-                                    label = { Text(cat.name) }
-                                )
+                        }
+                        FilterGroup(stringResource(R.string.loans_filter_type)) {
+                            ConnectedChoiceRow(
+                                options = LoanTypeFilter.entries,
+                                selected = filter.loanTypeFilter,
+                                onSelect = viewModel::updateLoanTypeFilter,
+                                label = {
+                                    when (it) {
+                                        LoanTypeFilter.ALL -> stringResource(R.string.transactions_filter_all)
+                                        LoanTypeFilter.INCOME -> stringResource(R.string.transaction_type_income)
+                                        LoanTypeFilter.EXPENSE -> stringResource(R.string.transaction_type_expense)
+                                    }
+                                },
+                            )
+                        }
+                        if (uiState.categories.isNotEmpty()) {
+                            FilterGroup(stringResource(R.string.loans_filter_category)) {
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    FilterChip(
+                                        selected = filter.categoryId == null,
+                                        onClick = { viewModel.updateCategoryFilter(null) },
+                                        label = { Text(stringResource(R.string.transactions_filter_all)) },
+                                        leadingIcon = if (filter.categoryId == null) {
+                                            { Icon(Icons.Filled.Check, null, Modifier.width(FilterChipDefaults.IconSize)) }
+                                        } else null,
+                                    )
+                                    uiState.categories.forEach { cat ->
+                                        val selected = filter.categoryId == cat.id
+                                        FilterChip(
+                                            selected = selected,
+                                            onClick = { viewModel.updateCategoryFilter(cat.id) },
+                                            label = { Text(cat.name) },
+                                            leadingIcon = if (selected) {
+                                                { Icon(Icons.Filled.Check, null, Modifier.width(FilterChipDefaults.IconSize)) }
+                                            } else null,
+                                        )
+                                    }
+                                }
                             }
                         }
-                    }
-
-                    // Sort
-                    Text(
-                        stringResource(R.string.loans_filter_sort_by),
-                        style = MaterialTheme.typography.titleSmall
-                    )
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        SegmentedButton(
-                            selected = uiState.filterState.sortBy == LoanSortBy.DATE_DESC,
-                            onClick = { viewModel.updateSortBy(LoanSortBy.DATE_DESC) },
-                            label = { Text(stringResource(R.string.transactions_filter_latest)) },
-                            shape = SegmentedButtonDefaults.itemShape(0, 4)
-                        )
-                        SegmentedButton(
-                            selected = uiState.filterState.sortBy == LoanSortBy.DATE_ASC,
-                            onClick = { viewModel.updateSortBy(LoanSortBy.DATE_ASC) },
-                            label = { Text(stringResource(R.string.transactions_filter_oldest)) },
-                            shape = SegmentedButtonDefaults.itemShape(1, 4)
-                        )
-                        SegmentedButton(
-                            selected = uiState.filterState.sortBy == LoanSortBy.AMOUNT_DESC,
-                            onClick = { viewModel.updateSortBy(LoanSortBy.AMOUNT_DESC) },
-                            label = { Text(stringResource(R.string.transactions_filter_highest)) },
-                            shape = SegmentedButtonDefaults.itemShape(2, 4)
-                        )
-                        SegmentedButton(
-                            selected = uiState.filterState.sortBy == LoanSortBy.AMOUNT_ASC,
-                            onClick = { viewModel.updateSortBy(LoanSortBy.AMOUNT_ASC) },
-                            label = { Text(stringResource(R.string.loans_filter_lowest)) },
-                            shape = SegmentedButtonDefaults.itemShape(3, 4)
-                        )
-                    }
-
-                    TextButton(
-                        onClick = { viewModel.clearFilters() },
-                        modifier = Modifier.align(Alignment.End)
-                    ) {
-                        Text(stringResource(R.string.action_clear_all))
+                        FilterGroup(stringResource(R.string.loans_filter_sort_by)) {
+                            ConnectedChoiceRow(
+                                options = listOf(LoanSortBy.DATE_DESC, LoanSortBy.DATE_ASC, LoanSortBy.AMOUNT_DESC, LoanSortBy.AMOUNT_ASC),
+                                selected = filter.sortBy,
+                                onSelect = viewModel::updateSortBy,
+                                label = {
+                                    when (it) {
+                                        LoanSortBy.DATE_DESC -> stringResource(R.string.transactions_filter_latest)
+                                        LoanSortBy.DATE_ASC -> stringResource(R.string.transactions_filter_oldest)
+                                        LoanSortBy.AMOUNT_DESC -> stringResource(R.string.transactions_filter_highest)
+                                        LoanSortBy.AMOUNT_ASC -> stringResource(R.string.loans_filter_lowest)
+                                    }
+                                },
+                            )
+                        }
+                        OutlinedButton(
+                            onClick = viewModel::clearFilters,
+                            enabled = activeFilters > 0,
+                            modifier = Modifier.align(Alignment.End),
+                        ) { Text(stringResource(R.string.action_clear_all)) }
                     }
                 }
             }
 
-            // Content
             when {
-                uiState.isLoading -> Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) { LoadingIndicator() }
+                uiState.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { LoadingIndicator() }
 
-                uiState.loans.isEmpty() -> Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Payments,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                        )
-                        Text(
-                            stringResource(R.string.loans_no_loans),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            stringResource(R.string.loans_tap_to_add),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+                uiState.loans.isEmpty() -> EmptyState(
+                    icon = Icons.Outlined.Payments,
+                    title = stringResource(R.string.loans_no_loans),
+                    message = stringResource(R.string.loans_tap_to_add),
+                    modifier = Modifier.padding(top = 48.dp),
+                )
 
-                uiState.filteredLoans.isEmpty() -> Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        stringResource(R.string.loans_no_results),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                uiState.filteredLoans.isEmpty() -> EmptyState(
+                    icon = Icons.Outlined.SearchOff,
+                    title = stringResource(R.string.loans_no_results),
+                    modifier = Modifier.padding(top = 48.dp),
+                    action = {
+                        OutlinedButton(onClick = viewModel::clearFilters) { Text(stringResource(R.string.action_clear_all)) }
+                    },
+                )
 
                 else -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 112.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     items(uiState.filteredLoans, key = { it.id }) { loan ->
                         LoanCard(
                             loan = loan,
-                            category = uiState.categories.find { it.id == loan.categoryId },
-                            onClick = { onNavigateToLoanDetail(loan.id) }
+                            category = loan.categoryId?.let { categoryMap[it] },
+                            selected = loan.id == selectedLoanId,
+                            onClick = { onLoanClick(loan.id) },
+                            modifier = Modifier.animateItem(),
                         )
                     }
-
-                    item { Spacer(modifier = Modifier.height(84.dp)) }
                 }
             }
         }

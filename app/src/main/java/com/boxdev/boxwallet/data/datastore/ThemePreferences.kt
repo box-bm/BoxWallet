@@ -21,7 +21,7 @@ enum class ThemeMode {
 
 data class ThemeSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
-    val useDynamicColors: Boolean = true
+    val useDynamicColors: Boolean = false
 )
 
 @Singleton
@@ -46,7 +46,7 @@ class ThemePreferences @Inject constructor(
 
         ThemeSettings(
             themeMode = themeMode,
-            useDynamicColors = preferences[PreferencesKeys.USE_DYNAMIC_COLORS] ?: true
+            useDynamicColors = preferences[PreferencesKeys.USE_DYNAMIC_COLORS] ?: false
         )
     }
 

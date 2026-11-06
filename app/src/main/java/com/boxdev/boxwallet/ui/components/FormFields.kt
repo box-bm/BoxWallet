@@ -1,177 +1,455 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
+@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 
 package com.boxdev.boxwallet.ui.components
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.UnfoldMore
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.domain.model.Category
-import com.boxdev.boxwallet.util.categoryIconVector
+import com.boxdev.boxwallet.ui.theme.BoxTheme
+import com.boxdev.boxwallet.ui.theme.GroupShapes
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 
-/** Read-only category picker with a "None" option, shared by the transaction and loan sheets. */
+// ---------------------------------------------------------------------------------------------
+// Sheet chrome
+// ---------------------------------------------------------------------------------------------
+
+/** Sheet title row, with a delete action when editing. */
 @Composable
-fun CategoryDropdownField(
-    categories: List<Category>,
-    selectedCategoryId: Long?,
-    onCategorySelected: (Long?) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val noneLabel = stringResource(R.string.transaction_category_none)
-
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
-        modifier = Modifier.fillMaxWidth()
+fun SheetHeader(title: String, onDelete: (() -> Unit)? = null) {
+    Row(
+        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        OutlinedTextField(
-            value = selectedCategoryId?.let { id -> categories.find { it.id == id }?.name } ?: noneLabel,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(stringResource(R.string.transaction_category_label)) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-        )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            DropdownMenuItem(
-                text = { Text(noneLabel) },
-                onClick = { onCategorySelected(null); expanded = false },
-                leadingIcon = { Icon(Icons.Default.Clear, contentDescription = null) }
+        Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+        if (onDelete != null) {
+            FilledTonalIconButton(
+                onClick = onDelete,
+                shapes = IconButtonDefaults.shapes(),
+                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                ),
+            ) { Icon(Icons.Outlined.DeleteOutline, contentDescription = stringResource(R.string.action_delete)) }
+        }
+    }
+}
+
+/** Full-width primary action at the foot of a sheet. */
+@Composable
+fun SheetPrimaryButton(text: String, enabled: Boolean, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        shapes = ButtonDefaults.shapes(),
+        contentPadding = ButtonDefaults.MediumContentPadding,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp).heightIn(min = 56.dp),
+    ) { Text(text, style = MaterialTheme.typography.titleMedium) }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Amount
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * The amount is the point of the form, so it is typed at display size in the numerals face,
+ * tinted by direction. The currency symbol sits in front at a smaller size.
+ */
+@Composable
+fun AmountField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    symbol: String,
+    kind: AmountKind,
+    modifier: Modifier = Modifier,
+    label: String = stringResource(R.string.transaction_amount_label),
+    isError: Boolean = false,
+    autoFocus: Boolean = false,
+) {
+    val color by animateColorAsState(
+        if (value.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant else kind.color(),
+        MaterialTheme.motionScheme.defaultEffectsSpec(),
+        label = "amountColor",
+    )
+    val style = BoxTheme.moneyType.hero.copy(color = color, textAlign = TextAlign.Center)
+    val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+    LaunchedEffect(autoFocus) { if (autoFocus) runCatching { focus.requestFocus() } }
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = MaterialTheme.shapes.extraLarge,
+        border = if (isError) BorderStroke(2.dp, MaterialTheme.colorScheme.error) else null,
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelLarge,
+                color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            categories.forEach { category ->
-                DropdownMenuItem(
-                    text = { Text(category.name) },
-                    onClick = { onCategorySelected(category.id); expanded = false },
-                    leadingIcon = { Icon(imageVector = categoryIconVector(category.icon), contentDescription = null) },
-                    trailingIcon = {
-                        if (selectedCategoryId == category.id) {
-                            Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                Text(symbol, style = BoxTheme.moneyType.large.copy(color = color))
+                Spacer(Modifier.width(4.dp))
+                BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    singleLine = true,
+                    textStyle = style,
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier
+                        .width(androidx.compose.foundation.layout.IntrinsicSize.Min)
+                        .focusRequester(focus),
+                    decorationBox = { inner ->
+                        Box(contentAlignment = Alignment.Center) {
+                            if (value.isEmpty()) Text("0.00", style = style)
+                            inner()
                         }
-                    }
+                    },
                 )
             }
         }
     }
 }
 
-/** Date and time fields side by side, each opening its own picker dialog. */
+// ---------------------------------------------------------------------------------------------
+// Category picker
+// ---------------------------------------------------------------------------------------------
+
+/** Horizontal row of category shape tokens; the chosen one morphs to a circle and is ringed. */
 @Composable
-fun DateTimeFields(
-    dateTime: LocalDateTime,
-    dateLabel: String,
-    onDateChange: (LocalDateTime) -> Unit,
-    onTimeChange: (hour: Int, minute: Int) -> Unit
+fun CategoryPicker(
+    categories: List<Category>,
+    selectedCategoryId: Long?,
+    onCategorySelected: (Long?) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    var showDatePicker by remember { mutableStateOf(false) }
-    var showTimePicker by remember { mutableStateOf(false) }
-    val dateFormatter = remember { DateTimeFormatter.ofPattern("MMM dd, yyyy") }
-    val timeFormatter = remember { DateTimeFormatter.ofPattern("HH:mm") }
-
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedTextField(
-            value = dateTime.format(dateFormatter),
-            onValueChange = {},
-            label = { Text(dateLabel) },
-            readOnly = true,
-            trailingIcon = {
-                IconButton(onClick = { showDatePicker = true }) {
-                    Icon(Icons.Default.CalendarMonth, contentDescription = null)
-                }
-            },
-            modifier = Modifier.weight(1f)
-        )
-
-        OutlinedTextField(
-            value = dateTime.format(timeFormatter),
-            onValueChange = {},
-            label = { Text(stringResource(R.string.transaction_time_label)) },
-            readOnly = true,
-            trailingIcon = {
-                IconButton(onClick = { showTimePicker = true }) {
-                    Icon(Icons.Default.Schedule, contentDescription = null)
-                }
-            },
-            modifier = Modifier.weight(0.7f)
-        )
+    val listState = rememberLazyListState()
+    LaunchedEffect(Unit) {
+        val i = categories.indexOfFirst { it.id == selectedCategoryId }
+        if (i > 2) listState.scrollToItem(i - 1)
     }
-
-    if (showDatePicker) {
-        val state = rememberDatePickerState(
-            initialSelectedDateMillis = dateTime.toLocalDate().atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            stringResource(R.string.transaction_category_label),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 4.dp),
         )
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    state.selectedDateMillis?.let {
-                        val selectedDate = Instant.ofEpochMilli(it).atOffset(ZoneOffset.UTC).toLocalDate()
-                        onDateChange(dateTime.with(selectedDate))
-                    }
-                    showDatePicker = false
-                }) { Text(stringResource(R.string.action_ok)) }
-            },
-            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text(stringResource(R.string.action_cancel)) } }
-        ) { DatePicker(state = state) }
+        LazyRow(state = listState, horizontalArrangement = Arrangement.spacedBy(4.dp), contentPadding = PaddingValues(end = 8.dp)) {
+            item(key = "none") {
+                CategoryToken(
+                    category = null,
+                    name = stringResource(R.string.transaction_category_none),
+                    selected = selectedCategoryId == null,
+                    onClick = { onCategorySelected(null) },
+                )
+            }
+            items(categories, key = { it.id }) { category ->
+                CategoryToken(
+                    category = category,
+                    name = category.name,
+                    selected = selectedCategoryId == category.id,
+                    onClick = { onCategorySelected(category.id) },
+                )
+            }
+        }
     }
+}
 
-    if (showTimePicker) {
-        val timePickerState = rememberTimePickerState(
-            initialHour = dateTime.hour,
-            initialMinute = dateTime.minute
-        )
-        AlertDialog(
-            onDismissRequest = { showTimePicker = false },
-            title = { Text(stringResource(R.string.transaction_select_time)) },
-            text = { TimePicker(state = timePickerState) },
-            confirmButton = {
-                TextButton(onClick = {
-                    onTimeChange(timePickerState.hour, timePickerState.minute)
-                    showTimePicker = false
-                }) { Text(stringResource(R.string.action_ok)) }
-            },
-            dismissButton = { TextButton(onClick = { showTimePicker = false }) { Text(stringResource(R.string.action_cancel)) } }
+@Composable
+private fun CategoryToken(category: Category?, name: String, selected: Boolean, onClick: () -> Unit) {
+    val interaction = remember { MutableInteractionSource() }
+    val ring by animateColorAsState(
+        if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
+        MaterialTheme.motionScheme.fastEffectsSpec(),
+        label = "ring",
+    )
+    Column(
+        modifier = Modifier
+            .width(76.dp)
+            .selectable(selected = selected, onClick = onClick, role = Role.RadioButton, interactionSource = interaction, indication = null)
+            .padding(vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Surface(shape = androidx.compose.foundation.shape.CircleShape, color = Color.Transparent, border = BorderStroke(2.dp, ring)) {
+            CategoryBadge(
+                category = category,
+                fallbackIcon = Icons.Outlined.Close,
+                size = 52.dp,
+                interactionSource = interaction,
+                selected = selected,
+                modifier = Modifier.padding(4.dp),
+            )
+        }
+        Text(
+            name,
+            style = MaterialTheme.typography.labelMedium,
+            color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
         )
     }
 }
+
+// ---------------------------------------------------------------------------------------------
+// Grouped option rows
+// ---------------------------------------------------------------------------------------------
+
+/** A titled column of connected rows; give each row [groupShape] for its position. */
+@Composable
+fun OptionGroup(
+    modifier: Modifier = Modifier,
+    title: String? = null,
+    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
+) {
+    Column(
+        modifier.animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec()),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        if (title != null) {
+            Text(
+                title,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 4.dp, bottom = 6.dp),
+            )
+        }
+        content()
+    }
+}
+
+/** Corner for a row at [index] of [count] inside an [OptionGroup]. */
+@Composable
+private fun GroupRowSurface(
+    shape: androidx.compose.ui.graphics.Shape,
+    modifier: Modifier,
+    content: @Composable () -> Unit,
+) {
+    Surface(color = MaterialTheme.colorScheme.surfaceContainerHigh, shape = shape, modifier = modifier) {
+        Box(Modifier.heightIn(min = 64.dp).padding(horizontal = 16.dp, vertical = 10.dp), contentAlignment = Alignment.CenterStart) { content() }
+    }
+}
+
+@Composable
+private fun RowBody(icon: ImageVector?, label: String, supporting: String?, trailing: @Composable (() -> Unit)?) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        if (icon != null) Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Column(Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.bodyLarge)
+            if (supporting != null) {
+                Text(supporting, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        trailing?.invoke()
+    }
+}
+
+/** Row with a switch; the whole row toggles. */
+@Composable
+fun SwitchRow(
+    shape: androidx.compose.ui.graphics.Shape,
+    icon: ImageVector?,
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    supporting: String? = null,
+) {
+    GroupRowSurface(
+        shape,
+        Modifier.fillMaxWidth().toggleable(value = checked, onValueChange = onCheckedChange, role = Role.Switch),
+    ) { RowBody(icon, label, supporting) { Switch(checked = checked, onCheckedChange = null) } }
+}
+
+/** Row showing a value; tapping it runs [onClick]. */
+@Composable
+fun ValueRow(
+    shape: androidx.compose.ui.graphics.Shape,
+    icon: ImageVector?,
+    label: String,
+    value: String,
+    onClick: () -> Unit,
+    trailingIcon: ImageVector? = null,
+) {
+    GroupRowSurface(shape, Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+        RowBody(icon, label, null) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(value, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                if (trailingIcon != null) Icon(trailingIcon, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+/** Row whose value is chosen from a menu anchored to the row. */
+@Composable
+fun <T> MenuRow(
+    shape: androidx.compose.ui.graphics.Shape,
+    icon: ImageVector?,
+    label: String,
+    value: String,
+    options: List<T>,
+    optionLabel: @Composable (T) -> String,
+    onSelect: (T) -> Unit,
+) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        ValueRow(shape, icon, label, value, onClick = { open = true }, trailingIcon = Icons.Outlined.UnfoldMore)
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }, shape = MaterialTheme.shapes.large) {
+            options.forEach { option ->
+                val text = optionLabel(option)
+                DropdownMenuItem(
+                    text = { Text(text, color = if (text == value) MaterialTheme.colorScheme.primary else Color.Unspecified) },
+                    onClick = { onSelect(option); open = false },
+                )
+            }
+        }
+    }
+}
+
+/** Shape for row [index] of [count]. */
+fun groupShape(index: Int, count: Int) = GroupShapes.item(index, count)
+
+// ---------------------------------------------------------------------------------------------
+// Date & time
+// ---------------------------------------------------------------------------------------------
+
+/** Holds the open/closed state of the date and time pickers for one [LocalDateTime]. */
+class DateTimePickerState internal constructor() {
+    var showDate by mutableStateOf(false)
+    var showTime by mutableStateOf(false)
+}
+
+@Composable
+fun rememberDateTimePickerState() = remember { DateTimePickerState() }
+
+private val dateFormat: DateTimeFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
+private val timeFormat: DateTimeFormatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
+
+@Composable
+fun DateRow(shape: androidx.compose.ui.graphics.Shape, label: String, dateTime: LocalDateTime, state: DateTimePickerState) =
+    ValueRow(shape, Icons.Outlined.CalendarMonth, label, dateTime.format(dateFormat), onClick = { state.showDate = true })
+
+@Composable
+fun TimeRow(shape: androidx.compose.ui.graphics.Shape, dateTime: LocalDateTime, state: DateTimePickerState) =
+    ValueRow(shape, Icons.Outlined.Schedule, stringResource(R.string.transaction_time_label), dateTime.format(timeFormat), onClick = { state.showTime = true })
+
+/** The picker dialogs for a [DateTimePickerState]; place once per form. */
+@Composable
+fun DateTimePickerDialogs(
+    state: DateTimePickerState,
+    dateTime: LocalDateTime,
+    onDateChange: (LocalDateTime) -> Unit,
+    onTimeChange: (hour: Int, minute: Int) -> Unit,
+) {
+    if (state.showDate) {
+        val picker = rememberDatePickerState(
+            initialSelectedDateMillis = dateTime.toLocalDate().atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+        )
+        DatePickerDialog(
+            onDismissRequest = { state.showDate = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    picker.selectedDateMillis?.let {
+                        onDateChange(dateTime.with(Instant.ofEpochMilli(it).atOffset(ZoneOffset.UTC).toLocalDate()))
+                    }
+                    state.showDate = false
+                }) { Text(stringResource(R.string.action_ok)) }
+            },
+            dismissButton = { TextButton(onClick = { state.showDate = false }) { Text(stringResource(R.string.action_cancel)) } },
+        ) { DatePicker(state = picker) }
+    }
+    if (state.showTime) {
+        val picker = rememberTimePickerState(initialHour = dateTime.hour, initialMinute = dateTime.minute)
+        AlertDialog(
+            onDismissRequest = { state.showTime = false },
+            title = { Text(stringResource(R.string.transaction_select_time)) },
+            text = { TimePicker(state = picker) },
+            confirmButton = {
+                TextButton(onClick = {
+                    onTimeChange(picker.hour, picker.minute)
+                    state.showTime = false
+                }) { Text(stringResource(R.string.action_ok)) }
+            },
+            dismissButton = { TextButton(onClick = { state.showTime = false }) { Text(stringResource(R.string.action_cancel)) } },
+        )
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Dialogs
+// ---------------------------------------------------------------------------------------------
 
 @Composable
 fun ConfirmDeleteDialog(
@@ -182,12 +460,18 @@ fun ConfirmDeleteDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Outlined.DeleteOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
         title = { Text(title) },
         text = { Text(message) },
         confirmButton = {
-            TextButton(onClick = { onConfirm(); onDismiss() }) {
-                Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error)
-            }
+            Button(
+                onClick = { onConfirm(); onDismiss() },
+                shapes = ButtonDefaults.shapes(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError,
+                ),
+            ) { Text(stringResource(R.string.action_delete)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } }
     )

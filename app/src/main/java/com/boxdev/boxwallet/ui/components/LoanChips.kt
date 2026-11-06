@@ -1,18 +1,28 @@
 package com.boxdev.boxwallet.ui.components
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Autorenew
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.domain.model.Loan
+import com.boxdev.boxwallet.ui.theme.BoxTheme
 import java.time.LocalDate
 
 enum class LoanStatus {
@@ -25,59 +35,62 @@ fun Loan.loanStatus(): LoanStatus = when {
     else -> LoanStatus.ACTIVE
 }
 
+/** Indicator color for a loan's progress, by status. */
 @Composable
-fun LoanCategoryChip(
-    categoryName: String,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .background(
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                shape = RoundedCornerShape(50)
-            )
-            .padding(horizontal = 10.dp, vertical = 4.dp)
-    ) {
-        Text(
-            text = categoryName,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSecondaryContainer
-        )
-    }
+fun LoanStatus.accent(): Color = when (this) {
+    LoanStatus.PAID -> BoxTheme.money.income
+    LoanStatus.OVERDUE -> MaterialTheme.colorScheme.error
+    LoanStatus.ACTIVE -> MaterialTheme.colorScheme.primary
 }
 
+/** Status pill with icon + label, so status never depends on color alone. */
 @Composable
 fun LoanStatusChip(
     status: LoanStatus,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
-    val label = when (status) {
-        LoanStatus.PAID -> stringResource(R.string.loan_status_paid)
-        LoanStatus.OVERDUE -> stringResource(R.string.loan_overdue)
-        LoanStatus.ACTIVE -> stringResource(R.string.loan_status_active)
+    val (label, icon) = when (status) {
+        LoanStatus.PAID -> stringResource(R.string.loan_status_paid) to Icons.Filled.CheckCircle
+        LoanStatus.OVERDUE -> stringResource(R.string.loan_overdue) to Icons.Filled.ErrorOutline
+        LoanStatus.ACTIVE -> stringResource(R.string.loan_status_active) to Icons.Filled.Autorenew
     }
-    val containerColor = when (status) {
-        LoanStatus.PAID -> MaterialTheme.colorScheme.primaryContainer
-        LoanStatus.OVERDUE -> MaterialTheme.colorScheme.errorContainer
-        LoanStatus.ACTIVE -> MaterialTheme.colorScheme.tertiaryContainer
+    val (container, content) = when (status) {
+        LoanStatus.PAID -> BoxTheme.money.incomeContainer to BoxTheme.money.onIncomeContainer
+        LoanStatus.OVERDUE -> MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.onErrorContainer
+        LoanStatus.ACTIVE -> MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer
     }
-    val contentColor = when (status) {
-        LoanStatus.PAID -> MaterialTheme.colorScheme.onPrimaryContainer
-        LoanStatus.OVERDUE -> MaterialTheme.colorScheme.onErrorContainer
-        LoanStatus.ACTIVE -> MaterialTheme.colorScheme.onTertiaryContainer
+    Surface(color = container, contentColor = content, shape = CircleShape, modifier = modifier) {
+        Row(
+            modifier = Modifier
+                .heightIn(min = 28.dp)
+                .padding(start = 8.dp, end = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp))
+            Text(label, style = MaterialTheme.typography.labelLarge)
+        }
     }
+}
 
-    Box(
-        modifier = modifier
-            .background(color = containerColor, shape = RoundedCornerShape(50))
-            .padding(horizontal = 10.dp, vertical = 4.dp)
+/** Neutral pill for a category or a loan direction. */
+@Composable
+fun InfoChip(
+    label: String,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        shape = CircleShape,
+        modifier = modifier,
     ) {
         Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Medium,
-            color = contentColor
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier
+                .heightIn(min = 28.dp)
+                .padding(horizontal = 12.dp, vertical = 5.dp),
         )
     }
 }

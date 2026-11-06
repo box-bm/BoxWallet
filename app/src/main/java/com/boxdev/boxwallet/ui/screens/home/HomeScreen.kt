@@ -10,25 +10,25 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumFlexibleTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
@@ -39,15 +39,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.boxdev.boxwallet.R
+import com.boxdev.boxwallet.ui.components.BalancePanel
+import com.boxdev.boxwallet.ui.components.EmptyState
 import com.boxdev.boxwallet.ui.components.LoanCard
-import com.boxdev.boxwallet.ui.components.SummaryCard
+import com.boxdev.boxwallet.ui.components.SectionHeader
 import com.boxdev.boxwallet.ui.components.TransactionItem
+import com.boxdev.boxwallet.ui.theme.BoxTheme
+import com.boxdev.boxwallet.ui.theme.isWide
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
@@ -59,9 +61,8 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val categoryMap = remember(uiState.categories) { uiState.categories.associateBy { it.id } }
-    val scrollBehavior =
-        TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
-
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
+    val wide = BoxTheme.widthClass.isWide
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -72,108 +73,102 @@ fun HomeScreen(
                 title = { Text(stringResource(R.string.app_name)) },
                 actions = {
                     IconButton(onClick = onNavigateToSettings) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = stringResource(R.string.nav_settings)
-                        )
+                        Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.nav_settings))
                     }
-                }
+                },
             )
         },
-    ) { paddingValues ->
+    ) { padding ->
         if (uiState.isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) { LoadingIndicator() }
+            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { LoadingIndicator() }
+            return@Scaffold
+        }
+
+        val balance: LazyListScope.() -> Unit = {
+            item(key = "balance") { BalancePanel(summary = uiState.financialSummary) }
+        }
+        val recent: LazyListScope.() -> Unit = {
+            item(key = "recent_header") {
+                SectionHeader(
+                    title = stringResource(R.string.home_recent_transactions),
+                    actionLabel = stringResource(R.string.home_see_all).takeIf { uiState.latestTransactions.isNotEmpty() },
+                    onAction = onSeeAllTransactions,
+                    // In two panes this header opens its column, so it aligns with the balance panel.
+                    modifier = Modifier.padding(top = if (wide) 0.dp else 16.dp),
+                )
+            }
+            if (uiState.latestTransactions.isEmpty()) {
+                item(key = "recent_empty") {
+                    EmptyState(
+                        icon = Icons.AutoMirrored.Outlined.ReceiptLong,
+                        title = stringResource(R.string.home_no_transactions),
+                        message = stringResource(R.string.home_no_transactions_hint),
+                    )
+                }
+            } else {
+                val list = uiState.latestTransactions
+                itemsIndexed(list, key = { _, t -> "t_${t.id}" }) { index, transaction ->
+                    TransactionItem(
+                        transaction = transaction,
+                        category = transaction.categoryId?.let { categoryMap[it] },
+                        index = index,
+                        count = list.size,
+                        onClick = { onEditTransaction(transaction.id) },
+                        modifier = Modifier.padding(bottom = ListItemDefaults.SegmentedGap),
+                    )
+                }
+            }
+        }
+        val loans: LazyListScope.() -> Unit = {
+            if (uiState.activeLoans.isNotEmpty()) {
+                item(key = "loans_header") {
+                    SectionHeader(
+                        title = stringResource(R.string.home_active_loans),
+                        actionLabel = stringResource(R.string.home_see_all),
+                        onAction = onSeeAllLoans,
+                        modifier = Modifier.padding(top = 16.dp),
+                    )
+                }
+                itemsIndexed(uiState.activeLoans, key = { _, l -> "loan_${l.id}" }) { _, loan ->
+                    LoanCard(
+                        loan = loan,
+                        category = loan.categoryId?.let { categoryMap[it] },
+                        onClick = { onNavigateToLoanDetail(loan.id) },
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                }
+            }
+        }
+
+        if (wide) {
+            // Unfolded / tablet: money overview and loans on the left, movements on the right.
+            Row(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                horizontalArrangement = Arrangement.spacedBy(24.dp),
+            ) {
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(start = 24.dp, bottom = 32.dp),
+                ) {
+                    balance()
+                    loans()
+                }
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(end = 24.dp, bottom = 32.dp),
+                ) {
+                    recent()
+                }
+            }
         } else {
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                modifier = Modifier.fillMaxSize().padding(padding),
+                contentPadding = PaddingValues(horizontal = 16.dp),
             ) {
-                item {
-                    SummaryCard(summary = uiState.financialSummary)
-                }
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = stringResource(R.string.home_recent_transactions),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        TextButton(onClick = onSeeAllTransactions) {
-                            Text(stringResource(R.string.home_see_all))
-                        }
-                    }
-                }
-
-                if (uiState.latestTransactions.isEmpty()) {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 24.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                stringResource(R.string.home_no_transactions),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                } else {
-                    items(uiState.latestTransactions, key = { it.id }) { transaction ->
-                        TransactionItem(
-                            transaction = transaction,
-                            category = transaction.categoryId?.let { categoryMap[it] },
-                            onClick = { onEditTransaction(transaction.id) }
-                        )
-                    }
-                }
-
-                if (uiState.activeLoans.isNotEmpty()) {
-                    item {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = stringResource(R.string.home_active_loans),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            TextButton(onClick = onSeeAllLoans) {
-                                Text(stringResource(R.string.home_see_all))
-                            }
-                        }
-                    }
-                    items(uiState.activeLoans, key = { "loan_${it.id}" }) { loan ->
-                        LoanCard(
-                            loan = loan,
-                            onClick = { onNavigateToLoanDetail(loan.id) },
-                            modifier = Modifier.padding(vertical = 4.dp),
-                            category = uiState.categories.find { it.id == loan.categoryId }
-                        )
-                    }
-                }
-
-                item { Spacer(modifier = Modifier.height(84.dp)) }
-
+                balance()
+                recent()
+                loans()
+                item { Spacer(Modifier.height(96.dp)) }
             }
         }
     }

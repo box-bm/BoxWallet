@@ -360,4 +360,36 @@
     <string name="action_selected">Seleccionado</string>
     <string name="description_optional">Descripci\u00f3n (Opcional)</string>
     <string name="nav_analytics">Reportes</string>
+
+    <!-- Expressive redesign -->
+    <string name="fab_new">Nuevo</string>
+    <string name="home_this_month">Este mes · %1$s</string>
+    <string name="home_no_transactions_hint">Toca + para registrar tu primer ingreso o gasto.</string>
+    <string name="loan_next_due">Vence %1$s</string>
+    <string name="transaction_scheduled">Programado</string>
+    <string name="date_today">Hoy</string>
+    <string name="date_yesterday">Ayer</string>
+    <plurals name="records_count">
+        <item quantity="one">%1$d movimiento</item>
+        <item quantity="many">%1$d movimientos</item>
+        <item quantity="other">%1$d movimientos</item>
+    </plurals>
+    <string name="loans_select_hint">Selecciona un préstamo para ver sus cuotas</string>
+    <plurals name="loan_days_overdue">
+        <item quantity="one">%1$d día de atraso</item>
+        <item quantity="many">%1$d días de atraso</item>
+        <item quantity="other">%1$d días de atraso</item>
+    </plurals>
+    <plurals name="loan_days_until">
+        <item quantity="one">En %1$d día</item>
+        <item quantity="many">En %1$d días</item>
+        <item quantity="other">En %1$d días</item>
+    </plurals>
+    <string name="analytics_previous_period">Periodo anterior</string>
+    <string name="analytics_next_period">Periodo siguiente</string>
+    <string name="form_when">Fecha y hora</string>
+    <string name="form_options">Opciones</string>
+    <string name="loan_terms">Condiciones</string>
+    <string name="home_month_net">Neto</string>
+    <string name="theme_preview">Vista previa</string>
 </resources>

@@ -1,5 +1,17 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.boxdev.boxwallet.ui.screens.settings
 
+import com.boxdev.boxwallet.ui.components.segmentShapes
+
+import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material.icons.outlined.Category
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.SegmentedListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import com.boxdev.boxwallet.ui.components.CategoryBadge
+import com.boxdev.boxwallet.ui.theme.BoxTheme
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -39,7 +51,6 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.data.datastore.CentralAmericanCurrency
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GeneralSettingsScreen(
     onNavigateBack: () -> Unit,
@@ -48,164 +59,60 @@ fun GeneralSettingsScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showCurrencyDialog by remember { mutableStateOf(false) }
     var showCategoryDialog by remember { mutableStateOf(false) }
+    val currency = uiState.selectedCurrency
+    val defaultCategory = uiState.categories.find { it.id == uiState.defaultCategoryId }
 
-    val closeCurrencyDialog = { showCurrencyDialog = false }
-    val closeCategoryDialog = { showCategoryDialog = false }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.general_settings_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
-                    }
-                }
+    SettingsScaffold(title = stringResource(R.string.general_settings_title), onNavigateBack = onNavigateBack) {
+        SettingsGroup(stringResource(R.string.general_settings_regional)) {
+            SettingsRow(
+                index = 0, count = 1,
+                icon = Icons.Outlined.Payments,
+                title = stringResource(R.string.general_settings_currency),
+                subtitle = "${currency.currencyName} · ${currency.currencyCode}",
+                onClick = { showCurrencyDialog = true },
+                trailing = {
+                    Text(
+                        currency.symbol,
+                        style = BoxTheme.moneyType.large,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                },
+            )
+            Text(
+                stringResource(R.string.general_settings_currency_description),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
             )
         }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Currency Section
-            SettingsSection(title = stringResource(R.string.general_settings_regional)) {
-                SettingsItem(
-                    title = stringResource(R.string.general_settings_currency),
-                    subtitle = "${uiState.selectedCurrency.currencyName} (${uiState.selectedCurrency.symbol})",
-                    onClick = { showCurrencyDialog = true }
-                )
-            }
 
-            // Transactions Section
-            SettingsSection(title = stringResource(R.string.general_settings_transactions)) {
-                val defaultCategory = uiState.categories.find { it.id == uiState.defaultCategoryId }
-                SettingsItem(
-                    title = stringResource(R.string.general_settings_default_category),
-                    subtitle = defaultCategory?.name ?: stringResource(R.string.action_none),
-                    onClick = { showCategoryDialog = true }
-                )
-            }
-
-            // Information Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = stringResource(R.string.general_settings_current_currency),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = uiState.selectedCurrency.symbol,
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    Text(
-                        text = stringResource(R.string.general_settings_currency_description),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
-            }
+        SettingsGroup(stringResource(R.string.general_settings_transactions)) {
+            SegmentedListItem(
+                onClick = { showCategoryDialog = true },
+                shapes = segmentShapes(index = 0, count = 1),
+                colors = settingsRowColors(),
+                leadingContent = { CategoryBadge(category = defaultCategory, fallbackIcon = Icons.Outlined.Category, size = 40.dp) },
+                supportingContent = { Text(defaultCategory?.name ?: stringResource(R.string.action_none)) },
+                trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
+            ) { Text(stringResource(R.string.general_settings_default_category)) }
         }
     }
 
-    // Currency Selection Dialog
     if (showCurrencyDialog) {
         CurrencySelectionDialog(
-            currentCurrency = uiState.selectedCurrency,
-            onCurrencySelected = { currency ->
-                viewModel.updateCurrency(currency)
-                closeCurrencyDialog()
-            },
-            onDismiss = closeCurrencyDialog
+            currentCurrency = currency,
+            onCurrencySelected = { viewModel.updateCurrency(it); showCurrencyDialog = false },
+            onDismiss = { showCurrencyDialog = false }
         )
     }
 
-    // Category Selection Dialog
     if (showCategoryDialog) {
         DefaultCategorySelectionDialog(
             categories = uiState.categories,
             currentCategoryId = uiState.defaultCategoryId,
-            onCategorySelected = { categoryId ->
-                viewModel.setDefaultCategory(categoryId)
-                closeCategoryDialog()
-            },
-            onDismiss = closeCategoryDialog
+            onCategorySelected = { viewModel.setDefaultCategory(it); showCategoryDialog = false },
+            onDismiss = { showCategoryDialog = false }
         )
-    }
-}
-
-@Composable
-private fun SettingsSection(
-    title: String,
-    content: @Composable () -> Unit
-) {
-    Column {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.padding(bottom = 8.dp, start = 4.dp)
-        )
-        Card(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column {
-                content()
-            }
-        }
-    }
-}
-
-@Composable
-private fun SettingsItem(
-    title: String,
-    subtitle: String,
-    onClick: (() -> Unit)? = null
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(
-                onClick = { onClick?.invoke() },
-                enabled = onClick != null
-            )
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
     }
 }
 

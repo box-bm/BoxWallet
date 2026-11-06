@@ -2,6 +2,11 @@
 
 package com.boxdev.boxwallet.ui.screens.settings
 
+import androidx.compose.material.icons.outlined.WarningAmber
+import androidx.compose.material.icons.outlined.Backup
+import androidx.compose.material.icons.outlined.DeleteForever
+import androidx.compose.material.icons.outlined.DeleteSweep
+import androidx.compose.material3.Surface
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -41,153 +46,57 @@ fun DataManagementScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.data_management_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
-                    }
+    SettingsScaffold(title = stringResource(R.string.data_management_title), onNavigateBack = onNavigateBack) {
+        Surface(
+            color = MaterialTheme.colorScheme.errorContainer,
+            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+            shape = MaterialTheme.shapes.large,
+        ) {
+            Row(Modifier.fillMaxWidth().padding(20.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Icon(Icons.Outlined.WarningAmber, contentDescription = null)
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(stringResource(R.string.data_management_caution), style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.data_management_caution_message), style = MaterialTheme.typography.bodyMedium)
                 }
+            }
+        }
+
+        SettingsGroup(title = null) {
+            SettingsRow(
+                index = 0, count = 1,
+                icon = Icons.Outlined.Backup,
+                title = stringResource(R.string.data_management_backup_title),
+                subtitle = stringResource(R.string.data_management_backup_description),
+                onClick = onNavigateToBackup,
             )
         }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Warning Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer
-                )
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.Top
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Warning,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.data_management_caution),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                        Text(
-                            text = stringResource(R.string.data_management_caution_message),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                    }
-                }
-            }
 
-            // Device Data Section
-            DataManagementSection(title = stringResource(R.string.data_management_device_data)) {
-                DangerousActionCard(
-                    title = stringResource(R.string.data_management_clear_all_title),
-                    description = stringResource(R.string.data_management_clear_all_description),
-                    buttonText = stringResource(R.string.data_management_clear_all_button),
-                    isLoading = uiState.isClearing,
-                    onClick = { showConfirmDialog = ClearDataType.ALL_DEVICE_DATA }
-                )
-
-                DangerousActionCard(
-                    title = stringResource(R.string.data_management_clear_transactions_title),
-                    description = stringResource(R.string.data_management_clear_transactions_description),
-                    buttonText = stringResource(R.string.data_management_clear_transactions_button),
-                    isLoading = uiState.isClearing,
-                    onClick = { showConfirmDialog = ClearDataType.TRANSACTIONS_ONLY }
-                )
-
-                DangerousActionCard(
-                    title = stringResource(R.string.data_management_clear_categories_title),
-                    description = stringResource(R.string.data_management_clear_categories_description),
-                    buttonText = stringResource(R.string.data_management_clear_categories_button),
-                    isLoading = uiState.isClearing,
-                    onClick = { showConfirmDialog = ClearDataType.CATEGORIES_ONLY }
+        SettingsGroup(stringResource(R.string.data_management_device_data)) {
+            val rows = listOf(
+                Triple(ClearDataType.TRANSACTIONS_ONLY, R.string.data_management_clear_transactions_title, R.string.data_management_clear_transactions_description),
+                Triple(ClearDataType.CATEGORIES_ONLY, R.string.data_management_clear_categories_title, R.string.data_management_clear_categories_description),
+                Triple(ClearDataType.ALL_DEVICE_DATA, R.string.data_management_clear_all_title, R.string.data_management_clear_all_description),
+            )
+            rows.forEachIndexed { index, (type, title, description) ->
+                SettingsRow(
+                    index = index, count = rows.size,
+                    icon = if (type == ClearDataType.ALL_DEVICE_DATA) Icons.Outlined.DeleteForever else Icons.Outlined.DeleteSweep,
+                    iconContainer = MaterialTheme.colorScheme.errorContainer,
+                    iconContent = MaterialTheme.colorScheme.onErrorContainer,
+                    title = stringResource(title),
+                    titleColor = MaterialTheme.colorScheme.error,
+                    subtitle = stringResource(description),
+                    onClick = if (uiState.isClearing) null else ({ showConfirmDialog = type }),
+                    trailing = if (uiState.isClearing) ({ LoadingIndicator(Modifier.size(32.dp)) }) else null,
                 )
             }
+        }
 
-            // Backup Shortcut
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Backup,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.data_management_backup_title),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Text(
-                                text = stringResource(R.string.data_management_backup_description),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                    OutlinedButton(
-                        onClick = onNavigateToBackup,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(stringResource(R.string.data_management_go_to_backup))
-                    }
-                }
-            }
-
-            // Error Display
-            uiState.error?.let { error ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    )
-                ) {
-                    Text(
-                        text = error,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        modifier = Modifier.padding(16.dp)
-                    )
-                }
-            }
+        uiState.error?.let { error ->
+            Text(error, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
         }
     }
 
-    // Confirmation Dialog
     showConfirmDialog?.let { clearType ->
         ClearDataConfirmationDialog(
             clearType = clearType,
@@ -197,82 +106,10 @@ fun DataManagementScreen(
                     ClearDataType.TRANSACTIONS_ONLY -> viewModel.clearTransactions()
                     ClearDataType.CATEGORIES_ONLY -> viewModel.clearCategories()
                 }
-
+                showConfirmDialog = null
             },
-            onDismiss = {  }
+            onDismiss = { showConfirmDialog = null }
         )
-    }
-}
-
-@Composable
-private fun DataManagementSection(
-    title: String,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(start = 4.dp)
-        )
-        Column(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            content = content
-        )
-    }
-}
-
-@Composable
-private fun DangerousActionCard(
-    title: String,
-    description: String,
-    buttonText: String,
-    isLoading: Boolean,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Button(
-                onClick = onClick,
-                enabled = !isLoading,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error
-                ),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                if (isLoading) {
-                    LoadingIndicator(
-                        modifier = Modifier.size(16.dp),
-                    )
-                } else {
-                    Text(buttonText)
-                }
-            }
-        }
     }
 }
 
@@ -321,8 +158,10 @@ private fun ClearDataConfirmationDialog(
         confirmButton = {
             Button(
                 onClick = onConfirm,
+                shapes = ButtonDefaults.shapes(),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError,
                 )
             ) {
                 Text(stringResource(R.string.data_management_clear_data))

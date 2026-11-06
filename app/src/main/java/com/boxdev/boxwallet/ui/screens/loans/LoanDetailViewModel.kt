@@ -11,7 +11,11 @@ import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Loan
 import com.boxdev.boxwallet.domain.model.Transaction
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
@@ -34,19 +38,27 @@ class LoanDetailViewModel @Inject constructor(
     private val analyticsHelper: AnalyticsHelper
 ) : ViewModel() {
 
-    private val loanId: Long = checkNotNull(savedStateHandle["loanId"])
+    /** From the nav route on phones; set with [bind] when the detail lives in a pane. */
+    private val loanId = MutableStateFlow(savedStateHandle.get<Long>("loanId"))
 
-    val uiState: StateFlow<LoanDetailUiState> = combine(
-        loanRepository.observeLoan(loanId),
-        transactionRepository.getInstallmentsByLoanId(loanId),
-        categoryRepository.getAllCategories()
-    ) { loan, installments, categories ->
-        LoanDetailUiState(
-            loan = loan,
-            installments = installments,
-            category = categories.find { it.id == loan?.categoryId },
-            isLoading = false
-        )
+    fun bind(id: Long) {
+        loanId.value = id
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val uiState: StateFlow<LoanDetailUiState> = loanId.filterNotNull().flatMapLatest { id ->
+        combine(
+            loanRepository.observeLoan(id),
+            transactionRepository.getInstallmentsByLoanId(id),
+            categoryRepository.getAllCategories()
+        ) { loan, installments, categories ->
+            LoanDetailUiState(
+                loan = loan,
+                installments = installments,
+                category = categories.find { it.id == loan?.categoryId },
+                isLoading = false
+            )
+        }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
