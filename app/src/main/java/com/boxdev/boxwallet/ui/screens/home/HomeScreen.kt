@@ -42,6 +42,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.boxdev.boxwallet.R
+import com.boxdev.boxwallet.ui.components.SearchAction
 import com.boxdev.boxwallet.ui.components.BalancePanel
 import com.boxdev.boxwallet.ui.components.EmptyState
 import com.boxdev.boxwallet.ui.components.LoanCard
@@ -58,6 +59,7 @@ fun HomeScreen(
     onNavigateToLoanDetail: (Long) -> Unit = {},
     onEditTransaction: (Long) -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
+    onNavigateToSearch: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val categoryMap = remember(uiState.categories) { uiState.categories.associateBy { it.id } }
@@ -72,6 +74,7 @@ fun HomeScreen(
                 scrollBehavior = scrollBehavior,
                 title = { Text(stringResource(R.string.app_name)) },
                 actions = {
+                    SearchAction(onClick = onNavigateToSearch)
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.nav_settings))
                     }

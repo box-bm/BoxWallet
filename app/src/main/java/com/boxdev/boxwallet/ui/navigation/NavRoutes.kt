@@ -8,6 +8,7 @@ sealed class NavRoutes(val route: String) {
         fun createRoute(loanId: Long) = "loan_detail/$loanId"
     }
     data object Analytics : NavRoutes("analytics")
+    data object Search : NavRoutes("search")
     data object Settings : NavRoutes("settings")
     data object GeneralSettings : NavRoutes("general_settings")
     data object Categories : NavRoutes("categories")

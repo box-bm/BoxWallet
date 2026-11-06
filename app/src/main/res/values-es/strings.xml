@@ -98,7 +98,6 @@
 
     <!-- Transactions List Screen -->
     <string name="transactions_title">Transacciones</string>
-    <string name="transactions_search_placeholder">Buscar transacciones\u2026</string>
     <string name="transactions_no_transactions">A\u00fan no hay transacciones</string>
     <string name="transactions_no_results">No se encontraron transacciones</string>
     <string name="transactions_filter_title">Filtros</string>
@@ -114,7 +113,6 @@
     <string name="loans_title">Pr\u00e9stamos</string>
     <string name="loans_no_loans">A\u00fan no hay pr\u00e9stamos</string>
     <string name="loans_tap_to_add">Toca + para agregar un pr\u00e9stamo</string>
-    <string name="loans_search_placeholder">Buscar pr\u00e9stamos…</string>
     <string name="loans_no_results">Ning\u00fan pr\u00e9stamo coincide con los filtros</string>
     <string name="loans_filter_type">Tipo</string>
     <string name="loans_filter_status">Estado</string>
@@ -392,4 +390,33 @@
     <string name="loan_terms">Condiciones</string>
     <string name="home_month_net">Neto</string>
     <string name="theme_preview">Vista previa</string>
+
+    <!-- Búsqueda global -->
+    <string name="action_search">Buscar</string>
+    <string name="search_placeholder">Buscar movimientos, préstamos, categorías…</string>
+    <string name="search_empty_title">Busca en todo</string>
+    <string name="search_empty_message">Encuentra movimientos y préstamos por descripción, categoría o monto.</string>
+    <string name="search_no_results">Sin resultados para “%1$s”</string>
+    <string name="search_no_results_hint">Prueba con menos palabras, una categoría o un monto.</string>
+    <string name="search_section_movements">Movimientos</string>
+    <string name="search_section_loans">Préstamos</string>
+    <string name="search_browse_categories">Explorar por categoría</string>
+
+    <!-- Reportes -->
+    <string name="analytics_cash_flow">Flujo de efectivo</string>
+    <string name="analytics_last_12_months">Últimos 12 meses</string>
+    <string name="analytics_spending_pattern">Patrón de gasto</string>
+    <string name="analytics_average_short">Prom. %1$s</string>
+    <string name="analytics_top_expenses">Gastos más grandes</string>
+    <string name="analytics_vs_previous">%1$s vs anterior</string>
+    <string name="analytics_no_previous">Sin datos previos</string>
+    <string name="analytics_total_spent">Gastado</string>
+    <string name="analytics_other">Otros</string>
+    <string name="analytics_avg_per_day">Prom. diario</string>
+    <string name="analytics_biggest_day">Día más alto</string>
+    <string name="analytics_movements">Movimientos</string>
+    <string name="analytics_empty_period_title">Nada registrado en este periodo</string>
+    <string name="analytics_empty_period_msg">Los movimientos que registres aparecerán aquí como gráficas e ideas.</string>
+    <string name="analytics_savings_rate_caption">de tus ingresos ahorrados en los últimos 12 meses</string>
+    <string name="analytics_net_label_short">Neto</string>
 </resources>

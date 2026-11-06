@@ -21,7 +21,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.Badge
@@ -29,7 +28,7 @@ import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilledTonalIconToggleButton
+import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialShapes
@@ -37,8 +36,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.toPath
@@ -352,61 +349,28 @@ fun <T> ConnectedChoiceRow(
     }
 }
 
-/** Pill search field with a filter toggle that shows how many filters are active. */
+/** Top-bar action that opens the global search. */
 @Composable
-fun SearchFilterBar(
-    query: String,
-    onQueryChange: (String) -> Unit,
-    placeholder: String,
+fun SearchAction(onClick: () -> Unit) {
+    IconButton(onClick = onClick) {
+        Icon(Icons.Default.Search, contentDescription = stringResource(R.string.action_search))
+    }
+}
+
+/** Top-bar toggle for a screen's filter panel; the badge counts the filters that are active. */
+@Composable
+fun FilterToggleAction(
     filtersOpen: Boolean,
     onToggleFilters: (Boolean) -> Unit,
     activeFilterCount: Int,
-    modifier: Modifier = Modifier,
-    showFilterToggle: Boolean = true,
 ) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        TextField(
-            value = query,
-            onValueChange = onQueryChange,
-            singleLine = true,
-            placeholder = { Text(placeholder, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-            trailingIcon = {
-                if (query.isNotEmpty()) {
-                    IconButton(onClick = { onQueryChange("") }) {
-                        Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.action_clear))
-                    }
-                }
-            },
-            shape = MaterialTheme.shapes.extraLarge,
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-                disabledIndicatorColor = Color.Transparent,
-                errorIndicatorColor = Color.Transparent,
-            ),
-            modifier = Modifier
-                .weight(1f)
-                .heightIn(min = 56.dp),
-        )
-        if (showFilterToggle) BadgedBox(
+    IconToggleButton(checked = filtersOpen, onCheckedChange = onToggleFilters) {
+        BadgedBox(
             badge = {
                 if (activeFilterCount > 0) Badge { Text(activeFilterCount.toString()) }
             }
         ) {
-            FilledTonalIconToggleButton(
-                checked = filtersOpen,
-                onCheckedChange = onToggleFilters,
-                modifier = Modifier.size(56.dp),
-            ) {
-                Icon(Icons.Outlined.Tune, contentDescription = stringResource(R.string.action_filter))
-            }
+            Icon(Icons.Outlined.Tune, contentDescription = stringResource(R.string.action_filter))
         }
     }
 }

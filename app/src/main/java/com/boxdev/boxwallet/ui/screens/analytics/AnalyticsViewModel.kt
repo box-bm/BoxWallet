@@ -2,7 +2,6 @@ package com.boxdev.boxwallet.ui.screens.analytics
 
 import com.boxdev.boxwallet.analytics.AnalyticsHelper
 import android.content.Context
-import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boxdev.boxwallet.R
@@ -55,9 +54,17 @@ data class CategoryExpenseData(
     val iconName: String,
     val amount: Double,
     val percentage: Float,
-    val color: Color,
-    /** The category itself, so the UI can draw its shape token. Null for uncategorized. */
+    /** The category itself, so the UI can draw its shape token. Null for uncategorized or "Other". */
     val category: Category? = null,
+    /** True for the bucket that folds the long tail of small categories together. */
+    val isOther: Boolean = false,
+)
+
+/** Spending on one day of the period; [isFuture] days have not happened yet. */
+data class DailySpend(
+    val date: LocalDate,
+    val amount: Double,
+    val isFuture: Boolean,
 )
 
 data class FinancialMetrics(
@@ -89,6 +96,16 @@ data class AnalyticsUiState(
     val periodLabel: String = "",
     val periodIncome: Double = 0.0,
     val periodExpense: Double = 0.0,
+    /** Totals for the period just before this one, for the "vs previous" deltas. */
+    val previousIncome: Double = 0.0,
+    val previousExpense: Double = 0.0,
+    val transactionCount: Int = 0,
+    /** Expense per day across the period (weekly and monthly views only). */
+    val dailySpending: List<DailySpend> = emptyList(),
+    /** Expense divided by the days of the period that have already happened. */
+    val avgDailyExpense: Double = 0.0,
+    val topExpenses: List<Transaction> = emptyList(),
+    val categories: Map<Long, Category> = emptyMap(),
     val categoryExpenses: List<CategoryExpenseData> = emptyList(),
     val monthlyTrendData: List<MonthlyData> = emptyList(),
     val yearlyMonthlySummary: List<MonthlyData> = emptyList(),
@@ -99,6 +116,8 @@ data class AnalyticsUiState(
     val exportFile: File? = null,
     val exportError: String? = null
 )
+
+private const val MAX_CATEGORY_SLICES = 5
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -123,15 +142,29 @@ class AnalyticsViewModel @Inject constructor(
     val uiState: StateFlow<AnalyticsUiState> = filterState
         .flatMapLatest { filter ->
             val (startDate, endDate) = calculateDateRange(filter.frequency, filter.periodOffset)
+            val (prevStart, prevEnd) = calculateDateRange(filter.frequency, filter.periodOffset - 1)
             val trendStart = LocalDate.now().minusMonths(11).withDayOfMonth(1)
             val trendEnd = LocalDate.now()
 
             combine(
                 transactionRepository.getTransactionsBetweenDates(startDate, endDate),
+                transactionRepository.getTransactionsBetweenDates(prevStart, prevEnd),
                 transactionRepository.getTransactionsBetweenDates(trendStart, trendEnd),
                 categoryRepository.getAllCategories()
-            ) { periodTx, trendTx, categories ->
-                val categoryExpenses = calculateCategoryExpenses(periodTx, categories.associateBy { it.id })
+            ) { periodTx, previousTx, trendTx, categories ->
+                val categoryMap = categories.associateBy { it.id }
+                val categoryExpenses = calculateCategoryExpenses(periodTx, categoryMap)
+                val today = LocalDate.now()
+                val expenses = periodTx.filter { it.type == TransactionType.EXPENSE }
+                val dailySpending = if (filter.frequency == AnalyticsFrequency.WEEKLY || filter.frequency == AnalyticsFrequency.MONTHLY) {
+                    val byDay = expenses.groupBy { it.date.toLocalDate() }
+                    generateSequence(startDate) { it.plusDays(1) }
+                        .takeWhile { !it.isAfter(endDate) }
+                        .map { day -> DailySpend(day, byDay[day].orEmpty().sumOf { it.amount }, day.isAfter(today)) }
+                        .toList()
+                } else emptyList()
+                val elapsedDays = (ChronoUnit.DAYS.between(startDate, minOf(endDate, today)) + 1).coerceAtLeast(1)
+                val periodExpense = periodTx.total(TransactionType.EXPENSE)
                 val monthlyTrendData = trendTx.monthlyTotals(
                     monthsBetween(YearMonth.from(trendStart), YearMonth.from(trendEnd))
                 )
@@ -147,7 +180,14 @@ class AnalyticsViewModel @Inject constructor(
                     periodOffset = filter.periodOffset,
                     periodLabel = formatPeriodLabel(filter.frequency, startDate, endDate),
                     periodIncome = periodTx.total(TransactionType.INCOME),
-                    periodExpense = periodTx.total(TransactionType.EXPENSE),
+                    periodExpense = periodExpense,
+                    previousIncome = previousTx.total(TransactionType.INCOME),
+                    previousExpense = previousTx.total(TransactionType.EXPENSE),
+                    transactionCount = periodTx.size,
+                    dailySpending = dailySpending,
+                    avgDailyExpense = if (startDate.isAfter(today)) 0.0 else periodExpense / elapsedDays,
+                    topExpenses = expenses.sortedByDescending { it.amount }.take(5),
+                    categories = categoryMap,
                     categoryExpenses = categoryExpenses,
                     monthlyTrendData = monthlyTrendData,
                     yearlyMonthlySummary = yearlyMonthlySummary,
@@ -237,24 +277,28 @@ class AnalyticsViewModel @Inject constructor(
             .groupBy { it.categoryId }
             .mapValues { (_, txs) -> txs.sumOf { it.amount } }
 
-        val colors = listOf(
-            Color(0xFF6200EE), Color(0xFF03DAC5), Color(0xFFFF6F00), Color(0xFFD32F2F),
-            Color(0xFF388E3C), Color(0xFF1976D2), Color(0xFFC2185B), Color(0xFF7B1FA2)
-        )
-
-        return categoryTotals.entries.mapIndexed { index, (catId, amount) ->
+        val ranked = categoryTotals.entries.map { (catId, amount) ->
             val category = categoriesMap[catId]
-            val name = category?.name ?: context.getString(R.string.analytics_uncategorized)
-            val icon = category?.icon ?: "Category"
             CategoryExpenseData(
-                categoryName = name,
-                iconName = icon,
+                categoryName = category?.name ?: context.getString(R.string.analytics_uncategorized),
+                iconName = category?.icon ?: "Category",
                 amount = amount,
                 percentage = ((amount / totalExpenses) * 100).toFloat(),
-                color = colors[index % colors.size],
                 category = category,
             )
         }.sortedByDescending { it.amount }
+
+        // Keep the chart readable: the top five, then everything else folded into "Other".
+        if (ranked.size <= MAX_CATEGORY_SLICES + 1) return ranked
+        val tail = ranked.drop(MAX_CATEGORY_SLICES)
+        val otherAmount = tail.sumOf { it.amount }
+        return ranked.take(MAX_CATEGORY_SLICES) + CategoryExpenseData(
+            categoryName = context.getString(R.string.analytics_other),
+            iconName = "MoreHoriz",
+            amount = otherAmount,
+            percentage = ((otherAmount / totalExpenses) * 100).toFloat(),
+            isOther = true,
+        )
     }
 
     private fun calculateFinancialMetrics(
@@ -380,8 +424,7 @@ class AnalyticsViewModel @Inject constructor(
             )
         }
 
-        if (categoryBreakdown.isNotEmpty()) {
-            val topCategory = categoryBreakdown.first()
+        categoryBreakdown.firstOrNull { !it.isOther }?.let { topCategory ->
             if (topCategory.percentage > 40) {
                 insights.add(
                     SpendingInsight(

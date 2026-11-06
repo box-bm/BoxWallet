@@ -29,7 +29,15 @@ import com.boxdev.boxwallet.ui.components.AmountText
 import com.boxdev.boxwallet.ui.components.ConnectedChoiceRow
 import com.boxdev.boxwallet.ui.components.SectionHeader
 import com.boxdev.boxwallet.ui.components.trendIcon
-import com.boxdev.boxwallet.ui.components.charts.CategoryBreakdown
+import com.boxdev.boxwallet.ui.components.charts.CategoryDonut
+import com.boxdev.boxwallet.ui.components.charts.CashFlowChart
+import com.boxdev.boxwallet.ui.components.charts.SpendingPatternChart
+import com.boxdev.boxwallet.ui.components.EmptyState
+import com.boxdev.boxwallet.ui.components.SearchAction
+import com.boxdev.boxwallet.ui.components.TransactionItem
+import androidx.compose.material.icons.outlined.InsertChart
+import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.ListItemDefaults
 import com.boxdev.boxwallet.ui.theme.BoxTheme
 import com.boxdev.boxwallet.ui.theme.isWide
 
@@ -108,12 +116,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.boxdev.boxwallet.R
-import com.boxdev.boxwallet.ui.components.charts.MonthlyTrendChart
 import com.boxdev.boxwallet.util.rememberCurrencyFormatter
 import java.time.DayOfWeek
 import java.time.Instant
@@ -129,6 +135,8 @@ import java.util.Locale
 @Composable
 fun AnalyticsScreen(
     onNavigateToSettings: () -> Unit = {},
+    onNavigateToSearch: () -> Unit = {},
+    onEditTransaction: (Long) -> Unit = {},
     viewModel: AnalyticsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -168,6 +176,7 @@ fun AnalyticsScreen(
                 title = { Text(stringResource(R.string.analytics_title)) },
                 subtitle = { Text(uiState.periodLabel) },
                 actions = {
+                    SearchAction(onClick = onNavigateToSearch)
                     IconButton(onClick = { showExportSheet = true }) {
                         Icon(Icons.Outlined.Download, contentDescription = stringResource(R.string.analytics_export_report))
                     }
@@ -184,6 +193,8 @@ fun AnalyticsScreen(
             Box(Modifier.fillMaxSize().padding(paddingValues), contentAlignment = Alignment.Center) { LoadingIndicator() }
             return@Scaffold
         }
+
+        val periodEmpty = uiState.transactionCount == 0
 
         val controls: @Composable () -> Unit = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -211,38 +222,82 @@ fun AnalyticsScreen(
                 )
             }
         }
-        val summary: @Composable () -> Unit = { PeriodSummary(income = uiState.periodIncome, expense = uiState.periodExpense) }
-        val yearly: @Composable () -> Unit = {
-            if (uiState.frequency == AnalyticsFrequency.YEARLY && uiState.yearlyMonthlySummary.any { it.income > 0 || it.expense > 0 }) {
-                ReportSection(stringResource(R.string.analytics_monthly_breakdown)) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        uiState.yearlyMonthlySummary.filter { it.income > 0 || it.expense > 0 }.forEach { data ->
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    data.month.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
-                                        .replaceFirstChar { it.titlecase() },
-                                    style = MaterialTheme.typography.titleSmall,
-                                    modifier = Modifier.weight(1f),
-                                )
-                                AmountText(data.income, kind = AmountKind.Income, style = BoxTheme.moneyType.small,
-                                    modifier = Modifier.weight(1.2f), textAlign = TextAlign.End)
-                                AmountText(data.expense, kind = AmountKind.Expense, style = BoxTheme.moneyType.small,
-                                    modifier = Modifier.weight(1.2f), textAlign = TextAlign.End)
-                            }
+        val summary: @Composable () -> Unit = { PeriodSummary(uiState) }
+        val emptyPeriod: @Composable () -> Unit = {
+            if (periodEmpty) {
+                Surface(color = MaterialTheme.colorScheme.surfaceContainer, shape = MaterialTheme.shapes.large) {
+                    EmptyState(
+                        icon = Icons.Outlined.InsertChart,
+                        title = stringResource(R.string.analytics_empty_period_title),
+                        message = stringResource(R.string.analytics_empty_period_msg),
+                    )
+                }
+            }
+        }
+        val categories: @Composable () -> Unit = {
+            if (uiState.categoryExpenses.isNotEmpty()) {
+                ReportSection(stringResource(R.string.analytics_expenses_by_category)) {
+                    CategoryDonut(uiState.categoryExpenses, modifier = Modifier.fillMaxWidth())
+                }
+            }
+        }
+        val pattern: @Composable () -> Unit = {
+            when {
+                periodEmpty -> Unit
+                uiState.frequency == AnalyticsFrequency.YEARLY -> ReportSection(stringResource(R.string.analytics_monthly_breakdown)) {
+                    CashFlowChart(uiState.yearlyMonthlySummary, modifier = Modifier.fillMaxWidth())
+                }
+                uiState.dailySpending.any { it.amount > 0 } -> ReportSection(stringResource(R.string.analytics_spending_pattern)) {
+                    SpendingPatternChart(
+                        data = uiState.dailySpending,
+                        average = uiState.avgDailyExpense,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    val biggest = uiState.dailySpending.maxBy { it.amount }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 16.dp)) {
+                        StatTile(
+                            label = stringResource(R.string.analytics_avg_per_day),
+                            value = rememberCurrencyFormatter().format(uiState.avgDailyExpense),
+                            modifier = Modifier.weight(1f),
+                        )
+                        StatTile(
+                            label = stringResource(R.string.analytics_biggest_day),
+                            value = rememberCurrencyFormatter().format(biggest.amount),
+                            caption = biggest.date.format(DateTimeFormatter.ofPattern("EEE d", Locale.getDefault()))
+                                .replaceFirstChar { it.titlecase() },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+            }
+        }
+        val topExpenses: @Composable () -> Unit = {
+            if (uiState.topExpenses.isNotEmpty()) {
+                ReportSection(stringResource(R.string.analytics_top_expenses)) {
+                    Column {
+                        uiState.topExpenses.forEachIndexed { index, transaction ->
+                            TransactionItem(
+                                transaction = transaction,
+                                category = transaction.categoryId?.let { uiState.categories[it] },
+                                index = index,
+                                count = uiState.topExpenses.size,
+                                showDate = true,
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                onClick = { onEditTransaction(transaction.id) },
+                                modifier = Modifier.padding(bottom = ListItemDefaults.SegmentedGap),
+                            )
                         }
                     }
                 }
             }
         }
-        val categories: @Composable () -> Unit = {
-            ReportSection(stringResource(R.string.analytics_expenses_by_category)) {
-                if (uiState.categoryExpenses.isNotEmpty()) CategoryBreakdown(uiState.categoryExpenses) else NoDataPlaceholder()
-            }
-        }
-        val trend: @Composable () -> Unit = {
-            ReportSection(stringResource(R.string.analytics_monthly_trend)) {
+        val cashFlow: @Composable () -> Unit = {
+            ReportSection(
+                title = stringResource(R.string.analytics_cash_flow),
+                subtitle = stringResource(R.string.analytics_last_12_months),
+            ) {
                 if (uiState.monthlyTrendData.any { it.income > 0 || it.expense > 0 }) {
-                    MonthlyTrendChart(data = uiState.monthlyTrendData, modifier = Modifier.fillMaxWidth())
+                    CashFlowChart(data = uiState.monthlyTrendData, modifier = Modifier.fillMaxWidth())
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.padding(top = 12.dp)) {
                         LegendItem(BoxTheme.money.income, stringResource(R.string.analytics_income_label))
                         LegendItem(BoxTheme.money.expense, stringResource(R.string.analytics_expense_label))
@@ -251,38 +306,7 @@ fun AnalyticsScreen(
             }
         }
         val health: @Composable () -> Unit = {
-            uiState.financialMetrics?.let { metrics ->
-                ReportSection(stringResource(R.string.analytics_financial_health)) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            MetricTile(
-                                title = stringResource(R.string.analytics_savings_rate),
-                                value = "%.1f%%".format(metrics.savingsRate),
-                                modifier = Modifier.weight(1f),
-                            )
-                            MetricTile(
-                                title = stringResource(R.string.analytics_daily_spending),
-                                value = rememberCurrencyFormatter().format(metrics.avgDailySpending),
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            MetricTile(
-                                title = stringResource(R.string.analytics_income_trend),
-                                value = signedPercent(metrics.incomeGrowth),
-                                good = metrics.incomeGrowth.takeIf { it != 0.0 }?.let { it > 0 },
-                                modifier = Modifier.weight(1f),
-                            )
-                            MetricTile(
-                                title = stringResource(R.string.analytics_expense_trend),
-                                value = signedPercent(metrics.expenseGrowth),
-                                good = metrics.expenseGrowth.takeIf { it != 0.0 }?.let { it < 0 },
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
-                    }
-                }
-            }
+            uiState.financialMetrics?.let { metrics -> HealthSection(metrics) }
         }
         val insights: @Composable () -> Unit = {
             if (uiState.insights.isNotEmpty()) {
@@ -302,17 +326,17 @@ fun AnalyticsScreen(
             Column(scroll.padding(horizontal = 24.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        controls(); summary(); categories(); yearly()
+                        controls(); summary(); emptyPeriod(); categories(); topExpenses()
                     }
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        trend(); health(); insights()
+                        pattern(); cashFlow(); health(); insights()
                     }
                 }
                 Spacer(Modifier.height(24.dp))
             }
         } else {
             Column(scroll.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                controls(); summary(); yearly(); categories(); trend(); health(); insights()
+                controls(); summary(); emptyPeriod(); categories(); pattern(); topExpenses(); cashFlow(); health(); insights()
                 Spacer(Modifier.height(24.dp))
             }
         }
@@ -351,41 +375,61 @@ fun AnalyticsScreen(
     }
 }
 
-/** Net for the period, leading, with money in and out beneath it. */
+/** Net for the period, leading; money in and out beneath it with the change against the previous period. */
 @Composable
-private fun PeriodSummary(income: Double, expense: Double) {
+private fun PeriodSummary(state: AnalyticsUiState) {
     val money = BoxTheme.money
-    val net = income - expense
+    val net = state.periodIncome - state.periodExpense
+    val onContainer = MaterialTheme.colorScheme.onSecondaryContainer
     Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = MaterialTheme.shapes.extraLarge) {
         Column(Modifier.fillMaxWidth().padding(24.dp)) {
             Text(
                 stringResource(R.string.analytics_net_savings),
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                color = onContainer,
             )
             AmountText(
                 amount = kotlin.math.abs(net),
                 kind = if (net >= 0) AmountKind.Income else AmountKind.Expense,
                 style = BoxTheme.moneyType.hero.copy(fontSize = 44.sp, lineHeight = 48.sp),
-                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                color = onContainer,
                 autoSize = true,
             )
             Spacer(Modifier.height(20.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FlowAmount(
                     label = stringResource(R.string.analytics_income_label),
-                    amount = income, kind = AmountKind.Income,
+                    amount = state.periodIncome, kind = AmountKind.Income,
                     container = money.incomeContainer, content = money.onIncomeContainer,
+                    change = percentChange(state.periodIncome, state.previousIncome),
+                    increaseIsGood = true,
                     modifier = Modifier.weight(1f),
                 )
                 FlowAmount(
                     label = stringResource(R.string.analytics_expense_label),
-                    amount = expense, kind = AmountKind.Expense,
+                    amount = state.periodExpense, kind = AmountKind.Expense,
                     container = money.expenseContainer, content = money.onExpenseContainer,
+                    change = percentChange(state.periodExpense, state.previousExpense),
+                    increaseIsGood = false,
                     modifier = Modifier.weight(1f),
                 )
             }
+            Spacer(Modifier.height(16.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                SummaryStat(stringResource(R.string.analytics_movements), state.transactionCount.toString())
+                if (state.frequency != AnalyticsFrequency.DAILY) {
+                    SummaryStat(stringResource(R.string.analytics_avg_per_day), rememberCurrencyFormatter().format(state.avgDailyExpense))
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun SummaryStat(label: String, value: String) {
+    Column {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f))
+        Text(value, style = BoxTheme.moneyType.small, color = MaterialTheme.colorScheme.onSecondaryContainer)
     }
 }
 
@@ -396,6 +440,8 @@ private fun FlowAmount(
     kind: AmountKind,
     container: Color,
     content: Color,
+    change: Double?,
+    increaseIsGood: Boolean,
     modifier: Modifier = Modifier,
 ) {
     Surface(color = container, contentColor = content, shape = MaterialTheme.shapes.medium, modifier = modifier) {
@@ -405,16 +451,110 @@ private fun FlowAmount(
                 Text(label, style = MaterialTheme.typography.labelLarge)
             }
             AmountText(amount, kind = kind, style = BoxTheme.moneyType.medium, color = content, autoSize = true)
+            Spacer(Modifier.height(4.dp))
+            if (change == null) {
+                Text(
+                    stringResource(R.string.analytics_no_previous),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = content.copy(alpha = 0.75f),
+                    maxLines = 1,
+                )
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    if (signedPercent(change) != "0.0%") {
+                        Icon(
+                            if (change > 0) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                        )
+                    }
+                    Text(
+                        stringResource(R.string.analytics_vs_previous, "%.0f%%".format(kotlin.math.abs(change))),
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
         }
     }
 }
 
+/** Percent change from [previous] to [current]; null when there is nothing to compare against. */
+private fun percentChange(current: Double, previous: Double): Double? =
+    if (previous > 0) (current - previous) / previous * 100 else null
+
 @Composable
-private fun ReportSection(title: String, content: @Composable () -> Unit) {
+private fun ReportSection(title: String, subtitle: String? = null, content: @Composable () -> Unit) {
     Surface(color = MaterialTheme.colorScheme.surfaceContainer, shape = MaterialTheme.shapes.large) {
         Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 20.dp)) {
-            SectionHeader(title = title, modifier = Modifier.padding(bottom = 8.dp))
+            SectionHeader(title = title, modifier = Modifier.padding(bottom = if (subtitle == null) 8.dp else 0.dp))
+            if (subtitle != null) {
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 4.dp, bottom = 16.dp),
+                )
+            }
             content()
+        }
+    }
+}
+
+/** Savings rate as a ring, with the trend tiles beside it. */
+@Composable
+private fun HealthSection(metrics: FinancialMetrics) {
+    val rate = metrics.savingsRate
+    val ringColor = if (rate >= 0) BoxTheme.money.income else BoxTheme.money.expense
+    ReportSection(stringResource(R.string.analytics_financial_health)) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.size(96.dp)) {
+                    val progress = (rate / 100.0).toFloat().coerceIn(0f, 1f)
+                    CircularWavyProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier.size(96.dp),
+                        color = ringColor,
+                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    )
+                    Text(
+                        "%.0f%%".format(rate),
+                        style = BoxTheme.moneyType.medium,
+                        color = ringColor,
+                        maxLines = 1,
+                        autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = BoxTheme.moneyType.medium.fontSize),
+                        modifier = Modifier.padding(horizontal = 14.dp),
+                    )
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.analytics_savings_rate), style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        stringResource(R.string.analytics_savings_rate_caption),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                StatTile(
+                    label = stringResource(R.string.analytics_daily_spending),
+                    value = rememberCurrencyFormatter().format(metrics.avgDailySpending),
+                    modifier = Modifier.weight(1f),
+                )
+                StatTile(
+                    label = stringResource(R.string.analytics_income_trend),
+                    value = signedPercent(metrics.incomeGrowth),
+                    good = metrics.incomeGrowth.takeIf { signedPercent(it) != "0.0%" }?.let { it > 0 },
+                    modifier = Modifier.weight(1f),
+                )
+                StatTile(
+                    label = stringResource(R.string.analytics_expense_trend),
+                    value = signedPercent(metrics.expenseGrowth),
+                    good = metrics.expenseGrowth.takeIf { signedPercent(it) != "0.0%" }?.let { it < 0 },
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 }
@@ -867,36 +1007,48 @@ private fun LegendItem(color: Color, label: String) {
     }
 }
 
+/** A small tonal tile: label, value, optional caption. [good] tints the value and adds a direction arrow. */
 @Composable
-private fun MetricTile(
-    title: String,
+private fun StatTile(
+    label: String,
     value: String,
     modifier: Modifier = Modifier,
+    caption: String? = null,
     good: Boolean? = null,
 ) {
-    Box(modifier = modifier) {
-        Column(Modifier.padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+    val valueColor = when (good) {
+        true -> BoxTheme.money.income
+        false -> BoxTheme.money.expense
+        null -> MaterialTheme.colorScheme.onSurface
+    }
+    Surface(color = MaterialTheme.colorScheme.surfaceContainerHigh, shape = MaterialTheme.shapes.medium, modifier = modifier) {
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                minLines = 2,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                 if (good != null) {
                     Icon(
                         if (value.startsWith("+")) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
                         contentDescription = null,
-                        tint = if (good) BoxTheme.money.income else BoxTheme.money.expense,
-                        modifier = Modifier.size(18.dp),
+                        tint = valueColor,
+                        modifier = Modifier.size(16.dp),
                     )
                 }
                 Text(
                     value,
-                    style = BoxTheme.moneyType.medium,
-                    color = when (good) {
-                        true -> BoxTheme.money.income
-                        false -> BoxTheme.money.expense
-                        null -> MaterialTheme.colorScheme.onSurface
-                    },
+                    style = BoxTheme.moneyType.small,
+                    color = valueColor,
                     maxLines = 1,
-                    autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = BoxTheme.moneyType.medium.fontSize),
+                    autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = BoxTheme.moneyType.small.fontSize),
                 )
+            }
+            if (caption != null) {
+                Text(caption, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
             }
         }
     }
