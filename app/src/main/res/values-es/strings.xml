@@ -454,4 +454,7 @@
         <item quantity="many">%1$d vencidas desde %2$s</item>
         <item quantity="other">%1$d vencidas desde %2$s</item>
     </plurals>
+    <string name="analytics_vs_same_point_week">%1$s vs mismo día de la semana pasada</string>
+    <string name="analytics_vs_same_point_month">%1$s vs misma fecha del mes pasado</string>
+    <string name="analytics_vs_same_point_year">%1$s vs misma fecha del año pasado</string>
 </resources>

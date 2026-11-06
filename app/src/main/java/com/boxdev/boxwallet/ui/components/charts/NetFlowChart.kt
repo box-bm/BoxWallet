@@ -62,6 +62,8 @@ fun NetFlowChart(
     }
     val income = BoxTheme.money.income
     val expense = BoxTheme.money.expense
+    val incomeMuted = mutedOnCard(income)
+    val expenseMuted = mutedOnCard(expense)
     val baseline = MaterialTheme.colorScheme.outline
     val highlight = MaterialTheme.colorScheme.surfaceContainerHighest
     val axisStyle = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -133,7 +135,6 @@ fun NetFlowChart(
                 if (data[i].month.isAfter(now) || v == 0.0) return@forEachIndexed
                 val h = (abs(v) / maxAbs * half).toFloat().coerceAtLeast(3.dp.toPx()) * reveal
                 val left = slot * i + (slot - barW) / 2f
-                val alpha = if (i == selected) 1f else 0.42f
                 // Rounded on the end away from the zero line, flat where it meets it.
                 val rect = if (v > 0) Rect(left, zeroY - h, left + barW, zeroY) else Rect(left, zeroY, left + barW, zeroY + h)
                 val cr = CornerRadius(r.coerceAtMost(h), r.coerceAtMost(h))
@@ -142,7 +143,10 @@ fun NetFlowChart(
                 } else {
                     RoundRect(rect, topLeft = CornerRadius.Zero, topRight = CornerRadius.Zero, bottomLeft = cr, bottomRight = cr)
                 }
-                drawPath(Path().apply { addRoundRect(shape) }, (if (v > 0) income else expense).copy(alpha = alpha))
+                drawPath(Path().apply { addRoundRect(shape) }, when {
+                    i == selected -> if (v > 0) income else expense
+                    else -> if (v > 0) incomeMuted else expenseMuted
+                })
             }
 
             drawLine(baseline, Offset(0f, zeroY), Offset(size.width, zeroY), strokeWidth = 1.dp.toPx())

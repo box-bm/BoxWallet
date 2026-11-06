@@ -61,6 +61,8 @@ fun CashFlowChart(
     var selected by remember(data) { mutableIntStateOf(data.indexOfLast { it.income > 0 || it.expense > 0 }.coerceAtLeast(0)) }
     val income = BoxTheme.money.income
     val expense = BoxTheme.money.expense
+    val incomeMuted = mutedOnCard(income)
+    val expenseMuted = mutedOnCard(expense)
     val gridColor = MaterialTheme.colorScheme.outlineVariant
     val highlight = MaterialTheme.colorScheme.surfaceContainerHighest
     val axisStyle = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -161,10 +163,10 @@ fun CashFlowChart(
             val gap = 2.dp.toPx()
             val barW = ((slot * 0.64f - gap) / 2f).coerceAtMost(14.dp.toPx())
             data.forEachIndexed { i, d ->
-                val alpha = if (i == selected) 1f else 0.42f
+                val isSelected = i == selected
                 val groupLeft = left + slot * i + (slot - (barW * 2 + gap)) / 2f
-                drawTopRoundedBar(income.copy(alpha = alpha), groupLeft, baseline, barW, y(d.income) * reveal)
-                drawTopRoundedBar(expense.copy(alpha = alpha), groupLeft + barW + gap, baseline, barW, y(d.expense) * reveal)
+                drawTopRoundedBar(if (isSelected) income else incomeMuted, groupLeft, baseline, barW, y(d.income) * reveal)
+                drawTopRoundedBar(if (isSelected) expense else expenseMuted, groupLeft + barW + gap, baseline, barW, y(d.expense) * reveal)
             }
 
             // Month initials, thinned when they would collide; the latest month always keeps its label.

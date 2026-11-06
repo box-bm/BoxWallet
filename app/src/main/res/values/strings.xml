@@ -468,4 +468,7 @@
         <item quantity="one">%1$d overdue since %2$s</item>
         <item quantity="other">%1$d overdue since %2$s</item>
     </plurals>
+    <string name="analytics_vs_same_point_week">%1$s vs same point last week</string>
+    <string name="analytics_vs_same_point_month">%1$s vs same point last month</string>
+    <string name="analytics_vs_same_point_year">%1$s vs same point last year</string>
 </resources>

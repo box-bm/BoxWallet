@@ -136,6 +136,8 @@ data class AnalyticsUiState(
     /** Totals for the period just before this one, for the "vs previous" deltas. */
     val previousIncome: Double = 0.0,
     val previousExpense: Double = 0.0,
+    /** True while the period is in progress: the previous totals then cover the same elapsed days only. */
+    val comparisonToDate: Boolean = false,
     val transactionCount: Int = 0,
     /** Expense per day across the period (weekly and monthly views only). */
     val dailySpending: List<DailySpend> = emptyList(),
@@ -184,7 +186,14 @@ class AnalyticsViewModel @Inject constructor(
     val uiState: StateFlow<AnalyticsUiState> = filterState
         .flatMapLatest { filter ->
             val (startDate, endDate) = calculateDateRange(filter.frequency, filter.periodOffset)
-            val (prevStart, prevEnd) = calculateDateRange(filter.frequency, filter.periodOffset - 1)
+            val (prevStart, fullPrevEnd) = calculateDateRange(filter.frequency, filter.periodOffset - 1)
+            // A period still in progress is compared with the same number of days of the previous one,
+            // never with all of it: 6 days of November against 6 days of October, not all of October.
+            val today = LocalDate.now()
+            val inProgress = !today.isBefore(startDate) && today.isBefore(endDate)
+            val prevEnd = if (inProgress) {
+                minOf(fullPrevEnd, prevStart.plusDays(ChronoUnit.DAYS.between(startDate, today)))
+            } else fullPrevEnd
             val trendStart = LocalDate.now().minusMonths(11).withDayOfMonth(1)
             val trendEnd = LocalDate.now()
 
@@ -230,6 +239,7 @@ class AnalyticsViewModel @Inject constructor(
                     periodIncome = periodTx.total(TransactionType.INCOME),
                     periodExpense = periodExpense,
                     previousIncome = previousTx.total(TransactionType.INCOME),
+                    comparisonToDate = inProgress,
                     previousExpense = previousTx.total(TransactionType.EXPENSE),
                     transactionCount = periodTx.size,
                     dailySpending = dailySpending,
