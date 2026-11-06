@@ -612,7 +612,7 @@ private fun InstallmentsSection(
                     }
                 }
             }
-            InstallmentCountBar(summary.paidFlags, overdue = summary.overdueCount > 0)
+            InstallmentCountBar(summary.states)
             // Money the user owes and money owed to them are never added together.
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 if (summary.toPayDue > 0) {
@@ -645,7 +645,7 @@ private fun InstallmentsSection(
                     visible.forEachIndexed { index, due ->
                         InstallmentRow(
                             due = due,
-                            dateText = due.installment.date.toLocalDate().format(dateFormatter),
+                            dateText = due.firstDue.format(dateFormatter),
                             index = index,
                             count = visible.size,
                             onClick = { onOpenLoan(due.loanId) },
@@ -662,26 +662,33 @@ private fun InstallmentsSection(
     }
 }
 
-/** One pill per installment due in the period: filled when paid, so progress reads as a count, not a mixed amount. */
+/**
+ * One pill per installment due in the period, in due-date order: filled when paid, error when
+ * overdue, the track colour while still open. Progress reads as a count, never a mixed amount.
+ */
 @Composable
-private fun InstallmentCountBar(paidFlags: List<Boolean>, overdue: Boolean) {
-    val paidColor = MaterialTheme.colorScheme.primary
-    val openColor = if (overdue) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainerHighest
-    if (paidFlags.size > 24) {
-        val paid = paidFlags.count { it }.toFloat() / paidFlags.size
-        Box(Modifier.fillMaxWidth().height(8.dp).clip(CircleShape).background(openColor)) {
-            Box(Modifier.fillMaxWidth(paid).fillMaxHeight().clip(CircleShape).background(paidColor))
-        }
-        return
+private fun InstallmentCountBar(states: List<InstallmentState>) {
+    val colors = mapOf(
+        InstallmentState.PAID to MaterialTheme.colorScheme.primary,
+        InstallmentState.OVERDUE to MaterialTheme.colorScheme.error,
+        InstallmentState.OPEN to MaterialTheme.colorScheme.surfaceContainerHighest,
+    )
+    // Past 24 the pills get too thin; show one bar split into paid, overdue and open runs instead.
+    val segments: List<Pair<InstallmentState, Int>> = if (states.size > 24) {
+        listOf(InstallmentState.PAID, InstallmentState.OVERDUE, InstallmentState.OPEN)
+            .map { st -> st to states.count { it == st } }
+            .filter { it.second > 0 }
+    } else {
+        states.map { it to 1 }
     }
     Row(Modifier.fillMaxWidth().clearAndSetSemantics { }, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        paidFlags.forEach { paid ->
+        segments.forEach { (state, weight) ->
             Box(
                 Modifier
-                    .weight(1f)
+                    .weight(weight.toFloat())
                     .height(8.dp)
                     .clip(CircleShape)
-                    .background(if (paid) paidColor else openColor)
+                    .background(colors.getValue(state))
             )
         }
     }
@@ -705,13 +712,14 @@ private fun DirectionAmount(label: String, open: Double, due: Double, kind: Amou
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun InstallmentRow(
-    due: InstallmentDue,
+    due: LoanInstallmentsDue,
     dateText: String,
     index: Int,
     count: Int,
     onClick: () -> Unit,
 ) {
-    val isIncome = due.installment.type == TransactionType.INCOME
+    val isIncome = due.type == TransactionType.INCOME
+    val isOverdue = due.overdueCount > 0
     SegmentedListItem(
         onClick = onClick,
         shapes = segmentShapes(index, count),
@@ -719,21 +727,29 @@ private fun InstallmentRow(
         modifier = Modifier.padding(bottom = ListItemDefaults.SegmentedGap),
         leadingContent = {
             Icon(
-                if (due.isOverdue) Icons.Outlined.ErrorOutline else Icons.Outlined.Schedule,
+                if (isOverdue) Icons.Outlined.ErrorOutline else Icons.Outlined.Schedule,
                 contentDescription = null,
-                tint = if (due.isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = if (isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         },
         supportingContent = {
+            // One row per loan: a count leads when several installments are open.
+            val status = if (isOverdue) stringResource(R.string.analytics_installment_overdue, dateText)
+            else stringResource(R.string.analytics_installment_due, dateText)
+            val counted = when {
+                due.count == 1 -> status
+                isOverdue -> pluralStringResource(R.plurals.analytics_installments_open, due.count, due.count) + " · " +
+                    pluralStringResource(R.plurals.analytics_installments_overdue_since, due.overdueCount, due.overdueCount, dateText)
+                else -> pluralStringResource(R.plurals.analytics_installments_open, due.count, due.count) + " · " + status
+            }
             Text(
-                if (due.isOverdue) stringResource(R.string.analytics_installment_overdue, dateText)
-                else stringResource(R.string.analytics_installment_due, dateText),
-                color = if (due.isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                counted,
+                color = if (isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         },
         trailingContent = {
             AmountText(
-                due.installment.amount,
+                due.amount,
                 kind = if (isIncome) AmountKind.Income else AmountKind.Expense,
                 style = BoxTheme.moneyType.small,
             )
@@ -784,6 +800,7 @@ private fun HealthSection(
                     )
                 }
             }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 TrendStat(
                     label = stringResource(R.string.analytics_income_trend),
@@ -797,6 +814,13 @@ private fun HealthSection(
                     increaseIsGood = false,
                     modifier = Modifier.weight(1f),
                 )
+            }
+            // Says what the trend percentages compare.
+            Text(
+                stringResource(R.string.analytics_trend_caption),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             }
             burnRateInsight?.let { SectionNote(it, Modifier) }
         }

@@ -415,7 +415,7 @@
     <string name="analytics_movements">Movimientos</string>
     <string name="analytics_empty_period_title">Nada registrado en este periodo</string>
     <string name="analytics_empty_period_msg">Los movimientos que registres aparecerán aquí como gráficas e ideas.</string>
-    <string name="analytics_savings_rate_caption">Tasa de ahorro · últimos 12 meses</string>
+    <string name="analytics_savings_rate_caption">Parte de tus ingresos que conservaste · últimos 12 meses</string>
     <string name="analytics_net_label_short">Neto</string>
     <string name="analytics_verdict_kept">Conservaste el %1$s%% de lo que ingresó</string>
     <string name="analytics_verdict_over">Gastaste %1$s más de lo que ingresó</string>
@@ -443,4 +443,15 @@
     <string name="analytics_installments_to_pay">Por pagar</string>
     <string name="analytics_installments_to_collect">Por cobrar</string>
     <string name="analytics_installments_of_due">de %1$s en el período</string>
+    <string name="analytics_trend_caption">Últimos 6 meses comparados con los 6 anteriores</string>
+    <plurals name="analytics_installments_open">
+        <item quantity="one">%1$d pendiente</item>
+        <item quantity="many">%1$d pendientes</item>
+        <item quantity="other">%1$d pendientes</item>
+    </plurals>
+    <plurals name="analytics_installments_overdue_since">
+        <item quantity="one">%1$d vencida desde %2$s</item>
+        <item quantity="many">%1$d vencidas desde %2$s</item>
+        <item quantity="other">%1$d vencidas desde %2$s</item>
+    </plurals>
 </resources>

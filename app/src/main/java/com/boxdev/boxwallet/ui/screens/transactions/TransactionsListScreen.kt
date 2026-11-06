@@ -116,6 +116,7 @@ fun TransactionsListScreen(
     val activeFilters = listOf(
         filter.transactionType != TransactionTypeFilter.ALL,
         filter.categoryId != null,
+        filter.startDate != null || filter.endDate != null,
         filter.sortBy != SortBy.DATE_DESC,
         filter.showOnlyRecurrent,
     ).count { it }
