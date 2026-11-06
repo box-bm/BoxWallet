@@ -3,31 +3,21 @@ name: Main CI
 on:
   push:
     branches: [main]
+    paths:
+      - '**/*.kt'
+      - '**/*.kts'
+      - 'gradle/**'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  test-and-version:
-    # Skip runs triggered by the version bump commit itself
+  test:
+    # Release commits from the Deploy workflow carry [skip ci]
     if: "!contains(github.event.head_commit.message, '[skip ci]')"
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Get changed files
-        id: changes
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            code:
-              - '**/*.kt'
-              - '**/*.kts'
-              - 'gradle/**'
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -41,77 +31,3 @@ jobs:
 
       - name: Run unit tests
         run: ./gradlew testDebugUnitTest --build-cache
-
-      # ── Determine semver bump from commit messages ──
-      - name: Determine version bump
-        if: steps.changes.outputs.code == 'true'
-        id: bump
-        run: |
-          # Find the latest version tag, or default to initial if none exists
-          LAST_TAG=$(git describe --tags --match "v*" --abbrev=0 2>/dev/null || echo "")
-
-          if [ -z "$LAST_TAG" ]; then
-            COMMITS=$(git log --pretty=format:"%s" HEAD)
-          else
-            COMMITS=$(git log --pretty=format:"%s" "${LAST_TAG}..HEAD")
-          fi
-
-          BUMP="patch"
-          while IFS= read -r msg; do
-            if echo "$msg" | grep -qiE "BREAKING CHANGE|^[a-z]+(\(.+\))?!:"; then
-              BUMP="major"
-              break
-            elif echo "$msg" | grep -qE "^feat(\(.+\))?:"; then
-              BUMP="minor"
-            fi
-          done <<< "$COMMITS"
-
-          echo "type=$BUMP" >> $GITHUB_OUTPUT
-          echo "Determined bump type: $BUMP"
-
-      # ── Apply version bump ──
-      - name: Bump version
-        if: steps.changes.outputs.code == 'true'
-        id: version
-        run: |
-          # Read current version
-          source version.properties
-
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$versionName"
-          OLD_CODE=$versionCode
-
-          case "${{ steps.bump.outputs.type }}" in
-            major)
-              MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
-            minor)
-              MINOR=$((MINOR + 1)); PATCH=0 ;;
-            patch)
-              PATCH=$((PATCH + 1)) ;;
-          esac
-
-          NEW_NAME="$MAJOR.$MINOR.$PATCH"
-          NEW_CODE=$((OLD_CODE + 1))
-
-          # Write updated version
-          cat > version.properties << EOF
-          versionName=$NEW_NAME
-          versionCode=$NEW_CODE
-          EOF
-          # Remove leading whitespace from heredoc
-          sed -i 's/^[[:space:]]*//' version.properties
-
-          echo "new_name=$NEW_NAME" >> $GITHUB_OUTPUT
-          echo "new_code=$NEW_CODE" >> $GITHUB_OUTPUT
-          echo "Bumped to $NEW_NAME (code $NEW_CODE)"
-
-      # ── Commit, tag, push ──
-      - name: Commit and tag
-        if: steps.changes.outputs.code == 'true'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add version.properties
-          git commit -m "chore: bump version to ${{ steps.version.outputs.new_name }} (build ${{ steps.version.outputs.new_code }}) [skip ci]"
-          git tag "v${{ steps.version.outputs.new_name }}"
-          git push
-          git push origin "v${{ steps.version.outputs.new_name }}"

@@ -1,32 +1,55 @@
-name: PR Tests
+name: PR Checks
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, edited, synchronize, reopened]
 
 permissions:
   contents: read
   pull-requests: read
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
+concurrency:
+  # Title edits must not cancel an in-flight test run
+  group: pr-${{ github.event.pull_request.number }}-${{ github.event.action == 'edited' && 'title' || 'code' }}
+  cancel-in-progress: true
 
+jobs:
+  # The PR title becomes part of the merge commit and drives the version bump.
+  pr-title:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate Conventional Commit title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          RE='^(feat|feature|fix|bugfix|perf|refactor|chore|docs|test|build|ci|style|revert)(\([^)]+\))?!?: .+'
+          if ! echo "$TITLE" | grep -qiE "$RE"; then
+            echo "::error::PR title must follow Conventional Commits, e.g. 'feat: add budgets', 'fix(loans): rounding', 'feat!: new storage format'"
+            exit 1
+          fi
+          if echo "$TITLE" | grep -qE '^[A-Za-z]+(\([^)]+\))?!:'; then BUMP=major
+          elif echo "$TITLE" | grep -qiE '^feat(ure)?'; then BUMP=minor
+          else BUMP=patch; fi
+          echo "### Version impact: \`$BUMP\`" >> "$GITHUB_STEP_SUMMARY"
+
+  test:
+    # Skip re-running tests when only the PR title/body was edited
+    if: github.event.action != 'edited'
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Get changed files
-        id: changes
-        uses: dorny/paths-filter@v3
         with:
-          filters: |
-            code:
-              - '**/*.kt'
-              - '**/*.kts'
-              - 'gradle/**'
+          fetch-depth: 0
+
+      - name: Resolve related tests
+        id: related
+        run: |
+          bash .github/scripts/related-tests.sh \
+            "${{ github.event.pull_request.base.sha }}" \
+            "${{ github.event.pull_request.head.sha }}"
 
       - name: Set up JDK 17
-        if: steps.changes.outputs.code == 'true'
+        if: steps.related.outputs.mode != 'none'
         uses: actions/setup-java@v4
         with:
           java-version: "17"
@@ -34,13 +57,28 @@ jobs:
           cache: "gradle"
 
       - name: Decode google-services.json
-        if: steps.changes.outputs.code == 'true'
+        if: steps.related.outputs.mode != 'none'
         run: echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > app/google-services.json
 
-      - name: Run unit tests
-        if: steps.changes.outputs.code == 'true'
+      - name: Run all unit tests (build config changed)
+        if: steps.related.outputs.mode == 'all'
         run: ./gradlew testDebugUnitTest --build-cache
 
-      - name: Skip tests
-        if: steps.changes.outputs.code != 'true'
+      - name: Run related unit tests
+        if: steps.related.outputs.mode == 'filtered'
+        run: ./gradlew testDebugUnitTest ${{ steps.related.outputs.filters }} --build-cache
+
+      - name: Compile only (no related tests found)
+        if: steps.related.outputs.mode == 'compile'
+        run: ./gradlew compileDebugUnitTestKotlin --build-cache
+
+      - name: Skip
+        if: steps.related.outputs.mode == 'none'
         run: echo "No code changes detected, skipping tests."
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: app/build/reports/tests/

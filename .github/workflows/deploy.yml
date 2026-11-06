@@ -1,0 +1,147 @@
+name: Deploy
+
+# Manual release: computes the next semver from every commit/PR merged since
+# the last tag, bumps version.properties on main, tags, uploads to Play
+# (internal track) and creates a DRAFT GitHub release.
+# After promoting to production in Play Console, run "Publish Release".
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump (auto = from Conventional Commits)"
+        type: choice
+        options: [auto, patch, minor, major]
+        default: auto
+      release_status:
+        description: "Play release status (draft only needed for apps never published)"
+        type: choice
+        options: [completed, draft]
+        default: completed
+      upload_store_listing:
+        description: "Upload store listing texts/images from fastlane/metadata"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Calculate next version
+        id: version
+        env:
+          BUMP_OVERRIDE: ${{ inputs.bump }}
+        run: |
+          bash .github/scripts/next-version.sh
+          {
+            echo "## 🚀 Deploy $(sed -n 's/^tag=//p' "$GITHUB_OUTPUT" | tail -1)"
+            echo; cat release-notes.md
+            echo; echo "#### Play changelog"; echo '```'; cat play-changelog.txt; echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Redeploy notice
+        if: steps.version.outputs.has_changes != 'true'
+        run: echo "::notice::No new commits since ${{ steps.version.outputs.last_tag }}; redeploying ${{ steps.version.outputs.tag }} without bumping."
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+          cache: "gradle"
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      - name: Decode secrets
+        run: |
+          echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > app/google-services.json
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/keystore.jks
+          echo "${{ secrets.PLAY_STORE_JSON_KEY }}" | base64 -d > play-store-key.json
+
+      - name: Run unit tests
+        run: ./gradlew testDebugUnitTest --build-cache
+
+      - name: Apply version and changelogs
+        if: steps.version.outputs.has_changes == 'true'
+        env:
+          NAME: ${{ steps.version.outputs.version_name }}
+          CODE: ${{ steps.version.outputs.version_code }}
+        run: |
+          printf 'versionName=%s\nversionCode=%s\n' "$NAME" "$CODE" > version.properties
+          # Only generic notes? let each locale fall back to its translated default.txt
+          grep -qx "Bug fixes and performance improvements." play-changelog.txt && exit 0
+          # A changelog committed manually in a PR (e.g. translated) wins
+          for dir in fastlane/metadata/android/*/; do
+            mkdir -p "$dir/changelogs"
+            [ -f "$dir/changelogs/$CODE.txt" ] || cp play-changelog.txt "$dir/changelogs/$CODE.txt"
+          done
+
+      - name: Build release AAB
+        env:
+          KEYSTORE_FILE: keystore.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: bundle exec fastlane build_release
+
+      - name: Commit version, tag and push
+        if: steps.version.outputs.has_changes == 'true'
+        env:
+          NAME: ${{ steps.version.outputs.version_name }}
+          CODE: ${{ steps.version.outputs.version_code }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add version.properties fastlane/metadata/android/*/changelogs/
+          git commit -m "chore(release): $TAG (build $CODE) [skip ci]"
+          git tag -a "$TAG" -m "Release $TAG (build $CODE)"
+          git push origin HEAD:main
+          git push origin "$TAG"
+
+      - name: Upload to Google Play (internal)
+        env:
+          RELEASE_STATUS: ${{ inputs.release_status }}
+          UPLOAD_STORE_LISTING: ${{ inputs.upload_store_listing }}
+        run: bundle exec fastlane deploy
+
+      - name: Create draft GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+          CODE: ${{ steps.version.outputs.version_code }}
+        run: |
+          AAB=app/build/outputs/bundle/release/app-release.aab
+          MAPPING=app/build/outputs/mapping/release/mapping.txt
+          cp "$AAB" "boxwallet-$TAG.aab"
+          ASSETS=("boxwallet-$TAG.aab")
+          [ -f "$MAPPING" ] && cp "$MAPPING" "mapping-$TAG.txt" && ASSETS+=("mapping-$TAG.txt")
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${ASSETS[@]}" --clobber
+          else
+            gh release create "$TAG" "${ASSETS[@]}" \
+              --draft \
+              --title "$TAG (build $CODE)" \
+              --notes-file release-notes.md
+          fi
+
+      - name: Clean up secrets
+        if: always()
+        run: rm -f app/google-services.json app/keystore.jks play-store-key.json
