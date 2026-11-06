@@ -48,10 +48,12 @@ class TransactionsListViewModel @Inject constructor(
     val uiState: StateFlow<TransactionsListUiState> = _uiState.asStateFlow()
 
     init {
-        // Reports can open this tab filtered to a category.
+        // Reports can open this tab filtered to a category within the period it was showing.
         viewModelScope.launch {
-            filterRequest.categoryId.filterNotNull().collect { id ->
-                _uiState.value = _uiState.value.copy(filterState = TransactionsFilterState(categoryId = id))
+            filterRequest.filter.filterNotNull().collect { f ->
+                _uiState.value = _uiState.value.copy(
+                    filterState = TransactionsFilterState(categoryId = f.categoryId, startDate = f.start, endDate = f.end)
+                )
                 applyFilters()
                 filterRequest.consume()
             }

@@ -87,12 +87,18 @@ data class SpendingInsight(
     val kind: InsightKind,
 )
 
-/** One loan installment due in the period, with the loan it belongs to. */
-data class InstallmentDue(
-    val installment: Transaction,
+enum class InstallmentState { PAID, OPEN, OVERDUE }
+
+/** A loan's unpaid installments in the period, grouped so each loan appears once. */
+data class LoanInstallmentsDue(
     val loanId: Long,
     val loanName: String,
-    val isOverdue: Boolean,
+    val type: TransactionType,
+    val count: Int,
+    val overdueCount: Int,
+    val amount: Double,
+    /** Oldest unpaid due date: the overdue-since date when [overdueCount] > 0, otherwise the next due date. */
+    val firstDue: LocalDate,
 )
 
 /** Loan installments that fall due inside the selected period. */
@@ -106,10 +112,10 @@ data class InstallmentSummary(
     /** Installments owed to the user (income loans). Never added to [toPayDue]. */
     val toCollectDue: Double,
     val toCollectOpen: Double,
-    /** Paid flags in due-date order, one per installment, for the count bar. */
-    val paidFlags: List<Boolean>,
-    /** Unpaid installments, oldest first: overdue ones lead. */
-    val pending: List<InstallmentDue>,
+    /** One state per installment in due-date order, for the count bar. */
+    val states: List<InstallmentState>,
+    /** Loans with unpaid installments, overdue loans first, then by oldest due date. */
+    val pending: List<LoanInstallmentsDue>,
 )
 
 enum class InsightType {
@@ -248,9 +254,11 @@ class AnalyticsViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AnalyticsUiState())
 
-    /** Asks the Movements tab to open filtered to [categoryId]; the screen then switches tabs. */
+    /** Asks the Movements tab to open filtered to [categoryId] in the period on screen; the screen then switches tabs. */
     fun openCategoryMovements(categoryId: Long) {
-        movementsFilter.request(categoryId)
+        val f = filterState.value
+        val (start, end) = calculateDateRange(f.frequency, f.periodOffset)
+        movementsFilter.request(categoryId, start, end)
     }
 
     fun updateFrequency(frequency: AnalyticsFrequency) {
@@ -452,23 +460,37 @@ class AnalyticsViewModel @Inject constructor(
         if (installments.isEmpty()) return null
         val today = LocalDate.now()
         val paid = installments.filter { it.isCleared }
-        val pending = installments.filter { !it.isCleared }.map { tx ->
-            InstallmentDue(
-                installment = tx,
-                loanId = tx.loanId ?: 0L,
-                loanName = tx.loanId?.let { loanNames[it] } ?: tx.description,
-                isOverdue = tx.date.toLocalDate().isBefore(today),
-            )
-        }
+        fun overdue(tx: Transaction) = !tx.isCleared && tx.date.toLocalDate().isBefore(today)
+        val pending = installments.filter { !it.isCleared }
+            .groupBy { it.loanId ?: -it.id }
+            .map { (_, txs) ->
+                val first = txs.minBy { it.date }
+                LoanInstallmentsDue(
+                    loanId = first.loanId ?: 0L,
+                    loanName = first.loanId?.let { loanNames[it] } ?: first.description,
+                    type = first.type,
+                    count = txs.size,
+                    overdueCount = txs.count(::overdue),
+                    amount = txs.sumOf { it.amount },
+                    firstDue = first.date.toLocalDate(),
+                )
+            }
+            .sortedWith(compareByDescending<LoanInstallmentsDue> { it.overdueCount > 0 }.thenBy { it.firstDue })
         return InstallmentSummary(
             dueCount = installments.size,
             paidCount = paid.size,
-            overdueCount = pending.count { it.isOverdue },
+            overdueCount = installments.count(::overdue),
             toPayDue = installments.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount },
             toPayOpen = installments.filter { it.type == TransactionType.EXPENSE && !it.isCleared }.sumOf { it.amount },
             toCollectDue = installments.filter { it.type == TransactionType.INCOME }.sumOf { it.amount },
             toCollectOpen = installments.filter { it.type == TransactionType.INCOME && !it.isCleared }.sumOf { it.amount },
-            paidFlags = installments.map { it.isCleared },
+            states = installments.sortedBy { it.date }.map {
+                when {
+                    it.isCleared -> InstallmentState.PAID
+                    overdue(it) -> InstallmentState.OVERDUE
+                    else -> InstallmentState.OPEN
+                }
+            },
             pending = pending,
         )
     }

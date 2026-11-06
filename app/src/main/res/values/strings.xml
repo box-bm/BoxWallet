@@ -431,7 +431,7 @@
     <string name="analytics_movements">Movements</string>
     <string name="analytics_empty_period_title">Nothing recorded in this period</string>
     <string name="analytics_empty_period_msg">Movements you log will show up here as charts and insights.</string>
-    <string name="analytics_savings_rate_caption">Savings rate · last 12 months</string>
+    <string name="analytics_savings_rate_caption">Share of your income you kept · last 12 months</string>
     <string name="analytics_net_label_short">Net</string>
     <string name="analytics_verdict_kept">You kept %1$s%% of what came in</string>
     <string name="analytics_verdict_over">You spent %1$s more than came in</string>
@@ -459,4 +459,13 @@
     <string name="analytics_installments_to_pay">To pay</string>
     <string name="analytics_installments_to_collect">To collect</string>
     <string name="analytics_installments_of_due">of %1$s due</string>
+    <string name="analytics_trend_caption">Last 6 months compared with the 6 before</string>
+    <plurals name="analytics_installments_open">
+        <item quantity="one">%1$d open</item>
+        <item quantity="other">%1$d open</item>
+    </plurals>
+    <plurals name="analytics_installments_overdue_since">
+        <item quantity="one">%1$d overdue since %2$s</item>
+        <item quantity="other">%1$d overdue since %2$s</item>
+    </plurals>
 </resources>
