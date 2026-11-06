@@ -7,20 +7,12 @@ import androidx.lifecycle.viewModelScope
 import com.boxdev.boxwallet.data.remote.DriveBackupFile
 import com.boxdev.boxwallet.data.remote.GoogleAuthManager
 import com.boxdev.boxwallet.data.remote.GoogleDriveManager
-import com.boxdev.boxwallet.data.repository.CategoryRepository
-import com.boxdev.boxwallet.data.repository.DataManagementRepository
-import com.boxdev.boxwallet.data.repository.LoanRepository
-import com.boxdev.boxwallet.data.repository.TransactionRepository
-import com.boxdev.boxwallet.domain.model.BackupData
-import com.google.gson.Gson
+import com.boxdev.boxwallet.data.repository.BackupRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import javax.inject.Inject
 
 data class BackupUiState(
@@ -36,10 +28,7 @@ data class BackupUiState(
 
 @HiltViewModel
 class BackupViewModel @Inject constructor(
-    private val transactionRepository: TransactionRepository,
-    private val categoryRepository: CategoryRepository,
-    private val loanRepository: LoanRepository,
-    private val dataManagementRepository: DataManagementRepository,
+    private val backupRepository: BackupRepository,
     private val googleAuthManager: GoogleAuthManager,
     private val googleDriveManager: GoogleDriveManager,
     private val analyticsHelper: AnalyticsHelper
@@ -47,8 +36,6 @@ class BackupViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(BackupUiState())
     val uiState: StateFlow<BackupUiState> = _uiState.asStateFlow()
-
-    private val gson = Gson()
 
     init {
         val account = googleAuthManager.getLastSignedInAccount()
@@ -114,23 +101,7 @@ class BackupViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, message = null)
             try {
-                val transactions = transactionRepository.getAllTransactionsSync()
-                val categories = categoryRepository.getAllCategoriesSync()
-                val loans = loanRepository.getAllLoansSync()
-
-                val backupData = BackupData(
-                    version = 2,
-                    createdAt = System.currentTimeMillis(),
-                    transactions = transactions,
-                    categories = categories,
-                    loans = loans
-                )
-
-                val json = gson.toJson(backupData)
-                val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-                val fileName = "boxwallet_backup_$timestamp.json"
-
-                googleDriveManager.uploadBackup(fileName, json)
+                backupRepository.createBackup()
                 loadBackups()
 
                 analyticsHelper.logEvent("backup_created")
@@ -153,16 +124,7 @@ class BackupViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, message = null)
             try {
-                val json = googleDriveManager.downloadBackup(fileId)
-                val backupData = gson.fromJson(json, BackupData::class.java)
-
-                // Clear all existing data
-                dataManagementRepository.clearAll()
-
-                // Restore in FK order: categories → loans → transactions
-                categoryRepository.restoreCategories(backupData.categories)
-                loanRepository.restoreLoans(backupData.loans)
-                transactionRepository.restoreTransactions(backupData.transactions)
+                val backupData = backupRepository.restoreBackup(fileId)
 
                 analyticsHelper.logEvent("backup_restored")
                 _uiState.value = _uiState.value.copy(

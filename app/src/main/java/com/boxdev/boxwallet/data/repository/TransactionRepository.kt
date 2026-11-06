@@ -3,10 +3,8 @@ package com.boxdev.boxwallet.data.repository
 import android.content.Context
 import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.data.local.dao.TransactionDao
-import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.domain.model.FinancialSummary
-import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.domain.model.toDomain
 import com.boxdev.boxwallet.domain.model.toEntity
@@ -107,20 +105,12 @@ class TransactionRepository @Inject constructor(
         }
     }
 
-    suspend fun restoreTransactions(transactions: List<TransactionEntity>) {
-        transactions.forEach { transaction ->
-            transactionDao.insert(transaction)
-        }
-    }
-
     fun getUpcomingReminders(): Flow<List<Transaction>> =
         transactionDao.getUpcomingReminders(System.currentTimeMillis())
             .map { it.map { e -> e.toDomain() } }
 
     fun getInstallmentsByLoanId(loanId: Long): Flow<List<Transaction>> =
         transactionDao.getInstallmentsByLoanIdFlow(loanId).map { it.map { e -> e.toDomain() } }
-
-    suspend fun getAllTransactionsSync() = transactionDao.getAllTransactionsSync()
 
     fun getRecurrentTransactions(): Flow<List<Transaction>> =
         transactionDao.getRecurrentTransactions().map { it.map { e -> e.toDomain() } }
@@ -129,37 +119,18 @@ class TransactionRepository @Inject constructor(
         require(transaction.isRecurrent) { "Transaction must be recurrent" }
         require(transaction.recurrenceFrequency != null) { "Recurrence frequency must be set" }
 
-        val nextDate = calculateNextOccurrence(
-            transaction.date,
-            transaction.recurrenceFrequency!!,
-            transaction.recurrenceInterval ?: 1
-        )
+        val frequency = transaction.recurrenceFrequency!!
+        val interval = transaction.recurrenceInterval ?: 1
+        val nextDate = frequency.advance(transaction.date, interval)
 
         val nextTransaction = transaction.copy(
             id = 0,
             date = nextDate,
             isCleared = false,
-            nextOccurrenceDate = calculateNextOccurrence(
-                nextDate,
-                transaction.recurrenceFrequency!!,
-                transaction.recurrenceInterval ?: 1
-            ),
+            nextOccurrenceDate = frequency.advance(nextDate, interval),
             parentRecurrenceId = if (transaction.parentRecurrenceId != null) transaction.parentRecurrenceId else transaction.id
         )
 
         transactionDao.insert(nextTransaction.toEntity())
-    }
-
-    private fun calculateNextOccurrence(
-        currentDate: LocalDateTime,
-        frequency: RecurrenceFrequency,
-        interval: Int
-    ): LocalDateTime = when (frequency) {
-        RecurrenceFrequency.DAILY -> currentDate.plusDays(interval.toLong())
-        RecurrenceFrequency.WEEKLY -> currentDate.plusWeeks(interval.toLong())
-        RecurrenceFrequency.BIWEEKLY -> currentDate.plusWeeks(2)
-        RecurrenceFrequency.MONTHLY -> currentDate.plusMonths(1)
-        RecurrenceFrequency.YEARLY -> currentDate.plusYears(1)
-        RecurrenceFrequency.CUSTOM_MONTHS -> currentDate.plusMonths(interval.toLong())
     }
 }

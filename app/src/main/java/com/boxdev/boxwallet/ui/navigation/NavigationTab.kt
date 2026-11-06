@@ -118,13 +118,7 @@ fun NavigationTab(analyticsHelper: AnalyticsHelper, modifier: Modifier = Modifie
                         NavigationBarItem(
                             selected = currentRoute == destination.route,
                             onClick = {
-                                navController.navigate(destination.route) {
-                                    popUpTo(navController.graph.startDestinationId) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
+                                navController.navigateToTab(destination.route)
                             },
                             icon = {
                                 val selected = currentRoute == destination.route

@@ -3,6 +3,8 @@ package com.boxdev.boxwallet.util
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.domain.model.Loan
 import com.boxdev.boxwallet.domain.model.Transaction
+import com.boxdev.boxwallet.domain.model.monthsBetween
+import com.boxdev.boxwallet.domain.model.total
 import org.apache.poi.ss.usermodel.FillPatternType
 import org.apache.poi.ss.usermodel.IndexedColors
 import org.apache.poi.xssf.usermodel.XSSFCellStyle
@@ -226,12 +228,12 @@ object ExcelReportGenerator {
         val hr = sheet.createRow(0)
         headers.forEachIndexed { i, h -> hr.createCell(i).also { it.setCellValue(h); it.cellStyle = headerStyle } }
 
-        val totalExpense = transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+        val totalExpense = transactions.total(TransactionType.EXPENSE)
 
-        val categoryIds = transactions.map { it.categoryId }.distinct()
-        categoryIds.forEachIndexed { idx, catId ->
+        // groupBy keeps first-seen order, matching the previous distinct() ordering
+        val byCategory = transactions.groupBy { it.categoryId }
+        byCategory.entries.forEachIndexed { idx, (catId, catTxs) ->
             val catName = catId?.let { categories[it] } ?: "Uncategorized"
-            val catTxs = transactions.filter { it.categoryId == catId }
             val incTxs = catTxs.filter { it.type == TransactionType.INCOME }
             val expTxs = catTxs.filter { it.type == TransactionType.EXPENSE }
             val incTotal = incTxs.sumOf { it.amount }
@@ -249,8 +251,8 @@ object ExcelReportGenerator {
         }
 
         // Totals row
-        val totalIncome = transactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
-        val totalsRow = sheet.createRow(categoryIds.size + 2)
+        val totalIncome = transactions.total(TransactionType.INCOME)
+        val totalsRow = sheet.createRow(byCategory.size + 2)
         totalsRow.createCell(0).also { it.setCellValue("TOTAL"); it.cellStyle = boldStyle }
         totalsRow.createCell(1).also { it.setCellValue(totalIncome); it.cellStyle = boldStyle }
         totalsRow.createCell(3).also { it.setCellValue(totalExpense); it.cellStyle = boldStyle }
@@ -288,14 +290,13 @@ object ExcelReportGenerator {
         val hr = sheet.createRow(0)
         headers.forEachIndexed { i, h -> hr.createCell(i).also { it.setCellValue(h); it.cellStyle = headerStyle } }
 
-        val months = mutableListOf<YearMonth>()
-        var cur = startYM
-        while (!cur.isAfter(endYM)) { months.add(cur); cur = cur.plusMonths(1) }
+        val months = monthsBetween(startYM, endYM)
+        val byMonth = transactions.groupBy { YearMonth.from(it.date) }
 
         months.forEachIndexed { idx, ym ->
-            val monthTxs = transactions.filter { YearMonth.from(it.date) == ym }
-            val inc = monthTxs.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
-            val exp = monthTxs.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+            val monthTxs = byMonth[ym].orEmpty()
+            val inc = monthTxs.total(TransactionType.INCOME)
+            val exp = monthTxs.total(TransactionType.EXPENSE)
             val row = sheet.createRow(idx + 1)
             row.createCell(0).setCellValue(ym.atDay(1).format(monthFmt))
             row.createCell(1).setCellValue(inc)
@@ -304,8 +305,8 @@ object ExcelReportGenerator {
             row.createCell(4).setCellValue(monthTxs.size.toDouble())
         }
 
-        val totalIncome = transactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
-        val totalExpense = transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+        val totalIncome = transactions.total(TransactionType.INCOME)
+        val totalExpense = transactions.total(TransactionType.EXPENSE)
         val totalsRow = sheet.createRow(months.size + 2)
         totalsRow.createCell(0).also { it.setCellValue("TOTAL"); it.cellStyle = boldStyle }
         totalsRow.createCell(1).also { it.setCellValue(totalIncome); it.cellStyle = boldStyle }

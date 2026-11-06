@@ -258,10 +258,13 @@ fun TransactionsListScreen(
                 }
 
                 else -> {
-                    val grouped = uiState.filteredTransactions
-                        .groupBy { it.date.toLocalDate() }
-                        .entries
-                        .sortedByDescending { it.key }
+                    val grouped = remember(uiState.filteredTransactions) {
+                        uiState.filteredTransactions
+                            .groupBy { it.date.toLocalDate() }
+                            .entries
+                            .sortedByDescending { it.key }
+                    }
+                    val headerFormatter = remember { DateTimeFormatter.ofPattern("EEEE, MMMM d") }
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
@@ -273,7 +276,7 @@ fun TransactionsListScreen(
                                     color = MaterialTheme.colorScheme.surface
                                 ) {
                                     Text(
-                                        text = date.format(DateTimeFormatter.ofPattern("EEEE, MMMM d")),
+                                        text = date.format(headerFormatter),
                                         style = MaterialTheme.typography.labelLarge,
                                         fontWeight = FontWeight.SemiBold,
                                         color = MaterialTheme.colorScheme.primary,

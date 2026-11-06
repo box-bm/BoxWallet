@@ -615,13 +615,12 @@ private fun RestoreFromBackupDialog(
                         text = stringResource(R.string.onboarding_select_backup),
                         style = MaterialTheme.typography.bodyMedium
                     )
+                    val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault()) }
                     LazyColumn(
                         modifier = Modifier.height(240.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(uiState.backupFiles) { file ->
-                            val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
-                            val fileSize = "%.2f KB".format(file.size / 1024.0)
+                        items(uiState.backupFiles, key = { it.id }) { file ->
                             Card(
                                 onClick = { onRestore(file.id) },
                                 modifier = Modifier.fillMaxWidth()
@@ -635,7 +634,7 @@ private fun RestoreFromBackupDialog(
                                         fontWeight = FontWeight.Medium
                                     )
                                     Text(
-                                        text = fileSize,
+                                        text = file.formattedSize,
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )

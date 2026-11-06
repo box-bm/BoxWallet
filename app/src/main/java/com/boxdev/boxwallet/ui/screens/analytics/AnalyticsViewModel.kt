@@ -11,7 +11,10 @@ import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.LoanRepository
 import com.boxdev.boxwallet.data.repository.TransactionRepository
 import com.boxdev.boxwallet.util.ExcelReportGenerator
+import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Transaction
+import com.boxdev.boxwallet.domain.model.monthsBetween
+import com.boxdev.boxwallet.domain.model.total
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -22,6 +25,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -31,7 +35,6 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
-import java.time.format.TextStyle
 import java.time.temporal.ChronoUnit
 import java.util.Date
 import java.util.Locale
@@ -47,13 +50,6 @@ data class MonthlyData(
     val expense: Double
 )
 
-data class CategoryData(
-    val categoryName: String,
-    val amount: Double,
-    val percentage: Float,
-    val color: Color
-)
-
 data class CategoryExpenseData(
     val categoryName: String,
     val iconName: String,
@@ -62,26 +58,12 @@ data class CategoryExpenseData(
     val color: Color
 )
 
-data class ProjectionData(
-    val month: YearMonth,
-    val projected: Double,
-    val actual: Double?
-)
-
-data class BalanceTrendData(
-    val month: YearMonth,
-    val balance: Double,
-    val isIncreasing: Boolean
-)
-
 data class FinancialMetrics(
     val savingsRate: Double,
     val avgDailySpending: Double,
     val burnRate: Double,
     val incomeGrowth: Double,
-    val expenseGrowth: Double,
-    val topSpendingCategory: String,
-    val topSpendingAmount: Double
+    val expenseGrowth: Double
 )
 
 data class SpendingInsight(
@@ -113,13 +95,7 @@ data class AnalyticsUiState(
     val isLoading: Boolean = true,
     val isExporting: Boolean = false,
     val exportFile: File? = null,
-    val exportError: String? = null,
-    // Keep for old chart files compilation
-    val monthlyData: List<MonthlyData> = emptyList(),
-    val categoryBreakdown: List<CategoryData> = emptyList(),
-    val projectionData: List<ProjectionData> = emptyList(),
-    val balanceTrend: List<BalanceTrendData> = emptyList(),
-    val selectedPeriod: Int = 6
+    val exportError: String? = null
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -148,74 +124,41 @@ class AnalyticsViewModel @Inject constructor(
             val trendStart = LocalDate.now().minusMonths(11).withDayOfMonth(1)
             val trendEnd = LocalDate.now()
 
-            val periodTxFlow = transactionRepository.getTransactionsBetweenDates(startDate, endDate)
-            val trendTxFlow = transactionRepository.getTransactionsBetweenDates(trendStart, trendEnd)
-            val categoriesFlow = categoryRepository.getAllCategories()
-
-            combine(periodTxFlow, trendTxFlow, categoriesFlow, _exportState) { periodTx, trendTx, categories, exportState ->
-                val categoriesMap = categories.associate { it.id to it }
-
-                val periodIncome = periodTx.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
-                val periodExpense = periodTx.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
-
-                val categoryExpenses = calculateCategoryExpenses(periodTx, categoriesMap.mapValues { (_, cat) -> cat.name to cat.icon })
-                val categoryBreakdown = categoryExpenses.map {
-                    CategoryData(it.categoryName, it.amount, it.percentage, it.color)
-                }
-
-                // Monthly trend data (last 12 months)
-                val months = mutableListOf<YearMonth>()
-                var current = YearMonth.from(trendStart)
-                val end = YearMonth.from(trendEnd)
-                while (!current.isAfter(end)) {
-                    months.add(current)
-                    current = current.plusMonths(1)
-                }
-                val monthlyTrendData = months.map { month ->
-                    val monthTx = trendTx.filter { YearMonth.from(it.date) == month }
-                    MonthlyData(
-                        month = month,
-                        income = monthTx.filter { it.type == TransactionType.INCOME }.sumOf { it.amount },
-                        expense = monthTx.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
-                    )
-                }
-
-                // Yearly monthly summary (only when frequency is YEARLY)
+            combine(
+                transactionRepository.getTransactionsBetweenDates(startDate, endDate),
+                transactionRepository.getTransactionsBetweenDates(trendStart, trendEnd),
+                categoryRepository.getAllCategories()
+            ) { periodTx, trendTx, categories ->
+                val categoryExpenses = calculateCategoryExpenses(periodTx, categories.associateBy { it.id })
+                val monthlyTrendData = trendTx.monthlyTotals(
+                    monthsBetween(YearMonth.from(trendStart), YearMonth.from(trendEnd))
+                )
                 val yearlyMonthlySummary = if (filter.frequency == AnalyticsFrequency.YEARLY) {
-                    val year = LocalDate.now().year + filter.periodOffset
-                    (1..12).map { m ->
-                        val ym = YearMonth.of(year, m)
-                        val monthTx = periodTx.filter { YearMonth.from(it.date) == ym }
-                        MonthlyData(
-                            month = ym,
-                            income = monthTx.filter { it.type == TransactionType.INCOME }.sumOf { it.amount },
-                            expense = monthTx.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
-                        )
-                    }
+                    val year = startDate.year
+                    periodTx.monthlyTotals(monthsBetween(YearMonth.of(year, 1), YearMonth.of(year, 12)))
                 } else emptyList()
 
-                val metrics = calculateFinancialMetrics(monthlyTrendData, categoryBreakdown, trendStart, trendEnd)
-                val insights = generateInsights(monthlyTrendData, metrics, categoryBreakdown)
+                val metrics = calculateFinancialMetrics(monthlyTrendData, trendStart, trendEnd)
 
                 AnalyticsUiState(
                     frequency = filter.frequency,
                     periodOffset = filter.periodOffset,
-                    periodLabel = formatPeriodLabel(filter.frequency, filter.periodOffset),
-                    periodIncome = periodIncome,
-                    periodExpense = periodExpense,
+                    periodLabel = formatPeriodLabel(filter.frequency, startDate, endDate),
+                    periodIncome = periodTx.total(TransactionType.INCOME),
+                    periodExpense = periodTx.total(TransactionType.EXPENSE),
                     categoryExpenses = categoryExpenses,
                     monthlyTrendData = monthlyTrendData,
                     yearlyMonthlySummary = yearlyMonthlySummary,
                     financialMetrics = metrics,
-                    insights = insights,
-                    isLoading = false,
-                    isExporting = exportState.isExporting,
-                    exportFile = exportState.file,
-                    exportError = exportState.error,
-                    monthlyData = monthlyTrendData,
-                    categoryBreakdown = categoryBreakdown
+                    insights = generateInsights(monthlyTrendData, metrics, categoryExpenses),
+                    isLoading = false
                 )
             }
+        }
+        .flowOn(Dispatchers.Default)
+        // Export state is merged last so export progress doesn't recompute the aggregates.
+        .combine(_exportState) { state, export ->
+            state.copy(isExporting = export.isExporting, exportFile = export.file, exportError = export.error)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AnalyticsUiState())
 
@@ -259,35 +202,30 @@ class AnalyticsViewModel @Inject constructor(
         }
     }
 
-    private fun formatPeriodLabel(frequency: AnalyticsFrequency, offset: Int): String {
-        val today = LocalDate.now()
+    private fun formatPeriodLabel(frequency: AnalyticsFrequency, start: LocalDate, end: LocalDate): String {
         val locale = Locale.getDefault()
         return when (frequency) {
-            AnalyticsFrequency.DAILY -> {
-                val day = today.plusDays(offset.toLong())
-                day.format(DateTimeFormatter.ofPattern("EEE, MMM d, yyyy", locale))
-            }
+            AnalyticsFrequency.DAILY -> start.format(DateTimeFormatter.ofPattern("EEE, MMM d, yyyy", locale))
             AnalyticsFrequency.WEEKLY -> {
-                val thisMonday = today.with(DayOfWeek.MONDAY)
-                val startOfWeek = thisMonday.plusWeeks(offset.toLong())
-                val endOfWeek = startOfWeek.plusDays(6)
                 val fmt = DateTimeFormatter.ofPattern("MMM d", locale)
-                "${startOfWeek.format(fmt)} - ${endOfWeek.format(fmt)}, ${endOfWeek.year}"
+                "${start.format(fmt)} - ${end.format(fmt)}, ${end.year}"
             }
-            AnalyticsFrequency.MONTHLY -> {
-                val month = YearMonth.from(today).plusMonths(offset.toLong())
-                month.format(DateTimeFormatter.ofPattern("MMMM yyyy", locale))
-            }
-            AnalyticsFrequency.YEARLY -> {
-                val year = today.year + offset
-                year.toString()
-            }
+            AnalyticsFrequency.MONTHLY -> start.format(DateTimeFormatter.ofPattern("MMMM yyyy", locale))
+            AnalyticsFrequency.YEARLY -> start.year.toString()
+        }
+    }
+
+    private fun List<Transaction>.monthlyTotals(months: List<YearMonth>): List<MonthlyData> {
+        val byMonth = groupBy { YearMonth.from(it.date) }
+        return months.map { month ->
+            val monthTx = byMonth[month].orEmpty()
+            MonthlyData(month, monthTx.total(TransactionType.INCOME), monthTx.total(TransactionType.EXPENSE))
         }
     }
 
     private fun calculateCategoryExpenses(
         transactions: List<Transaction>,
-        categoriesMap: Map<Long, Pair<String, String>>
+        categoriesMap: Map<Long, Category>
     ): List<CategoryExpenseData> {
         val expenseTransactions = transactions.filter { it.type == TransactionType.EXPENSE }
         val totalExpenses = expenseTransactions.sumOf { it.amount }
@@ -303,7 +241,9 @@ class AnalyticsViewModel @Inject constructor(
         )
 
         return categoryTotals.entries.mapIndexed { index, (catId, amount) ->
-            val (name, icon) = categoriesMap[catId] ?: (context.getString(R.string.analytics_uncategorized) to "Category")
+            val category = categoriesMap[catId]
+            val name = category?.name ?: context.getString(R.string.analytics_uncategorized)
+            val icon = category?.icon ?: "Category"
             CategoryExpenseData(
                 categoryName = name,
                 iconName = icon,
@@ -316,7 +256,6 @@ class AnalyticsViewModel @Inject constructor(
 
     private fun calculateFinancialMetrics(
         monthlyData: List<MonthlyData>,
-        categoryBreakdown: List<CategoryData>,
         startDate: LocalDate,
         endDate: LocalDate
     ): FinancialMetrics? {
@@ -350,23 +289,19 @@ class AnalyticsViewModel @Inject constructor(
             ((secondHalfExpense - firstHalfExpense) / firstHalfExpense) * 100
         } else 0.0
 
-        val topCategory = categoryBreakdown.maxByOrNull { it.amount }
-
         return FinancialMetrics(
             savingsRate = savingsRate,
             avgDailySpending = avgDailySpending,
             burnRate = burnRate,
             incomeGrowth = incomeGrowth,
-            expenseGrowth = expenseGrowth,
-            topSpendingCategory = topCategory?.categoryName ?: "N/A",
-            topSpendingAmount = topCategory?.amount ?: 0.0
+            expenseGrowth = expenseGrowth
         )
     }
 
     private fun generateInsights(
         monthlyData: List<MonthlyData>,
         metrics: FinancialMetrics?,
-        categoryBreakdown: List<CategoryData>
+        categoryBreakdown: List<CategoryExpenseData>
     ): List<SpendingInsight> {
         if (metrics == null || monthlyData.isEmpty()) return emptyList()
 

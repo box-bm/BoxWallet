@@ -40,21 +40,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.boxdev.boxwallet.R
-import com.boxdev.boxwallet.data.previewParams.HomeUiStatePreviewParameterProvider
 import com.boxdev.boxwallet.ui.components.LoanCard
 import com.boxdev.boxwallet.ui.components.SummaryCard
 import com.boxdev.boxwallet.ui.components.TransactionItem
 
-@Preview()
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun HomeScreen(
-    @PreviewParameter(HomeUiStatePreviewParameterProvider::class) viewModel: HomeViewModel = hiltViewModel(),
+    viewModel: HomeViewModel = hiltViewModel(),
     onSeeAllTransactions: () -> Unit = {},
     onSeeAllLoans: () -> Unit = {},
     onNavigateToLoanDetail: (Long) -> Unit = {},

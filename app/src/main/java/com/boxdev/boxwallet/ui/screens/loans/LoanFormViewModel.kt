@@ -12,6 +12,8 @@ import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -51,21 +53,15 @@ data class LoanFormState(
 @HiltViewModel
 class LoanFormViewModel @Inject constructor(
     private val loanRepository: LoanRepository,
-    private val categoryRepository: CategoryRepository,
+    categoryRepository: CategoryRepository,
     private val analyticsHelper: AnalyticsHelper
 ) : ViewModel() {
 
     private val _formState = MutableStateFlow(LoanFormState())
     val formState: StateFlow<LoanFormState> = _formState.asStateFlow()
 
-    private val _categories = MutableStateFlow<List<Category>>(emptyList())
-    val categories: StateFlow<List<Category>> = _categories.asStateFlow()
-
-    init {
-        viewModelScope.launch {
-            categoryRepository.getAllCategories().collect { _categories.value = it }
-        }
-    }
+    val categories: StateFlow<List<Category>> = categoryRepository.getAllCategories()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun loadLoan(loanId: Long?) {
         if (loanId == null || loanId == -1L) {

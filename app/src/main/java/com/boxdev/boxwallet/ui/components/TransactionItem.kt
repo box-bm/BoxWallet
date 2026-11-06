@@ -17,6 +17,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -44,7 +45,7 @@ fun TransactionItem(
     onClick: () -> Unit = {},
     onLongClick: () -> Unit = {},
 ) {
-    val dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy - HH:mm")
+    val dateFormatter = remember { DateTimeFormatter.ofPattern("MMM dd, yyyy - HH:mm") }
     val typeColor = when (transaction.type) {
         TransactionType.INCOME -> MaterialTheme.colorScheme.onPrimaryContainer
         TransactionType.EXPENSE -> MaterialTheme.colorScheme.onErrorContainer
