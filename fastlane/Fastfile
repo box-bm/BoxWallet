@@ -41,6 +41,42 @@ platform :android do
       skip_upload_screenshots: !(listing && has_screenshots),
       sync_image_upload: true # only uploads images whose checksum changed
     )
+
+    app_details if listing
+  end
+
+  desc "Sync app details (default language, contact info) from metadata root files:"
+  desc "default_language.txt, contact_email.txt, contact_website.txt, contact_phone.txt"
+  lane :app_details do
+    require "googleauth"
+    require "google/apis/androidpublisher_v3"
+
+    root   = File.expand_path("..", __dir__)
+    fields = %w[default_language contact_email contact_website contact_phone].to_h do |f|
+      path = File.join(root, METADATA_DIR, "#{f}.txt")
+      [f, File.exist?(path) ? File.read(path).strip : nil]
+    end.compact.reject { |_, v| v.empty? }
+    next UI.message("No app details to sync") if fields.empty?
+
+    package = CredentialsManager::AppfileConfig.try_fetch_value(:package_name)
+    service = Google::Apis::AndroidpublisherV3::AndroidPublisherService.new
+    service.authorization = Google::Auth::ServiceAccountCredentials.make_creds(
+      json_key_io: File.open(File.join(root, JSON_KEY)),
+      scope: "https://www.googleapis.com/auth/androidpublisher"
+    )
+
+    edit    = service.insert_edit(package)
+    details = service.get_edit_detail(package, edit.id)
+    changed = fields.reject { |k, v| details.public_send(k) == v }
+    if changed.empty?
+      service.delete_edit(package, edit.id)
+      next UI.success("App details already up to date")
+    end
+
+    changed.each { |k, v| details.public_send("#{k}=", v) }
+    service.update_edit_detail(package, edit.id, details)
+    service.commit_edit(package, edit.id)
+    UI.success("Updated app details: #{changed.keys.join(', ')}")
   end
 
   # Backwards-compatible alias for the old lane
