@@ -7,6 +7,9 @@
 #   minor  -> feat / feature
 #   patch  -> anything else (fix, perf, refactor, chore, ...)
 #
+# First release (no `v*` tag yet): ships versionName from version.properties
+# as-is (no semver bump) with versionCode + 1, and generic Play notes.
+#
 # Env:
 #   BUMP_OVERRIDE  auto | patch | minor | major   (default: auto)
 #   NOTES_FILE     GitHub release notes output   (default: release-notes.md)
@@ -69,7 +72,12 @@ done <<< "$MERGE_LOG"
 [[ "$BUMP_OVERRIDE" != "auto" ]] && bump="$BUMP_OVERRIDE"
 
 has_changes=true
-if [[ $count -eq 0 ]]; then
+initial=false
+if [[ -z "$LAST_TAG" && "$BUMP_OVERRIDE" == "auto" ]]; then
+  # No previous tag: first release of the current versionName.
+  initial=true; bump="initial"
+  NEW_NAME="$CUR_NAME"; NEW_CODE=$((CUR_CODE + 1))
+elif [[ $count -eq 0 ]]; then
   has_changes=false
   NEW_NAME="$CUR_NAME"; NEW_CODE="$CUR_CODE"; bump="none"
 else
@@ -93,6 +101,8 @@ fi
 } > "$NOTES_FILE"
 
 # ── Play Store changelog (plain text, user-facing, <= 500 chars) ──
+# First release: whole history isn't "what's new" -> fall back to default.txt
+[[ "$initial" == true ]] && FEATS=() FIXES=() BREAKING=()
 {
   for l in "${BREAKING[@]}" "${FEATS[@]}"; do echo "• $l"; done
   for l in "${FIXES[@]}"; do echo "• Fix: $l"; done
