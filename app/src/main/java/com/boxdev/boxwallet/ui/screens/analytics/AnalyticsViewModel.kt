@@ -71,14 +71,38 @@ data class FinancialMetrics(
     val savingsRate: Double,
     val avgDailySpending: Double,
     val burnRate: Double,
-    val incomeGrowth: Double,
-    val expenseGrowth: Double
+    /** Change between the two halves of the 12-month window; null when either half has no data. */
+    val incomeGrowth: Double?,
+    val expenseGrowth: Double?,
 )
+
+/** Which part of the report an insight belongs to, so it can sit beside the numbers it explains. */
+enum class InsightKind { SAVINGS, INCOME_TREND, EXPENSE_TREND, CONCENTRATION, BURN_RATE }
 
 data class SpendingInsight(
     val title: String,
     val message: String,
-    val type: InsightType
+    val type: InsightType,
+    val kind: InsightKind,
+)
+
+/** One loan installment due in the period, with the loan it belongs to. */
+data class InstallmentDue(
+    val installment: Transaction,
+    val loanId: Long,
+    val loanName: String,
+    val isOverdue: Boolean,
+)
+
+/** Loan installments that fall due inside the selected period. */
+data class InstallmentSummary(
+    val dueCount: Int,
+    val paidCount: Int,
+    val overdueCount: Int,
+    val amountDue: Double,
+    val amountPaid: Double,
+    /** Unpaid installments, oldest first: overdue ones lead. */
+    val pending: List<InstallmentDue>,
 )
 
 enum class InsightType {
@@ -106,6 +130,8 @@ data class AnalyticsUiState(
     val avgDailyExpense: Double = 0.0,
     val topExpenses: List<Transaction> = emptyList(),
     val categories: Map<Long, Category> = emptyMap(),
+    /** Null when no installment falls due in the period. */
+    val installments: InstallmentSummary? = null,
     val categoryExpenses: List<CategoryExpenseData> = emptyList(),
     val monthlyTrendData: List<MonthlyData> = emptyList(),
     val yearlyMonthlySummary: List<MonthlyData> = emptyList(),
@@ -146,12 +172,18 @@ class AnalyticsViewModel @Inject constructor(
             val trendStart = LocalDate.now().minusMonths(11).withDayOfMonth(1)
             val trendEnd = LocalDate.now()
 
+            val installmentsFlow = combine(
+                transactionRepository.getInstallmentsBetweenDates(startDate, endDate),
+                loanRepository.getAllLoans(),
+            ) { installments, loans -> summarizeInstallments(installments, loans.associate { it.id to it.name }) }
+
             combine(
                 transactionRepository.getTransactionsBetweenDates(startDate, endDate),
                 transactionRepository.getTransactionsBetweenDates(prevStart, prevEnd),
                 transactionRepository.getTransactionsBetweenDates(trendStart, trendEnd),
-                categoryRepository.getAllCategories()
-            ) { periodTx, previousTx, trendTx, categories ->
+                categoryRepository.getAllCategories(),
+                installmentsFlow,
+            ) { periodTx, previousTx, trendTx, categories, installments ->
                 val categoryMap = categories.associateBy { it.id }
                 val categoryExpenses = calculateCategoryExpenses(periodTx, categoryMap)
                 val today = LocalDate.now()
@@ -188,6 +220,7 @@ class AnalyticsViewModel @Inject constructor(
                     avgDailyExpense = if (startDate.isAfter(today)) 0.0 else periodExpense / elapsedDays,
                     topExpenses = expenses.sortedByDescending { it.amount }.take(5),
                     categories = categoryMap,
+                    installments = installments,
                     categoryExpenses = categoryExpenses,
                     monthlyTrendData = monthlyTrendData,
                     yearlyMonthlySummary = yearlyMonthlySummary,
@@ -326,15 +359,15 @@ class AnalyticsViewModel @Inject constructor(
         val midPoint = monthlyData.size / 2
         val firstHalfIncome = monthlyData.take(midPoint).sumOf { it.income }
         val secondHalfIncome = monthlyData.drop(midPoint).sumOf { it.income }
-        val incomeGrowth = if (firstHalfIncome > 0) {
+        val incomeGrowth = if (firstHalfIncome > 0 && secondHalfIncome > 0) {
             ((secondHalfIncome - firstHalfIncome) / firstHalfIncome) * 100
-        } else 0.0
+        } else null
 
         val firstHalfExpense = monthlyData.take(midPoint).sumOf { it.expense }
         val secondHalfExpense = monthlyData.drop(midPoint).sumOf { it.expense }
-        val expenseGrowth = if (firstHalfExpense > 0) {
+        val expenseGrowth = if (firstHalfExpense > 0 && secondHalfExpense > 0) {
             ((secondHalfExpense - firstHalfExpense) / firstHalfExpense) * 100
-        } else 0.0
+        } else null
 
         return FinancialMetrics(
             savingsRate = savingsRate,
@@ -355,98 +388,70 @@ class AnalyticsViewModel @Inject constructor(
         val totalIncome = monthlyData.sumOf { it.income }
         val totalExpense = monthlyData.sumOf { it.expense }
         val insights = mutableListOf<SpendingInsight>()
+        fun add(title: Int, message: String, type: InsightType, kind: InsightKind) =
+            insights.add(SpendingInsight(context.getString(title), message, type, kind))
+        fun pct(v: Double, decimals: Int = 1) = String.format("%.${decimals}f", kotlin.math.abs(v))
 
-        val rateStr = String.format("%.1f", metrics.savingsRate)
+        val rateStr = pct(metrics.savingsRate)
         when {
-            metrics.savingsRate >= 20 -> insights.add(
-                SpendingInsight(
-                    context.getString(R.string.analytics_insight_excellent_savings_title),
-                    context.getString(R.string.analytics_insight_excellent_savings_msg, rateStr),
-                    InsightType.POSITIVE
-                )
-            )
-            metrics.savingsRate >= 10 -> insights.add(
-                SpendingInsight(
-                    context.getString(R.string.analytics_insight_good_savings_title),
-                    context.getString(R.string.analytics_insight_good_savings_msg, rateStr),
-                    InsightType.NEUTRAL
-                )
-            )
-            metrics.savingsRate > 0 -> insights.add(
-                SpendingInsight(
-                    context.getString(R.string.analytics_insight_low_savings_title),
-                    context.getString(R.string.analytics_insight_low_savings_msg, rateStr),
-                    InsightType.WARNING
-                )
-            )
-            totalExpense > totalIncome -> insights.add(
-                SpendingInsight(
-                    context.getString(R.string.analytics_insight_overspending_title),
-                    context.getString(R.string.analytics_insight_overspending_msg),
-                    InsightType.ALERT
-                )
-            )
+            metrics.savingsRate >= 20 -> add(R.string.analytics_insight_excellent_savings_title,
+                context.getString(R.string.analytics_insight_excellent_savings_msg, rateStr), InsightType.POSITIVE, InsightKind.SAVINGS)
+            metrics.savingsRate >= 10 -> add(R.string.analytics_insight_good_savings_title,
+                context.getString(R.string.analytics_insight_good_savings_msg, rateStr), InsightType.NEUTRAL, InsightKind.SAVINGS)
+            metrics.savingsRate > 0 -> add(R.string.analytics_insight_low_savings_title,
+                context.getString(R.string.analytics_insight_low_savings_msg, rateStr), InsightType.WARNING, InsightKind.SAVINGS)
+            totalExpense > totalIncome -> add(R.string.analytics_insight_overspending_title,
+                context.getString(R.string.analytics_insight_overspending_msg), InsightType.ALERT, InsightKind.SAVINGS)
         }
 
-        if (metrics.expenseGrowth > 15) {
-            insights.add(
-                SpendingInsight(
-                    context.getString(R.string.analytics_insight_rising_expenses_title),
-                    context.getString(R.string.analytics_insight_rising_expenses_msg, String.format("%.1f", metrics.expenseGrowth)),
-                    InsightType.WARNING
-                )
-            )
-        } else if (metrics.expenseGrowth < -10) {
-            insights.add(
-                SpendingInsight(
-                    context.getString(R.string.analytics_insight_reduced_spending_title),
-                    context.getString(R.string.analytics_insight_reduced_spending_msg, String.format("%.1f", kotlin.math.abs(metrics.expenseGrowth))),
-                    InsightType.POSITIVE
-                )
-            )
+        metrics.expenseGrowth?.let { g ->
+            if (g > 15) add(R.string.analytics_insight_rising_expenses_title,
+                context.getString(R.string.analytics_insight_rising_expenses_msg, pct(g)), InsightType.WARNING, InsightKind.EXPENSE_TREND)
+            else if (g < -10) add(R.string.analytics_insight_reduced_spending_title,
+                context.getString(R.string.analytics_insight_reduced_spending_msg, pct(g)), InsightType.POSITIVE, InsightKind.EXPENSE_TREND)
         }
 
-        if (metrics.incomeGrowth > 10) {
-            insights.add(
-                SpendingInsight(
-                    context.getString(R.string.analytics_insight_income_growth_title),
-                    context.getString(R.string.analytics_insight_income_growth_msg, String.format("%.1f", metrics.incomeGrowth)),
-                    InsightType.POSITIVE
-                )
-            )
-        } else if (metrics.incomeGrowth < -10) {
-            insights.add(
-                SpendingInsight(
-                    context.getString(R.string.analytics_insight_declining_income_title),
-                    context.getString(R.string.analytics_insight_declining_income_msg, String.format("%.1f", kotlin.math.abs(metrics.incomeGrowth))),
-                    InsightType.WARNING
-                )
-            )
+        metrics.incomeGrowth?.let { g ->
+            if (g > 10) add(R.string.analytics_insight_income_growth_title,
+                context.getString(R.string.analytics_insight_income_growth_msg, pct(g)), InsightType.POSITIVE, InsightKind.INCOME_TREND)
+            else if (g < -10) add(R.string.analytics_insight_declining_income_title,
+                context.getString(R.string.analytics_insight_declining_income_msg, pct(g)), InsightType.WARNING, InsightKind.INCOME_TREND)
         }
 
-        categoryBreakdown.firstOrNull { !it.isOther }?.let { topCategory ->
-            if (topCategory.percentage > 40) {
-                insights.add(
-                    SpendingInsight(
-                        context.getString(R.string.analytics_insight_concentrated_title),
-                        context.getString(R.string.analytics_insight_concentrated_msg, topCategory.categoryName, String.format("%.0f", topCategory.percentage)),
-                        InsightType.NEUTRAL
-                    )
-                )
-            }
+        categoryBreakdown.firstOrNull { !it.isOther }?.let { top ->
+            if (top.percentage > 40) add(R.string.analytics_insight_concentrated_title,
+                context.getString(R.string.analytics_insight_concentrated_msg, top.categoryName, pct(top.percentage.toDouble(), 0)),
+                InsightType.NEUTRAL, InsightKind.CONCENTRATION)
         }
 
         if (metrics.burnRate < 90 && metrics.burnRate > 0) {
-            insights.add(
-                SpendingInsight(
-                    context.getString(R.string.analytics_insight_burn_rate_title),
-                    context.getString(R.string.analytics_insight_burn_rate_msg, metrics.burnRate.toInt()),
-                    InsightType.ALERT
-                )
-            )
+            add(R.string.analytics_insight_burn_rate_title,
+                context.getString(R.string.analytics_insight_burn_rate_msg, metrics.burnRate.toInt()), InsightType.ALERT, InsightKind.BURN_RATE)
         }
 
         return insights
+    }
+
+    private fun summarizeInstallments(installments: List<Transaction>, loanNames: Map<Long, String>): InstallmentSummary? {
+        if (installments.isEmpty()) return null
+        val today = LocalDate.now()
+        val paid = installments.filter { it.isCleared }
+        val pending = installments.filter { !it.isCleared }.map { tx ->
+            InstallmentDue(
+                installment = tx,
+                loanId = tx.loanId ?: 0L,
+                loanName = tx.loanId?.let { loanNames[it] } ?: tx.description,
+                isOverdue = tx.date.toLocalDate().isBefore(today),
+            )
+        }
+        return InstallmentSummary(
+            dueCount = installments.size,
+            paidCount = paid.size,
+            overdueCount = pending.count { it.isOverdue },
+            amountDue = installments.sumOf { it.amount },
+            amountPaid = paid.sumOf { it.amount },
+            pending = pending,
+        )
     }
 
     fun exportToExcel(startDate: LocalDate, endDate: LocalDate) {

@@ -5,19 +5,19 @@
     <string name="nav_home">Home</string>
     <string name="nav_loans">Loans</string>
     <string name="nav_settings">Settings</string>
-    <string name="nav_transactions">Records</string>
+    <string name="nav_transactions">Movements</string>
 
     <!-- FAB Menu -->
-    <string name="fab_add_transaction">Add Transaction</string>
+    <string name="fab_add_transaction">Add Movement</string>
     <string name="fab_add_loan">Add Loan</string>
     <string name="fab_receipt_icon">Receipt icon</string>
     <string name="fab_credit_card_icon">Credit Card icon</string>
 
     <!-- Home Screen -->
     <string name="home_analytics">Reports</string>
-    <string name="home_recent_transactions">Recent Transactions</string>
+    <string name="home_recent_transactions">Recent Movements</string>
     <string name="home_see_all">See all</string>
-    <string name="home_no_transactions">No transactions yet</string>
+    <string name="home_no_transactions">No movements yet</string>
     <string name="home_active_loans">Active Loans</string>
 
     <!-- Summary Card -->
@@ -31,8 +31,8 @@
     <string name="transaction_has_reminder">Has reminder</string>
 
     <!-- Transaction Sheet -->
-    <string name="transaction_edit_title">Edit Transaction</string>
-    <string name="transaction_new_title">New Transaction</string>
+    <string name="transaction_edit_title">Edit Movement</string>
+    <string name="transaction_new_title">New Movement</string>
     <string name="transaction_type_expense">Expense</string>
     <string name="transaction_type_income">Income</string>
     <string name="transaction_amount_label">Amount *</string>
@@ -55,7 +55,7 @@
     <string name="transaction_every_n_months">Every N months</string>
     <string name="transaction_save">Save</string>
     <string name="transaction_update">Update</string>
-    <string name="transaction_delete_title">Delete Transaction</string>
+    <string name="transaction_delete_title">Delete Movement</string>
     <string name="transaction_delete_message">Are you sure? This cannot be undone.</string>
 
     <!-- Loan Sheet -->
@@ -101,9 +101,9 @@
     <string name="loan_status_paid">Paid</string>
 
     <!-- Transactions List Screen -->
-    <string name="transactions_title">Transactions</string>
-    <string name="transactions_no_transactions">No transactions yet</string>
-    <string name="transactions_no_results">No transactions found</string>
+    <string name="transactions_title">Movements</string>
+    <string name="transactions_no_transactions">No movements yet</string>
+    <string name="transactions_no_results">No movements found</string>
     <string name="transactions_filter_title">Filters</string>
     <string name="transactions_filter_type">Type</string>
     <string name="transactions_filter_all">All</string>
@@ -152,7 +152,6 @@
     <string name="analytics_daily_spending">Daily Spending</string>
     <string name="analytics_income_trend">Income Trend</string>
     <string name="analytics_expense_trend">Expense Trend</string>
-    <string name="analytics_insights_title">Insights &amp; Recommendations</string>
     <string name="analytics_net_label">Net: %1$s</string>
     <string name="analytics_income_label">Income</string>
     <string name="analytics_expense_label">Expense</string>
@@ -210,7 +209,7 @@
     <string name="settings_general_subtitle">Currency, language, and regional settings</string>
     <string name="settings_categories_section">Categories</string>
     <string name="settings_categories_title">Manage Categories</string>
-    <string name="settings_categories_subtitle">Organize your transaction categories</string>
+    <string name="settings_categories_subtitle">Organize your movement categories</string>
     <string name="settings_appearance_section">Appearance</string>
     <string name="settings_theme_title">Theme Customization</string>
     <string name="settings_theme_subtitle">Change app colors and dark mode</string>
@@ -223,7 +222,7 @@
     <string name="settings_backup_subtitle">Save and restore your data</string>
     <string name="settings_data_management_section">Data Management</string>
     <string name="settings_data_management_title">Data Management</string>
-    <string name="settings_data_management_subtitle">Delete transactions, categories, or all data</string>
+    <string name="settings_data_management_subtitle">Delete movements, categories, or all data</string>
     <string name="settings_about_section">About</string>
     <string name="settings_app_version_title">App Version</string>
     <string name="settings_github_title">Developer Profile</string>
@@ -231,7 +230,7 @@
     <string name="settings_privacy_policy_title">Privacy Policy</string>
     <string name="settings_privacy_policy_subtitle">View our privacy policy</string>
     <string name="settings_notifications_disabled_title">Notifications are disabled</string>
-    <string name="settings_notifications_disabled_subtitle">Enable notifications to receive transaction reminders. Tap to open settings.</string>
+    <string name="settings_notifications_disabled_subtitle">Enable notifications to receive movement reminders. Tap to open settings.</string>
     <string name="settings_privacy_section">Privacy</string>
     <string name="settings_analytics_title">Usage Analytics</string>
     <string name="settings_analytics_subtitle">Help improve BoxWallet by sharing anonymous usage data</string>
@@ -243,10 +242,10 @@
     <string name="general_settings_title">General Settings</string>
     <string name="general_settings_regional">Regional</string>
     <string name="general_settings_currency">Currency</string>
-    <string name="general_settings_transactions">Transactions</string>
+    <string name="general_settings_transactions">Movements</string>
     <string name="general_settings_default_category">Default Category</string>
     <string name="general_settings_current_currency">Current Currency</string>
-    <string name="general_settings_currency_description">This currency will be displayed across all screens including transactions, summaries, and reports.</string>
+    <string name="general_settings_currency_description">This currency will be displayed across all screens including movements, summaries, and reports.</string>
     <string name="general_settings_select_currency">Select Currency</string>
     <string name="general_settings_select_default_category">Select Default Category</string>
     <string name="general_settings_no_default_category">No default category</string>
@@ -257,7 +256,7 @@
     <string name="categories_no_categories">No categories yet</string>
     <string name="categories_tap_to_create">Tap + to create your first category</string>
     <string name="categories_delete_title">Delete Category</string>
-    <string name="categories_delete_message">Are you sure you want to delete \"%1$s\"? Transactions with this category will not be deleted.</string>
+    <string name="categories_delete_message">Are you sure you want to delete \"%1$s\"? Movements with this category will not be deleted.</string>
     <string name="categories_edit_title">Edit Category</string>
     <string name="categories_add_title">Add Category</string>
     <string name="categories_name_label">Name</string>
@@ -284,7 +283,7 @@
     <string name="backup_available">Available Backups</string>
     <string name="backup_no_backups">No backups found</string>
     <string name="backup_drive_title">Google Drive Backup</string>
-    <string name="backup_drive_description">Sign in with your Google account to back up your transactions, categories, and loans to Google Drive.</string>
+    <string name="backup_drive_description">Sign in with your Google account to back up your movements, categories, and loans to Google Drive.</string>
     <string name="backup_sign_in">Sign in with Google</string>
     <string name="backup_sign_out">Sign out</string>
 
@@ -294,23 +293,23 @@
     <string name="data_management_caution_message">Clearing data is permanent and cannot be undone. Make sure you have a backup before proceeding.</string>
     <string name="data_management_device_data">Device Data</string>
     <string name="data_management_clear_all_title">Clear All Device Data</string>
-    <string name="data_management_clear_all_description">Delete all transactions, categories, and settings from this device</string>
+    <string name="data_management_clear_all_description">Delete all movements, categories, and settings from this device</string>
     <string name="data_management_clear_all_button">Clear All Data</string>
-    <string name="data_management_clear_transactions_title">Clear Transactions</string>
-    <string name="data_management_clear_transactions_description">Delete all transaction records while keeping categories and settings</string>
-    <string name="data_management_clear_transactions_button">Clear Transactions</string>
+    <string name="data_management_clear_transactions_title">Clear Movements</string>
+    <string name="data_management_clear_transactions_description">Delete all movements while keeping categories and settings</string>
+    <string name="data_management_clear_transactions_button">Clear Movements</string>
     <string name="data_management_clear_categories_title">Clear Categories</string>
-    <string name="data_management_clear_categories_description">Delete all categories. Transactions will keep their category references.</string>
+    <string name="data_management_clear_categories_description">Delete all categories. Movements will keep their category references.</string>
     <string name="data_management_clear_categories_button">Clear Categories</string>
     <string name="data_management_backup_title">Backup &amp; Restore</string>
     <string name="data_management_backup_description">Back up your data to Google Drive before clearing</string>
     <string name="data_management_go_to_backup">Go to Backup &amp; Restore</string>
     <string name="data_management_confirm_all_title">Clear All Device Data?</string>
-    <string name="data_management_confirm_all_message">This will permanently delete ALL transactions, categories, and settings from this device. This action cannot be undone.</string>
-    <string name="data_management_confirm_transactions_title">Clear All Transactions?</string>
-    <string name="data_management_confirm_transactions_message">This will permanently delete ALL transaction records from this device. Categories and settings will be preserved. This action cannot be undone.</string>
+    <string name="data_management_confirm_all_message">This will permanently delete ALL movements, categories, and settings from this device. This action cannot be undone.</string>
+    <string name="data_management_confirm_transactions_title">Clear All Movements?</string>
+    <string name="data_management_confirm_transactions_message">This will permanently delete ALL movements from this device. Categories and settings will be preserved. This action cannot be undone.</string>
     <string name="data_management_confirm_categories_title">Clear All Categories?</string>
-    <string name="data_management_confirm_categories_message">This will permanently delete ALL categories from this device. Transactions will keep their category references but won\'t show category names. This action cannot be undone.</string>
+    <string name="data_management_confirm_categories_message">This will permanently delete ALL categories from this device. Movements will keep their category references but won\'t show category names. This action cannot be undone.</string>
     <string name="data_management_clear_data">Clear Data</string>
 
     <!-- Export Screen -->
@@ -319,7 +318,7 @@
     <string name="onboarding_welcome_title">Welcome to BoxWallet</string>
     <string name="onboarding_welcome_description">Your personal finance manager</string>
     <string name="onboarding_track_title">Track &amp; Manage</string>
-    <string name="onboarding_track_description">Log transactions, manage loans with installments and payment schedules</string>
+    <string name="onboarding_track_description">Log movements, manage loans with installments and payment schedules</string>
     <string name="onboarding_get_started_title">Get Started</string>
     <string name="onboarding_get_started_description">Start fresh or restore your data from a previous backup</string>
     <string name="onboarding_get_started_button">Get Started</string>
@@ -429,10 +428,27 @@
     <string name="analytics_total_spent">Spent</string>
     <string name="analytics_other">Other</string>
     <string name="analytics_avg_per_day">Avg. per day</string>
-    <string name="analytics_biggest_day">Biggest day</string>
     <string name="analytics_movements">Movements</string>
     <string name="analytics_empty_period_title">Nothing recorded in this period</string>
     <string name="analytics_empty_period_msg">Movements you log will show up here as charts and insights.</string>
     <string name="analytics_savings_rate_caption">of your income kept over the last 12 months</string>
     <string name="analytics_net_label_short">Net</string>
+    <string name="analytics_verdict_kept">You kept %1$s%% of what came in</string>
+    <string name="analytics_verdict_over">You spent %1$s more than came in</string>
+    <string name="analytics_verdict_no_income">No income recorded in this period yet</string>
+    <string name="analytics_twelve_month_caption">Not affected by the period you pick above</string>
+    <string name="analytics_installments_title">Installments due</string>
+    <string name="analytics_installments_paid">%1$d of %2$d paid</string>
+    <string name="analytics_installments_amount">%1$s of %2$s</string>
+    <plurals name="analytics_installments_overdue">
+        <item quantity="one">%1$d overdue</item>
+        <item quantity="other">%1$d overdue</item>
+    </plurals>
+    <string name="analytics_installment_due">Due %1$s</string>
+    <string name="analytics_installment_overdue">Overdue since %1$s</string>
+    <string name="analytics_installments_all_paid">Every installment for this period is paid</string>
+    <string name="analytics_see_loans">See all loans</string>
+    <string name="analytics_not_enough_history">Not enough history</string>
+    <string name="chart_a11y_previous">Previous</string>
+    <string name="chart_a11y_next">Next</string>
 </resources>

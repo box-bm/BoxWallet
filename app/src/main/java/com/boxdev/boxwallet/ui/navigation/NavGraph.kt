@@ -9,13 +9,13 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AreaChart
+import androidx.compose.material.icons.filled.Handshake
+import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
-import androidx.compose.material.icons.outlined.AreaChart
+import androidx.compose.material.icons.outlined.Handshake
+import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -60,14 +60,14 @@ enum class Destination(
     LOANS(
         NavRoutes.Loans.route,
         R.string.nav_loans,
-        Icons.Outlined.Payments,
-        Icons.Filled.Payments
+        Icons.Outlined.Handshake,
+        Icons.Filled.Handshake
     ),
     ANALYTICS(
         NavRoutes.Analytics.route,
         R.string.nav_analytics,
-        Icons.Outlined.AreaChart,
-        Icons.Filled.AreaChart
+        Icons.Outlined.Insights,
+        Icons.Filled.Insights
     ),
 }
 
@@ -210,6 +210,8 @@ fun NavGraph(
                 onNavigateToSettings = onNavigateToSettings,
                 onNavigateToSearch = onNavigateToSearch,
                 onEditTransaction = onEditTransaction,
+                onOpenLoan = { loanId -> navController.navigate(NavRoutes.LoanDetail.createRoute(loanId)) },
+                onNavigateToLoans = { navController.navigateToTab(NavRoutes.Loans.route) },
             )
         }
 

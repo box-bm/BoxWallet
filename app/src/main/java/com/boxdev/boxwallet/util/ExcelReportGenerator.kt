@@ -84,7 +84,7 @@ object ExcelReportGenerator {
         timeFmt: DateTimeFormatter,
         headerStyle: XSSFCellStyle
     ) {
-        val sheet = wb.createSheet("Transactions")
+        val sheet = wb.createSheet("Movements")
 
         val headers = listOf("#", "Date", "Time", "Type", "Category", "Description", "Amount", "Status", "Loan", "Installment")
         val hr = sheet.createRow(0)
@@ -167,14 +167,14 @@ object ExcelReportGenerator {
         title("PERIOD")
         row("Date Range", "${startDate.format(dateFmt)} to ${endDate.format(dateFmt)}")
         rowNum("Total Days", totalDays.toDouble())
-        rowNum("Total Transactions", transactions.size.toDouble())
+        rowNum("Total Movements", transactions.size.toDouble())
         r++
 
         // Income
         title("INCOME")
         rowNum("Total Income", totalIncome, bold = true)
-        rowNum("Transactions", income.size.toDouble())
-        rowNum("Average per Transaction", if (income.isNotEmpty()) totalIncome / income.size else 0.0)
+        rowNum("Movements", income.size.toDouble())
+        rowNum("Average per Movement", if (income.isNotEmpty()) totalIncome / income.size else 0.0)
         rowNum("Cleared", income.filter { it.isCleared }.sumOf { it.amount })
         rowNum("Pending", income.filter { !it.isCleared }.sumOf { it.amount })
         r++
@@ -182,8 +182,8 @@ object ExcelReportGenerator {
         // Expenses
         title("EXPENSES")
         rowNum("Total Expenses", totalExpense, bold = true)
-        rowNum("Transactions", expense.size.toDouble())
-        rowNum("Average per Transaction", if (expense.isNotEmpty()) totalExpense / expense.size else 0.0)
+        rowNum("Movements", expense.size.toDouble())
+        rowNum("Average per Movement", if (expense.isNotEmpty()) totalExpense / expense.size else 0.0)
         rowNum("Cleared", expense.filter { it.isCleared }.sumOf { it.amount })
         rowNum("Pending", expense.filter { !it.isCleared }.sumOf { it.amount })
         r++
@@ -286,7 +286,7 @@ object ExcelReportGenerator {
 
         val sheet = wb.createSheet("Monthly Overview")
 
-        val headers = listOf("Month", "Income", "Expenses", "Net Balance", "Transactions")
+        val headers = listOf("Month", "Income", "Expenses", "Net Balance", "Movements")
         val hr = sheet.createRow(0)
         headers.forEachIndexed { i, h -> hr.createCell(i).also { it.setCellValue(h); it.cellStyle = headerStyle } }
 

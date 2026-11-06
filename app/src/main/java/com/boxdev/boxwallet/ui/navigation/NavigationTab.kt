@@ -22,7 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material.icons.outlined.Handshake
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -44,7 +44,9 @@ import androidx.compose.material3.WideNavigationRailDefaults
 import androidx.compose.material3.WideNavigationRailItem
 import androidx.compose.material3.animateFloatingActionButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.flow.MutableSharedFlow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -92,6 +94,19 @@ fun NavigationTab(analyticsHelper: AnalyticsHelper, modifier: Modifier = Modifie
     )
 
     var fabExpanded by rememberSaveable { mutableStateOf(false) }
+    val tabReselect = remember { MutableSharedFlow<String>(extraBufferCapacity = 1) }
+
+    /**
+     * Tapping a tab switches to it; tapping the tab already showing first returns to its root (for
+     * example from Loan detail back to Loans) and, once at the root, scrolls that screen to the top.
+     */
+    val onTabClick: (Destination) -> Unit = { destination ->
+        when {
+            selectedTab != destination -> navController.navigateToTab(destination.route)
+            currentRoute != destination.route -> navController.popBackStack(destination.route, inclusive = false)
+            else -> tabReselect.tryEmit(destination.route)
+        }
+    }
     var showTransactionSheet by rememberSaveable { mutableStateOf(false) }
     var showLoanSheet by rememberSaveable { mutableStateOf(false) }
     var selectedTransactionId by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -117,7 +132,7 @@ fun NavigationTab(analyticsHelper: AnalyticsHelper, modifier: Modifier = Modifie
     LaunchedEffect(currentRoute) { fabExpanded = false }
 
     val content: @Composable (Modifier) -> Unit = { contentModifier ->
-        NavGraph(
+        CompositionLocalProvider(LocalTabReselect provides tabReselect) { NavGraph(
             navController = navController,
             modifier = contentModifier,
             analyticsHelper = analyticsHelper,
@@ -126,7 +141,7 @@ fun NavigationTab(analyticsHelper: AnalyticsHelper, modifier: Modifier = Modifie
                 showTransactionSheet = true
             },
             onNavigateToSettings = { navController.navigate(NavRoutes.Settings.route) },
-        )
+        ) }
     }
 
     if (wide) {
@@ -143,7 +158,7 @@ fun NavigationTab(analyticsHelper: AnalyticsHelper, modifier: Modifier = Modifie
                 state = railState,
                 header = {
                     // The rail places its header at x = 0, so the FAB carries the rail's item inset itself.
-                    Box(Modifier.padding(start = 20.dp, top = 8.dp, bottom = 16.dp)) {
+                    Box(Modifier.padding(start = 20.dp, top = 8.dp)) {
                         if (railExpanded) {
                             ExtendedFloatingActionButton(
                                 onClick = { primaryAction(!fabExpanded) },
@@ -163,7 +178,7 @@ fun NavigationTab(analyticsHelper: AnalyticsHelper, modifier: Modifier = Modifie
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.fab_add_loan)) },
-                                leadingIcon = { Icon(Icons.Outlined.Payments, contentDescription = null) },
+                                leadingIcon = { Icon(Icons.Outlined.Handshake, contentDescription = null) },
                                 onClick = openLoanSheet,
                             )
                         }
@@ -177,7 +192,7 @@ fun NavigationTab(analyticsHelper: AnalyticsHelper, modifier: Modifier = Modifie
                     val selected = selectedTab == destination
                     WideNavigationRailItem(
                         selected = selected,
-                        onClick = { navController.navigateToTab(destination.route) },
+                        onClick = { onTabClick(destination) },
                         icon = {
                             Icon(
                                 imageVector = if (selected) destination.activeIcon else destination.icon,
@@ -205,7 +220,7 @@ fun NavigationTab(analyticsHelper: AnalyticsHelper, modifier: Modifier = Modifie
                             val selected = selectedTab == destination
                             ShortNavigationBarItem(
                                 selected = selected,
-                                onClick = { navController.navigateToTab(destination.route) },
+                                onClick = { onTabClick(destination) },
                                 icon = {
                                     Icon(
                                         imageVector = if (selected) destination.activeIcon else destination.icon,
@@ -253,7 +268,7 @@ fun NavigationTab(analyticsHelper: AnalyticsHelper, modifier: Modifier = Modifie
                         FloatingActionButtonMenuItem(
                             onClick = openLoanSheet,
                             text = { Text(stringResource(R.string.fab_add_loan)) },
-                            icon = { Icon(Icons.Outlined.Payments, contentDescription = null) },
+                            icon = { Icon(Icons.Outlined.Handshake, contentDescription = null) },
                         )
                     }
                 }

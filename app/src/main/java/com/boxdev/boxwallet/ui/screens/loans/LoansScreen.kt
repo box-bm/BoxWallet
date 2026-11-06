@@ -30,6 +30,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import com.boxdev.boxwallet.ui.navigation.NavRoutes
+import com.boxdev.boxwallet.ui.navigation.TabReselectEffect
+import com.boxdev.boxwallet.ui.navigation.expand
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -160,6 +164,11 @@ private fun LoansList(
     val filter = uiState.filterState
     var showFilters by rememberSaveable { mutableStateOf(false) }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
+    val listState = rememberLazyListState()
+    TabReselectEffect(NavRoutes.Loans.route) {
+        scrollBehavior.expand()
+        listState.animateScrollToItem(0)
+    }
     val categoryMap = uiState.categories.associateBy { it.id }
     val activeFilters = listOf(
         filter.loanTypeFilter != LoanTypeFilter.ALL,
@@ -301,6 +310,7 @@ private fun LoansList(
                 )
 
                 else -> LazyColumn(
+                    state = listState,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 112.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),

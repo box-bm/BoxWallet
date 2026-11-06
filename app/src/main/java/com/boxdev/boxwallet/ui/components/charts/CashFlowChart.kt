@@ -28,7 +28,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -64,6 +66,8 @@ fun CashFlowChart(
     val axisStyle = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
     val selectedAxisStyle = axisStyle.copy(color = MaterialTheme.colorScheme.onSurface)
     val measurer = rememberTextMeasurer()
+    val previousLabel = stringResource(R.string.chart_a11y_previous)
+    val nextLabel = stringResource(R.string.chart_a11y_next)
     val formatter = rememberCurrencyFormatter()
     val reveal = rememberChartReveal(data)
     val point = data[selected]
@@ -103,6 +107,11 @@ fun CashFlowChart(
                 .height(plotHeight)
                 .semantics {
                     contentDescription = "$monthName: +${formatter.format(point.income)}, −${formatter.format(point.expense)}"
+                    // TalkBack can't drag; these step the inspected value instead.
+                    customActions = listOf(
+                        CustomAccessibilityAction(previousLabel) { (selected > 0).also { if (it) selected-- } },
+                        CustomAccessibilityAction(nextLabel) { (selected < data.lastIndex).also { if (it) selected++ } },
+                    )
                 }
                 .pointerInput(data) {
                     val left = axisLabels.maxOf { it.size.width } + 8.dp.toPx()

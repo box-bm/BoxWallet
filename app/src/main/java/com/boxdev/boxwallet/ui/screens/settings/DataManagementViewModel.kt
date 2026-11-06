@@ -47,7 +47,7 @@ class DataManagementViewModel @Inject constructor(
                 analyticsHelper.logEvent("data_cleared", mapOf("scope" to "transactions"))
                 _uiState.value = _uiState.value.copy(isClearing = false, clearSuccess = true)
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(isClearing = false, error = e.message ?: "Failed to clear transactions")
+                _uiState.value = _uiState.value.copy(isClearing = false, error = e.message ?: "Failed to clear movements")
             }
         }
     }

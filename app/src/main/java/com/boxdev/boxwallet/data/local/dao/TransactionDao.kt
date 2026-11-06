@@ -40,6 +40,9 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE date BETWEEN :startDate AND :endDate AND loanId IS NULL ORDER BY date DESC")
     fun getTransactionsBetweenDates(startDate: Long, endDate: Long): Flow<List<TransactionEntity>>
 
+    @Query("SELECT * FROM transactions WHERE date >= :startDate AND date < :endDate AND loanId IS NOT NULL ORDER BY date ASC")
+    fun getInstallmentsBetweenDates(startDate: Long, endDate: Long): Flow<List<TransactionEntity>>
+
     @Query("SELECT SUM(amount) FROM transactions WHERE type = 'INCOME' AND isCleared = 1")
     fun getTotalIncome(): Flow<Double?>
 

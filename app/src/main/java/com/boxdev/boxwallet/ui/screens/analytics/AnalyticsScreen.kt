@@ -41,6 +41,20 @@ import androidx.compose.material3.ListItemDefaults
 import com.boxdev.boxwallet.ui.theme.BoxTheme
 import com.boxdev.boxwallet.ui.theme.isWide
 
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.SegmentedListItem
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import com.boxdev.boxwallet.data.local.entity.TransactionType
+import com.boxdev.boxwallet.ui.components.segmentShapes
+import com.boxdev.boxwallet.ui.navigation.NavRoutes
+import com.boxdev.boxwallet.ui.navigation.TabReselectEffect
+import com.boxdev.boxwallet.ui.navigation.expand
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -137,6 +151,8 @@ fun AnalyticsScreen(
     onNavigateToSettings: () -> Unit = {},
     onNavigateToSearch: () -> Unit = {},
     onEditTransaction: (Long) -> Unit = {},
+    onOpenLoan: (Long) -> Unit = {},
+    onNavigateToLoans: () -> Unit = {},
     viewModel: AnalyticsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -146,6 +162,12 @@ fun AnalyticsScreen(
     val context = LocalContext.current
     val wide = BoxTheme.widthClass.isWide
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
+    val scrollState = rememberScrollState()
+
+    TabReselectEffect(NavRoutes.Analytics.route) {
+        scrollBehavior.expand()
+        scrollState.animateScrollTo(0)
+    }
 
     LaunchedEffect(uiState.exportError) {
         uiState.exportError?.let {
@@ -172,13 +194,13 @@ fun AnalyticsScreen(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),
         topBar = {
+            // The period lives in the navigator right below, so the bar carries no subtitle.
             LargeFlexibleTopAppBar(
                 title = { Text(stringResource(R.string.analytics_title)) },
-                subtitle = { Text(uiState.periodLabel) },
                 actions = {
                     SearchAction(onClick = onNavigateToSearch)
                     IconButton(onClick = { showExportSheet = true }) {
-                        Icon(Icons.Outlined.Download, contentDescription = stringResource(R.string.analytics_export_report))
+                        Icon(Icons.Outlined.Share, contentDescription = stringResource(R.string.analytics_export_report))
                     }
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.nav_settings))
@@ -195,7 +217,9 @@ fun AnalyticsScreen(
         }
 
         val periodEmpty = uiState.transactionCount == 0
+        val insightOf = { kind: InsightKind -> uiState.insights.firstOrNull { it.kind == kind } }
 
+        // ---- The selected period ----
         val controls: @Composable () -> Unit = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 ConnectedChoiceRow(
@@ -238,6 +262,7 @@ fun AnalyticsScreen(
             if (uiState.categoryExpenses.isNotEmpty()) {
                 ReportSection(stringResource(R.string.analytics_expenses_by_category)) {
                     CategoryDonut(uiState.categoryExpenses, modifier = Modifier.fillMaxWidth())
+                    insightOf(InsightKind.CONCENTRATION)?.let { SectionNote(it) }
                 }
             }
         }
@@ -246,6 +271,7 @@ fun AnalyticsScreen(
                 periodEmpty -> Unit
                 uiState.frequency == AnalyticsFrequency.YEARLY -> ReportSection(stringResource(R.string.analytics_monthly_breakdown)) {
                     CashFlowChart(uiState.yearlyMonthlySummary, modifier = Modifier.fillMaxWidth())
+                    ChartLegend()
                 }
                 uiState.dailySpending.any { it.amount > 0 } -> ReportSection(stringResource(R.string.analytics_spending_pattern)) {
                     SpendingPatternChart(
@@ -253,21 +279,6 @@ fun AnalyticsScreen(
                         average = uiState.avgDailyExpense,
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    val biggest = uiState.dailySpending.maxBy { it.amount }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 16.dp)) {
-                        StatTile(
-                            label = stringResource(R.string.analytics_avg_per_day),
-                            value = rememberCurrencyFormatter().format(uiState.avgDailyExpense),
-                            modifier = Modifier.weight(1f),
-                        )
-                        StatTile(
-                            label = stringResource(R.string.analytics_biggest_day),
-                            value = rememberCurrencyFormatter().format(biggest.amount),
-                            caption = biggest.date.format(DateTimeFormatter.ofPattern("EEE d", Locale.getDefault()))
-                                .replaceFirstChar { it.titlecase() },
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
                 }
             }
         }
@@ -291,52 +302,61 @@ fun AnalyticsScreen(
                 }
             }
         }
+        val installments: @Composable () -> Unit = {
+            uiState.installments?.let { summary ->
+                InstallmentsSection(summary, onOpenLoan = onOpenLoan, onSeeLoans = onNavigateToLoans)
+            }
+        }
+
+        // ---- Always the last 12 months ----
+        val yearHeader: @Composable () -> Unit = { TwelveMonthHeader() }
         val cashFlow: @Composable () -> Unit = {
-            ReportSection(
-                title = stringResource(R.string.analytics_cash_flow),
-                subtitle = stringResource(R.string.analytics_last_12_months),
-            ) {
-                if (uiState.monthlyTrendData.any { it.income > 0 || it.expense > 0 }) {
-                    CashFlowChart(data = uiState.monthlyTrendData, modifier = Modifier.fillMaxWidth())
-                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.padding(top = 12.dp)) {
-                        LegendItem(BoxTheme.money.income, stringResource(R.string.analytics_income_label))
-                        LegendItem(BoxTheme.money.expense, stringResource(R.string.analytics_expense_label))
-                    }
+            ReportSection(stringResource(R.string.analytics_cash_flow)) {
+                val trimmed = remember(uiState.monthlyTrendData) { trimLeadingEmptyMonths(uiState.monthlyTrendData) }
+                if (trimmed.any { it.income > 0 || it.expense > 0 }) {
+                    CashFlowChart(data = trimmed, modifier = Modifier.fillMaxWidth())
+                    ChartLegend()
+                    insightOf(InsightKind.INCOME_TREND)?.let { SectionNote(it) }
+                    insightOf(InsightKind.EXPENSE_TREND)?.let { SectionNote(it) }
                 } else NoDataPlaceholder()
             }
         }
         val health: @Composable () -> Unit = {
-            uiState.financialMetrics?.let { metrics -> HealthSection(metrics) }
-        }
-        val insights: @Composable () -> Unit = {
-            if (uiState.insights.isNotEmpty()) {
-                ReportSection(stringResource(R.string.analytics_insights_title)) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        uiState.insights.forEach { InsightItem(it) }
-                    }
-                }
+            uiState.financialMetrics?.let { metrics ->
+                HealthSection(
+                    metrics = metrics,
+                    savingsInsight = insightOf(InsightKind.SAVINGS),
+                    burnRateInsight = insightOf(InsightKind.BURN_RATE),
+                )
             }
         }
 
         val scroll = Modifier
             .fillMaxSize()
             .padding(paddingValues)
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scrollState)
+        val gap = Arrangement.spacedBy(16.dp)
         if (wide) {
-            Column(scroll.padding(horizontal = 24.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column(scroll.padding(horizontal = 24.dp, vertical = 8.dp), verticalArrangement = gap) {
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        controls(); summary(); emptyPeriod(); categories(); topExpenses()
+                    Column(Modifier.weight(1f), verticalArrangement = gap) {
+                        controls(); summary(); emptyPeriod(); categories()
                     }
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        pattern(); cashFlow(); health(); insights()
+                    Column(Modifier.weight(1f), verticalArrangement = gap) {
+                        pattern(); installments(); topExpenses()
                     }
+                }
+                yearHeader()
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Column(Modifier.weight(1f), verticalArrangement = gap) { cashFlow() }
+                    Column(Modifier.weight(1f), verticalArrangement = gap) { health() }
                 }
                 Spacer(Modifier.height(24.dp))
             }
         } else {
-            Column(scroll.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                controls(); summary(); emptyPeriod(); categories(); pattern(); topExpenses(); cashFlow(); health(); insights()
+            Column(scroll.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = gap) {
+                controls(); summary(); emptyPeriod(); categories(); pattern(); topExpenses(); installments()
+                yearHeader(); cashFlow(); health()
                 Spacer(Modifier.height(24.dp))
             }
         }
@@ -375,12 +395,29 @@ fun AnalyticsScreen(
     }
 }
 
-/** Net for the period, leading; money in and out beneath it with the change against the previous period. */
+/** Drops empty months at the start of a short history, keeping at least six so the axis still reads as a trend. */
+private fun trimLeadingEmptyMonths(data: List<MonthlyData>): List<MonthlyData> {
+    val first = data.indexOfFirst { it.income > 0 || it.expense > 0 }
+    if (first <= 0) return data
+    return data.drop(first.coerceAtMost((data.size - 6).coerceAtLeast(0)))
+}
+
+/**
+ * Net for the period, leading, with a one-line verdict; money in and out beneath it with the
+ * change against the previous period.
+ */
 @Composable
 private fun PeriodSummary(state: AnalyticsUiState) {
     val money = BoxTheme.money
     val net = state.periodIncome - state.periodExpense
     val onContainer = MaterialTheme.colorScheme.onSecondaryContainer
+    val formatter = rememberCurrencyFormatter()
+    val verdict = when {
+        state.transactionCount == 0 -> null
+        state.periodIncome <= 0 -> stringResource(R.string.analytics_verdict_no_income)
+        net >= 0 -> stringResource(R.string.analytics_verdict_kept, "%.0f".format(net / state.periodIncome * 100))
+        else -> stringResource(R.string.analytics_verdict_over, formatter.format(-net))
+    }
     Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = MaterialTheme.shapes.extraLarge) {
         Column(Modifier.fillMaxWidth().padding(24.dp)) {
             Text(
@@ -395,30 +432,31 @@ private fun PeriodSummary(state: AnalyticsUiState) {
                 color = onContainer,
                 autoSize = true,
             )
+            if (verdict != null) {
+                Text(verdict, style = MaterialTheme.typography.bodyLarge, color = onContainer)
+            }
             Spacer(Modifier.height(20.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.height(IntrinsicSize.Min)) {
                 FlowAmount(
                     label = stringResource(R.string.analytics_income_label),
                     amount = state.periodIncome, kind = AmountKind.Income,
                     container = money.incomeContainer, content = money.onIncomeContainer,
                     change = percentChange(state.periodIncome, state.previousIncome),
-                    increaseIsGood = true,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
                 )
                 FlowAmount(
                     label = stringResource(R.string.analytics_expense_label),
                     amount = state.periodExpense, kind = AmountKind.Expense,
                     container = money.expenseContainer, content = money.onExpenseContainer,
                     change = percentChange(state.periodExpense, state.previousExpense),
-                    increaseIsGood = false,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
                 )
             }
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                 SummaryStat(stringResource(R.string.analytics_movements), state.transactionCount.toString())
                 if (state.frequency != AnalyticsFrequency.DAILY) {
-                    SummaryStat(stringResource(R.string.analytics_avg_per_day), rememberCurrencyFormatter().format(state.avgDailyExpense))
+                    SummaryStat(stringResource(R.string.analytics_avg_per_day), formatter.format(state.avgDailyExpense))
                 }
             }
         }
@@ -441,7 +479,6 @@ private fun FlowAmount(
     container: Color,
     content: Color,
     change: Double?,
-    increaseIsGood: Boolean,
     modifier: Modifier = Modifier,
 ) {
     Surface(color = container, contentColor = content, shape = MaterialTheme.shapes.medium, modifier = modifier) {
@@ -457,22 +494,20 @@ private fun FlowAmount(
                     stringResource(R.string.analytics_no_previous),
                     style = MaterialTheme.typography.labelSmall,
                     color = content.copy(alpha = 0.75f),
-                    maxLines = 1,
                 )
             } else {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    if (signedPercent(change) != "0.0%") {
+                // Wraps instead of truncating at large font scales.
+                Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    if ("%.0f".format(kotlin.math.abs(change)) != "0") {
                         Icon(
                             if (change > 0) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
                             contentDescription = null,
-                            modifier = Modifier.size(14.dp),
+                            modifier = Modifier.size(14.dp).padding(top = 1.dp),
                         )
                     }
                     Text(
                         stringResource(R.string.analytics_vs_previous, "%.0f%%".format(kotlin.math.abs(change))),
                         style = MaterialTheme.typography.labelSmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
@@ -502,13 +537,153 @@ private fun ReportSection(title: String, subtitle: String? = null, content: @Com
     }
 }
 
-/** Savings rate as a ring, with the trend tiles beside it. */
+/** Separates the period-driven sections from the ones that always cover the last 12 months. */
 @Composable
-private fun HealthSection(metrics: FinancialMetrics) {
+private fun TwelveMonthHeader() {
+    Column(Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 4.dp)) {
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Text(
+            stringResource(R.string.analytics_last_12_months),
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier
+                .padding(start = 4.dp, top = 24.dp)
+                .semantics { heading() },
+        )
+        Text(
+            stringResource(R.string.analytics_twelve_month_caption),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 4.dp, top = 4.dp),
+        )
+    }
+}
+
+/** Installments that fall due in the period: how many are paid, and the ones still open. */
+@Composable
+private fun InstallmentsSection(
+    summary: InstallmentSummary,
+    onOpenLoan: (Long) -> Unit,
+    onSeeLoans: () -> Unit,
+) {
+    val formatter = rememberCurrencyFormatter()
+    val dateFormatter = remember { DateTimeFormatter.ofPattern("MMM d", Locale.getDefault()) }
+    val progress = if (summary.amountDue > 0) (summary.amountPaid / summary.amountDue).toFloat() else 0f
+    val visible = summary.pending.take(3)
+    ReportSection(stringResource(R.string.analytics_installments_title)) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.analytics_installments_paid, summary.paidCount, summary.dueCount),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        stringResource(
+                            R.string.analytics_installments_amount,
+                            formatter.format(summary.amountPaid),
+                            formatter.format(summary.amountDue),
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (summary.overdueCount > 0) {
+                    Surface(color = MaterialTheme.colorScheme.errorContainer, shape = CircleShape) {
+                        Text(
+                            pluralStringResource(R.plurals.analytics_installments_overdue, summary.overdueCount, summary.overdueCount),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        )
+                    }
+                }
+            }
+            LinearWavyProgressIndicator(
+                progress = { progress },
+                modifier = Modifier.fillMaxWidth(),
+                color = if (summary.overdueCount > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            )
+            if (summary.pending.isEmpty()) {
+                Text(
+                    stringResource(R.string.analytics_installments_all_paid),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = BoxTheme.money.income,
+                )
+            } else {
+                Column {
+                    visible.forEachIndexed { index, due ->
+                        InstallmentRow(
+                            due = due,
+                            dateText = due.installment.date.toLocalDate().format(dateFormatter),
+                            index = index,
+                            count = visible.size,
+                            onClick = { onOpenLoan(due.loanId) },
+                        )
+                    }
+                }
+                if (summary.pending.size > visible.size) {
+                    TextButton(onClick = onSeeLoans, modifier = Modifier.align(Alignment.End)) {
+                        Text(stringResource(R.string.analytics_see_loans))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun InstallmentRow(
+    due: InstallmentDue,
+    dateText: String,
+    index: Int,
+    count: Int,
+    onClick: () -> Unit,
+) {
+    val isIncome = due.installment.type == TransactionType.INCOME
+    SegmentedListItem(
+        onClick = onClick,
+        shapes = segmentShapes(index, count),
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        modifier = Modifier.padding(bottom = ListItemDefaults.SegmentedGap),
+        leadingContent = {
+            Icon(
+                if (due.isOverdue) Icons.Outlined.ErrorOutline else Icons.Outlined.Schedule,
+                contentDescription = null,
+                tint = if (due.isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        },
+        supportingContent = {
+            Text(
+                if (due.isOverdue) stringResource(R.string.analytics_installment_overdue, dateText)
+                else stringResource(R.string.analytics_installment_due, dateText),
+                color = if (due.isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        },
+        trailingContent = {
+            AmountText(
+                due.installment.amount,
+                kind = if (isIncome) AmountKind.Income else AmountKind.Expense,
+                style = BoxTheme.moneyType.small,
+            )
+        },
+    ) {
+        Text(due.loanName, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** Savings rate as a ring with its verdict; the two trend values beneath; burn-rate warning last. */
+@Composable
+private fun HealthSection(
+    metrics: FinancialMetrics,
+    savingsInsight: SpendingInsight?,
+    burnRateInsight: SpendingInsight?,
+) {
     val rate = metrics.savingsRate
     val ringColor = if (rate >= 0) BoxTheme.money.income else BoxTheme.money.expense
     ReportSection(stringResource(R.string.analytics_financial_health)) {
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.size(96.dp)) {
                     val progress = (rate / 100.0).toFloat().coerceIn(0f, 1f)
@@ -528,7 +703,10 @@ private fun HealthSection(metrics: FinancialMetrics) {
                     )
                 }
                 Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.analytics_savings_rate), style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        savingsInsight?.title ?: stringResource(R.string.analytics_savings_rate),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
                     Text(
                         stringResource(R.string.analytics_savings_rate_caption),
                         style = MaterialTheme.typography.bodyMedium,
@@ -536,25 +714,21 @@ private fun HealthSection(metrics: FinancialMetrics) {
                     )
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatTile(
-                    label = stringResource(R.string.analytics_daily_spending),
-                    value = rememberCurrencyFormatter().format(metrics.avgDailySpending),
-                    modifier = Modifier.weight(1f),
-                )
-                StatTile(
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                TrendStat(
                     label = stringResource(R.string.analytics_income_trend),
-                    value = signedPercent(metrics.incomeGrowth),
-                    good = metrics.incomeGrowth.takeIf { signedPercent(it) != "0.0%" }?.let { it > 0 },
+                    growth = metrics.incomeGrowth,
+                    increaseIsGood = true,
                     modifier = Modifier.weight(1f),
                 )
-                StatTile(
+                TrendStat(
                     label = stringResource(R.string.analytics_expense_trend),
-                    value = signedPercent(metrics.expenseGrowth),
-                    good = metrics.expenseGrowth.takeIf { signedPercent(it) != "0.0%" }?.let { it < 0 },
+                    growth = metrics.expenseGrowth,
+                    increaseIsGood = false,
                     modifier = Modifier.weight(1f),
                 )
             }
+            burnRateInsight?.let { SectionNote(it, Modifier) }
         }
     }
 }
@@ -1000,6 +1174,14 @@ private fun NoDataPlaceholder() {
 }
 
 @Composable
+private fun ChartLegend() {
+    Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.padding(top = 12.dp)) {
+        LegendItem(BoxTheme.money.income, stringResource(R.string.analytics_income_label))
+        LegendItem(BoxTheme.money.expense, stringResource(R.string.analytics_expense_label))
+    }
+}
+
+@Composable
 private fun LegendItem(color: Color, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Box(Modifier.size(width = 16.dp, height = 4.dp).background(color, CircleShape))
@@ -1007,55 +1189,57 @@ private fun LegendItem(color: Color, label: String) {
     }
 }
 
-/** A small tonal tile: label, value, optional caption. [good] tints the value and adds a direction arrow. */
+/**
+ * A 12-month trend value. Shows "Not enough history" rather than a made-up 0% when one half of
+ * the window is empty; otherwise a signed percent with an arrow, tinted by whether the change is good.
+ */
 @Composable
-private fun StatTile(
+private fun TrendStat(
     label: String,
-    value: String,
+    growth: Double?,
+    increaseIsGood: Boolean,
     modifier: Modifier = Modifier,
-    caption: String? = null,
-    good: Boolean? = null,
 ) {
+    val flat = growth == null || signedPercent(growth) == "0.0%"
+    val good = if (flat) null else (growth!! > 0) == increaseIsGood
     val valueColor = when (good) {
         true -> BoxTheme.money.income
         false -> BoxTheme.money.expense
         null -> MaterialTheme.colorScheme.onSurface
     }
-    Surface(color = MaterialTheme.colorScheme.surfaceContainerHigh, shape = MaterialTheme.shapes.medium, modifier = modifier) {
-        Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (growth == null) {
             Text(
-                label,
-                style = MaterialTheme.typography.labelMedium,
+                stringResource(R.string.analytics_not_enough_history),
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                minLines = 2,
             )
+        } else {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                if (good != null) {
+                if (!flat) {
                     Icon(
-                        if (value.startsWith("+")) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
+                        if (growth > 0) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
                         contentDescription = null,
                         tint = valueColor,
-                        modifier = Modifier.size(16.dp),
+                        modifier = Modifier.size(18.dp),
                     )
                 }
                 Text(
-                    value,
-                    style = BoxTheme.moneyType.small,
+                    signedPercent(growth),
+                    style = BoxTheme.moneyType.medium,
                     color = valueColor,
                     maxLines = 1,
-                    autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = BoxTheme.moneyType.small.fontSize),
+                    autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = BoxTheme.moneyType.medium.fontSize),
                 )
-            }
-            if (caption != null) {
-                Text(caption, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
             }
         }
     }
 }
 
+/** An insight set inline under the numbers it explains. */
 @Composable
-private fun InsightItem(insight: SpendingInsight) {
+private fun SectionNote(insight: SpendingInsight, modifier: Modifier = Modifier.padding(top = 16.dp)) {
     val (icon, tint, container) = when (insight.type) {
         InsightType.POSITIVE -> Triple(Icons.Outlined.CheckCircle, BoxTheme.money.onIncomeContainer, BoxTheme.money.incomeContainer)
         InsightType.WARNING -> Triple(Icons.Outlined.WarningAmber, MaterialTheme.colorScheme.onTertiaryContainer, MaterialTheme.colorScheme.tertiaryContainer)
@@ -1063,14 +1247,14 @@ private fun InsightItem(insight: SpendingInsight) {
         InsightType.ALERT -> Triple(Icons.Outlined.ErrorOutline, MaterialTheme.colorScheme.onErrorContainer, MaterialTheme.colorScheme.errorContainer)
     }
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.Top,
     ) {
         Box(
-            Modifier.size(40.dp).clip(CircleShape).background(container),
+            Modifier.size(32.dp).clip(CircleShape).background(container),
             contentAlignment = Alignment.Center,
-        ) { Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp)) }
+        ) { Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp)) }
         Column(Modifier.weight(1f)) {
             Text(insight.title, style = MaterialTheme.typography.titleSmall)
             Text(insight.message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

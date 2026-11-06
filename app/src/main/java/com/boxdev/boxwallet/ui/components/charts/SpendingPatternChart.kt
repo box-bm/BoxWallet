@@ -23,7 +23,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -60,6 +62,8 @@ fun SpendingPatternChart(
     val axisStyle = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
     val selectedAxisStyle = axisStyle.copy(color = MaterialTheme.colorScheme.onSurface)
     val measurer = rememberTextMeasurer()
+    val previousLabel = stringResource(R.string.chart_a11y_previous)
+    val nextLabel = stringResource(R.string.chart_a11y_next)
     val formatter = rememberCurrencyFormatter()
     val reveal = rememberChartReveal(data)
     val dayFormatter = remember { DateTimeFormatter.ofPattern("EEEE, MMM d", Locale.getDefault()) }
@@ -80,7 +84,14 @@ fun SpendingPatternChart(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(plotHeight)
-                .semantics { contentDescription = "$dayLabel: ${formatter.format(point.amount)}. $avgText" }
+                .semantics {
+                    contentDescription = "$dayLabel: ${formatter.format(point.amount)}. $avgText"
+                    // TalkBack can't drag; these step the inspected value instead.
+                    customActions = listOf(
+                        CustomAccessibilityAction(previousLabel) { (selected > 0).also { if (it) selected-- } },
+                        CustomAccessibilityAction(nextLabel) { (selected < data.lastIndex).also { if (it) selected++ } },
+                    )
+                }
                 .pointerInput(data) {
                     detectTapGestures { selected = (it.x / (size.width / data.size)).toInt().coerceIn(0, data.lastIndex) }
                 }

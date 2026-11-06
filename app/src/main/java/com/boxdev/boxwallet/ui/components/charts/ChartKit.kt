@@ -52,7 +52,8 @@ internal fun rankedSliceColors(count: Int, otherIndex: Int? = null): List<Color>
     val ranked = (count - if (otherIndex != null) 1 else 0).coerceAtLeast(1)
     return List(count) { i ->
         if (i == otherIndex) neutral
-        else lerp(primary, surface, if (ranked == 1) 0f else 0.68f * i / (ranked - 1))
+        // Capped at 45% toward the surface so the lowest rank still stands off the pill track in dark theme.
+        else lerp(primary, surface, if (ranked == 1) 0f else 0.45f * i / (ranked - 1))
     }
 }
 
