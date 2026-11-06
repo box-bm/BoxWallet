@@ -17,6 +17,7 @@ It's an app to make your budget, track expenses and schedule incomes.
 - anything else (`fix:`, `perf:`, `chore:` …) → **patch**
 
 Re-running **Deploy** with no new commits redeploys the current tag without bumping.
+With no `v*` tag yet, Deploy ships the current `versionName` as the first release (no bump), `versionCode + 1`.
 
 ### Play Store metadata (`fastlane/metadata/android/<locale>/`)
 
