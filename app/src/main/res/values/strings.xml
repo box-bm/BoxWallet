@@ -102,7 +102,6 @@
 
     <!-- Transactions List Screen -->
     <string name="transactions_title">Transactions</string>
-    <string name="transactions_search_placeholder">Search transactions\u2026</string>
     <string name="transactions_no_transactions">No transactions yet</string>
     <string name="transactions_no_results">No transactions found</string>
     <string name="transactions_filter_title">Filters</string>
@@ -118,7 +117,6 @@
     <string name="loans_title">Loans</string>
     <string name="loans_no_loans">No loans yet</string>
     <string name="loans_tap_to_add">Tap + to add a loan</string>
-    <string name="loans_search_placeholder">Search loans…</string>
     <string name="loans_no_results">No loans match your filters</string>
     <string name="loans_filter_type">Type</string>
     <string name="loans_filter_status">Status</string>
@@ -408,4 +406,33 @@
     <string name="loan_terms">Terms</string>
     <string name="home_month_net">Net</string>
     <string name="theme_preview">Preview</string>
+
+    <!-- Global search -->
+    <string name="action_search">Search</string>
+    <string name="search_placeholder">Search movements, loans, categories…</string>
+    <string name="search_empty_title">Search everything</string>
+    <string name="search_empty_message">Find movements and loans by description, category or amount.</string>
+    <string name="search_no_results">No matches for “%1$s”</string>
+    <string name="search_no_results_hint">Try fewer words, a category name or an amount.</string>
+    <string name="search_section_movements">Movements</string>
+    <string name="search_section_loans">Loans</string>
+    <string name="search_browse_categories">Browse by category</string>
+
+    <!-- Reports -->
+    <string name="analytics_cash_flow">Cash flow</string>
+    <string name="analytics_last_12_months">Last 12 months</string>
+    <string name="analytics_spending_pattern">Spending pattern</string>
+    <string name="analytics_average_short">Avg %1$s</string>
+    <string name="analytics_top_expenses">Largest expenses</string>
+    <string name="analytics_vs_previous">%1$s vs previous</string>
+    <string name="analytics_no_previous">No previous data</string>
+    <string name="analytics_total_spent">Spent</string>
+    <string name="analytics_other">Other</string>
+    <string name="analytics_avg_per_day">Avg. per day</string>
+    <string name="analytics_biggest_day">Biggest day</string>
+    <string name="analytics_movements">Movements</string>
+    <string name="analytics_empty_period_title">Nothing recorded in this period</string>
+    <string name="analytics_empty_period_msg">Movements you log will show up here as charts and insights.</string>
+    <string name="analytics_savings_rate_caption">of your income kept over the last 12 months</string>
+    <string name="analytics_net_label_short">Net</string>
 </resources>

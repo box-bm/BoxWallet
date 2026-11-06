@@ -70,7 +70,8 @@ import com.boxdev.boxwallet.ui.components.ConnectedChoiceRow
 import com.boxdev.boxwallet.ui.components.EmptyState
 import com.boxdev.boxwallet.ui.components.FilterGroup
 import com.boxdev.boxwallet.ui.components.LoanCard
-import com.boxdev.boxwallet.ui.components.SearchFilterBar
+import com.boxdev.boxwallet.ui.components.FilterToggleAction
+import com.boxdev.boxwallet.ui.components.SearchAction
 import com.boxdev.boxwallet.ui.theme.BoxTheme
 import com.boxdev.boxwallet.ui.theme.WidthClass
 
@@ -82,6 +83,7 @@ import com.boxdev.boxwallet.ui.theme.WidthClass
 fun LoansScreen(
     onNavigateToLoanDetail: (Long) -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
+    onNavigateToSearch: () -> Unit = {},
     viewModel: LoansViewModel = hiltViewModel()
 ) {
     val widthClass = BoxTheme.widthClass
@@ -102,6 +104,7 @@ fun LoansScreen(
             selectedLoanId = null,
             onLoanClick = onNavigateToLoanDetail,
             onNavigateToSettings = onNavigateToSettings,
+            onNavigateToSearch = onNavigateToSearch,
         )
         return
     }
@@ -113,6 +116,7 @@ fun LoansScreen(
                 selectedLoanId = selectedLoanId,
                 onLoanClick = { selectedLoanId = it },
                 onNavigateToSettings = onNavigateToSettings,
+                onNavigateToSearch = onNavigateToSearch,
             )
         }
         Surface(
@@ -150,6 +154,7 @@ private fun LoansList(
     selectedLoanId: Long?,
     onLoanClick: (Long) -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToSearch: () -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val filter = uiState.filterState
@@ -172,6 +177,12 @@ private fun LoansList(
             LargeFlexibleTopAppBar(
                 title = { Text(stringResource(R.string.nav_loans)) },
                 actions = {
+                    SearchAction(onClick = onNavigateToSearch)
+                    FilterToggleAction(
+                        filtersOpen = showFilters,
+                        onToggleFilters = { showFilters = it },
+                        activeFilterCount = activeFilters,
+                    )
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.nav_settings))
                     }
@@ -181,16 +192,6 @@ private fun LoansList(
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            SearchFilterBar(
-                query = filter.searchQuery,
-                onQueryChange = viewModel::updateSearchQuery,
-                placeholder = stringResource(R.string.loans_search_placeholder),
-                filtersOpen = showFilters,
-                onToggleFilters = { showFilters = it },
-                activeFilterCount = activeFilters,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-            )
-
             AnimatedVisibility(
                 visible = showFilters,
                 enter = expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) + fadeIn(),

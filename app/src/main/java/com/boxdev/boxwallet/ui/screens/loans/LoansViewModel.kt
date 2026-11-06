@@ -21,7 +21,6 @@ enum class LoanTypeFilter { ALL, INCOME, EXPENSE }
 enum class LoanSortBy { DATE_DESC, DATE_ASC, AMOUNT_DESC, AMOUNT_ASC }
 
 data class LoansFilterState(
-    val searchQuery: String = "",
     val statusFilter: LoanStatusFilter = LoanStatusFilter.ALL,
     val loanTypeFilter: LoanTypeFilter = LoanTypeFilter.ALL,
     val categoryId: Long? = null,
@@ -49,7 +48,7 @@ class LoansViewModel @Inject constructor(
         categoryRepository.getAllCategories(),
         _filterState
     ) { loans, categories, filterState ->
-        val filteredLoans = applyFilters(loans, categories, filterState)
+        val filteredLoans = applyFilters(loans, filterState)
         LoansUiState(
             loans = loans,
             filteredLoans = filteredLoans,
@@ -62,10 +61,6 @@ class LoansViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = LoansUiState()
     )
-
-    fun updateSearchQuery(query: String) {
-        _filterState.value = _filterState.value.copy(searchQuery = query)
-    }
 
     fun updateStatusFilter(status: LoanStatusFilter) {
         _filterState.value = _filterState.value.copy(statusFilter = status)
@@ -89,22 +84,10 @@ class LoansViewModel @Inject constructor(
 
     private fun applyFilters(
         loans: List<Loan>,
-        categories: List<Category>,
         filterState: LoansFilterState
     ): List<Loan> {
         var filtered = loans
         val today = LocalDate.now()
-
-        if (filterState.searchQuery.isNotBlank()) {
-            val query = filterState.searchQuery.trim()
-            val categoryNameMap = categories.associate { it.id to it.name }
-            filtered = filtered.filter { loan ->
-                loan.name.contains(query, ignoreCase = true) ||
-                loan.description.contains(query, ignoreCase = true) ||
-                (loan.categoryId != null &&
-                    categoryNameMap[loan.categoryId]?.contains(query, ignoreCase = true) == true)
-            }
-        }
 
         filtered = when (filterState.loanTypeFilter) {
             LoanTypeFilter.ALL -> filtered

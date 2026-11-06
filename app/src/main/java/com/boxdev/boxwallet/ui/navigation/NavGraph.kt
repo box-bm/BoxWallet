@@ -35,6 +35,7 @@ import com.boxdev.boxwallet.ui.screens.analytics.AnalyticsScreen
 import com.boxdev.boxwallet.ui.screens.home.HomeScreen
 import com.boxdev.boxwallet.ui.screens.loans.LoanDetailScreen
 import com.boxdev.boxwallet.ui.screens.loans.LoansScreen
+import com.boxdev.boxwallet.ui.screens.search.SearchScreen
 import com.boxdev.boxwallet.ui.screens.settings.BackupScreen
 import com.boxdev.boxwallet.ui.screens.settings.CategoriesScreen
 import com.boxdev.boxwallet.ui.screens.settings.DataManagementScreen
@@ -113,6 +114,7 @@ fun NavGraph(
     onNavigateToSettings: () -> Unit = {},
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val onNavigateToSearch: () -> Unit = { navController.navigate(NavRoutes.Search.route) { launchSingleTop = true } }
     LaunchedEffect(navBackStackEntry) {
         navBackStackEntry?.destination?.route?.let { route ->
             analyticsHelper.logScreenView(route.substringBefore("/"))
@@ -151,7 +153,8 @@ fun NavGraph(
                     )
                 },
                 onEditTransaction = onEditTransaction,
-                onNavigateToSettings = onNavigateToSettings
+                onNavigateToSettings = onNavigateToSettings,
+                onNavigateToSearch = onNavigateToSearch,
             )
         }
 
@@ -165,6 +168,7 @@ fun NavGraph(
             TransactionsListScreen(
                 onEditTransaction = onEditTransaction,
                 onNavigateToSettings = onNavigateToSettings,
+                onNavigateToSearch = onNavigateToSearch,
             )
         }
 
@@ -177,6 +181,7 @@ fun NavGraph(
         ) {
             LoansScreen(
                 onNavigateToSettings = onNavigateToSettings,
+                onNavigateToSearch = onNavigateToSearch,
                 onNavigateToLoanDetail = { loanId ->
                     navController.navigate(
                         NavRoutes.LoanDetail.createRoute(
@@ -201,7 +206,19 @@ fun NavGraph(
             popEnterTransition = { fadeThrough() },
             popExitTransition = { fadeThroughExit() },
         ) {
-            AnalyticsScreen(onNavigateToSettings = onNavigateToSettings)
+            AnalyticsScreen(
+                onNavigateToSettings = onNavigateToSettings,
+                onNavigateToSearch = onNavigateToSearch,
+                onEditTransaction = onEditTransaction,
+            )
+        }
+
+        composable(NavRoutes.Search.route) {
+            SearchScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onOpenTransaction = onEditTransaction,
+                onOpenLoan = { loanId -> navController.navigate(NavRoutes.LoanDetail.createRoute(loanId)) },
+            )
         }
 
         composable(NavRoutes.Settings.route) {

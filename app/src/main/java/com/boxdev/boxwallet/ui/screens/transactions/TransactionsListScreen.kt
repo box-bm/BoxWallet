@@ -55,6 +55,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.activity.compose.BackHandler
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -81,7 +82,8 @@ import com.boxdev.boxwallet.ui.components.AmountText
 import com.boxdev.boxwallet.ui.components.ConnectedChoiceRow
 import com.boxdev.boxwallet.ui.components.EmptyState
 import com.boxdev.boxwallet.ui.components.FilterGroup
-import com.boxdev.boxwallet.ui.components.SearchFilterBar
+import com.boxdev.boxwallet.ui.components.FilterToggleAction
+import com.boxdev.boxwallet.ui.components.SearchAction
 import com.boxdev.boxwallet.ui.components.TransactionItem
 import com.boxdev.boxwallet.ui.theme.BoxTheme
 import com.boxdev.boxwallet.ui.theme.isWide
@@ -93,6 +95,7 @@ import java.time.format.FormatStyle
 fun TransactionsListScreen(
     onEditTransaction: (Long) -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
+    onNavigateToSearch: () -> Unit = {},
     viewModel: TransactionsListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -107,6 +110,8 @@ fun TransactionsListScreen(
         filter.sortBy != SortBy.DATE_DESC,
         filter.showOnlyRecurrent,
     ).count { it }
+
+    BackHandler(enabled = showFilters && !wide) { showFilters = false }
 
     val filterPanel: @Composable (Modifier) -> Unit = { modifier ->
         Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(20.dp)) {
@@ -202,6 +207,14 @@ fun TransactionsListScreen(
                     }
                 } else null,
                 actions = {
+                    SearchAction(onClick = onNavigateToSearch)
+                    if (!wide) {
+                        FilterToggleAction(
+                            filtersOpen = showFilters,
+                            onToggleFilters = { showFilters = it },
+                            activeFilterCount = activeFilters,
+                        )
+                    }
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.nav_settings))
                     }
@@ -230,17 +243,6 @@ fun TransactionsListScreen(
             }
 
             Column(Modifier.weight(1f)) {
-                SearchFilterBar(
-                    query = filter.searchQuery,
-                    onQueryChange = viewModel::updateSearchQuery,
-                    placeholder = stringResource(R.string.transactions_search_placeholder),
-                    filtersOpen = showFilters,
-                    onToggleFilters = { showFilters = it },
-                    activeFilterCount = activeFilters,
-                    showFilterToggle = !wide,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                )
-
                 if (!wide) {
                     AnimatedVisibility(
                         visible = showFilters,

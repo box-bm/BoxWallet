@@ -1,0 +1,491 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-06T00:00:00Z",
+  "title": "Design System: BoxWallet",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Añil Indigo",
+        "canonical": "#434DC5",
+        "dark": "#9FA7FF",
+        "tonalRamp": [
+          "#00077E",
+          "#020D97",
+          "#222CA8",
+          "#434DC5",
+          "#5D68E0",
+          "#7D88FF",
+          "#8E98FF",
+          "#BCC0FF"
+        ]
+      },
+      "on-primary": {
+        "role": "primary",
+        "displayName": "Indigo Paper",
+        "canonical": "#F3F1FF",
+        "dark": "#071299"
+      },
+      "primary-container": {
+        "role": "primary",
+        "displayName": "Periwinkle Wash",
+        "canonical": "#8E98FF",
+        "dark": "#8E98FF"
+      },
+      "on-primary-container": {
+        "role": "primary",
+        "displayName": "Deep Añil",
+        "canonical": "#00077E",
+        "dark": "#00077E"
+      },
+      "secondary": {
+        "role": "secondary",
+        "displayName": "Dusk Violet",
+        "canonical": "#5B5877",
+        "dark": "#DBD6FB",
+        "tonalRamp": [
+          "#1E1C38",
+          "#393754",
+          "#4C4967",
+          "#5B5877",
+          "#747191",
+          "#CDC8EC",
+          "#DBD6FB",
+          "#F5F0FF"
+        ]
+      },
+      "secondary-container": {
+        "role": "secondary",
+        "displayName": "Lilac Mist",
+        "canonical": "#DBD6FB",
+        "dark": "#464361"
+      },
+      "on-secondary-container": {
+        "role": "secondary",
+        "displayName": "Lilac Ink",
+        "canonical": "#4C4967",
+        "dark": "#D1CCF1"
+      },
+      "tertiary": {
+        "role": "tertiary",
+        "displayName": "Burnt Marigold",
+        "canonical": "#805100",
+        "dark": "#FFB95A",
+        "tonalRamp": [
+          "#311C00",
+          "#4E3000",
+          "#5A3800",
+          "#805100",
+          "#A26800",
+          "#EC9A00",
+          "#FEA600",
+          "#FFCB8A"
+        ]
+      },
+      "tertiary-container": {
+        "role": "tertiary",
+        "displayName": "Marigold",
+        "canonical": "#FEA600",
+        "dark": "#FEA600"
+      },
+      "on-tertiary-container": {
+        "role": "tertiary",
+        "displayName": "Marigold Ink",
+        "canonical": "#4E3000",
+        "dark": "#4E3000"
+      },
+      "income": {
+        "role": "money",
+        "displayName": "Jade",
+        "canonical": "#006D3E",
+        "dark": "#7FD99F",
+        "tonalRamp": [
+          "#00210F",
+          "#004526",
+          "#005731",
+          "#006D3E",
+          "#48A16D",
+          "#7FD99F",
+          "#9BF6BA",
+          "#A0FCBF"
+        ]
+      },
+      "income-container": {
+        "role": "money",
+        "displayName": "Jade Wash",
+        "canonical": "#9BF6BA",
+        "dark": "#00522E"
+      },
+      "on-income-container": {
+        "role": "money",
+        "displayName": "Jade Ink",
+        "canonical": "#00210F",
+        "dark": "#9BF6BA"
+      },
+      "expense": {
+        "role": "money",
+        "displayName": "Cochineal",
+        "canonical": "#A93441",
+        "dark": "#FFB3B5",
+        "tonalRamp": [
+          "#40000B",
+          "#680018",
+          "#790C21",
+          "#A93441",
+          "#EB6570",
+          "#FFB3B5",
+          "#FFDADA",
+          "#FFE1E1"
+        ]
+      },
+      "expense-container": {
+        "role": "money",
+        "displayName": "Cochineal Wash",
+        "canonical": "#FFDADA",
+        "dark": "#891B2B"
+      },
+      "on-expense-container": {
+        "role": "money",
+        "displayName": "Cochineal Ink",
+        "canonical": "#40000B",
+        "dark": "#FFDADA"
+      },
+      "error": {
+        "role": "error",
+        "displayName": "Fault Crimson",
+        "canonical": "#B41340",
+        "dark": "#FF6E84",
+        "tonalRamp": [
+          "#490013",
+          "#510017",
+          "#83002A",
+          "#B41340",
+          "#D73357",
+          "#F74B6D",
+          "#FF6E84",
+          "#FFB2B9"
+        ]
+      },
+      "error-container": {
+        "role": "error",
+        "displayName": "Fault Rose",
+        "canonical": "#F74B6D",
+        "dark": "#A70138"
+      },
+      "on-error-container": {
+        "role": "error",
+        "displayName": "Fault Ink",
+        "canonical": "#510017",
+        "dark": "#FFB2B9"
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Lavender Paper",
+        "canonical": "#F8F5FD",
+        "dark": "#0E0E13",
+        "tonalRamp": [
+          "#0E0E13",
+          "#19191F",
+          "#25252D",
+          "#5C5B61",
+          "#AEACB3",
+          "#DEDBE6",
+          "#E9E7F0",
+          "#F8F5FD"
+        ]
+      },
+      "on-surface": {
+        "role": "neutral",
+        "displayName": "Ink Plum",
+        "canonical": "#2E2E34",
+        "dark": "#F8F5FD"
+      },
+      "on-surface-variant": {
+        "role": "neutral",
+        "displayName": "Slate Plum",
+        "canonical": "#5C5B61",
+        "dark": "#ACAAB1"
+      },
+      "surface-container-low": {
+        "role": "neutral",
+        "displayName": "Container Low",
+        "canonical": "#F2EFF8",
+        "dark": "#131319"
+      },
+      "surface-container": {
+        "role": "neutral",
+        "displayName": "Container",
+        "canonical": "#E9E7F0",
+        "dark": "#19191F"
+      },
+      "surface-container-high": {
+        "role": "neutral",
+        "displayName": "Container High",
+        "canonical": "#E4E1EB",
+        "dark": "#1F1F26"
+      },
+      "surface-container-highest": {
+        "role": "neutral",
+        "displayName": "Container Highest",
+        "canonical": "#DEDBE6",
+        "dark": "#25252D"
+      },
+      "outline": {
+        "role": "neutral",
+        "displayName": "Outline",
+        "canonical": "#77767D",
+        "dark": "#76757B"
+      },
+      "outline-variant": {
+        "role": "neutral",
+        "displayName": "Grid Line",
+        "canonical": "#AEACB3",
+        "dark": "#48474D"
+      },
+      "inverse-surface": {
+        "role": "neutral",
+        "displayName": "Night Ink",
+        "canonical": "#0E0E13",
+        "dark": "#FBF8FF"
+      }
+    },
+    "typographyMeta": {
+      "money-hero": {
+        "displayName": "Money Hero",
+        "purpose": "Home balance and the amount typed in a sheet; auto-sizes down to 28px."
+      },
+      "money-large": {
+        "displayName": "Money Large",
+        "purpose": "Income/expense tiles, loan remaining, currency symbol beside a hero amount."
+      },
+      "money-medium": {
+        "displayName": "Money Medium",
+        "purpose": "Default amount in list rows."
+      },
+      "money-small": {
+        "displayName": "Money Small",
+        "purpose": "Secondary amounts: loan totals, category breakdown, the month's net."
+      },
+      "display": {
+        "displayName": "Display",
+        "purpose": "Roboto Flex display role; screen titles in flexible app bars use the display/headline family."
+      },
+      "headline-large": {
+        "displayName": "Headline Large",
+        "purpose": "Expanded flexible app bar titles."
+      },
+      "headline-small": {
+        "displayName": "Headline Small",
+        "purpose": "Bottom sheet headers."
+      },
+      "title-large": {
+        "displayName": "Title Large",
+        "purpose": "Section headers and empty-state titles."
+      },
+      "title-medium": {
+        "displayName": "Title Medium",
+        "purpose": "Card titles, balance caption, sheet primary button text."
+      },
+      "body-large": {
+        "displayName": "Body Large",
+        "purpose": "List row titles and form row labels."
+      },
+      "body-medium": {
+        "displayName": "Body Medium",
+        "purpose": "Supporting lines and empty-state messages."
+      },
+      "label-large": {
+        "displayName": "Label Large",
+        "purpose": "Chips, field labels, stat captions."
+      }
+    },
+    "shadows": [
+      {
+        "name": "none",
+        "value": "none",
+        "purpose": "No component declares a shadow. Depth is the surface-container stack; only stock Material FABs, menus and sheets carry their default elevation."
+      }
+    ],
+    "motion": [
+      {
+        "name": "fast-spatial",
+        "value": "spring(dampingRatio 0.6, stiffness 800)",
+        "purpose": "Touch feedback: category badge morph to circle on press or select."
+      },
+      {
+        "name": "default-spatial",
+        "value": "spring(dampingRatio 0.8, stiffness 380)",
+        "purpose": "Expressive component defaults (button shape morphs, FAB menu)."
+      },
+      {
+        "name": "slow-spatial",
+        "value": "spring(dampingRatio 0.8, stiffness 200)",
+        "purpose": "Data: balance proportion bar, loan wavy progress, category bars."
+      },
+      {
+        "name": "default-effects",
+        "value": "spring(dampingRatio 1.0, stiffness 1600)",
+        "purpose": "Color changes (amount ink) and detail-pane enter."
+      },
+      {
+        "name": "fast-effects",
+        "value": "spring(dampingRatio 1.0, stiffness 3800)",
+        "purpose": "Exits (detail-pane content leaving)."
+      },
+      {
+        "name": "reduce-motion",
+        "value": "ANIMATOR_DURATION_SCALE == 0",
+        "purpose": "Lock and onboarding drop decorative motion when Remove animations is on."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "compact",
+        "value": "0px"
+      },
+      {
+        "name": "medium",
+        "value": "600px"
+      },
+      {
+        "name": "expanded",
+        "value": "840px"
+      },
+      {
+        "name": "rail-expanded",
+        "value": "1200px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Balance Panel",
+      "kind": "custom",
+      "refersTo": "balance-panel",
+      "description": "Home's lead slab: total balance in Money Hero, the month's net, an income/expense proportion bar and two signed flow tiles.",
+      "html": "<section class=\"ds-balance\"><div class=\"ds-balance-cap\">Total Balance</div><div class=\"ds-balance-amt\">$1,830.35</div><div class=\"ds-balance-row\"><span>This month · November</span><span>Net <b>+$2,513.85</b></span></div><div class=\"ds-balance-bar\"><i class=\"ds-in\" style=\"flex:0.85\"></i><i class=\"ds-out\" style=\"flex:0.15\"></i></div><div class=\"ds-balance-tiles\"><div><div class=\"ds-tile-cap\"><span class=\"ds-dot ds-dot-in\"></span>Income</div><div class=\"ds-tile-amt\">+$3,050.00</div></div><div><div class=\"ds-tile-cap\"><span class=\"ds-dot ds-dot-out\"></span>Expense</div><div class=\"ds-tile-amt\">−$536.15</div></div></div></section>",
+      "css": ".ds-balance { background: #434DC5; color: #F3F1FF; border-radius: 36px; padding: 24px; font-family: Roboto, sans-serif; max-width: 380px; } .ds-balance-cap { font-size: 16px; font-weight: 600; opacity: 0.86; } .ds-balance-amt { font-family: 'Roboto Flex', Roboto, sans-serif; font-variation-settings: 'wdth' 124, 'opsz' 120; font-weight: 800; font-size: 52px; line-height: 56px; letter-spacing: -1.5px; font-feature-settings: 'tnum'; margin-top: 4px; } .ds-balance-row { display: flex; justify-content: space-between; margin-top: 24px; font-size: 14px; font-weight: 600; opacity: 0.86; } .ds-balance-bar { display: flex; gap: 4px; height: 14px; margin-top: 10px; } .ds-balance-bar .ds-in { background: #9BF6BA; border-radius: 7px 3px 3px 7px; transition: flex 0.6s cubic-bezier(0.2, 0, 0, 1); } .ds-balance-bar .ds-out { background: #FFDADA; border-radius: 3px 7px 7px 3px; transition: flex 0.6s cubic-bezier(0.2, 0, 0, 1); } .ds-balance-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; } .ds-tile-cap { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; opacity: 0.86; } .ds-dot { width: 10px; height: 10px; border-radius: 50%; } .ds-dot-in { background: #9BF6BA; } .ds-dot-out { background: #FFDADA; } .ds-tile-amt { font-family: 'Roboto Flex', Roboto, sans-serif; font-variation-settings: 'wdth' 120, 'opsz' 96; font-weight: 700; font-size: 28px; line-height: 34px; letter-spacing: -0.5px; font-feature-settings: 'tnum'; margin-top: 2px; }"
+    },
+    {
+      "name": "Transaction Row Group",
+      "kind": "card",
+      "refersTo": "transaction-row",
+      "description": "Connected list group of movements: category shape badge, title, meta line, signed money-colored amount. Badge relaxes to a circle on press.",
+      "html": "<div class=\"ds-group\"><button class=\"ds-row\"><span class=\"ds-badge ds-badge-cookie\"><svg viewBox=\"0 0 24 24\" width=\"21\" height=\"21\"><path fill=\"currentColor\" d=\"M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45C4.52 15.37 5.48 17 7 17h12v-2H7l1.1-2h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1 1 0 0 0 20 4H5.21l-.94-2H1z\"/></svg></span><span class=\"ds-row-text\"><span class=\"ds-row-title\">Supermercado La Torre</span><span class=\"ds-row-meta\">Groceries · Nov 6</span></span><span class=\"ds-amt ds-amt-out\">−$350.00</span></button><button class=\"ds-row\"><span class=\"ds-badge ds-badge-gem\"><svg viewBox=\"0 0 24 24\" width=\"21\" height=\"21\"><path fill=\"currentColor\" d=\"M20 6h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v2H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6 0h-4V4h4v2z\"/></svg></span><span class=\"ds-row-text\"><span class=\"ds-row-title\">Salario noviembre</span><span class=\"ds-row-meta\">Salary · Nov 5</span></span><span class=\"ds-amt ds-amt-in\">+$2,450.00</span></button></div>",
+      "css": ".ds-group { display: flex; flex-direction: column; gap: 2px; max-width: 420px; font-family: Roboto, sans-serif; } .ds-row { display: flex; align-items: center; gap: 16px; min-height: 64px; padding: 10px 16px; border: 0; background: #E9E7F0; color: #2E2E34; text-align: left; border-radius: 6px; cursor: pointer; transition: border-radius 0.25s cubic-bezier(0.2, 0, 0, 1), background 0.2s; } .ds-row:first-child { border-radius: 24px 24px 6px 6px; } .ds-row:last-child { border-radius: 6px 6px 24px 24px; } .ds-row:hover { background: #E4E1EB; } .ds-row:active { border-radius: 16px; } .ds-row:focus-visible { outline: 3px solid #434DC5; outline-offset: 2px; } .ds-badge { width: 44px; height: 44px; display: grid; place-items: center; flex: none; transition: clip-path 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), border-radius 0.25s; } .ds-badge-cookie { background: #FEA600; color: #4E3000; border-radius: 38%; } .ds-badge-gem { background: #8E98FF; color: #00077E; clip-path: polygon(50% 0, 95% 30%, 80% 100%, 20% 100%, 5% 30%); } .ds-row:active .ds-badge { clip-path: circle(50%); border-radius: 50%; } .ds-row-text { display: flex; flex-direction: column; flex: 1; min-width: 0; } .ds-row-title { font-size: 16px; line-height: 24px; letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .ds-row-meta { font-size: 14px; line-height: 20px; color: #5C5B61; } .ds-amt { font-family: 'Roboto Flex', Roboto, sans-serif; font-variation-settings: 'wdth' 116, 'opsz' 72; font-weight: 600; font-size: 18px; font-feature-settings: 'tnum'; } .ds-amt-in { color: #006D3E; } .ds-amt-out { color: #A93441; }"
+    },
+    {
+      "name": "Loan Card",
+      "kind": "card",
+      "refersTo": "loan-card",
+      "description": "A loan at a glance: badge, title, status chip, remaining amount, wavy progress colored by status, next due date and paid count.",
+      "html": "<button class=\"ds-loan\"><div class=\"ds-loan-head\"><span class=\"ds-loan-badge\"><svg viewBox=\"0 0 24 24\" width=\"21\" height=\"21\"><path fill=\"currentColor\" d=\"M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z\"/></svg></span><span class=\"ds-loan-title\">Moto Italika<small>Crédito Banco Industrial</small></span><span class=\"ds-chip ds-chip-active\">Active</span></div><div class=\"ds-loan-mid\"><div><small>Remaining</small><b>$2,100.00</b></div><div class=\"ds-loan-total\"><small>Total Amount</small><span>$3,600.00</span></div></div><svg class=\"ds-wave\" viewBox=\"0 0 300 10\" preserveAspectRatio=\"none\"><path d=\"M0 5 q 7.5 -5 15 0 t 15 0 t 15 0 t 15 0 t 15 0 t 15 0 t 15 0 t 15 0 t 15 0 t 15 0 t 15 0 t 15 0 t 15 0 t 15 0 t 15 0 t 15 0 t 15 0 t 15 0 t 15 0 t 15 0\" stroke=\"#434DC5\" stroke-width=\"4\" fill=\"none\" stroke-linecap=\"round\" pathLength=\"100\" stroke-dasharray=\"42 100\"/><line x1=\"130\" y1=\"5\" x2=\"300\" y2=\"5\" stroke=\"#DEDBE6\" stroke-width=\"4\" stroke-linecap=\"round\"/></svg><div class=\"ds-loan-foot\"><span>Next due Dec 1, 2026</span><b>5/12 paid</b></div></button>",
+      "css": ".ds-loan { display: flex; flex-direction: column; gap: 14px; width: 360px; padding: 20px; border: 0; border-radius: 28px; background: #E9E7F0; color: #2E2E34; font-family: Roboto, sans-serif; text-align: left; cursor: pointer; transition: background 0.2s; } .ds-loan:hover { background: #E4E1EB; } .ds-loan:focus-visible { outline: 3px solid #434DC5; outline-offset: 2px; } .ds-loan[aria-selected=true] { background: #DBD6FB; } .ds-loan-head { display: flex; align-items: center; gap: 14px; } .ds-loan-badge { width: 44px; height: 44px; border-radius: 50%; background: #9BF6BA; color: #00210F; display: grid; place-items: center; } .ds-loan-title { flex: 1; display: flex; flex-direction: column; font-size: 16px; font-weight: 600; } .ds-loan-title small { font-size: 14px; font-weight: 400; color: #5C5B61; } .ds-chip { display: inline-flex; align-items: center; height: 28px; padding: 0 12px; border-radius: 9999px; font-size: 14px; font-weight: 600; } .ds-chip-active { background: #FEA600; color: #4E3000; } .ds-loan-mid { display: flex; align-items: flex-end; justify-content: space-between; } .ds-loan-mid small { display: block; font-size: 14px; font-weight: 600; color: #5C5B61; } .ds-loan-mid b { font-family: 'Roboto Flex', Roboto, sans-serif; font-variation-settings: 'wdth' 120, 'opsz' 96; font-weight: 700; font-size: 28px; line-height: 34px; font-feature-settings: 'tnum'; } .ds-loan-total { text-align: right; color: #5C5B61; font-feature-settings: 'tnum'; } .ds-wave { width: 100%; height: 10px; } .ds-loan-foot { display: flex; justify-content: space-between; font-size: 14px; color: #5C5B61; } .ds-loan-foot b { color: #2E2E34; font-weight: 600; }"
+    },
+    {
+      "name": "Amount Field",
+      "kind": "input",
+      "refersTo": "amount-field",
+      "description": "The sheet's lead input: the amount typed at Money Hero size, centered, ink tinted by direction.",
+      "html": "<label class=\"ds-amount\"><span class=\"ds-amount-label\">Amount</span><span class=\"ds-amount-line\"><span class=\"ds-amount-sym\">$</span><input class=\"ds-amount-input\" inputmode=\"decimal\" placeholder=\"0.00\" value=\"42.75\"></span></label>",
+      "css": ".ds-amount { display: flex; flex-direction: column; align-items: center; width: 360px; padding: 16px 20px; border-radius: 36px; background: #E4E1EB; font-family: Roboto, sans-serif; border: 2px solid transparent; transition: border-color 0.2s; } .ds-amount:focus-within { border-color: #434DC5; } .ds-amount-label { font-size: 14px; font-weight: 600; color: #5C5B61; } .ds-amount-line { display: flex; align-items: center; gap: 4px; color: #A93441; } .ds-amount-sym { font-family: 'Roboto Flex', Roboto, sans-serif; font-variation-settings: 'wdth' 120; font-weight: 700; font-size: 28px; } .ds-amount-input { width: 6ch; border: 0; background: transparent; color: inherit; text-align: center; font-family: 'Roboto Flex', Roboto, sans-serif; font-variation-settings: 'wdth' 124, 'opsz' 120; font-weight: 800; font-size: 52px; line-height: 56px; letter-spacing: -1.5px; font-feature-settings: 'tnum'; caret-color: #434DC5; outline: none; } .ds-amount-input::placeholder { color: #5C5B61; }"
+    },
+    {
+      "name": "Search and Filter Bar",
+      "kind": "input",
+      "refersTo": "search-field",
+      "description": "56px pill search field without an indicator line, paired with a tonal filter toggle carrying an active-filter count.",
+      "html": "<div class=\"ds-search\"><label class=\"ds-search-field\"><svg viewBox=\"0 0 24 24\" width=\"24\" height=\"24\"><path fill=\"currentColor\" d=\"M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z\"/></svg><input placeholder=\"Search loans…\"></label><button class=\"ds-filter\" aria-pressed=\"false\" aria-label=\"Filter\"><svg viewBox=\"0 0 24 24\" width=\"24\" height=\"24\"><path fill=\"currentColor\" d=\"M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z\"/></svg><span class=\"ds-filter-badge\">2</span></button></div>",
+      "css": ".ds-search { display: flex; gap: 8px; align-items: center; width: 380px; font-family: Roboto, sans-serif; } .ds-search-field { flex: 1; display: flex; align-items: center; gap: 12px; height: 56px; padding: 0 16px; border-radius: 36px; background: #E4E1EB; color: #5C5B61; } .ds-search-field:focus-within { box-shadow: inset 0 0 0 2px #434DC5; } .ds-search-field input { flex: 1; border: 0; background: transparent; font-size: 16px; color: #2E2E34; outline: none; } .ds-filter { position: relative; width: 56px; height: 56px; border: 0; border-radius: 50%; background: #DBD6FB; color: #4C4967; cursor: pointer; display: grid; place-items: center; transition: border-radius 0.2s, background 0.2s; } .ds-filter:hover { background: #CDC8EC; } .ds-filter[aria-pressed=true] { background: #434DC5; color: #F3F1FF; border-radius: 16px; } .ds-filter:focus-visible { outline: 3px solid #434DC5; outline-offset: 2px; } .ds-filter-badge { position: absolute; top: 4px; right: 4px; min-width: 16px; height: 16px; border-radius: 8px; background: #B41340; color: #FFEFEF; font-size: 11px; line-height: 16px; }"
+    },
+    {
+      "name": "Status Chips",
+      "kind": "chip",
+      "refersTo": "status-chip-active",
+      "description": "Loan status pills: icon plus label, Active marigold, Paid jade, Overdue error. Info chip is the neutral variant.",
+      "html": "<div class=\"ds-chips\"><span class=\"ds-st ds-st-active\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\"><path fill=\"currentColor\" d=\"M12 6v3l4-4-4-4v3a8 8 0 0 0-6.76 12.26l1.46-1.46A6 6 0 0 1 12 6zm6.76 1.74-1.46 1.46A6 6 0 0 1 12 18v-3l-4 4 4 4v-3a8 8 0 0 0 6.76-12.26z\"/></svg>Active</span><span class=\"ds-st ds-st-paid\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\"><path fill=\"currentColor\" d=\"M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-2 15-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z\"/></svg>Paid</span><span class=\"ds-st ds-st-overdue\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\"><path fill=\"currentColor\" d=\"M11 15h2v2h-2zm0-8h2v6h-2zm1-5a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16z\"/></svg>Overdue</span><span class=\"ds-info\">Income</span></div>",
+      "css": ".ds-chips { display: flex; gap: 8px; flex-wrap: wrap; font-family: Roboto, sans-serif; } .ds-st, .ds-info { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; border-radius: 9999px; font-size: 14px; font-weight: 600; letter-spacing: 0.1px; } .ds-st { padding: 0 12px 0 8px; } .ds-st-active { background: #FEA600; color: #4E3000; } .ds-st-paid { background: #9BF6BA; color: #00210F; } .ds-st-overdue { background: #F74B6D; color: #510017; } .ds-info { padding: 5px 12px; background: #DEDBE6; color: #5C5B61; }"
+    },
+    {
+      "name": "Sheet Primary Button",
+      "kind": "button",
+      "refersTo": "sheet-primary-button",
+      "description": "Full-width 56px filled pill that squares its corners slightly on press (Expressive button shapes).",
+      "html": "<button class=\"ds-btn-primary\">Save movement</button>",
+      "css": ".ds-btn-primary { width: 360px; height: 56px; border: 0; border-radius: 28px; background: #434DC5; color: #F3F1FF; font-family: Roboto, sans-serif; font-size: 16px; font-weight: 600; letter-spacing: 0.15px; cursor: pointer; transition: border-radius 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s; } .ds-btn-primary:hover { filter: brightness(0.92); } .ds-btn-primary:active { border-radius: 12px; } .ds-btn-primary:focus-visible { outline: 3px solid #434DC5; outline-offset: 3px; } .ds-btn-primary:disabled { background: rgba(46,46,52,0.12); color: rgba(46,46,52,0.38); }"
+    },
+    {
+      "name": "Settings Group",
+      "kind": "card",
+      "refersTo": "settings-row",
+      "description": "Titled group of segmented rows on surface-container, each with a tonal circle icon; switch rows toggle on the whole row.",
+      "html": "<div class=\"ds-set\"><div class=\"ds-set-title\">Security</div><label class=\"ds-set-row\"><span class=\"ds-set-ic\"><svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\"><path fill=\"currentColor\" d=\"M18 8h-1V6A5 5 0 0 0 7 6v2H6a2 2 0 0 0-2 2v10c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zm-6 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3.1-9H8.9V6a3.1 3.1 0 0 1 6.2 0v2z\"/></svg></span><span class=\"ds-set-text\">Biometric lock<small>Ask for your fingerprint when opening</small></span><input type=\"checkbox\" class=\"ds-switch\" checked></label><button class=\"ds-set-row\"><span class=\"ds-set-ic\"><svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\"><path fill=\"currentColor\" d=\"M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z\"/></svg></span><span class=\"ds-set-text\">Backup<small>Google Drive</small></span><svg aria-hidden=\"true\" viewBox=\"0 0 24 24\" width=\"24\" height=\"24\"><path fill=\"currentColor\" d=\"M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6z\"/></svg></button></div>",
+      "css": ".ds-set { display: flex; flex-direction: column; gap: 2px; width: 380px; font-family: Roboto, sans-serif; } .ds-set-title { padding: 0 0 8px 16px; font-size: 14px; font-weight: 600; color: #434DC5; } .ds-set-row { display: flex; align-items: center; gap: 16px; min-height: 64px; padding: 8px 16px; border: 0; background: #E9E7F0; color: #2E2E34; border-radius: 6px; text-align: left; font-size: 16px; cursor: pointer; transition: background 0.2s, border-radius 0.25s; } .ds-set-row:first-of-type { border-radius: 28px 28px 6px 6px; } .ds-set-row:last-child { border-radius: 6px 6px 28px 28px; } .ds-set-row:hover { background: #E4E1EB; } .ds-set-row:focus-visible { outline: 3px solid #434DC5; outline-offset: 2px; } .ds-set-ic { width: 40px; height: 40px; border-radius: 50%; background: #DBD6FB; color: #4C4967; display: grid; place-items: center; flex: none; } .ds-set-text { flex: 1; display: flex; flex-direction: column; } .ds-set-text small { font-size: 14px; color: #5C5B61; } .ds-switch { appearance: none; width: 52px; height: 32px; border-radius: 16px; background: #DEDBE6; border: 2px solid #77767D; position: relative; cursor: pointer; } .ds-switch::after { content: ''; position: absolute; top: 6px; left: 6px; width: 16px; height: 16px; border-radius: 50%; background: #77767D; transition: all 0.2s; } .ds-switch:checked { background: #434DC5; border-color: #434DC5; } .ds-switch:checked::after { left: 22px; top: 2px; width: 24px; height: 24px; background: #F3F1FF; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Indigo Ledger",
+    "overview": "BoxWallet is Material 3 Expressive played straight: the platform's own components, motion springs, shape morphs and flexible app bars, committed to fully rather than skinned over. It is a working money app first. Every screen leads with a number, and every number is set in a wide, heavy, tabular Roboto Flex cut so columns of money line up and the balance reads from across a table. Expressiveness lives in three places only: the indigo balance slab, the category shape tokens, and the springs that move them. Everything else is calm tonal surfaces in indigo-tinted neutrals.\n\nDensity is moderate and touch-first: 48px minimum targets, 56px fields and primary buttons, lists built as connected groups rather than separated cards. The system refuses the category default of a grey list with a green accent and a hero card where every surface weighs the same; here the balance panel is the single heaviest object on Home, and lists sit visibly lower in the tonal stack.\n\nThe brand palette is the default look. Material You dynamic color is an opt-in that swaps the scheme roles; every component reads scheme roles, so the system survives the swap, while the money roles (income, expense) stay brand-fixed in both modes. The theme also honors Android's system contrast setting with medium and high contrast variants of both the scheme and the money roles.",
+    "keyCharacteristics": [
+      "Roboto Flex numerals, wide and heavy with tabular figures, for every amount.",
+      "One indigo slab per screen at most; everything else is tonal surface-container layering, no custom shadows.",
+      "Categories are identified by a stable MaterialShapes silhouette and tone, which relaxes to a circle on press.",
+      "Income and expense are their own semantic roles (jade and cochineal), always signed with + or −.",
+      "Generous expressive radii (8 to 36px) and connected list groups with round outer and tight inner corners.",
+      "Adaptive by width class: short navigation bar and FAB menu when compact; wide navigation rail and multi-pane layouts when wide."
+    ],
+    "rules": [
+      {
+        "name": "The Spending Is Not An Error Rule",
+        "body": "Expenses use the cochineal expense role, never `error`. `error` is reserved for genuine faults and overdue loans, which are a real problem state.",
+        "section": "colors"
+      },
+      {
+        "name": "The Sign Carries It Rule",
+        "body": "Every directional amount carries a + or − (true minus, U+2212) and, where space allows, a trend icon. Color is the third signal, never the only one; on the indigo slab, amounts drop to on-primary and the sign alone carries direction.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Slab Rule",
+        "body": "Primary as a filled surface is reserved for the Home balance panel. Other containers use the surface-container family or a container role.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Money Rule",
+        "body": "Any amount is rendered through AmountText or a MoneyType style; never set money in a body or title style.",
+        "section": "typography"
+      },
+      {
+        "name": "The Font Scale Rule",
+        "body": "Every size is sp and honors system font scale; amounts survive 130% by auto-sizing, not by clipping.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tonal Stack Rule",
+        "body": "To raise something, step it one level up the surface-container family; never add a shadow or a border to lift it.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Shape Is Identity Rule",
+        "body": "A category keeps one silhouette and one tone (primary-, tertiary-, secondary-container or surface-container-highest) everywhere: lists, pickers, chart legends, loan cards. Do not reassign shapes per screen or use them decoratively for things that are not categories (empty states and onboarding excepted).",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "**Do** set every amount through AmountText or a MoneyType style, with tabular figures and a + or − for directional money.",
+      "**Do** read colors from scheme roles and `BoxTheme.money`, so dynamic color, dark mode and system contrast all keep working.",
+      "**Do** build lists as connected segmented groups on surface-container, using segmentShapes or GroupShapes for corners.",
+      "**Do** give every category its CategoryBadge wherever the category appears.",
+      "**Do** branch layout on `BoxTheme.widthClass`: panes and the rail when wide, the short bar and FAB menu when compact.",
+      "**Do** pair status color with an icon and a label."
+    ],
+    "donts": [
+      "**Don't** use `error` or red for ordinary spending; expenses use the cochineal expense role.",
+      "**Don't** add shadows or borders to lift a surface; step up the surface-container stack instead.",
+      "**Don't** fill a second surface with primary on the same screen as the balance panel.",
+      "**Don't** tell categories apart by hue alone in charts; use the shape badge and name.",
+      "**Don't** hard-code hex colors in screens or view models; all color lives in the theme.",
+      "**Don't** set money in Roboto body or title styles, or let amounts clip at large font scales; auto-size them."
+    ]
+  }
+}

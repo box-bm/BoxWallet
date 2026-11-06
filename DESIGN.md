@@ -321,7 +321,7 @@ A 44px polygon (40px in charts) clipped from the category's MaterialShapes silho
 
 ### Inputs / Fields
 - **Amount field:** the amount is the point of the form. Surface-container-high, extra-large corners, typed at Money Hero size and centered, currency symbol in Money Large before it; the ink animates from on-surface-variant (empty, "0.00") to the direction's money color. Error adds a 2px error border and error label.
-- **Search field:** a 56px pill TextField on surface-container-high with no indicator line, paired with a 56px filled tonal filter toggle carrying a badge count of active filters.
+- **Global search:** one search for the whole app, opened from the search action in every tab's top bar. A full screen with a 56px pill TextField on surface-container-high (no indicator line), All / Movements / Loans scope chips, and results grouped into Loans and Movements. Matching ignores case and accents and also covers category names and amounts. List screens keep their filters behind a top-bar Tune toggle with a badge counting the active filters.
 - **Choice rows:** connected ToggleButton groups (the Expressive replacement for segmented buttons); unselected on surface-container-highest. The income/expense choice in sheets takes the money container colors.
 - **Category picker:** a horizontal row of category badges; the chosen one morphs to a circle and gets a 2px primary ring.
 
@@ -334,7 +334,10 @@ A 44px polygon (40px in charts) clipped from the category's MaterialShapes silho
 ShortNavigationBar (compact) and WideNavigationRail (wide) with filled icons on the active destination and outlined icons otherwise. Screen tops use flexible app bars: medium flexible on Home, large flexible on settings pages, collapsing on scroll. Section headers are title-large with a text-button action at 48px height. Loading uses the Expressive LoadingIndicator.
 
 ### Charts
-Monthly trend draws income and expense lines in their money roles over dashed outline-variant grid lines, with 2px rounded strokes. The category breakdown is a ranked bar list in a single primary hue on 10px pill tracks; category identity comes from the badge and name, not from hue.
+Charts grow in on the slow spatial spring (or appear at once when animations are off), and you tap or drag them to inspect a value; the readout above the plot shows the value being inspected.
+- **Cash flow:** paired round-topped income/expense bars per month in their money roles, on a compact-labelled axis (`$2.5k`) with a solid baseline and dashed outline-variant guides. The inspected month sits on a surface-container-highest column, and the other months drop to 42% strength.
+- **Spending pattern:** expense per day as round-topped cochineal bars with a dashed daily-average line and its value in a pill. Days that have not happened yet show as 3px stubs.
+- **Expenses by category:** a donut ranked in a single primary hue (largest slice darkest, stepping toward the surface; "Other" in outline) with the total in its hole. Below it, a ranked legend where each category keeps its shape badge and name, so hue never carries identity alone. The top five categories show and the rest fold into "Other".
 
 ### Motion
 MaterialExpressiveTheme with the expressive motion scheme. Fast spatial springs for touch feedback (badge morph), slow spatial for data (proportion bar, loan progress, category bars), default effects for color changes, fast effects for exits. Lock and onboarding screens check Remove-animations and drop their decorative motion.

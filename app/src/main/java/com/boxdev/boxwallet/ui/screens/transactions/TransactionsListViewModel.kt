@@ -19,7 +19,6 @@ enum class TransactionTypeFilter { ALL, INCOME, EXPENSE }
 enum class SortBy { DATE_ASC, DATE_DESC, AMOUNT_ASC, AMOUNT_DESC }
 
 data class TransactionsFilterState(
-    val searchQuery: String = "",
     val transactionType: TransactionTypeFilter = TransactionTypeFilter.ALL,
     val categoryId: Long? = null,
     val startDate: LocalDate? = null,
@@ -59,11 +58,6 @@ class TransactionsListViewModel @Inject constructor(
         }
     }
 
-    fun updateSearchQuery(query: String) {
-        _uiState.value = _uiState.value.copy(filterState = _uiState.value.filterState.copy(searchQuery = query))
-        applyFilters()
-    }
-
     fun updateTypeFilter(type: TransactionTypeFilter) {
         _uiState.value = _uiState.value.copy(filterState = _uiState.value.filterState.copy(transactionType = type))
         applyFilters()
@@ -97,12 +91,6 @@ class TransactionsListViewModel @Inject constructor(
     private fun applyFilters() {
         val s = _uiState.value
         var filtered = s.transactions
-
-        if (s.filterState.searchQuery.isNotBlank()) {
-            filtered = filtered.filter {
-                it.description.contains(s.filterState.searchQuery, ignoreCase = true)
-            }
-        }
 
         filtered = when (s.filterState.transactionType) {
             TransactionTypeFilter.INCOME -> filtered.filter { it.type == TransactionType.INCOME }
