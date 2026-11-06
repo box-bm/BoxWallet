@@ -189,18 +189,16 @@ class AnalyticsViewModel @Inject constructor(
             val (prevStart, fullPrevEnd) = calculateDateRange(filter.frequency, filter.periodOffset - 1)
             // A period still in progress is compared with the same number of days of the previous one,
             // never with all of it: 6 days of November against 6 days of October, not all of October.
-            val today = LocalDate.now()
-            val inProgress = !today.isBefore(startDate) && today.isBefore(endDate)
-            val prevEnd = if (inProgress) {
-                minOf(fullPrevEnd, prevStart.plusDays(ChronoUnit.DAYS.between(startDate, today)))
-            } else fullPrevEnd
+            val comparison = comparisonRange(startDate, endDate, prevStart, fullPrevEnd, LocalDate.now())
+            val inProgress = comparison.toDate
+            val prevEnd = comparison.end
             val trendStart = LocalDate.now().minusMonths(11).withDayOfMonth(1)
             val trendEnd = LocalDate.now()
 
             val installmentsFlow = combine(
                 transactionRepository.getInstallmentsBetweenDates(startDate, endDate),
                 loanRepository.getAllLoans(),
-            ) { installments, loans -> summarizeInstallments(installments, loans.associate { it.id to it.name }) }
+            ) { installments, loans -> summarizeInstallments(installments, loans.associate { it.id to it.name }, LocalDate.now()) }
 
             combine(
                 transactionRepository.getTransactionsBetweenDates(startDate, endDate),
@@ -466,44 +464,6 @@ class AnalyticsViewModel @Inject constructor(
         return insights
     }
 
-    private fun summarizeInstallments(installments: List<Transaction>, loanNames: Map<Long, String>): InstallmentSummary? {
-        if (installments.isEmpty()) return null
-        val today = LocalDate.now()
-        val paid = installments.filter { it.isCleared }
-        fun overdue(tx: Transaction) = !tx.isCleared && tx.date.toLocalDate().isBefore(today)
-        val pending = installments.filter { !it.isCleared }
-            .groupBy { it.loanId ?: -it.id }
-            .map { (_, txs) ->
-                val first = txs.minBy { it.date }
-                LoanInstallmentsDue(
-                    loanId = first.loanId ?: 0L,
-                    loanName = first.loanId?.let { loanNames[it] } ?: first.description,
-                    type = first.type,
-                    count = txs.size,
-                    overdueCount = txs.count(::overdue),
-                    amount = txs.sumOf { it.amount },
-                    firstDue = first.date.toLocalDate(),
-                )
-            }
-            .sortedWith(compareByDescending<LoanInstallmentsDue> { it.overdueCount > 0 }.thenBy { it.firstDue })
-        return InstallmentSummary(
-            dueCount = installments.size,
-            paidCount = paid.size,
-            overdueCount = installments.count(::overdue),
-            toPayDue = installments.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount },
-            toPayOpen = installments.filter { it.type == TransactionType.EXPENSE && !it.isCleared }.sumOf { it.amount },
-            toCollectDue = installments.filter { it.type == TransactionType.INCOME }.sumOf { it.amount },
-            toCollectOpen = installments.filter { it.type == TransactionType.INCOME && !it.isCleared }.sumOf { it.amount },
-            states = installments.sortedBy { it.date }.map {
-                when {
-                    it.isCleared -> InstallmentState.PAID
-                    overdue(it) -> InstallmentState.OVERDUE
-                    else -> InstallmentState.OPEN
-                }
-            },
-            pending = pending,
-        )
-    }
 
     fun exportToExcel(startDate: LocalDate, endDate: LocalDate) {
         viewModelScope.launch {

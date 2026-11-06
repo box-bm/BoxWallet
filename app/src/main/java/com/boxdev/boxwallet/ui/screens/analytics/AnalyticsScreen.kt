@@ -573,16 +573,7 @@ private fun BalancedColumns(sections: List<@Composable () -> Unit>, gap: Dp = 16
             .filter { it.isNotEmpty() }
         val heights = measured.map { ps -> ps.sumOf { it.height } + gapPx * (ps.size - 1) }
 
-        fun columnHeights(mask: Int): Pair<Int, Int> {
-            var l = 0; var r = 0
-            heights.forEachIndexed { i, h ->
-                val right = i > 0 && (mask shr (i - 1)) and 1 == 1
-                if (right) r += (if (r > 0) gapPx else 0) + h else l += (if (l > 0) gapPx else 0) + h
-            }
-            return l to r
-        }
-        val combos = 1 shl (heights.size - 1).coerceAtLeast(0)
-        val best = (0 until combos).minBy { m -> columnHeights(m).let { (l, r) -> kotlin.math.abs(l - r) } }
+        val best = bestColumnSplit(heights, gapPx)
 
         val y = intArrayOf(0, 0)
         val placements = mutableListOf<Triple<Placeable, Int, Int>>()
