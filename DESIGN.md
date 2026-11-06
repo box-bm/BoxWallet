@@ -279,7 +279,7 @@ An añil-indigo shell with a marigold attention color, indigo-tinted neutrals, a
 Layout is driven by three width classes: Compact (under 600dp), Medium (600 to 839dp), Expanded (840dp and up). Phones and folded foldables are Compact; unfolded foldables and tablets are wide.
 
 - **Compact:** single column with 16px side margins, a ShortNavigationBar, and a FloatingActionButtonMenu at bottom-end whose action is contextual (Records adds a movement, Loans adds a loan, Home asks). Lists end with a 96px spacer to clear the FAB.
-- **Wide:** a WideNavigationRail on surface-container with the FAB in its header; the rail is collapsed below 1200dp and expanded (labels beside icons, extended FAB) at 1200dp and above. Home splits into two equal panes (balance and loans | recent movements) with 24px margins and gutter. Records keeps its filters open as a 340px side pane. Reports flows into two equal columns. Loans becomes list-detail (46% | 54%) at Expanded width only.
+- **Wide:** a WideNavigationRail on surface-container with the FAB in its header; the rail is collapsed below 1200dp and expanded (labels beside icons, extended FAB) at 1200dp and above. Home splits into two equal panes (balance and loans | recent movements) with 24px margins and gutter. Records keeps its filters open as a 340px side pane. Reports flows into two equal columns for the selected period, then a full-width "Last 12 months" divider, then two columns for cash flow and financial health. Loans becomes list-detail (46% | 54%) at Expanded width only.
 - **Readable measure:** settings pages and similar single-column content cap at 720dp and center.
 - **Rhythm:** a 4px base with 8, 12, 16, 20, 24 and 32 as the working steps. 16px is the default gap between content blocks and screen margin on compact; 24px separates settings groups and wide panes; 20px is card padding.
 
@@ -331,7 +331,10 @@ A 44px polygon (40px in charts) clipped from the category's MaterialShapes silho
 - **FAB:** ToggleFloatingActionButton opening a FloatingActionButtonMenu (add movement, add loan); in the rail it is a FAB or extended FAB with a dropdown menu.
 
 ### Navigation and Chrome
-ShortNavigationBar (compact) and WideNavigationRail (wide) with filled icons on the active destination and outlined icons otherwise. Screen tops use flexible app bars: medium flexible on Home, large flexible on settings pages, collapsing on scroll. Section headers are title-large with a text-button action at 48px height. Loading uses the Expressive LoadingIndicator.
+ShortNavigationBar (compact) and WideNavigationRail (wide) with filled icons on the active destination and outlined icons otherwise. Destinations are Home, Movements (receipt), Loans (handshake) and Reports (insights). Tapping the selected tab returns to its root and then scrolls it to the top with the app bar re-expanded. The product calls every income or expense a **movement / movimiento**; never "transaction" or "record" in UI copy. Screen tops use flexible app bars: medium flexible on Home, large flexible on settings pages, collapsing on scroll. Section headers are title-large with a text-button action at 48px height. Loading uses the Expressive LoadingIndicator.
+
+### Reports
+Two time scopes, never mixed: everything above the "Last 12 months" divider follows the period selector (summary with a one-line verdict, categories, spending pattern, largest expenses, installments due); everything below it always covers the last 12 months (cash flow, savings-rate ring, income/expense trend). Insights sit as one-line notes inside the section they explain, not in a card of their own. A trend with an empty half-window reads "Not enough history", never 0.0%. Inside a section, stats are plain label/value pairs, not nested tiles.
 
 ### Charts
 Charts grow in on the slow spatial spring (or appear at once when animations are off), and you tap or drag them to inspect a value; the readout above the plot shows the value being inspected.

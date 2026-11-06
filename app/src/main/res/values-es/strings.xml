@@ -5,19 +5,19 @@
     <string name="nav_home">Inicio</string>
     <string name="nav_loans">Pr\u00e9stamos</string>
     <string name="nav_settings">Ajustes</string>
-    <string name="nav_transactions">Registros</string>
+    <string name="nav_transactions">Movimientos</string>
 
     <!-- FAB Menu -->
-    <string name="fab_add_transaction">Agregar Transacci\u00f3n</string>
+    <string name="fab_add_transaction">Agregar Movimiento</string>
     <string name="fab_add_loan">Agregar Pr\u00e9stamo</string>
     <string name="fab_receipt_icon">Icono de recibo</string>
     <string name="fab_credit_card_icon">Icono de tarjeta</string>
 
     <!-- Home Screen -->
     <string name="home_analytics">Reportes</string>
-    <string name="home_recent_transactions">Transacciones Recientes</string>
+    <string name="home_recent_transactions">Movimientos Recientes</string>
     <string name="home_see_all">Ver todo</string>
-    <string name="home_no_transactions">A\u00fan no hay transacciones</string>
+    <string name="home_no_transactions">A\u00fan no hay movimientos</string>
     <string name="home_active_loans">Pr\u00e9stamos Activos</string>
 
     <!-- Summary Card -->
@@ -31,8 +31,8 @@
     <string name="transaction_has_reminder">Tiene recordatorio</string>
 
     <!-- Transaction Sheet -->
-    <string name="transaction_edit_title">Editar Transacci\u00f3n</string>
-    <string name="transaction_new_title">Nueva Transacci\u00f3n</string>
+    <string name="transaction_edit_title">Editar Movimiento</string>
+    <string name="transaction_new_title">Nuevo Movimiento</string>
     <string name="transaction_type_expense">Gasto</string>
     <string name="transaction_type_income">Ingreso</string>
     <string name="transaction_amount_label">Monto *</string>
@@ -51,7 +51,7 @@
     <string name="transaction_every_n_months">Cada N meses</string>
     <string name="transaction_save">Guardar</string>
     <string name="transaction_update">Actualizar</string>
-    <string name="transaction_delete_title">Eliminar Transacci\u00f3n</string>
+    <string name="transaction_delete_title">Eliminar Movimiento</string>
     <string name="transaction_delete_message">\u00bfEst\u00e1s seguro? Esta acci\u00f3n no se puede deshacer.</string>
 
     <!-- Loan Sheet -->
@@ -97,9 +97,9 @@
     <string name="loan_status_paid">Pagado</string>
 
     <!-- Transactions List Screen -->
-    <string name="transactions_title">Transacciones</string>
-    <string name="transactions_no_transactions">A\u00fan no hay transacciones</string>
-    <string name="transactions_no_results">No se encontraron transacciones</string>
+    <string name="transactions_title">Movimientos</string>
+    <string name="transactions_no_transactions">A\u00fan no hay movimientos</string>
+    <string name="transactions_no_results">No se encontraron movimientos</string>
     <string name="transactions_filter_title">Filtros</string>
     <string name="transactions_filter_type">Tipo</string>
     <string name="transactions_filter_all">Todos</string>
@@ -148,7 +148,6 @@
     <string name="analytics_daily_spending">Gasto Diario</string>
     <string name="analytics_income_trend">Tendencia de Ingresos</string>
     <string name="analytics_expense_trend">Tendencia de Gastos</string>
-    <string name="analytics_insights_title">Consejos y Recomendaciones</string>
     <string name="analytics_net_label">Neto: %1$s</string>
     <string name="analytics_income_label">Ingresos</string>
     <string name="analytics_expense_label">Gastos</string>
@@ -199,7 +198,7 @@
     <string name="settings_general_subtitle">Moneda, idioma y configuraci\u00f3n regional</string>
     <string name="settings_categories_section">Categor\u00edas</string>
     <string name="settings_categories_title">Administrar Categor\u00edas</string>
-    <string name="settings_categories_subtitle">Organiza tus categor\u00edas de transacciones</string>
+    <string name="settings_categories_subtitle">Organiza tus categor\u00edas de movimientos</string>
     <string name="settings_appearance_section">Apariencia</string>
     <string name="settings_theme_title">Personalizaci\u00f3n del Tema</string>
     <string name="settings_theme_subtitle">Cambiar colores y modo oscuro</string>
@@ -212,7 +211,7 @@
     <string name="settings_backup_subtitle">Guardar y restaurar tus datos</string>
     <string name="settings_data_management_section">Gesti\u00f3n de Datos</string>
     <string name="settings_data_management_title">Gesti\u00f3n de Datos</string>
-    <string name="settings_data_management_subtitle">Eliminar transacciones, categor\u00edas o todos los datos</string>
+    <string name="settings_data_management_subtitle">Eliminar movimientos, categor\u00edas o todos los datos</string>
     <string name="settings_about_section">Acerca de</string>
     <string name="settings_app_version_title">Versi\u00f3n de la App</string>
     <string name="settings_github_title">Perfil del Desarrollador</string>
@@ -227,10 +226,10 @@
     <string name="general_settings_title">Ajustes Generales</string>
     <string name="general_settings_regional">Regional</string>
     <string name="general_settings_currency">Moneda</string>
-    <string name="general_settings_transactions">Transacciones</string>
+    <string name="general_settings_transactions">Movimientos</string>
     <string name="general_settings_default_category">Categor\u00eda Predeterminada</string>
     <string name="general_settings_current_currency">Moneda Actual</string>
-    <string name="general_settings_currency_description">Esta moneda se mostrar\u00e1 en todas las pantallas incluyendo transacciones, res\u00famenes y reportes.</string>
+    <string name="general_settings_currency_description">Esta moneda se mostrar\u00e1 en todas las pantallas incluyendo movimientos, res\u00famenes y reportes.</string>
     <string name="general_settings_select_currency">Seleccionar Moneda</string>
     <string name="general_settings_select_default_category">Seleccionar Categor\u00eda Predeterminada</string>
     <string name="general_settings_no_default_category">Sin categor\u00eda predeterminada</string>
@@ -241,7 +240,7 @@
     <string name="categories_no_categories">A\u00fan no hay categor\u00edas</string>
     <string name="categories_tap_to_create">Toca + para crear tu primera categor\u00eda</string>
     <string name="categories_delete_title">Eliminar Categor\u00eda</string>
-    <string name="categories_delete_message">\u00bfEst\u00e1s seguro de eliminar \"%1$s\"? Las transacciones con esta categor\u00eda no ser\u00e1n eliminadas.</string>
+    <string name="categories_delete_message">\u00bfEst\u00e1s seguro de eliminar \"%1$s\"? Los movimientos con esta categor\u00eda no ser\u00e1n eliminados.</string>
     <string name="categories_edit_title">Editar Categor\u00eda</string>
     <string name="categories_add_title">Agregar Categor\u00eda</string>
     <string name="categories_name_label">Nombre</string>
@@ -268,7 +267,7 @@
     <string name="backup_available">Respaldos Disponibles</string>
     <string name="backup_no_backups">No se encontraron respaldos</string>
     <string name="backup_drive_title">Respaldo en Google Drive</string>
-    <string name="backup_drive_description">Inicia sesi\u00f3n con tu cuenta de Google para respaldar tus transacciones, categor\u00edas y pr\u00e9stamos en Google Drive.</string>
+    <string name="backup_drive_description">Inicia sesi\u00f3n con tu cuenta de Google para respaldar tus movimientos, categor\u00edas y pr\u00e9stamos en Google Drive.</string>
     <string name="backup_sign_in">Iniciar sesi\u00f3n con Google</string>
     <string name="backup_sign_out">Cerrar sesi\u00f3n</string>
 
@@ -278,23 +277,23 @@
     <string name="data_management_caution_message">Borrar datos es permanente y no se puede deshacer. Aseg\u00farate de tener un respaldo antes de continuar.</string>
     <string name="data_management_device_data">Datos del Dispositivo</string>
     <string name="data_management_clear_all_title">Borrar Todos los Datos</string>
-    <string name="data_management_clear_all_description">Eliminar todas las transacciones, categor\u00edas y configuraciones de este dispositivo</string>
+    <string name="data_management_clear_all_description">Eliminar todos los movimientos, categor\u00edas y configuraciones de este dispositivo</string>
     <string name="data_management_clear_all_button">Borrar Todos los Datos</string>
-    <string name="data_management_clear_transactions_title">Borrar Transacciones</string>
-    <string name="data_management_clear_transactions_description">Eliminar todos los registros de transacciones manteniendo categor\u00edas y configuraciones</string>
-    <string name="data_management_clear_transactions_button">Borrar Transacciones</string>
+    <string name="data_management_clear_transactions_title">Borrar Movimientos</string>
+    <string name="data_management_clear_transactions_description">Eliminar todos los movimientos manteniendo categor\u00edas y configuraciones</string>
+    <string name="data_management_clear_transactions_button">Borrar Movimientos</string>
     <string name="data_management_clear_categories_title">Borrar Categor\u00edas</string>
-    <string name="data_management_clear_categories_description">Eliminar todas las categor\u00edas. Las transacciones mantendr\u00e1n sus referencias de categor\u00eda.</string>
+    <string name="data_management_clear_categories_description">Eliminar todas las categor\u00edas. Los movimientos mantendr\u00e1n sus referencias de categor\u00eda.</string>
     <string name="data_management_clear_categories_button">Borrar Categor\u00edas</string>
     <string name="data_management_backup_title">Respaldo y Restauraci\u00f3n</string>
     <string name="data_management_backup_description">Respalda tus datos en Google Drive antes de borrar</string>
     <string name="data_management_go_to_backup">Ir a Respaldo y Restauraci\u00f3n</string>
     <string name="data_management_confirm_all_title">\u00bfBorrar Todos los Datos?</string>
-    <string name="data_management_confirm_all_message">Esto eliminar\u00e1 permanentemente TODAS las transacciones, categor\u00edas y configuraciones de este dispositivo. Esta acci\u00f3n no se puede deshacer.</string>
-    <string name="data_management_confirm_transactions_title">\u00bfBorrar Todas las Transacciones?</string>
-    <string name="data_management_confirm_transactions_message">Esto eliminar\u00e1 permanentemente TODOS los registros de transacciones de este dispositivo. Las categor\u00edas y configuraciones se conservar\u00e1n. Esta acci\u00f3n no se puede deshacer.</string>
+    <string name="data_management_confirm_all_message">Esto eliminar\u00e1 permanentemente TODOS los movimientos, categor\u00edas y configuraciones de este dispositivo. Esta acci\u00f3n no se puede deshacer.</string>
+    <string name="data_management_confirm_transactions_title">\u00bfBorrar Todos los Movimientos?</string>
+    <string name="data_management_confirm_transactions_message">Esto eliminar\u00e1 permanentemente TODOS los movimientos de este dispositivo. Las categor\u00edas y configuraciones se conservar\u00e1n. Esta acci\u00f3n no se puede deshacer.</string>
     <string name="data_management_confirm_categories_title">\u00bfBorrar Todas las Categor\u00edas?</string>
-    <string name="data_management_confirm_categories_message">Esto eliminar\u00e1 permanentemente TODAS las categor\u00edas de este dispositivo. Las transacciones mantendr\u00e1n sus referencias de categor\u00eda pero no mostrar\u00e1n nombres de categor\u00eda. Esta acci\u00f3n no se puede deshacer.</string>
+    <string name="data_management_confirm_categories_message">Esto eliminar\u00e1 permanentemente TODAS las categor\u00edas de este dispositivo. Los movimientos mantendr\u00e1n sus referencias de categor\u00eda pero no mostrar\u00e1n nombres de categor\u00eda. Esta acci\u00f3n no se puede deshacer.</string>
     <string name="data_management_clear_data">Borrar Datos</string>
 
     <!-- Export Screen -->
@@ -303,7 +302,7 @@
     <string name="onboarding_welcome_title">Bienvenido a BoxWallet</string>
     <string name="onboarding_welcome_description">Tu gestor de finanzas personales</string>
     <string name="onboarding_track_title">Registra y Administra</string>
-    <string name="onboarding_track_description">Registra transacciones, administra pr\u00e9stamos con cuotas y calendarios de pago</string>
+    <string name="onboarding_track_description">Registra movimientos, administra pr\u00e9stamos con cuotas y calendarios de pago</string>
     <string name="onboarding_get_started_title">Comenzar</string>
     <string name="onboarding_get_started_description">Comienza desde cero o restaura tus datos desde un respaldo anterior</string>
     <string name="onboarding_get_started_button">Comenzar</string>
@@ -413,10 +412,27 @@
     <string name="analytics_total_spent">Gastado</string>
     <string name="analytics_other">Otros</string>
     <string name="analytics_avg_per_day">Prom. diario</string>
-    <string name="analytics_biggest_day">Día más alto</string>
     <string name="analytics_movements">Movimientos</string>
     <string name="analytics_empty_period_title">Nada registrado en este periodo</string>
     <string name="analytics_empty_period_msg">Los movimientos que registres aparecerán aquí como gráficas e ideas.</string>
     <string name="analytics_savings_rate_caption">de tus ingresos ahorrados en los últimos 12 meses</string>
     <string name="analytics_net_label_short">Neto</string>
+    <string name="analytics_verdict_kept">Conservaste el %1$s%% de lo que ingresó</string>
+    <string name="analytics_verdict_over">Gastaste %1$s más de lo que ingresó</string>
+    <string name="analytics_verdict_no_income">Aún no hay ingresos en este periodo</string>
+    <string name="analytics_twelve_month_caption">No depende del periodo que elijas arriba</string>
+    <string name="analytics_installments_title">Cuotas del periodo</string>
+    <string name="analytics_installments_paid">%1$d de %2$d pagadas</string>
+    <string name="analytics_installments_amount">%1$s de %2$s</string>
+    <plurals name="analytics_installments_overdue">
+        <item quantity="one">%1$d vencida</item>
+        <item quantity="other">%1$d vencidas</item>
+    </plurals>
+    <string name="analytics_installment_due">Vence %1$s</string>
+    <string name="analytics_installment_overdue">Vencida desde %1$s</string>
+    <string name="analytics_installments_all_paid">Todas las cuotas del periodo están pagadas</string>
+    <string name="analytics_see_loans">Ver todos los préstamos</string>
+    <string name="analytics_not_enough_history">Historial insuficiente</string>
+    <string name="chart_a11y_previous">Anterior</string>
+    <string name="chart_a11y_next">Siguiente</string>
 </resources>

@@ -85,6 +85,14 @@ class TransactionRepository @Inject constructor(
             .map { it.map { e -> e.toDomain() } }
     }
 
+    /** Loan installments due between [startDate] and [endDate], both inclusive, oldest first. */
+    fun getInstallmentsBetweenDates(startDate: LocalDate, endDate: LocalDate): Flow<List<Transaction>> {
+        val startMillis = startDate.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+        val endMillis = endDate.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+        return transactionDao.getInstallmentsBetweenDates(startMillis, endMillis)
+            .map { it.map { e -> e.toDomain() } }
+    }
+
     fun getFinancialSummary(): Flow<FinancialSummary> {
         val currentMonth = YearMonth.now()
         val startOfMonth = currentMonth.atDay(1).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()

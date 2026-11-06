@@ -15,6 +15,10 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import com.boxdev.boxwallet.ui.navigation.NavRoutes
+import com.boxdev.boxwallet.ui.navigation.TabReselectEffect
+import com.boxdev.boxwallet.ui.navigation.expand
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
@@ -65,6 +69,13 @@ fun HomeScreen(
     val categoryMap = remember(uiState.categories) { uiState.categories.associateBy { it.id } }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
     val wide = BoxTheme.widthClass.isWide
+    val startList = rememberLazyListState()
+    val endList = rememberLazyListState()
+    TabReselectEffect(NavRoutes.Home.route) {
+        scrollBehavior.expand()
+        startList.animateScrollToItem(0)
+        endList.animateScrollToItem(0)
+    }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -150,6 +161,7 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.spacedBy(24.dp),
             ) {
                 LazyColumn(
+                    state = startList,
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(start = 24.dp, bottom = 32.dp),
                 ) {
@@ -157,6 +169,7 @@ fun HomeScreen(
                     loans()
                 }
                 LazyColumn(
+                    state = endList,
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(end = 24.dp, bottom = 32.dp),
                 ) {
@@ -165,6 +178,7 @@ fun HomeScreen(
             }
         } else {
             LazyColumn(
+                state = startList,
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentPadding = PaddingValues(horizontal = 16.dp),
             ) {

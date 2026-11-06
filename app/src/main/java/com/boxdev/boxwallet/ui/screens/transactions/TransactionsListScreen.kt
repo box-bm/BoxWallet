@@ -32,6 +32,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import com.boxdev.boxwallet.ui.navigation.NavRoutes
+import com.boxdev.boxwallet.ui.navigation.TabReselectEffect
+import com.boxdev.boxwallet.ui.navigation.expand
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -104,6 +108,11 @@ fun TransactionsListScreen(
     var showFilters by rememberSaveable { mutableStateOf(false) }
     val wide = BoxTheme.widthClass.isWide
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
+    val listState = rememberLazyListState()
+    TabReselectEffect(NavRoutes.TransactionsList.route) {
+        scrollBehavior.expand()
+        listState.animateScrollToItem(0)
+    }
     val activeFilters = listOf(
         filter.transactionType != TransactionTypeFilter.ALL,
         filter.categoryId != null,
@@ -284,6 +293,7 @@ fun TransactionsListScreen(
 
                     else -> TransactionsByDay(
                         uiState = uiState,
+                        listState = listState,
                         categoryMap = categoryMap,
                         onEditTransaction = onEditTransaction,
                     )
@@ -296,6 +306,7 @@ fun TransactionsListScreen(
 @Composable
 private fun TransactionsByDay(
     uiState: TransactionsListUiState,
+    listState: androidx.compose.foundation.lazy.LazyListState,
     categoryMap: Map<Long, Category>,
     onEditTransaction: (Long) -> Unit,
 ) {
@@ -313,6 +324,7 @@ private fun TransactionsByDay(
     val headerFormatter = remember { DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL) }
 
     LazyColumn(
+        state = listState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 112.dp),
     ) {

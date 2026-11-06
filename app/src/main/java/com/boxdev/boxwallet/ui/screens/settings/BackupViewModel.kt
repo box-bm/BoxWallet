@@ -129,7 +129,7 @@ class BackupViewModel @Inject constructor(
                 analyticsHelper.logEvent("backup_restored")
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    message = "Backup restored (${backupData.transactions.size} transactions, ${backupData.categories.size} categories, ${backupData.loans.size} loans)",
+                    message = "Backup restored (${backupData.transactions.size} movements, ${backupData.categories.size} categories, ${backupData.loans.size} loans)",
                     isSuccess = true
                 )
             } catch (e: Exception) {
