@@ -212,6 +212,7 @@ fun NavGraph(
                 onEditTransaction = onEditTransaction,
                 onOpenLoan = { loanId -> navController.navigate(NavRoutes.LoanDetail.createRoute(loanId)) },
                 onNavigateToLoans = { navController.navigateToTab(NavRoutes.Loans.route) },
+                onNavigateToMovements = { navController.navigateToTab(NavRoutes.TransactionsList.route) },
             )
         }
 

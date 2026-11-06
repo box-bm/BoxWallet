@@ -11,6 +11,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterNotNull
+import com.boxdev.boxwallet.ui.navigation.MovementsFilterRequest
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import javax.inject.Inject
@@ -38,13 +40,22 @@ data class TransactionsListUiState(
 @HiltViewModel
 class TransactionsListViewModel @Inject constructor(
     private val repository: TransactionRepository,
-    private val categoryRepository: CategoryRepository
+    private val categoryRepository: CategoryRepository,
+    private val filterRequest: MovementsFilterRequest,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TransactionsListUiState())
     val uiState: StateFlow<TransactionsListUiState> = _uiState.asStateFlow()
 
     init {
+        // Reports can open this tab filtered to a category.
+        viewModelScope.launch {
+            filterRequest.categoryId.filterNotNull().collect { id ->
+                _uiState.value = _uiState.value.copy(filterState = TransactionsFilterState(categoryId = id))
+                applyFilters()
+                filterRequest.consume()
+            }
+        }
         viewModelScope.launch {
             categoryRepository.getAllCategories().collect {
                 _uiState.value = _uiState.value.copy(availableCategories = it)
