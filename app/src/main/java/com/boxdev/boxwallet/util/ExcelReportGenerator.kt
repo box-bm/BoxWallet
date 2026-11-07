@@ -23,15 +23,20 @@ object ExcelReportGenerator {
      * Generates a multi-sheet Excel report and writes it to [file].
      *
      * Sheets:
-     *  1. Transactions     — full detail with category, status, loan name, installment
+     *  1. Movements        — full detail with category, status, loan name, installment
      *  2. Summary          — income/expense totals, averages, savings rate, top categories
      *  3. By Category      — per-category income/expense breakdown
      *  4. Monthly Overview — month-by-month summary (skipped for single-month ranges)
-     *  5. Loan Installments— only when loan transactions exist in the range
+     *  5. Loans            — portfolio overview, when there are loans
+     *  6. Loan Installments— only when installments fall due in the range
+     *
+     * [transactions] are the period's movements (no loan installments, as in Reports);
+     * [installments] are the loan installments due in the same range.
      */
     fun create(
         file: File,
         transactions: List<Transaction>,
+        installments: List<Transaction>,
         categories: Map<Long, String>,
         loans: Map<Long, Loan>,
         startDate: LocalDate,
@@ -63,8 +68,8 @@ object ExcelReportGenerator {
             if (loans.isNotEmpty()) {
                 buildLoanOverviewSheet(wb, loans, dateFmt, headerStyle, boldStyle, titleStyle)
             }
-            if (transactions.any { it.loanId != null }) {
-                buildLoansSheet(wb, transactions, loans, dateFmt, headerStyle, boldStyle)
+            if (installments.isNotEmpty()) {
+                buildLoansSheet(wb, installments, loans, dateFmt, headerStyle, boldStyle)
             }
 
             FileOutputStream(file).use { wb.write(it) }
@@ -380,7 +385,7 @@ object ExcelReportGenerator {
 
     private fun buildLoansSheet(
         wb: XSSFWorkbook,
-        transactions: List<Transaction>,
+        installments: List<Transaction>,
         loans: Map<Long, Loan>,
         dateFmt: DateTimeFormatter,
         headerStyle: XSSFCellStyle,
@@ -391,8 +396,7 @@ object ExcelReportGenerator {
         val headers = listOf("Loan", "Installment", "of Total", "Amount", "Date", "Status")
         sheet.header(headers, headerStyle)
 
-        val loanTxs = transactions
-            .filter { it.loanId != null }
+        val loanTxs = installments
             .sortedWith(compareBy({ loans[it.loanId]?.name ?: "" }, { it.installmentNumber ?: 0 }))
 
         loanTxs.forEachIndexed { idx, tx ->
