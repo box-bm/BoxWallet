@@ -77,6 +77,8 @@ import com.boxdev.boxwallet.ui.components.accent
 import com.boxdev.boxwallet.ui.components.loanStatus
 import com.boxdev.boxwallet.ui.theme.BoxTheme
 import java.time.LocalDate
+import com.boxdev.boxwallet.ui.screens.analytics.InstallmentState
+import com.boxdev.boxwallet.ui.screens.analytics.installmentState
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.time.temporal.ChronoUnit
@@ -136,7 +138,10 @@ fun LoanDetailScreen(
 
             else -> {
                 val loan = uiState.loan!!
-                val nextUnpaidId = uiState.installments.firstOrNull { !it.isCleared }?.id
+                val today = remember { LocalDate.now() }
+                val states = uiState.installments.associate { it.id to installmentState(it.isCleared, it.date.toLocalDate(), today) }
+                // "Next payment" marks the first installment still ahead; overdue ones carry their own state.
+                val nextUnpaidId = uiState.installments.firstOrNull { states[it.id] == InstallmentState.OPEN }?.id
                 LazyColumn(
                     modifier = Modifier.fillMaxSize().padding(padding),
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp),
@@ -156,6 +161,7 @@ fun LoanDetailScreen(
                             index = index,
                             count = uiState.installments.size,
                             isNext = installment.id == nextUnpaidId,
+                            isOverdue = states[installment.id] == InstallmentState.OVERDUE,
                             onToggleCleared = { viewModel.toggleInstallmentCleared(installment) },
                         )
                     }
@@ -225,12 +231,12 @@ private fun LoanHero(
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.weight(1f)) {
                     Text(
-                        stringResource(R.string.loan_remaining),
+                        stringResource(loan.loanType.remainingLabelRes),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     AmountText(
-                        amount = loan.remainingInstallments * loan.installmentAmount,
+                        amount = loan.remainingAmount,
                         style = BoxTheme.moneyType.large,
                         autoSize = true,
                     )
@@ -244,7 +250,7 @@ private fun LoanHero(
 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Stat(
-                    label = stringResource(R.string.loan_total_paid),
+                    label = stringResource(loan.loanType.settledLabelRes),
                     modifier = Modifier.weight(1f),
                 ) {
                     AmountText(
@@ -306,6 +312,7 @@ private fun InstallmentRow(
     index: Int,
     count: Int,
     isNext: Boolean,
+    isOverdue: Boolean,
     onToggleCleared: () -> Unit,
 ) {
     val dateFormatter = remember { DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM) }
@@ -315,13 +322,22 @@ private fun InstallmentRow(
         onCheckedChange = { onToggleCleared() },
         shapes = segmentShapes(index = index, count = count),
         colors = ListItemDefaults.colors(
-            containerColor = if (isNext) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surfaceContainer,
+            containerColor = when {
+                isOverdue -> MaterialTheme.colorScheme.errorContainer
+                isNext -> MaterialTheme.colorScheme.tertiaryContainer
+                else -> MaterialTheme.colorScheme.surfaceContainer
+            },
         ),
         leadingContent = { Checkbox(checked = installment.isCleared, onCheckedChange = null) },
         supportingContent = {
+            val date = installment.date.toLocalDate().format(dateFormatter)
             Text(
-                if (isNext) stringResource(R.string.loan_next_payment) + " · " + installment.date.toLocalDate().format(dateFormatter)
-                else installment.date.toLocalDate().format(dateFormatter)
+                when {
+                    isOverdue -> stringResource(R.string.loan_installment_overdue_since, date)
+                    isNext -> stringResource(R.string.loan_next_payment) + " · " + date
+                    else -> date
+                },
+                color = if (isOverdue) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         },
         trailingContent = {

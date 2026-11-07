@@ -340,8 +340,8 @@
     <string name="frequency_custom">Personalizado</string>
 
     <!-- Loan Type -->
-    <string name="loan_type_expense">Gasto</string>
-    <string name="loan_type_income">Ingreso</string>
+    <string name="loan_type_expense">Debo</string>
+    <string name="loan_type_income">Me deben</string>
 
     <!-- Common -->
     <string name="action_back">Atr\u00e1s</string>
@@ -457,4 +457,16 @@
     <string name="analytics_vs_same_point_week">%1$s vs mismo día de la semana pasada</string>
     <string name="analytics_vs_same_point_month">%1$s vs misma fecha del mes pasado</string>
     <string name="analytics_vs_same_point_year">%1$s vs misma fecha del año pasado</string>
+    <string name="loan_left_to_pay">Por pagar</string>
+    <string name="loan_left_to_collect">Por cobrar</string>
+    <string name="loan_total_collected">Total Cobrado</string>
+    <string name="loan_row_next">%1$s · próxima %2$s</string>
+    <string name="loan_row_overdue">%1$s · vencida desde %2$s</string>
+    <string name="loans_summary_to_pay">Debes</string>
+    <string name="loans_summary_to_collect">Te deben</string>
+    <string name="loans_completed">Completados (%1$d)</string>
+    <string name="loan_installment_overdue_since">Vencida desde %1$s</string>
+    <string name="transaction_settled_expense">Ya pagado</string>
+    <string name="transaction_settled_income">Ya recibido</string>
+    <string name="settings_privacy_section">Privacidad</string>
 </resources>

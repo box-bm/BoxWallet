@@ -35,12 +35,14 @@ fun Loan.loanStatus(): LoanStatus = when {
     else -> LoanStatus.ACTIVE
 }
 
-/** Indicator color for a loan's progress, by status. */
+/**
+ * Indicator color for a loan's progress. Progress is what has already been settled, so it never
+ * turns red: an overdue loan says so with its status chip and due-date line instead.
+ */
 @Composable
 fun LoanStatus.accent(): Color = when (this) {
     LoanStatus.PAID -> BoxTheme.money.income
-    LoanStatus.OVERDUE -> MaterialTheme.colorScheme.error
-    LoanStatus.ACTIVE -> MaterialTheme.colorScheme.primary
+    LoanStatus.OVERDUE, LoanStatus.ACTIVE -> MaterialTheme.colorScheme.primary
 }
 
 /** Status pill with icon + label, so status never depends on color alone. */

@@ -24,7 +24,17 @@ data class Loan(
     val remainingInstallments: Int get() = totalInstallments - paidInstallments
     val progressFraction: Float get() = if (totalInstallments == 0) 0f else paidInstallments.toFloat() / totalInstallments
     val isComplete: Boolean get() = paidInstallments >= totalInstallments
+    /** Money still to move on this loan: to pay for [LoanType.EXPENSE], to collect for [LoanType.INCOME]. */
+    val remainingAmount: Double get() = remainingInstallments.coerceAtLeast(0) * installmentAmount
 }
+
+/** What is still outstanding across loans, kept apart by direction and never netted. */
+data class LoanTotals(val toPay: Double, val toCollect: Double)
+
+fun List<Loan>.outstandingTotals(): LoanTotals = LoanTotals(
+    toPay = filter { it.loanType == LoanType.EXPENSE }.sumOf { it.remainingAmount },
+    toCollect = filter { it.loanType == LoanType.INCOME }.sumOf { it.remainingAmount },
+)
 
 fun LoanEntity.toDomain(paidInstallments: Int = 0, nextDueDate: LocalDate? = null): Loan = Loan(
     id = id,
