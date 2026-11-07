@@ -1,0 +1,2 @@
+• Lighter, faster app: a much smaller download, quicker startup and lower memory use.
+• Excel reports are generated faster.
