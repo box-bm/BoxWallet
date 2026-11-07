@@ -25,7 +25,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -46,7 +45,6 @@ import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.domain.model.ReminderDuration
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.ui.screens.transaction.TransactionFormViewModel
-import com.boxdev.boxwallet.ui.theme.BoxTheme
 import com.boxdev.boxwallet.util.rememberCurrencyFormatter
 
 @Composable
@@ -61,7 +59,6 @@ fun TransactionSheet(
     var showDeleteDialog by remember { mutableStateOf(false) }
     val pickers = rememberDateTimePickerState()
     val formatter = rememberCurrencyFormatter()
-    val money = BoxTheme.money
     val availableReminders = remember { ReminderDuration.entries.filter { !it.debugOnly || BuildConfig.DEBUG } }
 
     LaunchedEffect(transactionId) { viewModel.loadTransaction(transactionId) }
@@ -93,21 +90,14 @@ fun TransactionSheet(
                         )
                     },
                     icon = { trendIcon(it == TransactionType.INCOME) },
-                    colors = {
-                        val income = it == TransactionType.INCOME
-                        ToggleButtonDefaults.toggleButtonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            checkedContainerColor = if (income) money.incomeContainer else money.expenseContainer,
-                            checkedContentColor = if (income) money.onIncomeContainer else money.onExpenseContainer,
-                        )
-                    },
+                    colors = { directionToggleColors(it == TransactionType.INCOME) },
                 )
 
                 AmountField(
                     value = formState.amount,
                     onValueChange = viewModel::updateAmount,
                     symbol = formatter.symbol,
-                    kind = if (formState.type == TransactionType.INCOME) AmountKind.Income else AmountKind.Expense,
+                    kind = amountKind(formState.type == TransactionType.INCOME),
                     isError = formState.error != null && formState.amount.isEmpty(),
                     autoFocus = !formState.isEditing,
                 )

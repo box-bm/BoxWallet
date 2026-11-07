@@ -9,17 +9,11 @@ package com.boxdev.boxwallet.ui.screens.transactions
 
 import android.text.format.DateUtils
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -43,13 +37,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
@@ -80,10 +71,13 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.boxdev.boxwallet.R
-import com.boxdev.boxwallet.data.local.entity.TransactionType
+import com.boxdev.boxwallet.domain.model.net
+import com.boxdev.boxwallet.ui.components.CategoryFilterChips
+import com.boxdev.boxwallet.ui.components.CheckFilterChip
+import com.boxdev.boxwallet.ui.components.CollapsibleFilterPanel
+import com.boxdev.boxwallet.ui.components.amountKind
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Transaction
-import com.boxdev.boxwallet.ui.components.AmountKind
 import com.boxdev.boxwallet.ui.components.AmountText
 import com.boxdev.boxwallet.ui.components.ConnectedChoiceRow
 import com.boxdev.boxwallet.ui.components.EmptyState
@@ -143,30 +137,7 @@ fun TransactionsListScreen(
             }
             if (uiState.availableCategories.isNotEmpty()) {
                 FilterGroup(stringResource(R.string.transactions_filter_category)) {
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(0.dp),
-                    ) {
-                        FilterChip(
-                            selected = filter.categoryId == null,
-                            onClick = { viewModel.updateCategoryFilter(null) },
-                            label = { Text(stringResource(R.string.transactions_filter_all)) },
-                            leadingIcon = if (filter.categoryId == null) {
-                                { Icon(Icons.Filled.Check, null, Modifier.width(FilterChipDefaults.IconSize)) }
-                            } else null,
-                        )
-                        uiState.availableCategories.forEach { cat ->
-                            val selected = filter.categoryId == cat.id
-                            FilterChip(
-                                selected = selected,
-                                onClick = { viewModel.updateCategoryFilter(cat.id) },
-                                label = { Text(cat.name) },
-                                leadingIcon = if (selected) {
-                                    { Icon(Icons.Filled.Check, null, Modifier.width(FilterChipDefaults.IconSize)) }
-                                } else null,
-                            )
-                        }
-                    }
+                    CategoryFilterChips(uiState.availableCategories, filter.categoryId, viewModel::updateCategoryFilter)
                 }
             }
             FilterGroup(stringResource(R.string.transactions_filter_sort)) {
@@ -185,13 +156,10 @@ fun TransactionsListScreen(
                 )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                FilterChip(
+                CheckFilterChip(
                     selected = filter.showOnlyRecurrent,
                     onClick = { viewModel.updateRecurrentFilter(!filter.showOnlyRecurrent) },
-                    label = { Text(stringResource(R.string.transactions_filter_recurring_only)) },
-                    leadingIcon = if (filter.showOnlyRecurrent) {
-                        { Icon(Icons.Filled.Check, null, Modifier.width(FilterChipDefaults.IconSize)) }
-                    } else null,
+                    label = stringResource(R.string.transactions_filter_recurring_only),
                 )
                 Spacer(Modifier.weight(1f))
                 OutlinedButton(onClick = viewModel::clearFilters, enabled = activeFilters > 0) {
@@ -256,18 +224,8 @@ fun TransactionsListScreen(
 
             Column(Modifier.weight(1f)) {
                 if (!wide) {
-                    AnimatedVisibility(
-                        visible = showFilters,
-                        enter = expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) + fadeIn(),
-                        exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeOut(),
-                    ) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.surfaceContainerLow,
-                            shape = MaterialTheme.shapes.large,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        ) {
-                            filterPanel(Modifier.padding(16.dp))
-                        }
+                    CollapsibleFilterPanel(visible = showFilters) {
+                        filterPanel(Modifier.padding(16.dp))
                     }
                 }
 
@@ -335,7 +293,7 @@ private fun TransactionsByDay(
         groups.forEach { (date, transactions) ->
             if (date != null) {
                 stickyHeader(key = "h_$date") {
-                    val net = transactions.sumOf { if (it.type == TransactionType.INCOME) it.amount else -it.amount }
+                    val net = transactions.net()
                     Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
                         Row(
                             modifier = Modifier.padding(start = 4.dp, top = 16.dp, bottom = 8.dp),
@@ -362,7 +320,7 @@ private fun TransactionsByDay(
                             )
                             AmountText(
                                 amount = kotlin.math.abs(net),
-                                kind = if (net >= 0) AmountKind.Income else AmountKind.Expense,
+                                kind = amountKind(net >= 0),
                                 style = BoxTheme.moneyType.small,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

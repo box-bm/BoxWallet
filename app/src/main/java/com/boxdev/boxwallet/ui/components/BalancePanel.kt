@@ -107,7 +107,7 @@ fun BalancePanel(
                 // Signed so the month reads as gain or loss; on the indigo slab the sign carries it, not hue.
                 AmountText(
                     amount = kotlin.math.abs(summary.monthlyBalance),
-                    kind = if (summary.monthlyBalance >= 0) AmountKind.Income else AmountKind.Expense,
+                    kind = amountKind(summary.monthlyBalance >= 0),
                     signed = true,
                     style = BoxTheme.moneyType.small,
                     color = colors.onPrimary,

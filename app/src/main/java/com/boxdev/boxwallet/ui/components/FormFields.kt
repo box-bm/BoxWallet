@@ -2,6 +2,9 @@
 
 package com.boxdev.boxwallet.ui.components
 
+import androidx.compose.material3.SelectableDates
+import androidx.compose.material3.DatePickerDefaults
+import java.time.LocalDate
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
@@ -14,7 +17,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -71,14 +73,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.boxdev.boxwallet.R
+import com.boxdev.boxwallet.util.DateFormats
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.ui.theme.BoxTheme
 import com.boxdev.boxwallet.ui.theme.GroupShapes
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 
 // ---------------------------------------------------------------------------------------------
 // Sheet chrome
@@ -394,16 +395,49 @@ class DateTimePickerState internal constructor() {
 @Composable
 fun rememberDateTimePickerState() = remember { DateTimePickerState() }
 
-private val dateFormat: DateTimeFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
-private val timeFormat: DateTimeFormatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
-
 @Composable
 fun DateRow(shape: androidx.compose.ui.graphics.Shape, label: String, dateTime: LocalDateTime, state: DateTimePickerState) =
-    ValueRow(shape, Icons.Outlined.CalendarMonth, label, dateTime.format(dateFormat), onClick = { state.showDate = true })
+    ValueRow(shape, Icons.Outlined.CalendarMonth, label, dateTime.format(DateFormats.mediumDate), onClick = { state.showDate = true })
 
 @Composable
 fun TimeRow(shape: androidx.compose.ui.graphics.Shape, dateTime: LocalDateTime, state: DateTimePickerState) =
-    ValueRow(shape, Icons.Outlined.Schedule, stringResource(R.string.transaction_time_label), dateTime.format(timeFormat), onClick = { state.showTime = true })
+    ValueRow(shape, Icons.Outlined.Schedule, stringResource(R.string.transaction_time_label), dateTime.format(DateFormats.shortTime), onClick = { state.showTime = true })
+
+/** Material date pickers work in UTC midnight millis; these convert to and from a [LocalDate]. */
+fun LocalDate.toPickerMillis(): Long = atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+
+fun Long.pickerMillisToLocalDate(): LocalDate = Instant.ofEpochMilli(this).atOffset(ZoneOffset.UTC).toLocalDate()
+
+/** Dates from [min] (when given) up to [max], inclusive. */
+@OptIn(ExperimentalMaterial3Api::class)
+fun selectableDates(max: LocalDate, min: LocalDate? = null): SelectableDates = object : SelectableDates {
+    override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+        val date = utcTimeMillis.pickerMillisToLocalDate()
+        return !date.isAfter(max) && (min == null || !date.isBefore(min))
+    }
+}
+
+/** OK/Cancel date picker dialog; OK reports the picked day and then dismisses. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LocalDateDialog(
+    initial: LocalDate,
+    onPick: (LocalDate) -> Unit,
+    onDismiss: () -> Unit,
+    selectable: SelectableDates = DatePickerDefaults.AllDates,
+) {
+    val picker = rememberDatePickerState(initialSelectedDateMillis = initial.toPickerMillis(), selectableDates = selectable)
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = {
+                picker.selectedDateMillis?.let { onPick(it.pickerMillisToLocalDate()) }
+                onDismiss()
+            }) { Text(stringResource(R.string.action_ok)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
+    ) { DatePicker(state = picker) }
+}
 
 /** The picker dialogs for a [DateTimePickerState]; place once per form. */
 @Composable
@@ -414,21 +448,11 @@ fun DateTimePickerDialogs(
     onTimeChange: (hour: Int, minute: Int) -> Unit,
 ) {
     if (state.showDate) {
-        val picker = rememberDatePickerState(
-            initialSelectedDateMillis = dateTime.toLocalDate().atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+        LocalDateDialog(
+            initial = dateTime.toLocalDate(),
+            onPick = { onDateChange(dateTime.with(it)) },
+            onDismiss = { state.showDate = false },
         )
-        DatePickerDialog(
-            onDismissRequest = { state.showDate = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    picker.selectedDateMillis?.let {
-                        onDateChange(dateTime.with(Instant.ofEpochMilli(it).atOffset(ZoneOffset.UTC).toLocalDate()))
-                    }
-                    state.showDate = false
-                }) { Text(stringResource(R.string.action_ok)) }
-            },
-            dismissButton = { TextButton(onClick = { state.showDate = false }) { Text(stringResource(R.string.action_cancel)) } },
-        ) { DatePicker(state = picker) }
     }
     if (state.showTime) {
         val picker = rememberTimePickerState(initialHour = dateTime.hour, initialMinute = dateTime.minute)

@@ -1,5 +1,6 @@
 package com.boxdev.boxwallet.ui.components.charts
 
+import com.boxdev.boxwallet.ui.components.amountKind
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -92,7 +93,7 @@ fun CashFlowChart(
                     )
                     AmountText(
                         amount = kotlin.math.abs(net),
-                        kind = if (net >= 0) AmountKind.Income else AmountKind.Expense,
+                        kind = amountKind(net >= 0),
                         style = BoxTheme.moneyType.small,
                     )
                 }
@@ -165,8 +166,8 @@ fun CashFlowChart(
             data.forEachIndexed { i, d ->
                 val isSelected = i == selected
                 val groupLeft = left + slot * i + (slot - (barW * 2 + gap)) / 2f
-                drawTopRoundedBar(if (isSelected) income else incomeMuted, groupLeft, baseline, barW, y(d.income) * reveal)
-                drawTopRoundedBar(if (isSelected) expense else expenseMuted, groupLeft + barW + gap, baseline, barW, y(d.expense) * reveal)
+                drawTopRoundedBar(if (isSelected) income else incomeMuted, groupLeft, baseline, barW, y(d.income) * reveal())
+                drawTopRoundedBar(if (isSelected) expense else expenseMuted, groupLeft + barW + gap, baseline, barW, y(d.expense) * reveal())
             }
 
             // Month initials, thinned when they would collide; the latest month always keeps its label.

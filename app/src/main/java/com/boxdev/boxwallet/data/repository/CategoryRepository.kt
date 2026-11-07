@@ -20,7 +20,6 @@ class CategoryRepository @Inject constructor(
 
     suspend fun deleteCategory(id: Long) = categoryDao.deleteById(id)
 
-    suspend fun getCategoryById(id: Long): Category? = categoryDao.getById(id)?.toDomain()
 
     fun getAllCategories(): Flow<List<Category>> =
         categoryDao.getAllCategories().map { it.map { e -> e.toDomain() } }

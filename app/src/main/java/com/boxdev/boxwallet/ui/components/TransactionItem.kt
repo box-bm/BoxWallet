@@ -23,12 +23,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.boxdev.boxwallet.R
+import com.boxdev.boxwallet.util.DateFormats
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Transaction
-import com.boxdev.boxwallet.ui.theme.BoxTheme
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 
 /**
  * One movement in a connected list group. [index] / [count] give the group position so the
@@ -48,16 +46,12 @@ fun TransactionItem(
     onLongClick: (() -> Unit)? = null,
 ) {
     val isIncome = transaction.type == TransactionType.INCOME
-    val kind = if (isIncome) AmountKind.Income else AmountKind.Expense
-    val money = BoxTheme.money
+    val kind = amountKind(isIncome)
+    val (badgeContainer, badgeContent) = directionColors(isIncome)
     val interaction = remember { MutableInteractionSource() }
     // Short, locale-correct day ("6 nov" / "Nov 6"); the year only appears when it isn't this year.
-    val dateFormatter = remember(transaction.date.year) {
-        val locale = java.util.Locale.getDefault()
-        val skeleton = if (transaction.date.year == java.time.LocalDate.now().year) "MMMd" else "yMMMd"
-        DateTimeFormatter.ofPattern(android.text.format.DateFormat.getBestDateTimePattern(locale, skeleton), locale)
-    }
-    val timeFormatter = remember { DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT) }
+    val dateFormatter = DateFormats.shortDay(withYear = transaction.date.year != java.time.LocalDate.now().year)
+    val timeFormatter = DateFormats.shortTime
     val title = transaction.description.ifBlank {
         category?.name ?: stringResource(if (isIncome) R.string.transaction_type_income else R.string.transaction_type_expense)
     }
@@ -73,8 +67,8 @@ fun TransactionItem(
             CategoryBadge(
                 category = category,
                 fallbackIcon = trendIcon(isIncome),
-                fallbackContainer = if (isIncome) money.incomeContainer else money.expenseContainer,
-                fallbackContent = if (isIncome) money.onIncomeContainer else money.onExpenseContainer,
+                fallbackContainer = badgeContainer,
+                fallbackContent = badgeContent,
                 interactionSource = interaction,
             )
         },

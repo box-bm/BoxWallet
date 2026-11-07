@@ -27,12 +27,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.boxdev.boxwallet.R
+import com.boxdev.boxwallet.util.DateFormats
+import com.boxdev.boxwallet.domain.model.LoanStatus
+import java.time.LocalDate
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Loan
 import com.boxdev.boxwallet.domain.model.LoanType
 import com.boxdev.boxwallet.ui.theme.BoxTheme
 import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 
 /**
  * A loan at a glance: who/what, what is left, a wavy progress line that settles flat when paid off,
@@ -47,8 +49,8 @@ fun LoanCard(
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainer,
     onClick: () -> Unit = {},
 ) {
-    val dateFormatter = remember { DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM) }
-    val status = loan.loanStatus()
+    val dateFormatter = DateFormats.mediumDate
+    val status = loan.status(LocalDate.now())
     val interaction = remember { MutableInteractionSource() }
     val progress by animateFloatAsState(
         targetValue = loan.progressFraction,
@@ -56,7 +58,7 @@ fun LoanCard(
         label = "loanProgress",
     )
     val isIncome = loan.loanType == LoanType.INCOME
-    val money = BoxTheme.money
+    val (badgeContainer, badgeContent) = directionColors(isIncome)
 
     Surface(
         onClick = onClick,
@@ -76,8 +78,8 @@ fun LoanCard(
                 CategoryBadge(
                     category = category,
                     fallbackIcon = trendIcon(isIncome),
-                    fallbackContainer = if (isIncome) money.incomeContainer else money.expenseContainer,
-                    fallbackContent = if (isIncome) money.onIncomeContainer else money.onExpenseContainer,
+                    fallbackContainer = badgeContainer,
+                    fallbackContent = badgeContent,
                     interactionSource = interaction,
                 )
                 Column(modifier = Modifier.weight(1f)) {
@@ -171,9 +173,9 @@ fun LoanRow(
 ) {
     // Short "Oct 1" dates, as in Reports, so the line fits beside the amount.
     val dateFormatter = remember { DateTimeFormatter.ofPattern("MMM d", java.util.Locale.getDefault()) }
-    val status = loan.loanStatus()
+    val status = loan.status(LocalDate.now())
     val isIncome = loan.loanType == LoanType.INCOME
-    val money = BoxTheme.money
+    val (badgeContainer, badgeContent) = directionColors(isIncome)
     val due = loan.nextDueDate
     SegmentedListItem(
         onClick = onClick,
@@ -184,8 +186,8 @@ fun LoanRow(
             CategoryBadge(
                 category = category,
                 fallbackIcon = trendIcon(isIncome),
-                fallbackContainer = if (isIncome) money.incomeContainer else money.expenseContainer,
-                fallbackContent = if (isIncome) money.onIncomeContainer else money.onExpenseContainer,
+                fallbackContainer = badgeContainer,
+                fallbackContent = badgeContent,
             )
         },
         supportingContent = {
@@ -215,7 +217,7 @@ fun LoanRow(
             } else {
                 AmountText(
                     amount = loan.remainingAmount,
-                    kind = if (isIncome) AmountKind.Income else AmountKind.Expense,
+                    kind = amountKind(isIncome),
                     style = BoxTheme.moneyType.small,
                 )
             }

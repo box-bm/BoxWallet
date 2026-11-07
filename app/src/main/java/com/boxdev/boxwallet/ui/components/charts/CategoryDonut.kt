@@ -126,7 +126,7 @@ fun CategoryDonut(
                 val gap = if (data.size > 1) 3f else 0f
                 var start = -90f
                 data.forEachIndexed { i, item ->
-                    val sweep = (item.amount / total * 360.0).toFloat() * reveal
+                    val sweep = (item.amount / total * 360.0).toFloat() * reveal()
                     val isSelected = selected == i
                     val color = when {
                         selected == null || isSelected -> colors[i]

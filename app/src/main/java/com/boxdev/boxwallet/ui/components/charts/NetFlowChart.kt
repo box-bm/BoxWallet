@@ -1,5 +1,6 @@
 package com.boxdev.boxwallet.ui.components.charts
 
+import com.boxdev.boxwallet.ui.components.amountKind
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -34,7 +35,6 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.boxdev.boxwallet.R
-import com.boxdev.boxwallet.ui.components.AmountKind
 import com.boxdev.boxwallet.ui.components.AmountText
 import com.boxdev.boxwallet.ui.screens.analytics.MonthlyData
 import com.boxdev.boxwallet.ui.theme.BoxTheme
@@ -91,7 +91,7 @@ fun NetFlowChart(
             }
             AmountText(
                 amount = abs(net),
-                kind = if (net >= 0) AmountKind.Income else AmountKind.Expense,
+                kind = amountKind(net >= 0),
                 style = BoxTheme.moneyType.small,
             )
         }
@@ -133,7 +133,7 @@ fun NetFlowChart(
 
             nets.forEachIndexed { i, v ->
                 if (data[i].month.isAfter(now) || v == 0.0) return@forEachIndexed
-                val h = (abs(v) / maxAbs * half).toFloat().coerceAtLeast(3.dp.toPx()) * reveal
+                val h = (abs(v) / maxAbs * half).toFloat().coerceAtLeast(3.dp.toPx()) * reveal()
                 val left = slot * i + (slot - barW) / 2f
                 // Rounded on the end away from the zero line, flat where it meets it.
                 val rect = if (v > 0) Rect(left, zeroY - h, left + barW, zeroY) else Rect(left, zeroY, left + barW, zeroY + h)

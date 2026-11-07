@@ -10,31 +10,26 @@ import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material3.MediumExtendedFloatingActionButton
 import androidx.compose.material3.SegmentedListItem
-import androidx.compose.material3.ListItemDefaults
 import com.boxdev.boxwallet.ui.components.CategoryBadge
 import com.boxdev.boxwallet.ui.components.ConfirmDeleteDialog
 import com.boxdev.boxwallet.ui.components.EmptyState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.util.categoryIconOptions
-import com.boxdev.boxwallet.util.categoryIconVector
 
 @Composable
 fun CategoriesScreen(

@@ -21,19 +21,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.boxdev.boxwallet.R
-import com.boxdev.boxwallet.domain.model.Loan
+import com.boxdev.boxwallet.domain.model.LoanStatus
 import com.boxdev.boxwallet.ui.theme.BoxTheme
-import java.time.LocalDate
-
-enum class LoanStatus {
-    PAID, OVERDUE, ACTIVE
-}
-
-fun Loan.loanStatus(): LoanStatus = when {
-    isComplete -> LoanStatus.PAID
-    nextDueDate?.isBefore(LocalDate.now()) == true -> LoanStatus.OVERDUE
-    else -> LoanStatus.ACTIVE
-}
 
 /**
  * Indicator color for a loan's progress. Progress is what has already been settled, so it never

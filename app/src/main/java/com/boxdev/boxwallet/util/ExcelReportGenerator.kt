@@ -7,6 +7,7 @@ import com.boxdev.boxwallet.domain.model.monthsBetween
 import com.boxdev.boxwallet.domain.model.total
 import org.apache.poi.ss.usermodel.FillPatternType
 import org.apache.poi.ss.usermodel.IndexedColors
+import org.apache.poi.ss.usermodel.Sheet
 import org.apache.poi.xssf.usermodel.XSSFCellStyle
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import java.io.File
@@ -87,8 +88,7 @@ object ExcelReportGenerator {
         val sheet = wb.createSheet("Movements")
 
         val headers = listOf("#", "Date", "Time", "Type", "Category", "Description", "Amount", "Status", "Loan", "Installment")
-        val hr = sheet.createRow(0)
-        headers.forEachIndexed { i, h -> hr.createCell(i).also { it.setCellValue(h); it.cellStyle = headerStyle } }
+        sheet.header(headers, headerStyle)
 
         transactions.forEachIndexed { idx, tx ->
             val row = sheet.createRow(idx + 1)
@@ -109,16 +109,7 @@ object ExcelReportGenerator {
             row.createCell(9).setCellValue(installmentLabel)
         }
 
-        sheet.setColumnWidth(0, 256 * 4)
-        sheet.setColumnWidth(1, 256 * 12)
-        sheet.setColumnWidth(2, 256 * 7)
-        sheet.setColumnWidth(3, 256 * 10)
-        sheet.setColumnWidth(4, 256 * 20)
-        sheet.setColumnWidth(5, 256 * 32)
-        sheet.setColumnWidth(6, 256 * 14)
-        sheet.setColumnWidth(7, 256 * 10)
-        sheet.setColumnWidth(8, 256 * 24)
-        sheet.setColumnWidth(9, 256 * 13)
+        sheet.widths(4, 12, 7, 10, 20, 32, 14, 10, 24, 13)
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -207,8 +198,7 @@ object ExcelReportGenerator {
             topCategories.forEach { (cat, amt) -> rowNum(cat, amt) }
         }
 
-        sheet.setColumnWidth(0, 256 * 30)
-        sheet.setColumnWidth(1, 256 * 20)
+        sheet.widths(30, 20)
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -225,8 +215,7 @@ object ExcelReportGenerator {
         val sheet = wb.createSheet("By Category")
 
         val headers = listOf("Category", "Income", "Income Txns", "Expenses", "Expense Txns", "Net", "% of Expenses")
-        val hr = sheet.createRow(0)
-        headers.forEachIndexed { i, h -> hr.createCell(i).also { it.setCellValue(h); it.cellStyle = headerStyle } }
+        sheet.header(headers, headerStyle)
 
         val totalExpense = transactions.total(TransactionType.EXPENSE)
 
@@ -258,13 +247,7 @@ object ExcelReportGenerator {
         totalsRow.createCell(3).also { it.setCellValue(totalExpense); it.cellStyle = boldStyle }
         totalsRow.createCell(5).also { it.setCellValue(totalIncome - totalExpense); it.cellStyle = boldStyle }
 
-        sheet.setColumnWidth(0, 256 * 22)
-        sheet.setColumnWidth(1, 256 * 14)
-        sheet.setColumnWidth(2, 256 * 13)
-        sheet.setColumnWidth(3, 256 * 14)
-        sheet.setColumnWidth(4, 256 * 14)
-        sheet.setColumnWidth(5, 256 * 14)
-        sheet.setColumnWidth(6, 256 * 15)
+        sheet.widths(22, 14, 13, 14, 14, 14, 15)
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -287,8 +270,7 @@ object ExcelReportGenerator {
         val sheet = wb.createSheet("Monthly Overview")
 
         val headers = listOf("Month", "Income", "Expenses", "Net Balance", "Movements")
-        val hr = sheet.createRow(0)
-        headers.forEachIndexed { i, h -> hr.createCell(i).also { it.setCellValue(h); it.cellStyle = headerStyle } }
+        sheet.header(headers, headerStyle)
 
         val months = monthsBetween(startYM, endYM)
         val byMonth = transactions.groupBy { YearMonth.from(it.date) }
@@ -314,11 +296,7 @@ object ExcelReportGenerator {
         totalsRow.createCell(3).also { it.setCellValue(totalIncome - totalExpense); it.cellStyle = boldStyle }
         totalsRow.createCell(4).also { it.setCellValue(transactions.size.toDouble()); it.cellStyle = boldStyle }
 
-        sheet.setColumnWidth(0, 256 * 14)
-        sheet.setColumnWidth(1, 256 * 14)
-        sheet.setColumnWidth(2, 256 * 14)
-        sheet.setColumnWidth(3, 256 * 14)
-        sheet.setColumnWidth(4, 256 * 14)
+        sheet.widths(14, 14, 14, 14, 14)
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -340,22 +318,19 @@ object ExcelReportGenerator {
             "Installments", "Paid Amount", "Remaining Amount", "Progress",
             "Installment Amount", "Start Date", "Next Due Date", "Status"
         )
-        val hr = sheet.createRow(0)
-        headers.forEachIndexed { i, h -> hr.createCell(i).also { it.setCellValue(h); it.cellStyle = headerStyle } }
+        sheet.header(headers, headerStyle)
 
         val sortedLoans = loans.values.sortedBy { it.name }
 
         sortedLoans.forEachIndexed { idx, loan ->
-            val paidAmount = loan.paidInstallments * loan.installmentAmount
-            val remainingAmount = loan.remainingInstallments * loan.installmentAmount
             val row = sheet.createRow(idx + 1)
             row.createCell(0).setCellValue(loan.name)
             row.createCell(1).setCellValue(loan.description)
             row.createCell(2).setCellValue(loan.loanType.name.lowercase().replaceFirstChar { it.uppercase() })
             row.createCell(3).setCellValue(loan.totalAmount)
             row.createCell(4).setCellValue("${loan.paidInstallments}/${loan.totalInstallments}")
-            row.createCell(5).setCellValue(paidAmount)
-            row.createCell(6).setCellValue(remainingAmount)
+            row.createCell(5).setCellValue(loan.settledAmount)
+            row.createCell(6).setCellValue(loan.remainingAmount)
             row.createCell(7).setCellValue(String.format("%.1f%%", loan.progressFraction * 100))
             row.createCell(8).setCellValue(loan.installmentAmount)
             row.createCell(9).setCellValue(loan.startDate.format(dateFmt))
@@ -370,9 +345,8 @@ object ExcelReportGenerator {
         sheet.createRow(r++).createCell(0).also { it.setCellValue("PORTFOLIO SUMMARY"); it.cellStyle = titleStyle }
 
         val totalBorrowed = sortedLoans.sumOf { it.totalAmount }
-        val totalPaid = sortedLoans.sumOf { it.paidInstallments * it.installmentAmount }
-        val totalRemaining = sortedLoans.filter { !it.isComplete }
-            .sumOf { it.remainingInstallments * it.installmentAmount }
+        val totalPaid = sortedLoans.sumOf { it.settledAmount }
+        val totalRemaining = sortedLoans.sumOf { it.remainingAmount }
         val activeCount = sortedLoans.count { !it.isComplete }
         val completedCount = sortedLoans.count { it.isComplete }
 
@@ -397,19 +371,7 @@ object ExcelReportGenerator {
             createCell(1).setCellValue(completedCount.toDouble())
         }
 
-        sheet.setColumnWidth(0, 256 * 24)
-        sheet.setColumnWidth(1, 256 * 28)
-        sheet.setColumnWidth(2, 256 * 10)
-        sheet.setColumnWidth(3, 256 * 14)
-        sheet.setColumnWidth(4, 256 * 10)
-        sheet.setColumnWidth(5, 256 * 14)
-        sheet.setColumnWidth(6, 256 * 16)
-        sheet.setColumnWidth(7, 256 * 18)
-        sheet.setColumnWidth(8, 256 * 11)
-        sheet.setColumnWidth(9, 256 * 18)
-        sheet.setColumnWidth(10, 256 * 12)
-        sheet.setColumnWidth(11, 256 * 14)
-        sheet.setColumnWidth(12, 256 * 13)
+        sheet.widths(24, 28, 10, 14, 10, 14, 16, 18, 11, 18, 12, 14, 13)
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -427,8 +389,7 @@ object ExcelReportGenerator {
         val sheet = wb.createSheet("Loan Installments")
 
         val headers = listOf("Loan", "Installment", "of Total", "Amount", "Date", "Status")
-        val hr = sheet.createRow(0)
-        headers.forEachIndexed { i, h -> hr.createCell(i).also { it.setCellValue(h); it.cellStyle = headerStyle } }
+        sheet.header(headers, headerStyle)
 
         val loanTxs = transactions
             .filter { it.loanId != null }
@@ -460,11 +421,14 @@ object ExcelReportGenerator {
                 }
         }
 
-        sheet.setColumnWidth(0, 256 * 24)
-        sheet.setColumnWidth(1, 256 * 13)
-        sheet.setColumnWidth(2, 256 * 10)
-        sheet.setColumnWidth(3, 256 * 14)
-        sheet.setColumnWidth(4, 256 * 12)
-        sheet.setColumnWidth(5, 256 * 32)
+        sheet.widths(24, 13, 10, 14, 12, 32)
     }
+    private fun Sheet.header(headers: List<String>, style: XSSFCellStyle) {
+        val row = createRow(0)
+        headers.forEachIndexed { i, h -> row.createCell(i).also { it.setCellValue(h); it.cellStyle = style } }
+    }
+
+    /** Column widths in characters, from the first column on. */
+    private fun Sheet.widths(vararg chars: Int) =
+        chars.forEachIndexed { i, c -> setColumnWidth(i, 256 * c) }
 }

@@ -25,7 +25,7 @@ import kotlin.math.pow
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-internal fun rememberChartReveal(key: Any?): Float {
+internal fun rememberChartReveal(key: Any?): () -> Float {
     val reduceMotion = rememberReduceMotion()
     val progress = remember { Animatable(if (reduceMotion) 1f else 0f) }
     val spec = MaterialTheme.motionScheme.slowSpatialSpec<Float>()
@@ -37,7 +37,8 @@ internal fun rememberChartReveal(key: Any?): Float {
             progress.animateTo(1f, spec)
         }
     }
-    return progress.value.coerceIn(0f, 1f)
+    // Read lazily, inside draw, so the reveal only re-draws the chart instead of recomposing it each frame.
+    return remember(progress) { { progress.value.coerceIn(0f, 1f) } }
 }
 
 /**

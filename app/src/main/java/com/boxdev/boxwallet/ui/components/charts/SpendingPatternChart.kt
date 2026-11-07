@@ -125,13 +125,13 @@ fun SpendingPatternChart(
                     )
                 } else {
                     val color = if (isSelected) expense else expenseMuted
-                    drawTopRoundedBar(color, x, baseline, barW, (h(d.amount) * reveal).coerceAtLeast(stub))
+                    drawTopRoundedBar(color, x, baseline, barW, (h(d.amount) * reveal()).coerceAtLeast(stub))
                 }
             }
 
             // Average line with its value in a pill at the right edge.
             if (average > 0) {
-                val ay = baseline - h(average) * reveal
+                val ay = baseline - h(average) * reveal()
                 drawLine(
                     avgColor, Offset(0f, ay), Offset(size.width, ay),
                     strokeWidth = 1.5.dp.toPx(),
