@@ -5,11 +5,8 @@ import com.boxdev.boxwallet.domain.model.Loan
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.domain.model.monthsBetween
 import com.boxdev.boxwallet.domain.model.total
-import org.apache.poi.ss.usermodel.FillPatternType
-import org.apache.poi.ss.usermodel.IndexedColors
-import org.apache.poi.ss.usermodel.Sheet
-import org.apache.poi.xssf.usermodel.XSSFCellStyle
-import org.apache.poi.xssf.usermodel.XSSFWorkbook
+import com.boxdev.boxwallet.util.XlsxWorkbook.Sheet
+import com.boxdev.boxwallet.util.XlsxWorkbook.Style
 import java.io.File
 import java.io.FileOutputStream
 import java.time.LocalDate
@@ -41,34 +38,23 @@ object ExcelReportGenerator {
         val timeFmt = DateTimeFormatter.ofPattern("HH:mm")
         val monthFmt = DateTimeFormatter.ofPattern("MMM yyyy")
 
-        XSSFWorkbook().use { wb ->
-            val boldStyle = wb.createCellStyle().apply {
-                val f = wb.createFont(); f.bold = true; setFont(f)
-            }
-            val headerStyle = wb.createCellStyle().apply {
-                val f = wb.createFont(); f.bold = true; setFont(f)
-                fillForegroundColor = IndexedColors.GREY_25_PERCENT.index
-                fillPattern = FillPatternType.SOLID_FOREGROUND
-            }
-            val titleStyle = wb.createCellStyle().apply {
-                val f = wb.createFont(); f.bold = true; setFont(f)
-                fillForegroundColor = IndexedColors.PALE_BLUE.index
-                fillPattern = FillPatternType.SOLID_FOREGROUND
-            }
+        val wb = XlsxWorkbook()
+        val boldStyle = Style.BOLD
+        val headerStyle = Style.HEADER
+        val titleStyle = Style.TITLE
 
-            buildTransactionsSheet(wb, transactions, categories, loans, dateFmt, timeFmt, headerStyle)
-            buildSummarySheet(wb, transactions, categories, startDate, endDate, dateFmt, boldStyle, titleStyle)
-            buildCategorySheet(wb, transactions, categories, headerStyle, boldStyle)
-            buildMonthlySheet(wb, transactions, startDate, endDate, monthFmt, headerStyle, boldStyle)
-            if (loans.isNotEmpty()) {
-                buildLoanOverviewSheet(wb, loans, dateFmt, headerStyle, boldStyle, titleStyle)
-            }
-            if (transactions.any { it.loanId != null }) {
-                buildLoansSheet(wb, transactions, loans, dateFmt, headerStyle, boldStyle)
-            }
-
-            FileOutputStream(file).use { wb.write(it) }
+        buildTransactionsSheet(wb, transactions, categories, loans, dateFmt, timeFmt, headerStyle)
+        buildSummarySheet(wb, transactions, categories, startDate, endDate, dateFmt, boldStyle, titleStyle)
+        buildCategorySheet(wb, transactions, categories, headerStyle, boldStyle)
+        buildMonthlySheet(wb, transactions, startDate, endDate, monthFmt, headerStyle, boldStyle)
+        if (loans.isNotEmpty()) {
+            buildLoanOverviewSheet(wb, loans, dateFmt, headerStyle, boldStyle, titleStyle)
         }
+        if (transactions.any { it.loanId != null }) {
+            buildLoansSheet(wb, transactions, loans, dateFmt, headerStyle, boldStyle)
+        }
+
+        FileOutputStream(file).buffered().use { wb.write(it) }
         return file
     }
 
@@ -77,13 +63,13 @@ object ExcelReportGenerator {
     // ──────────────────────────────────────────────────────────────
 
     private fun buildTransactionsSheet(
-        wb: XSSFWorkbook,
+        wb: XlsxWorkbook,
         transactions: List<Transaction>,
         categories: Map<Long, String>,
         loans: Map<Long, Loan>,
         dateFmt: DateTimeFormatter,
         timeFmt: DateTimeFormatter,
-        headerStyle: XSSFCellStyle
+        headerStyle: Style
     ) {
         val sheet = wb.createSheet("Movements")
 
@@ -117,14 +103,14 @@ object ExcelReportGenerator {
     // ──────────────────────────────────────────────────────────────
 
     private fun buildSummarySheet(
-        wb: XSSFWorkbook,
+        wb: XlsxWorkbook,
         transactions: List<Transaction>,
         categories: Map<Long, String>,
         startDate: LocalDate,
         endDate: LocalDate,
         dateFmt: DateTimeFormatter,
-        boldStyle: XSSFCellStyle,
-        titleStyle: XSSFCellStyle
+        boldStyle: Style,
+        titleStyle: Style
     ) {
         val sheet = wb.createSheet("Summary")
 
@@ -206,11 +192,11 @@ object ExcelReportGenerator {
     // ──────────────────────────────────────────────────────────────
 
     private fun buildCategorySheet(
-        wb: XSSFWorkbook,
+        wb: XlsxWorkbook,
         transactions: List<Transaction>,
         categories: Map<Long, String>,
-        headerStyle: XSSFCellStyle,
-        boldStyle: XSSFCellStyle
+        headerStyle: Style,
+        boldStyle: Style
     ) {
         val sheet = wb.createSheet("By Category")
 
@@ -255,13 +241,13 @@ object ExcelReportGenerator {
     // ──────────────────────────────────────────────────────────────
 
     private fun buildMonthlySheet(
-        wb: XSSFWorkbook,
+        wb: XlsxWorkbook,
         transactions: List<Transaction>,
         startDate: LocalDate,
         endDate: LocalDate,
         monthFmt: DateTimeFormatter,
-        headerStyle: XSSFCellStyle,
-        boldStyle: XSSFCellStyle
+        headerStyle: Style,
+        boldStyle: Style
     ) {
         val startYM = YearMonth.from(startDate)
         val endYM = YearMonth.from(endDate)
@@ -304,12 +290,12 @@ object ExcelReportGenerator {
     // ──────────────────────────────────────────────────────────────
 
     private fun buildLoanOverviewSheet(
-        wb: XSSFWorkbook,
+        wb: XlsxWorkbook,
         loans: Map<Long, Loan>,
         dateFmt: DateTimeFormatter,
-        headerStyle: XSSFCellStyle,
-        boldStyle: XSSFCellStyle,
-        titleStyle: XSSFCellStyle
+        headerStyle: Style,
+        boldStyle: Style,
+        titleStyle: Style
     ) {
         val sheet = wb.createSheet("Loans")
 
@@ -379,12 +365,12 @@ object ExcelReportGenerator {
     // ──────────────────────────────────────────────────────────────
 
     private fun buildLoansSheet(
-        wb: XSSFWorkbook,
+        wb: XlsxWorkbook,
         transactions: List<Transaction>,
         loans: Map<Long, Loan>,
         dateFmt: DateTimeFormatter,
-        headerStyle: XSSFCellStyle,
-        boldStyle: XSSFCellStyle
+        headerStyle: Style,
+        boldStyle: Style
     ) {
         val sheet = wb.createSheet("Loan Installments")
 
@@ -423,12 +409,12 @@ object ExcelReportGenerator {
 
         sheet.widths(24, 13, 10, 14, 12, 32)
     }
-    private fun Sheet.header(headers: List<String>, style: XSSFCellStyle) {
+    private fun Sheet.header(headers: List<String>, style: Style) {
         val row = createRow(0)
         headers.forEachIndexed { i, h -> row.createCell(i).also { it.setCellValue(h); it.cellStyle = style } }
     }
 
     /** Column widths in characters, from the first column on. */
     private fun Sheet.widths(vararg chars: Int) =
-        chars.forEachIndexed { i, c -> setColumnWidth(i, 256 * c) }
+        chars.forEachIndexed { i, c -> setColumnWidth(i, c) }
 }
