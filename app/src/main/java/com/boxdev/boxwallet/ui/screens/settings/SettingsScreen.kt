@@ -7,7 +7,7 @@ import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Fingerprint
-import androidx.compose.material.icons.outlined.Insights
+import androidx.compose.material.icons.outlined.QueryStats
 import androidx.compose.material.icons.outlined.Backup
 import androidx.compose.material.icons.outlined.DeleteForever
 import androidx.compose.material.icons.outlined.Info
@@ -160,7 +160,7 @@ fun SettingsScreen(
 
         SettingsGroup(stringResource(R.string.settings_security_section)) {
             SettingsSwitchRow(
-                index = 0, count = 2,
+                index = 0, count = 1,
                 icon = Icons.Outlined.Fingerprint,
                 title = stringResource(R.string.settings_app_lock_title),
                 subtitle = stringResource(
@@ -170,9 +170,12 @@ fun SettingsScreen(
                 enabled = biometricAvailable,
                 onCheckedChange = viewModel::setBiometricEnabled,
             )
+        }
+
+        SettingsGroup(stringResource(R.string.settings_privacy_section)) {
             SettingsSwitchRow(
-                index = 1, count = 2,
-                icon = Icons.Outlined.Insights,
+                index = 0, count = 1,
+                icon = Icons.Outlined.QueryStats,
                 title = stringResource(R.string.settings_analytics_title),
                 subtitle = stringResource(R.string.settings_analytics_subtitle),
                 checked = isAnalyticsEnabled,

@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -102,12 +104,12 @@ fun LoanCard(
             Row(verticalAlignment = Alignment.Bottom) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = stringResource(R.string.loan_remaining),
+                        text = stringResource(loan.loanType.remainingLabelRes),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     AmountText(
-                        amount = loan.remainingInstallments * loan.installmentAmount,
+                        amount = loan.remainingAmount,
                         style = BoxTheme.moneyType.large,
                         autoSize = true,
                     )
@@ -151,5 +153,74 @@ fun LoanCard(
                 )
             }
         }
+    }
+}
+
+/**
+ * A loan in one line for summaries such as Home: badge, name, what is left in its direction, and
+ * the next due date (or how long it has been overdue). The full card lives on the Loans tab.
+ */
+@Composable
+fun LoanRow(
+    loan: Loan,
+    index: Int,
+    count: Int,
+    modifier: Modifier = Modifier,
+    category: Category? = null,
+    onClick: () -> Unit = {},
+) {
+    // Short "Oct 1" dates, as in Reports, so the line fits beside the amount.
+    val dateFormatter = remember { DateTimeFormatter.ofPattern("MMM d", java.util.Locale.getDefault()) }
+    val status = loan.loanStatus()
+    val isIncome = loan.loanType == LoanType.INCOME
+    val money = BoxTheme.money
+    val due = loan.nextDueDate
+    SegmentedListItem(
+        onClick = onClick,
+        shapes = segmentShapes(index, count),
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        modifier = modifier.padding(bottom = ListItemDefaults.SegmentedGap),
+        leadingContent = {
+            CategoryBadge(
+                category = category,
+                fallbackIcon = trendIcon(isIncome),
+                fallbackContainer = if (isIncome) money.incomeContainer else money.expenseContainer,
+                fallbackContent = if (isIncome) money.onIncomeContainer else money.onExpenseContainer,
+            )
+        },
+        supportingContent = {
+            val line = when {
+                loan.isComplete -> stringResource(R.string.loan_status_paid)
+                status == LoanStatus.OVERDUE && due != null ->
+                    stringResource(R.string.loan_row_overdue, stringResource(loan.loanType.remainingLabelRes), due.format(dateFormatter))
+                due != null && !loan.isComplete ->
+                    stringResource(R.string.loan_row_next, stringResource(loan.loanType.remainingLabelRes), due.format(dateFormatter))
+                else -> stringResource(loan.loanType.remainingLabelRes)
+            }
+            Text(
+                line,
+                color = if (status == LoanStatus.OVERDUE) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        trailingContent = {
+            // A paid-off loan shows what it came to; an open one, what is still left in its direction.
+            if (loan.isComplete) {
+                AmountText(
+                    amount = loan.totalAmount,
+                    style = BoxTheme.moneyType.small,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                AmountText(
+                    amount = loan.remainingAmount,
+                    kind = if (isIncome) AmountKind.Income else AmountKind.Expense,
+                    style = BoxTheme.moneyType.small,
+                )
+            }
+        },
+    ) {
+        Text(loan.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }

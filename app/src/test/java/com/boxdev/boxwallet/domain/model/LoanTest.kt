@@ -93,4 +93,31 @@ class LoanTest {
     fun `isComplete true when overpaid`() {
         assertTrue(loan(paidInstallments = 15).isComplete)
     }
+
+    // remainingAmount / outstandingTotals
+
+    @Test
+    fun `remainingAmount is the unpaid installments`() {
+        assertEquals(900.0, loan(paidInstallments = 3).remainingAmount, 0.001)
+    }
+
+    @Test
+    fun `remainingAmount is zero once paid off, even if overpaid`() {
+        assertEquals(0.0, loan(paidInstallments = 13).remainingAmount, 0.001)
+    }
+
+    @Test
+    fun `outstanding totals keep what I owe and what I am owed apart`() {
+        val owe = loan(totalAmount = 3600.0, totalInstallments = 12, paidInstallments = 5)
+        val owed = loan(totalAmount = 900.0, totalInstallments = 6, paidInstallments = 2).copy(loanType = LoanType.INCOME)
+        val totals = listOf(owe, owed).outstandingTotals()
+        assertEquals(2100.0, totals.toPay, 0.001)
+        assertEquals(600.0, totals.toCollect, 0.001)
+    }
+
+    @Test
+    fun `outstanding totals ignore paid-off loans`() {
+        val done = loan(paidInstallments = 12)
+        assertEquals(LoanTotals(0.0, 0.0), listOf(done).outstandingTotals())
+    }
 }

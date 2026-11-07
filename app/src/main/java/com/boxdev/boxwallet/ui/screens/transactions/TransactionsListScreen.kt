@@ -7,6 +7,8 @@
 
 package com.boxdev.boxwallet.ui.screens.transactions
 
+import android.text.format.DateUtils
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -323,6 +325,7 @@ private fun TransactionsByDay(
     }
     val today = remember { LocalDate.now() }
     val headerFormatter = remember { DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL) }
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     LazyColumn(
         state = listState,
@@ -342,7 +345,14 @@ private fun TransactionsByDay(
                                 text = when (date) {
                                     today -> stringResource(R.string.date_today)
                                     today.minusDays(1) -> stringResource(R.string.date_yesterday)
-                                    else -> date.format(headerFormatter).replaceFirstChar { it.titlecase() }
+                                    // The year only appears for days outside the current year.
+                                    else -> if (date.year == today.year) {
+                                        DateUtils.formatDateTime(
+                                            context,
+                                            date.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli(),
+                                            DateUtils.FORMAT_SHOW_WEEKDAY or DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_NO_YEAR,
+                                        ).replaceFirstChar { it.titlecase() }
+                                    } else date.format(headerFormatter).replaceFirstChar { it.titlecase() }
                                 },
                                 style = MaterialTheme.typography.titleSmall,
                                 color = MaterialTheme.colorScheme.primary,

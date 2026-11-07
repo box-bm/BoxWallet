@@ -359,8 +359,8 @@
     <string name="frequency_custom">Custom</string>
 
     <!-- Loan Type -->
-    <string name="loan_type_expense">Expense</string>
-    <string name="loan_type_income">Income</string>
+    <string name="loan_type_expense">I owe</string>
+    <string name="loan_type_income">Owed to me</string>
 
     <!-- Common -->
     <string name="action_back">Back</string>
@@ -471,4 +471,15 @@
     <string name="analytics_vs_same_point_week">%1$s vs same point last week</string>
     <string name="analytics_vs_same_point_month">%1$s vs same point last month</string>
     <string name="analytics_vs_same_point_year">%1$s vs same point last year</string>
+    <string name="loan_left_to_pay">Left to pay</string>
+    <string name="loan_left_to_collect">Left to collect</string>
+    <string name="loan_total_collected">Total Collected</string>
+    <string name="loan_row_next">%1$s · next %2$s</string>
+    <string name="loan_row_overdue">%1$s · overdue since %2$s</string>
+    <string name="loans_summary_to_pay">You owe</string>
+    <string name="loans_summary_to_collect">Owed to you</string>
+    <string name="loans_completed">Completed (%1$d)</string>
+    <string name="loan_installment_overdue_since">Overdue since %1$s</string>
+    <string name="transaction_settled_expense">Already paid</string>
+    <string name="transaction_settled_income">Already received</string>
 </resources>

@@ -141,7 +141,10 @@ fun TransactionSheet(
                 OptionGroup(title = stringResource(R.string.form_options)) {
                     SwitchRow(
                         groupShape(i++, count), Icons.Outlined.TaskAlt,
-                        stringResource(R.string.transaction_cleared),
+                        stringResource(
+                            if (formState.type == TransactionType.INCOME) R.string.transaction_settled_income
+                            else R.string.transaction_settled_expense
+                        ),
                         formState.isCleared, viewModel::updateIsCleared,
                     )
                     if (showReminder) {

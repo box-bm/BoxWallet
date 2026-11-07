@@ -23,7 +23,7 @@ Private by construction: no account, no server, all data stays on the device (op
 
 ## Capabilities and Constraints
 - Kotlin + Jetpack Compose, Material3 1.5.0-alpha (Expressive APIs available), minSdk 31, targetSdk 36. Hilt, Room, DataStore, WorkManager.
-- Destinations: Home, Records (transactions list), Loans (+ Loan detail), Reports (analytics), Settings (General, Categories, Theme, Backup, Data management), Onboarding, Lock screen.
+- Destinations: Home, Movements (list of every income and expense), Loans (+ Loan detail), Reports (analytics), Settings (General, Categories, Theme, Backup, Data management), Onboarding, Lock screen.
 - Localized: English (default) and Spanish (`values-es`).
 - Single currency selected from Central American currencies (USD default).
 - Must run well folded and unfolded on foldables and on tablets (adaptive layouts confirmed as a requirement).

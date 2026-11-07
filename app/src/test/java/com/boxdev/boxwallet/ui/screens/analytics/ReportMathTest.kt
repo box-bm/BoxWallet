@@ -52,6 +52,23 @@ class ReportMathTest {
         assertEquals(LocalDate.of(2026, 2, 28), range.end)
     }
 
+    // installmentState
+
+    @Test
+    fun `paid installment is paid even when its date has passed`() {
+        assertEquals(InstallmentState.PAID, installmentState(true, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 11, 6)))
+    }
+
+    @Test
+    fun `unpaid installment past its date is overdue`() {
+        assertEquals(InstallmentState.OVERDUE, installmentState(false, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 11, 6)))
+    }
+
+    @Test
+    fun `unpaid installment due today is still open`() {
+        assertEquals(InstallmentState.OPEN, installmentState(false, LocalDate.of(2026, 11, 6), LocalDate.of(2026, 11, 6)))
+    }
+
     // summarizeInstallments
 
     private val today = LocalDate.of(2026, 11, 6)

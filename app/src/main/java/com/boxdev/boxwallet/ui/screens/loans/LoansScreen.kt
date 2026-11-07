@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -74,9 +75,22 @@ import com.boxdev.boxwallet.ui.components.ConnectedChoiceRow
 import com.boxdev.boxwallet.ui.components.EmptyState
 import com.boxdev.boxwallet.ui.components.FilterGroup
 import com.boxdev.boxwallet.ui.components.LoanCard
+import com.boxdev.boxwallet.ui.components.LoanRow
+import com.boxdev.boxwallet.ui.components.AmountText
+import com.boxdev.boxwallet.ui.components.AmountKind
+import com.boxdev.boxwallet.domain.model.LoanTotals
+import com.boxdev.boxwallet.domain.model.outstandingTotals
+import com.boxdev.boxwallet.ui.theme.BoxTheme
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import com.boxdev.boxwallet.ui.components.FilterToggleAction
 import com.boxdev.boxwallet.ui.components.SearchAction
-import com.boxdev.boxwallet.ui.theme.BoxTheme
 import com.boxdev.boxwallet.ui.theme.WidthClass
 
 /**
@@ -290,6 +304,7 @@ private fun LoansList(
                 }
             }
 
+            var completedOpen by rememberSaveable { mutableStateOf(false) }
             when {
                 uiState.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { LoadingIndicator() }
 
@@ -315,7 +330,12 @@ private fun LoansList(
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 112.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    items(uiState.filteredLoans, key = { it.id }) { loan ->
+                    val totals = uiState.loans.outstandingTotals()
+                    if (totals.toPay > 0 || totals.toCollect > 0) {
+                        item(key = "totals") { LoanTotalsHeader(totals, Modifier.padding(bottom = 8.dp)) }
+                    }
+                    val (completed, active) = uiState.filteredLoans.partition { it.isComplete }
+                    items(active, key = { it.id }) { loan ->
                         LoanCard(
                             loan = loan,
                             category = loan.categoryId?.let { categoryMap[it] },
@@ -324,7 +344,54 @@ private fun LoansList(
                             modifier = Modifier.animateItem(),
                         )
                     }
+                    // Paid-off loans fold away so open ones keep the room; open when nothing else is shown.
+                    if (completed.isNotEmpty()) {
+                        item(key = "completed_header") {
+                            TextButton(
+                                onClick = { completedOpen = !completedOpen },
+                                modifier = Modifier.padding(top = 8.dp).animateItem(),
+                            ) {
+                                Text(stringResource(R.string.loans_completed, completed.size))
+                                Icon(
+                                    if (completedOpen || active.isEmpty()) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                                    contentDescription = null,
+                                )
+                            }
+                        }
+                        if (completedOpen || active.isEmpty()) {
+                            itemsIndexed(completed, key = { _, l -> "done_${l.id}" }) { index, loan ->
+                                LoanRow(
+                                    loan = loan,
+                                    index = index,
+                                    count = completed.size,
+                                    category = loan.categoryId?.let { categoryMap[it] },
+                                    onClick = { onLoanClick(loan.id) },
+                                    modifier = Modifier.animateItem(),
+                                )
+                            }
+                        }
+                    }
                 }
+            }
+        }
+    }
+}
+
+/** What is still outstanding across all loans, by direction: never netted into one number. */
+@Composable
+private fun LoanTotalsHeader(totals: LoanTotals, modifier: Modifier = Modifier) {
+    Row(modifier.fillMaxWidth().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        listOf(
+            Triple(R.string.loans_summary_to_pay, totals.toPay, AmountKind.Expense),
+            Triple(R.string.loans_summary_to_collect, totals.toCollect, AmountKind.Income),
+        ).forEach { (label, amount, kind) ->
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    stringResource(label),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                AmountText(amount, kind = kind, signed = false, style = BoxTheme.moneyType.medium, autoSize = true)
             }
         }
     }

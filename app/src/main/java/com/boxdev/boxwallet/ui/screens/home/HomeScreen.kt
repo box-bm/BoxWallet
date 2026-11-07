@@ -49,7 +49,7 @@ import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.ui.components.SearchAction
 import com.boxdev.boxwallet.ui.components.BalancePanel
 import com.boxdev.boxwallet.ui.components.EmptyState
-import com.boxdev.boxwallet.ui.components.LoanCard
+import com.boxdev.boxwallet.ui.components.LoanRow
 import com.boxdev.boxwallet.ui.components.SectionHeader
 import com.boxdev.boxwallet.ui.components.TransactionItem
 import com.boxdev.boxwallet.ui.theme.BoxTheme
@@ -143,12 +143,14 @@ fun HomeScreen(
                         modifier = Modifier.padding(top = 16.dp),
                     )
                 }
-                itemsIndexed(uiState.activeLoans, key = { _, l -> "loan_${l.id}" }) { _, loan ->
-                    LoanCard(
+                // One line per loan here; the full cards live on the Loans tab.
+                itemsIndexed(uiState.activeLoans, key = { _, l -> "loan_${l.id}" }) { index, loan ->
+                    LoanRow(
                         loan = loan,
+                        index = index,
+                        count = uiState.activeLoans.size,
                         category = loan.categoryId?.let { categoryMap[it] },
                         onClick = { onNavigateToLoanDetail(loan.id) },
-                        modifier = Modifier.padding(bottom = 8.dp),
                     )
                 }
             }

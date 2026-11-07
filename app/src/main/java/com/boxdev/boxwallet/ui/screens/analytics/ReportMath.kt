@@ -28,6 +28,13 @@ fun comparisonRange(
     return ComparisonRange(prevStart, clipped, toDate = true)
 }
 
+/** Paid, still open, or past its due date and unpaid. The one rule Reports and Loan detail share. */
+fun installmentState(isCleared: Boolean, due: LocalDate, today: LocalDate): InstallmentState = when {
+    isCleared -> InstallmentState.PAID
+    due.isBefore(today) -> InstallmentState.OVERDUE
+    else -> InstallmentState.OPEN
+}
+
 /**
  * Loan installments falling due in a period: counts, money to pay and to collect kept apart, one
  * state per installment for the count bar, and unpaid installments grouped once per loan.
@@ -39,7 +46,7 @@ fun summarizeInstallments(
 ): InstallmentSummary? {
     if (installments.isEmpty()) return null
     val paid = installments.filter { it.isCleared }
-    fun overdue(tx: Transaction) = !tx.isCleared && tx.date.toLocalDate().isBefore(today)
+    fun overdue(tx: Transaction) = installmentState(tx.isCleared, tx.date.toLocalDate(), today) == InstallmentState.OVERDUE
     val pending = installments.filter { !it.isCleared }
         .groupBy { it.loanId ?: -it.id }
         .map { (_, txs) ->
@@ -63,13 +70,7 @@ fun summarizeInstallments(
         toPayOpen = installments.filter { it.type == TransactionType.EXPENSE && !it.isCleared }.sumOf { it.amount },
         toCollectDue = installments.filter { it.type == TransactionType.INCOME }.sumOf { it.amount },
         toCollectOpen = installments.filter { it.type == TransactionType.INCOME && !it.isCleared }.sumOf { it.amount },
-        states = installments.sortedBy { it.date }.map {
-            when {
-                it.isCleared -> InstallmentState.PAID
-                overdue(it) -> InstallmentState.OVERDUE
-                else -> InstallmentState.OPEN
-            }
-        },
+        states = installments.sortedBy { it.date }.map { installmentState(it.isCleared, it.date.toLocalDate(), today) },
         pending = pending,
     )
 }
