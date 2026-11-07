@@ -11,6 +11,7 @@ import com.boxdev.boxwallet.data.repository.LoanRepository
 import com.boxdev.boxwallet.data.repository.TransactionRepository
 import com.boxdev.boxwallet.util.ExcelReportGenerator
 import com.boxdev.boxwallet.domain.model.Category
+import com.boxdev.boxwallet.domain.model.Loan
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.domain.model.monthsBetween
 import com.boxdev.boxwallet.domain.model.total
@@ -180,6 +181,13 @@ class AnalyticsViewModel @Inject constructor(
     private val filterState = MutableStateFlow(FilterState())
 
     private val _exportState = MutableStateFlow(ExportState())
+
+    private data class ExportData(
+        val movements: List<Transaction>,
+        val installments: List<Transaction>,
+        val categories: Map<Long, String>,
+        val loans: Map<Long, Loan>,
+    )
 
     private data class ExportState(
         val isExporting: Boolean = false,
@@ -477,18 +485,19 @@ class AnalyticsViewModel @Inject constructor(
         viewModelScope.launch {
             _exportState.value = ExportState(isExporting = true)
             try {
-                val (transactionList, categories, loans) = coroutineScope {
+                val (movements, installments, categories, loans) = coroutineScope {
                     val tx = async { transactionRepository.getTransactionsBetweenDates(startDate, endDate).first() }
+                    val inst = async { transactionRepository.getInstallmentsBetweenDates(startDate, endDate).first() }
                     val cats = async { categoryRepository.getAllCategories().first().associate { it.id to it.name } }
                     val loanMap = async { loanRepository.getAllLoans().first().associateBy { it.id } }
-                    Triple(tx.await(), cats.await(), loanMap.await())
+                    ExportData(tx.await(), inst.await(), cats.await(), loanMap.await())
                 }
 
                 val file = withContext(Dispatchers.IO) {
                     val reportsDir = File(context.cacheDir, "reports").also { if (!it.exists()) it.mkdirs() }
                     val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
                     val f = File(reportsDir, "BoxWallet_Report_$timestamp.xlsx")
-                    ExcelReportGenerator.create(f, transactionList, categories, loans, startDate, endDate)
+                    ExcelReportGenerator.create(f, movements, installments, categories, loans, startDate, endDate)
                 }
 
                 _exportState.value = ExportState(file = file)
