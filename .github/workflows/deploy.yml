@@ -9,9 +9,9 @@ on:
   workflow_dispatch:
     inputs:
       bump:
-        description: "Version bump (auto = from Conventional Commits)"
+        description: "Version bump (auto = from Conventional Commits; keep = same versionName, new versionCode)"
         type: choice
-        options: [auto, patch, minor, major]
+        options: [auto, patch, minor, major, keep]
         default: auto
       release_status:
         description: "Play release status (draft only needed for apps never published)"
@@ -111,9 +111,15 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add version.properties fastlane/metadata/android/*/changelogs/
           git commit -m "chore(release): $TAG (build $CODE) [skip ci]"
-          git tag -a "$TAG" -m "Release $TAG (build $CODE)"
           git push origin HEAD:main
-          git push origin "$TAG"
+          if [ "${{ steps.version.outputs.bump }}" = "keep" ]; then
+            # Same versionName as an existing tag: move the tag to this build.
+            git tag -fa "$TAG" -m "Release $TAG (build $CODE)"
+            git push --force origin "$TAG"
+          else
+            git tag -a "$TAG" -m "Release $TAG (build $CODE)"
+            git push origin "$TAG"
+          fi
 
       - name: Upload to Google Play (internal)
         env:
@@ -135,6 +141,7 @@ jobs:
 
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "${ASSETS[@]}" --clobber
+            gh release edit "$TAG" --title "$TAG (build $CODE)"
           else
             gh release create "$TAG" "${ASSETS[@]}" \
               --draft \

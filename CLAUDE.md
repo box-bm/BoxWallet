@@ -53,13 +53,16 @@ The highest bump across all commits/PRs since the last `v*` tag wins.
 ### Releasing
 
 1. Merge the PRs to ship into `main` and make sure **Main CI** is green.
-2. Run Deploy: `gh workflow run deploy.yml --ref main` (inputs: `-f bump=auto|patch|minor|major`,
+2. Run Deploy: `gh workflow run deploy.yml --ref main` (inputs: `-f bump=auto|patch|minor|major|keep`,
    `-f release_status=completed|draft`, `-f upload_store_listing=true|false`). Watch with `gh run watch`.
 3. Test the internal build, promote it to production in Play Console.
 4. Run Publish Release: `gh workflow run publish-release.yml` (optionally `-f tag=vX.Y.Z`).
 
 Notes:
 - Re-running Deploy with no new commits redeploys the current tag without bumping.
+- `bump=keep` re-ships the current `versionName` as a new build (`versionCode + 1`) and moves its
+  `v*` tag to the new release commit. Use it to iterate on a version before it reaches production
+  (e.g. several 1.0.0 builds); never on a version already published to production.
 - **First release (no `v*` tag)** ships `versionName` from `version.properties` as-is (currently `1.0.0`)
   with `versionCode + 1`; Play notes fall back to `changelogs/default.txt`.
 - `versionCode` must only ever increase — Google Play rejects lower or reused codes, even after a version reset.
