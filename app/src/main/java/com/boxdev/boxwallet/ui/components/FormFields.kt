@@ -157,26 +157,47 @@ fun AmountField(
                 style = MaterialTheme.typography.labelLarge,
                 color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                Text(symbol, style = BoxTheme.moneyType.large.copy(color = color))
-                Spacer(Modifier.width(4.dp))
-                BasicTextField(
-                    value = value,
-                    onValueChange = onValueChange,
-                    singleLine = true,
-                    textStyle = style,
-                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier
-                        .width(androidx.compose.foundation.layout.IntrinsicSize.Min)
-                        .focusRequester(focus),
-                    decorationBox = { inner ->
-                        Box(contentAlignment = Alignment.Center) {
-                            if (value.isEmpty()) Text("0.00", style = style)
-                            inner()
-                        }
-                    },
-                )
+            val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+            val density = androidx.compose.ui.platform.LocalDensity.current
+            androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val symbolStyle = BoxTheme.moneyType.large.copy(color = color)
+                val gapPx = with(density) { 4.dp.roundToPx() }
+                // Room for the caret so the last digit is never clipped.
+                val caretPx = with(density) { 6.dp.roundToPx() }
+                val symbolPx = measurer.measure(symbol, symbolStyle).size.width
+                val availablePx = (constraints.maxWidth - symbolPx - gapPx - caretPx).coerceAtLeast(0)
+                val text = value.ifEmpty { "0.00" }
+                // Shrink the numerals until the whole amount fits on one line.
+                var fitted = style
+                var textPx = measurer.measure(text, fitted, softWrap = false, maxLines = 1).size.width
+                while (textPx > availablePx && fitted.fontSize.value > 20f) {
+                    fitted = fitted.copy(fontSize = fitted.fontSize * 0.92f, lineHeight = fitted.lineHeight * 0.92f)
+                    textPx = measurer.measure(text, fitted, softWrap = false, maxLines = 1).size.width
+                }
+                val fieldWidth = with(density) { (textPx + caretPx).toDp() }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    Text(symbol, style = symbolStyle)
+                    Spacer(Modifier.width(4.dp))
+                    BasicTextField(
+                        value = value,
+                        onValueChange = onValueChange,
+                        singleLine = true,
+                        textStyle = fitted,
+                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.width(fieldWidth).focusRequester(focus),
+                        decorationBox = { inner ->
+                            Box(contentAlignment = Alignment.CenterStart) {
+                                if (value.isEmpty()) Text("0.00", style = fitted, maxLines = 1, softWrap = false)
+                                inner()
+                            }
+                        },
+                    )
+                }
             }
         }
     }
