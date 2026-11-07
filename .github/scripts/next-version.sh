@@ -11,7 +11,9 @@
 # as-is (no semver bump) with versionCode + 1, and generic Play notes.
 #
 # Env:
-#   BUMP_OVERRIDE  auto | patch | minor | major   (default: auto)
+#   BUMP_OVERRIDE  auto | patch | minor | major | keep   (default: auto)
+#                  keep = same versionName, versionCode + 1 (re-ship a version
+#                  before it goes to production; Deploy moves its tag)
 #   NOTES_FILE     GitHub release notes output   (default: release-notes.md)
 #   PLAY_NOTES     Play changelog output         (default: play-changelog.txt)
 # Outputs (key=value, also appended to $GITHUB_OUTPUT when set):
@@ -73,7 +75,10 @@ done <<< "$MERGE_LOG"
 
 has_changes=true
 initial=false
-if [[ -z "$LAST_TAG" && "$BUMP_OVERRIDE" == "auto" ]]; then
+if [[ "$BUMP_OVERRIDE" == "keep" ]]; then
+  # Explicit rebuild of the current versionName: always a new build, even with no commits.
+  NEW_NAME="$CUR_NAME"; NEW_CODE=$((CUR_CODE + 1))
+elif [[ -z "$LAST_TAG" && "$BUMP_OVERRIDE" == "auto" ]]; then
   # No previous tag: first release of the current versionName.
   initial=true; bump="initial"
   NEW_NAME="$CUR_NAME"; NEW_CODE=$((CUR_CODE + 1))
@@ -97,7 +102,7 @@ fi
   section "✨ Features" "${FEATS[@]}"
   section "🐛 Fixes" "${FIXES[@]}"
   section "🔧 Other" "${OTHERS[@]}"
-  [[ -n "$LAST_TAG" ]] && echo "**Full changelog:** \`$LAST_TAG...v$NEW_NAME\`"
+  [[ -n "$LAST_TAG" && "$LAST_TAG" != "v$NEW_NAME" ]] && echo "**Full changelog:** \`$LAST_TAG...v$NEW_NAME\`"
 } > "$NOTES_FILE"
 
 # ── Play Store changelog (plain text, user-facing, <= 500 chars) ──
