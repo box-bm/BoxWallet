@@ -1,0 +1,2 @@
+• App más ligera y rápida: descarga mucho más pequeña, inicio más rápido y menor uso de memoria.
+• Los reportes de Excel se generan más rápido.
