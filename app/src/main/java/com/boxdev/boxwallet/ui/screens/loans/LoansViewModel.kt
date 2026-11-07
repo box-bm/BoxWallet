@@ -6,23 +6,27 @@ import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.LoanRepository
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Loan
+import com.boxdev.boxwallet.domain.model.LoanStatus
+import com.boxdev.boxwallet.domain.model.LoanTotals
 import com.boxdev.boxwallet.domain.model.LoanType
+import com.boxdev.boxwallet.domain.model.outstandingTotals
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import java.time.LocalDate
 import javax.inject.Inject
 
-enum class LoanStatusFilter { ALL, CURRENT, OVERDUE, PAID }
-enum class LoanTypeFilter { ALL, INCOME, EXPENSE }
 enum class LoanSortBy { DATE_DESC, DATE_ASC, AMOUNT_DESC, AMOUNT_ASC }
 
 data class LoansFilterState(
-    val statusFilter: LoanStatusFilter = LoanStatusFilter.ALL,
-    val loanTypeFilter: LoanTypeFilter = LoanTypeFilter.ALL,
+    /** Null shows every status. */
+    val statusFilter: LoanStatus? = null,
+    /** Null shows both directions. */
+    val loanTypeFilter: LoanType? = null,
     val categoryId: Long? = null,
     val sortBy: LoanSortBy = LoanSortBy.DATE_DESC
 )
@@ -30,6 +34,7 @@ data class LoansFilterState(
 data class LoansUiState(
     val loans: List<Loan> = emptyList(),
     val filteredLoans: List<Loan> = emptyList(),
+    val totals: LoanTotals = LoanTotals(0.0, 0.0),
     val categories: List<Category> = emptyList(),
     val isLoading: Boolean = true,
     val filterState: LoansFilterState = LoansFilterState()
@@ -48,10 +53,10 @@ class LoansViewModel @Inject constructor(
         categoryRepository.getAllCategories(),
         _filterState
     ) { loans, categories, filterState ->
-        val filteredLoans = applyFilters(loans, filterState)
         LoansUiState(
             loans = loans,
-            filteredLoans = filteredLoans,
+            filteredLoans = applyFilters(loans, filterState),
+            totals = loans.outstandingTotals(),
             categories = categories,
             isLoading = false,
             filterState = filterState
@@ -62,61 +67,38 @@ class LoansViewModel @Inject constructor(
         initialValue = LoansUiState()
     )
 
-    fun updateStatusFilter(status: LoanStatusFilter) {
-        _filterState.value = _filterState.value.copy(statusFilter = status)
+    fun updateStatusFilter(status: LoanStatus?) {
+        _filterState.update { it.copy(statusFilter = status) }
     }
 
-    fun updateLoanTypeFilter(type: LoanTypeFilter) {
-        _filterState.value = _filterState.value.copy(loanTypeFilter = type)
+    fun updateLoanTypeFilter(type: LoanType?) {
+        _filterState.update { it.copy(loanTypeFilter = type) }
     }
 
     fun updateCategoryFilter(categoryId: Long?) {
-        _filterState.value = _filterState.value.copy(categoryId = categoryId)
+        _filterState.update { it.copy(categoryId = categoryId) }
     }
 
     fun updateSortBy(sortBy: LoanSortBy) {
-        _filterState.value = _filterState.value.copy(sortBy = sortBy)
+        _filterState.update { it.copy(sortBy = sortBy) }
     }
 
     fun clearFilters() {
         _filterState.value = LoansFilterState()
     }
 
-    private fun applyFilters(
-        loans: List<Loan>,
-        filterState: LoansFilterState
-    ): List<Loan> {
-        var filtered = loans
+    private fun applyFilters(loans: List<Loan>, filter: LoansFilterState): List<Loan> {
         val today = LocalDate.now()
-
-        filtered = when (filterState.loanTypeFilter) {
-            LoanTypeFilter.ALL -> filtered
-            LoanTypeFilter.INCOME -> filtered.filter { it.loanType == LoanType.INCOME }
-            LoanTypeFilter.EXPENSE -> filtered.filter { it.loanType == LoanType.EXPENSE }
+        val filtered = loans.filter { loan ->
+            (filter.loanTypeFilter == null || loan.loanType == filter.loanTypeFilter) &&
+                (filter.statusFilter == null || loan.status(today) == filter.statusFilter) &&
+                (filter.categoryId == null || loan.categoryId == filter.categoryId)
         }
-
-        filtered = when (filterState.statusFilter) {
-            LoanStatusFilter.ALL -> filtered
-            LoanStatusFilter.CURRENT -> filtered.filter {
-                !it.isComplete && it.nextDueDate?.isBefore(today) != true
-            }
-            LoanStatusFilter.OVERDUE -> filtered.filter {
-                !it.isComplete && it.nextDueDate?.isBefore(today) == true
-            }
-            LoanStatusFilter.PAID -> filtered.filter { it.isComplete }
-        }
-
-        filterState.categoryId?.let { cid ->
-            filtered = filtered.filter { it.categoryId == cid }
-        }
-
-        filtered = when (filterState.sortBy) {
+        return when (filter.sortBy) {
             LoanSortBy.DATE_DESC -> filtered.sortedByDescending { it.startDate }
             LoanSortBy.DATE_ASC -> filtered.sortedBy { it.startDate }
             LoanSortBy.AMOUNT_DESC -> filtered.sortedByDescending { it.totalAmount }
             LoanSortBy.AMOUNT_ASC -> filtered.sortedBy { it.totalAmount }
         }
-
-        return filtered
     }
 }

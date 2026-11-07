@@ -1,5 +1,6 @@
 package com.boxdev.boxwallet.ui.screens.settings
 
+import com.boxdev.boxwallet.ui.components.Panel
 import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -17,7 +18,6 @@ import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.BrightnessAuto
 import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -43,7 +43,7 @@ fun ThemeCustomizationScreen(
 
     SettingsScaffold(title = stringResource(R.string.theme_title), onNavigateBack = onNavigateBack) {
         SettingsGroup(stringResource(R.string.theme_appearance)) {
-            Surface(color = MaterialTheme.colorScheme.surfaceContainer, shape = MaterialTheme.shapes.large) {
+            Panel {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text(
                         stringResource(R.string.theme_appearance_description),

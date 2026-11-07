@@ -23,6 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavController
+import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -77,26 +78,15 @@ private const val TRANSITION_DURATION = 400
 private val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
 private val EmphasizedAccelerate = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
 
-// Shared-axis-X: slight horizontal slide + fade for push/pop
-// Shared axis X for push/pop.
-private fun defaultEnterTransition() = slideInHorizontally(
+// Shared axis X for push/pop: slight horizontal slide + fade; [forward] is push, otherwise pop.
+private fun sharedAxisIn(forward: Boolean) = slideInHorizontally(
     animationSpec = tween(TRANSITION_DURATION, easing = EmphasizedDecelerate),
-    initialOffsetX = { it / 10 }
+    initialOffsetX = { if (forward) it / 10 else -it / 10 }
 ) + fadeIn(animationSpec = tween(TRANSITION_DURATION / 2, delayMillis = 50))
 
-private fun defaultExitTransition() = slideOutHorizontally(
+private fun sharedAxisOut(forward: Boolean) = slideOutHorizontally(
     animationSpec = tween(TRANSITION_DURATION / 2, easing = EmphasizedAccelerate),
-    targetOffsetX = { -it / 10 }
-) + fadeOut(animationSpec = tween(TRANSITION_DURATION / 4))
-
-private fun defaultPopEnterTransition() = slideInHorizontally(
-    animationSpec = tween(TRANSITION_DURATION, easing = EmphasizedDecelerate),
-    initialOffsetX = { -it / 10 }
-) + fadeIn(animationSpec = tween(TRANSITION_DURATION / 2, delayMillis = 50))
-
-private fun defaultPopExitTransition() = slideOutHorizontally(
-    animationSpec = tween(TRANSITION_DURATION / 2, easing = EmphasizedAccelerate),
-    targetOffsetX = { it / 10 }
+    targetOffsetX = { if (forward) -it / 10 else it / 10 }
 ) + fadeOut(animationSpec = tween(TRANSITION_DURATION / 4))
 
 // Fade-through for lateral tab switches: outgoing fades fast, incoming fades + settles from 96%.
@@ -104,17 +94,26 @@ private fun fadeThrough() = fadeIn(animationSpec = tween(TRANSITION_DURATION - 9
     scaleIn(initialScale = 0.96f, animationSpec = tween(TRANSITION_DURATION - 90, delayMillis = 90, easing = EmphasizedDecelerate))
 private fun fadeThroughExit() = fadeOut(animationSpec = tween(90))
 
+/** A bottom-nav tab destination: lateral switches use fade-through. */
+private fun NavGraphBuilder.tabComposable(route: String, content: @Composable () -> Unit) = composable(
+    route,
+    enterTransition = { fadeThrough() },
+    exitTransition = { fadeThroughExit() },
+    popEnterTransition = { fadeThrough() },
+    popExitTransition = { fadeThroughExit() },
+) { content() }
+
 @Composable
 fun NavGraph(
     navController: NavHostController,
     modifier: Modifier,
     analyticsHelper: AnalyticsHelper,
-    onAddTransaction: () -> Unit = {},
     onEditTransaction: (Long) -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val onNavigateToSearch: () -> Unit = { navController.navigate(NavRoutes.Search.route) { launchSingleTop = true } }
+    val openLoan: (Long) -> Unit = { loanId -> navController.navigate(NavRoutes.LoanDetail.createRoute(loanId)) }
     LaunchedEffect(navBackStackEntry) {
         navBackStackEntry?.destination?.route?.let { route ->
             analyticsHelper.logScreenView(route.substringBefore("/"))
@@ -125,19 +124,12 @@ fun NavGraph(
         navController = navController,
         startDestination = NavRoutes.Home.route,
         modifier = modifier,
-        enterTransition = { defaultEnterTransition() },
-        exitTransition = { defaultExitTransition() },
-        popEnterTransition = { defaultPopEnterTransition() },
-        popExitTransition = { defaultPopExitTransition() },
+        enterTransition = { sharedAxisIn(forward = true) },
+        exitTransition = { sharedAxisOut(forward = true) },
+        popEnterTransition = { sharedAxisIn(forward = false) },
+        popExitTransition = { sharedAxisOut(forward = false) },
     ) {
-        // Tab destinations use fade-through
-        composable(
-            NavRoutes.Home.route,
-            enterTransition = { fadeThrough() },
-            exitTransition = { fadeThroughExit() },
-            popEnterTransition = { fadeThrough() },
-            popExitTransition = { fadeThroughExit() },
-        ) {
+        tabComposable(NavRoutes.Home.route) {
             HomeScreen(
                 onSeeAllTransactions = {
                     navController.navigateToTab(NavRoutes.TransactionsList.route)
@@ -145,26 +137,14 @@ fun NavGraph(
                 onSeeAllLoans = {
                     navController.navigateToTab(NavRoutes.Loans.route)
                 },
-                onNavigateToLoanDetail = { loanId ->
-                    navController.navigate(
-                        NavRoutes.LoanDetail.createRoute(
-                            loanId
-                        )
-                    )
-                },
+                onNavigateToLoanDetail = openLoan,
                 onEditTransaction = onEditTransaction,
                 onNavigateToSettings = onNavigateToSettings,
                 onNavigateToSearch = onNavigateToSearch,
             )
         }
 
-        composable(
-            NavRoutes.TransactionsList.route,
-            enterTransition = { fadeThrough() },
-            exitTransition = { fadeThroughExit() },
-            popEnterTransition = { fadeThrough() },
-            popExitTransition = { fadeThroughExit() },
-        ) {
+        tabComposable(NavRoutes.TransactionsList.route) {
             TransactionsListScreen(
                 onEditTransaction = onEditTransaction,
                 onNavigateToSettings = onNavigateToSettings,
@@ -172,23 +152,11 @@ fun NavGraph(
             )
         }
 
-        composable(
-            NavRoutes.Loans.route,
-            enterTransition = { fadeThrough() },
-            exitTransition = { fadeThroughExit() },
-            popEnterTransition = { fadeThrough() },
-            popExitTransition = { fadeThroughExit() },
-        ) {
+        tabComposable(NavRoutes.Loans.route) {
             LoansScreen(
                 onNavigateToSettings = onNavigateToSettings,
                 onNavigateToSearch = onNavigateToSearch,
-                onNavigateToLoanDetail = { loanId ->
-                    navController.navigate(
-                        NavRoutes.LoanDetail.createRoute(
-                            loanId
-                        )
-                    )
-                }
+                onNavigateToLoanDetail = openLoan,
             )
         }
 
@@ -199,18 +167,12 @@ fun NavGraph(
             LoanDetailScreen(onNavigateBack = { navController.popBackStack() })
         }
 
-        composable(
-            NavRoutes.Analytics.route,
-            enterTransition = { fadeThrough() },
-            exitTransition = { fadeThroughExit() },
-            popEnterTransition = { fadeThrough() },
-            popExitTransition = { fadeThroughExit() },
-        ) {
+        tabComposable(NavRoutes.Analytics.route) {
             AnalyticsScreen(
                 onNavigateToSettings = onNavigateToSettings,
                 onNavigateToSearch = onNavigateToSearch,
                 onEditTransaction = onEditTransaction,
-                onOpenLoan = { loanId -> navController.navigate(NavRoutes.LoanDetail.createRoute(loanId)) },
+                onOpenLoan = openLoan,
                 onNavigateToLoans = { navController.navigateToTab(NavRoutes.Loans.route) },
                 onNavigateToMovements = { navController.navigateToTab(NavRoutes.TransactionsList.route) },
             )
@@ -220,7 +182,7 @@ fun NavGraph(
             SearchScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onOpenTransaction = onEditTransaction,
-                onOpenLoan = { loanId -> navController.navigate(NavRoutes.LoanDetail.createRoute(loanId)) },
+                onOpenLoan = openLoan,
             )
         }
 

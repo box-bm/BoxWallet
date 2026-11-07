@@ -23,7 +23,6 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -42,7 +41,6 @@ import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.domain.model.LoanType
 import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.ui.screens.loans.LoanFormViewModel
-import com.boxdev.boxwallet.ui.theme.BoxTheme
 import com.boxdev.boxwallet.util.rememberCurrencyFormatter
 
 @Composable
@@ -57,7 +55,6 @@ fun LoanSheet(
     var showDeleteDialog by remember { mutableStateOf(false) }
     val pickers = rememberDateTimePickerState()
     val formatter = rememberCurrencyFormatter()
-    val money = BoxTheme.money
 
     LaunchedEffect(loanId) { viewModel.loadLoan(loanId) }
     LaunchedEffect(formState.isSaved) { if (formState.isSaved) onDismiss() }
@@ -84,21 +81,14 @@ fun LoanSheet(
                     onSelect = viewModel::updateLoanType,
                     label = { stringResource(it.displayNameRes) },
                     icon = { trendIcon(it == LoanType.INCOME) },
-                    colors = {
-                        val income = it == LoanType.INCOME
-                        ToggleButtonDefaults.toggleButtonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            checkedContainerColor = if (income) money.incomeContainer else money.expenseContainer,
-                            checkedContentColor = if (income) money.onIncomeContainer else money.onExpenseContainer,
-                        )
-                    },
+                    colors = { directionToggleColors(it == LoanType.INCOME) },
                 )
 
                 AmountField(
                     value = formState.totalAmount,
                     onValueChange = viewModel::updateTotalAmount,
                     symbol = formatter.symbol,
-                    kind = if (formState.loanType == LoanType.INCOME) AmountKind.Income else AmountKind.Expense,
+                    kind = amountKind(formState.loanType == LoanType.INCOME),
                     label = stringResource(R.string.loan_total_amount_label),
                     isError = formState.error != null && formState.totalAmount.isEmpty(),
                     autoFocus = !formState.isEditing,

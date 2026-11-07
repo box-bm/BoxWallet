@@ -2,7 +2,18 @@
 
 package com.boxdev.boxwallet.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -388,9 +399,73 @@ fun FilterGroup(title: String, content: @Composable () -> Unit) {
     }
 }
 
+/** Filter chip that shows a check mark while selected. */
+@Composable
+fun CheckFilterChip(selected: Boolean, onClick: () -> Unit, label: String) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(label) },
+        leadingIcon = if (selected) {
+            { Icon(Icons.Filled.Check, null, Modifier.width(FilterChipDefaults.IconSize)) }
+        } else null,
+    )
+}
+
+/** "All" plus one chip per category; a null [selectedId] means all categories. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun CategoryFilterChips(categories: List<Category>, selectedId: Long?, onSelect: (Long?) -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        CheckFilterChip(selectedId == null, { onSelect(null) }, stringResource(R.string.transactions_filter_all))
+        categories.forEach { cat ->
+            CheckFilterChip(selectedId == cat.id, { onSelect(cat.id) }, cat.name)
+        }
+    }
+}
+
+/** Filter panel that folds open under the top bar on compact windows. */
+@Composable
+fun CollapsibleFilterPanel(visible: Boolean, content: @Composable () -> Unit) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) + fadeIn(),
+        exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeOut(),
+    ) {
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            shape = MaterialTheme.shapes.large,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            content = content,
+        )
+    }
+}
+
 /** Fallback icons for movements without a category. */
 fun trendIcon(isIncome: Boolean): ImageVector =
     if (isIncome) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown
+
+/** Money tone for a direction; pass `net >= 0` for a signed net. */
+fun amountKind(isIncome: Boolean): AmountKind = if (isIncome) AmountKind.Income else AmountKind.Expense
+
+/** Toggle colors for an income/expense direction choice: checked takes the direction's tone. */
+@Composable
+fun directionToggleColors(isIncome: Boolean): androidx.compose.material3.ToggleButtonColors {
+    val (container, content) = directionColors(isIncome)
+    return ToggleButtonDefaults.toggleButtonColors(
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        checkedContainerColor = container,
+        checkedContentColor = content,
+    )
+}
+
+/** Container and content colors for an income or expense direction. */
+@Composable
+fun directionColors(isIncome: Boolean): Pair<Color, Color> {
+    val money = BoxTheme.money
+    return if (isIncome) money.incomeContainer to money.onIncomeContainer
+    else money.expenseContainer to money.onExpenseContainer
+}
 
 /** Tonal panel used for grouped content blocks. */
 @Composable

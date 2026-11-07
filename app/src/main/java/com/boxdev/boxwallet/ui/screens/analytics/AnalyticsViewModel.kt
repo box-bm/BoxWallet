@@ -25,7 +25,11 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -183,6 +187,13 @@ class AnalyticsViewModel @Inject constructor(
         val error: String? = null
     )
 
+    // Neither depends on the period on screen, so they stay subscribed across period changes.
+    private val categoriesFlow = categoryRepository.getAllCategories()
+        .shareIn(viewModelScope, SharingStarted.WhileSubscribed(5000), replay = 1)
+    private val loanNamesFlow = loanRepository.getAllLoans()
+        .map { loans -> loans.associate { it.id to it.name } }
+        .shareIn(viewModelScope, SharingStarted.WhileSubscribed(5000), replay = 1)
+
     val uiState: StateFlow<AnalyticsUiState> = filterState
         .flatMapLatest { filter ->
             val (startDate, endDate) = calculateDateRange(filter.frequency, filter.periodOffset)
@@ -197,20 +208,21 @@ class AnalyticsViewModel @Inject constructor(
 
             val installmentsFlow = combine(
                 transactionRepository.getInstallmentsBetweenDates(startDate, endDate),
-                loanRepository.getAllLoans(),
-            ) { installments, loans -> summarizeInstallments(installments, loans.associate { it.id to it.name }, LocalDate.now()) }
+                loanNamesFlow,
+            ) { installments, loanNames -> summarizeInstallments(installments, loanNames, LocalDate.now()) }
 
             combine(
                 transactionRepository.getTransactionsBetweenDates(startDate, endDate),
                 transactionRepository.getTransactionsBetweenDates(prevStart, prevEnd),
                 transactionRepository.getTransactionsBetweenDates(trendStart, trendEnd),
-                categoryRepository.getAllCategories(),
+                categoriesFlow,
                 installmentsFlow,
             ) { periodTx, previousTx, trendTx, categories, installments ->
                 val categoryMap = categories.associateBy { it.id }
-                val categoryExpenses = calculateCategoryExpenses(periodTx, categoryMap)
                 val today = LocalDate.now()
                 val expenses = periodTx.filter { it.type == TransactionType.EXPENSE }
+                val periodExpense = expenses.sumOf { it.amount }
+                val categoryExpenses = calculateCategoryExpenses(expenses, periodExpense, categoryMap)
                 val dailySpending = if (filter.frequency == AnalyticsFrequency.WEEKLY || filter.frequency == AnalyticsFrequency.MONTHLY) {
                     val byDay = expenses.groupBy { it.date.toLocalDate() }
                     generateSequence(startDate) { it.plusDays(1) }
@@ -219,7 +231,6 @@ class AnalyticsViewModel @Inject constructor(
                         .toList()
                 } else emptyList()
                 val elapsedDays = (ChronoUnit.DAYS.between(startDate, minOf(endDate, today)) + 1).coerceAtLeast(1)
-                val periodExpense = periodTx.total(TransactionType.EXPENSE)
                 val monthlyTrendData = trendTx.monthlyTotals(
                     monthsBetween(YearMonth.from(trendStart), YearMonth.from(trendEnd))
                 )
@@ -270,7 +281,7 @@ class AnalyticsViewModel @Inject constructor(
     }
 
     fun updateFrequency(frequency: AnalyticsFrequency) {
-        filterState.value = FilterState(frequency = frequency, periodOffset = 0)
+        filterState.value = FilterState(frequency = frequency)
         analyticsHelper.logEvent("analytics_frequency_changed", mapOf("frequency" to frequency.name))
     }
 
@@ -330,12 +341,12 @@ class AnalyticsViewModel @Inject constructor(
         }
     }
 
+    /** [expenseTransactions] are the period's expenses, summing to [totalExpenses]. */
     private fun calculateCategoryExpenses(
-        transactions: List<Transaction>,
+        expenseTransactions: List<Transaction>,
+        totalExpenses: Double,
         categoriesMap: Map<Long, Category>
     ): List<CategoryExpenseData> {
-        val expenseTransactions = transactions.filter { it.type == TransactionType.EXPENSE }
-        val totalExpenses = expenseTransactions.sumOf { it.amount }
         if (totalExpenses == 0.0) return emptyList()
 
         val categoryTotals = expenseTransactions
@@ -388,18 +399,15 @@ class AnalyticsViewModel @Inject constructor(
             kotlin.math.abs(netBalance / avgDailySpending)
         } else Double.POSITIVE_INFINITY
 
+        // Growth compares the second half of the window with the first, in percent.
         val midPoint = monthlyData.size / 2
-        val firstHalfIncome = monthlyData.take(midPoint).sumOf { it.income }
-        val secondHalfIncome = monthlyData.drop(midPoint).sumOf { it.income }
-        val incomeGrowth = if (firstHalfIncome > 0 && secondHalfIncome > 0) {
-            ((secondHalfIncome - firstHalfIncome) / firstHalfIncome) * 100
-        } else null
-
-        val firstHalfExpense = monthlyData.take(midPoint).sumOf { it.expense }
-        val secondHalfExpense = monthlyData.drop(midPoint).sumOf { it.expense }
-        val expenseGrowth = if (firstHalfExpense > 0 && secondHalfExpense > 0) {
-            ((secondHalfExpense - firstHalfExpense) / firstHalfExpense) * 100
-        } else null
+        fun halfGrowth(selector: (MonthlyData) -> Double): Double? {
+            val first = monthlyData.take(midPoint).sumOf(selector)
+            val second = monthlyData.drop(midPoint).sumOf(selector)
+            return if (first > 0 && second > 0) ((second - first) / first) * 100 else null
+        }
+        val incomeGrowth = halfGrowth { it.income }
+        val expenseGrowth = halfGrowth { it.expense }
 
         return FinancialMetrics(
             savingsRate = savingsRate,
@@ -469,9 +477,12 @@ class AnalyticsViewModel @Inject constructor(
         viewModelScope.launch {
             _exportState.value = ExportState(isExporting = true)
             try {
-                val transactionList = transactionRepository.getTransactionsBetweenDates(startDate, endDate).first()
-                val categories = categoryRepository.getAllCategories().first().associate { it.id to it.name }
-                val loans = loanRepository.getAllLoans().first().associateBy { it.id }
+                val (transactionList, categories, loans) = coroutineScope {
+                    val tx = async { transactionRepository.getTransactionsBetweenDates(startDate, endDate).first() }
+                    val cats = async { categoryRepository.getAllCategories().first().associate { it.id to it.name } }
+                    val loanMap = async { loanRepository.getAllLoans().first().associateBy { it.id } }
+                    Triple(tx.await(), cats.await(), loanMap.await())
+                }
 
                 val file = withContext(Dispatchers.IO) {
                     val reportsDir = File(context.cacheDir, "reports").also { if (!it.exists()) it.mkdirs() }

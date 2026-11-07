@@ -2,8 +2,10 @@ package com.boxdev.boxwallet.domain.model
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.LocalDate
 import java.time.LocalDateTime
 
 class LoanTest {
@@ -119,5 +121,37 @@ class LoanTest {
     fun `outstanding totals ignore paid-off loans`() {
         val done = loan(paidInstallments = 12)
         assertEquals(LoanTotals(0.0, 0.0), listOf(done).outstandingTotals())
+    }
+
+    // settledAmount / nextDueDate / status
+
+    @Test
+    fun `settledAmount is the paid installments`() {
+        assertEquals(300.0, loan(paidInstallments = 3).settledAmount, 0.001)
+    }
+
+    @Test
+    fun `nextDueDate is the first unpaid installment on the schedule`() {
+        assertEquals(LocalDate.of(2026, 1, 1), loan().nextDueDate)
+        assertEquals(LocalDate.of(2026, 4, 1), loan(paidInstallments = 3).nextDueDate)
+    }
+
+    @Test
+    fun `nextDueDate is null once complete`() {
+        assertNull(loan(paidInstallments = 12).nextDueDate)
+    }
+
+    @Test
+    fun `installmentDate follows frequency and interval`() {
+        val biweekly = loan().copy(frequency = RecurrenceFrequency.WEEKLY, frequencyInterval = 2)
+        assertEquals(LocalDate.of(2026, 1, 15), biweekly.installmentDate(2))
+    }
+
+    @Test
+    fun `status is overdue only when the next installment is before today`() {
+        val l = loan(paidInstallments = 3) // next due 2026-04-01
+        assertEquals(LoanStatus.ACTIVE, l.status(LocalDate.of(2026, 4, 1)))
+        assertEquals(LoanStatus.OVERDUE, l.status(LocalDate.of(2026, 4, 2)))
+        assertEquals(LoanStatus.PAID, loan(paidInstallments = 12).status(LocalDate.of(2030, 1, 1)))
     }
 }

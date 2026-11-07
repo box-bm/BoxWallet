@@ -49,30 +49,39 @@ class SearchViewModel @Inject constructor(
     private val query = MutableStateFlow("")
     private val scope = MutableStateFlow(SearchScope.ALL)
 
-    val uiState: StateFlow<SearchUiState> = combine(
+    /** Records paired with their folded search text, rebuilt only when the data changes, not per keystroke. */
+    private class Index(
+        val transactions: List<Pair<Transaction, String>>,
+        val loans: List<Pair<Loan, String>>,
+        val categories: List<Category>,
+    )
+
+    private val index = combine(
         transactionRepository.getAllTransactions(),
         loanRepository.getAllLoans(),
         categoryRepository.getAllCategories(),
-        query,
-        scope,
-    ) { transactions, loans, categories, q, s ->
-        val terms = q.trim().fold().split(Regex("\\s+")).filter { it.isNotEmpty() }
-        if (terms.isEmpty()) {
-            return@combine SearchUiState(query = q, scope = s, categories = categories, isLoading = false)
-        }
+    ) { transactions, loans, categories ->
         val categoryNames = categories.associate { it.id to it.name }
-        val matchedTransactions = if (s == SearchScope.LOANS) emptyList() else transactions
-            .filter { t -> terms.matchAll(t.description, categoryNames[t.categoryId], t.amount) }
-            .sortedByDescending { it.date }
-        val matchedLoans = if (s == SearchScope.MOVEMENTS) emptyList() else loans
-            .filter { l -> terms.matchAll(l.name + " " + l.description, categoryNames[l.categoryId], l.totalAmount) }
-            .sortedByDescending { it.startDate }
+        Index(
+            transactions = transactions.map { t -> t to haystack(t.description, categoryNames[t.categoryId], t.amount) },
+            loans = loans.map { l -> l to haystack(l.name + " " + l.description, categoryNames[l.categoryId], l.totalAmount) },
+            categories = categories,
+        )
+    }.flowOn(Dispatchers.Default)
+
+    // The DAOs already return movements newest first and loans by start date, newest first.
+    val uiState: StateFlow<SearchUiState> = combine(index, query, scope) { idx, q, s ->
+        val terms = q.trim().fold().split(WHITESPACE).filter { it.isNotEmpty() }
+        if (terms.isEmpty()) {
+            return@combine SearchUiState(query = q, scope = s, categories = idx.categories, isLoading = false)
+        }
+        fun <T> List<Pair<T, String>>.matching() = filter { (_, text) -> terms.all { text.contains(it) } }.map { it.first }
         SearchUiState(
             query = q,
             scope = s,
-            transactions = matchedTransactions,
-            loans = matchedLoans,
-            categories = categories,
+            transactions = if (s == SearchScope.LOANS) emptyList() else idx.transactions.matching(),
+            loans = if (s == SearchScope.MOVEMENTS) emptyList() else idx.loans.matching(),
+            categories = idx.categories,
             isLoading = false,
         )
     }
@@ -87,8 +96,8 @@ class SearchViewModel @Inject constructor(
         scope.value = value
     }
 
-    private fun List<String>.matchAll(text: String, categoryName: String?, amount: Double): Boolean {
-        val haystack = buildString {
+    private fun haystack(text: String, categoryName: String?, amount: Double): String =
+        buildString {
             append(text.fold())
             append(' ')
             categoryName?.let { append(it.fold()) }
@@ -98,8 +107,6 @@ class SearchViewModel @Inject constructor(
             append(' ')
             append(String.format(Locale.US, "%,.2f", amount))
         }
-        return all { haystack.contains(it) }
-    }
 
     /** Lowercase without accents, so "cafe" finds "Café" and "credito" finds "Crédito". */
     private fun String.fold(): String =
@@ -107,5 +114,6 @@ class SearchViewModel @Inject constructor(
 
     private companion object {
         val DIACRITICS = Regex("\\p{Mn}+")
+        val WHITESPACE = Regex("\\s+")
     }
 }

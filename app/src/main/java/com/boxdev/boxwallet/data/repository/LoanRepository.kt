@@ -1,7 +1,6 @@
 package com.boxdev.boxwallet.data.repository
 
 import com.boxdev.boxwallet.data.local.dao.LoanDao
-import com.boxdev.boxwallet.data.local.dao.LoanWithPaidCount
 import com.boxdev.boxwallet.data.local.dao.TransactionDao
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 import com.boxdev.boxwallet.domain.model.Loan
@@ -25,29 +24,17 @@ class LoanRepository @Inject constructor(
 ) {
 
     fun getAllLoans(): Flow<List<Loan>> =
-        loanDao.getAllLoansWithPaidCount().map { rows -> rows.map { it.toDomain() } }
+        loanDao.getAllLoansWithPaidCount().map { rows -> rows.map { it.loan.toDomain(it.paidCount) } }
 
     fun observeLoan(id: Long): Flow<Loan?> =
-        loanDao.getLoanWithPaidCount(id).map { it?.toDomain() }
+        loanDao.getLoanWithPaidCount(id).map { it?.loan?.toDomain(it.paidCount) }
 
     suspend fun getLoanById(id: Long): Loan? = observeLoan(id).first()
-
-    private fun LoanWithPaidCount.toDomain(): Loan {
-        val nextDueDate = if (paidCount < loan.totalInstallments) {
-            val startDate = LocalDateTime.ofInstant(Instant.ofEpochMilli(loan.startDate), ZoneOffset.UTC).toLocalDate()
-            RecurrenceFrequency.valueOf(loan.frequency).advance(startDate, loan.frequencyInterval, paidCount.toLong())
-        } else null
-        return loan.toDomain(paidInstallments = paidCount, nextDueDate = nextDueDate)
-    }
 
     suspend fun insertLoanWithInstallments(loan: Loan): Long {
         val loanId = loanDao.insert(loan.toEntity())
         val installments = (1..loan.totalInstallments).map { number ->
-            val installmentDate = loan.frequency.advance(
-                loan.startDate.toLocalDate(),
-                loan.frequencyInterval,
-                (number - 1).toLong()
-            )
+            val installmentDate = loan.installmentDate(number)
             TransactionEntity(
                 amount = loan.installmentAmount,
                 description = "${loan.name} - Installment $number/${loan.totalInstallments}",

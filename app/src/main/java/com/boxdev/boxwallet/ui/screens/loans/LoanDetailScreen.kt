@@ -70,17 +70,16 @@ import com.boxdev.boxwallet.ui.components.CategoryBadge
 import com.boxdev.boxwallet.ui.components.EmptyState
 import com.boxdev.boxwallet.ui.components.InfoChip
 import com.boxdev.boxwallet.ui.components.LoanSheet
-import com.boxdev.boxwallet.ui.components.LoanStatus
+import com.boxdev.boxwallet.domain.model.LoanStatus
 import com.boxdev.boxwallet.ui.components.LoanStatusChip
 import com.boxdev.boxwallet.ui.components.SectionHeader
 import com.boxdev.boxwallet.ui.components.accent
-import com.boxdev.boxwallet.ui.components.loanStatus
+import com.boxdev.boxwallet.ui.components.directionColors
+import com.boxdev.boxwallet.util.DateFormats
 import com.boxdev.boxwallet.ui.theme.BoxTheme
 import java.time.LocalDate
 import com.boxdev.boxwallet.ui.screens.analytics.InstallmentState
 import com.boxdev.boxwallet.ui.screens.analytics.installmentState
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 import java.time.temporal.ChronoUnit
 
 /**
@@ -139,7 +138,9 @@ fun LoanDetailScreen(
             else -> {
                 val loan = uiState.loan!!
                 val today = remember { LocalDate.now() }
-                val states = uiState.installments.associate { it.id to installmentState(it.isCleared, it.date.toLocalDate(), today) }
+                val states = remember(uiState.installments, today) {
+                    uiState.installments.associate { it.id to installmentState(it.isCleared, it.date.toLocalDate(), today) }
+                }
                 // "Next payment" marks the first installment still ahead; overdue ones carry their own state.
                 val nextUnpaidId = uiState.installments.firstOrNull { states[it.id] == InstallmentState.OPEN }?.id
                 LazyColumn(
@@ -181,8 +182,9 @@ private fun LoanHero(
     categoryName: String?,
     category: com.boxdev.boxwallet.domain.model.Category?,
 ) {
-    val status = loan.loanStatus()
-    val dateFormatter = remember { DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM) }
+    val today = LocalDate.now()
+    val status = loan.status(today)
+    val dateFormatter = DateFormats.mediumDate
     val progress by animateFloatAsState(
         targetValue = loan.progressFraction,
         animationSpec = MaterialTheme.motionScheme.slowSpatialSpec(),
@@ -218,14 +220,13 @@ private fun LoanHero(
                         amplitude = { p -> if (status == LoanStatus.PAID) 0f else WavyProgressIndicatorDefaults.indicatorAmplitude(p) * 0.6f },
                         wavelength = 36.dp,
                     )
-                    val isIncome = loan.loanType == LoanType.INCOME
-                    val money = BoxTheme.money
+                    val (badgeContainer, badgeContent) = directionColors(loan.loanType == LoanType.INCOME)
                     CategoryBadge(
                         category = category,
                         size = 64.dp,
-                        fallbackIcon = trendIcon(isIncome),
-                        fallbackContainer = if (isIncome) money.incomeContainer else money.expenseContainer,
-                        fallbackContent = if (isIncome) money.onIncomeContainer else money.onExpenseContainer,
+                        fallbackIcon = trendIcon(loan.loanType == LoanType.INCOME),
+                        fallbackContainer = badgeContainer,
+                        fallbackContent = badgeContent,
                         modifier = Modifier.clearAndSetSemantics { },
                     )
                 }
@@ -254,7 +255,7 @@ private fun LoanHero(
                     modifier = Modifier.weight(1f),
                 ) {
                     AmountText(
-                        amount = loan.paidInstallments * loan.installmentAmount,
+                        amount = loan.settledAmount,
                         kind = AmountKind.Income,
                         signed = false,
                         style = BoxTheme.moneyType.medium,
@@ -278,7 +279,7 @@ private fun LoanHero(
                     if (due == null || loan.isComplete) {
                         Text("—", style = MaterialTheme.typography.titleMedium)
                     } else {
-                        val days = ChronoUnit.DAYS.between(LocalDate.now(), due).toInt()
+                        val days = ChronoUnit.DAYS.between(today, due).toInt()
                         Text(due.format(dateFormatter), style = MaterialTheme.typography.titleMedium)
                         Text(
                             text = when {
@@ -315,7 +316,7 @@ private fun InstallmentRow(
     isOverdue: Boolean,
     onToggleCleared: () -> Unit,
 ) {
-    val dateFormatter = remember { DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM) }
+    val dateFormatter = DateFormats.mediumDate
     val money = BoxTheme.money
     SegmentedListItem(
         checked = installment.isCleared,

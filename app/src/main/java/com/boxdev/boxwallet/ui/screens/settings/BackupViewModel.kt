@@ -12,6 +12,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -55,31 +56,32 @@ class BackupViewModel @Inject constructor(
 
     fun getSignInIntent(): Intent = googleAuthManager.getSignInIntent()
 
-    fun handleSignInResult(data: Intent?) {
+    /**
+     * Runs a user-triggered operation with the loading flag up. A non-null result becomes the
+     * success message; a failure shows "[errorPrefix]: reason".
+     */
+    private fun runOp(errorPrefix: String, block: suspend () -> String?) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, message = null)
+            _uiState.update { it.copy(isLoading = true, message = null) }
             try {
-                val account = googleAuthManager.handleSignInResult(data)
-                val email = account.email ?: throw IllegalStateException("No email in account")
-
-                googleDriveManager.initialize(email)
-
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    isSignedIn = true,
-                    accountEmail = email,
-                    accountDisplayName = account.displayName
-                )
-
-                loadBackups()
+                val success = block()
+                _uiState.update {
+                    if (success == null) it.copy(isLoading = false)
+                    else it.copy(isLoading = false, message = success, isSuccess = true)
+                }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    message = "Sign-in failed: ${e.message}",
-                    isSuccess = false
-                )
+                _uiState.update { it.copy(isLoading = false, message = "$errorPrefix: ${e.message}", isSuccess = false) }
             }
         }
+    }
+
+    fun handleSignInResult(data: Intent?) = runOp("Sign-in failed") {
+        val account = googleAuthManager.handleSignInResult(data)
+        val email = account.email ?: throw IllegalStateException("No email in account")
+        googleDriveManager.initialize(email)
+        _uiState.update { it.copy(isSignedIn = true, accountEmail = email, accountDisplayName = account.displayName) }
+        loadBackups()
+        null
     }
 
     fun signOut() {
@@ -89,78 +91,28 @@ class BackupViewModel @Inject constructor(
                 googleDriveManager.clear()
                 _uiState.value = BackupUiState()
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    message = "Sign-out failed: ${e.message}",
-                    isSuccess = false
-                )
+                _uiState.update { it.copy(message = "Sign-out failed: ${e.message}", isSuccess = false) }
             }
         }
     }
 
-    fun createBackup() {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, message = null)
-            try {
-                backupRepository.createBackup()
-                loadBackups()
-
-                analyticsHelper.logEvent("backup_created")
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    message = "Backup created successfully",
-                    isSuccess = true
-                )
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    message = "Error creating backup: ${e.message}",
-                    isSuccess = false
-                )
-            }
-        }
+    fun createBackup() = runOp("Error creating backup") {
+        backupRepository.createBackup()
+        loadBackups()
+        analyticsHelper.logEvent("backup_created")
+        "Backup created successfully"
     }
 
-    fun restoreBackup(fileId: String) {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, message = null)
-            try {
-                val backupData = backupRepository.restoreBackup(fileId)
-
-                analyticsHelper.logEvent("backup_restored")
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    message = "Backup restored (${backupData.transactions.size} movements, ${backupData.categories.size} categories, ${backupData.loans.size} loans)",
-                    isSuccess = true
-                )
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    message = "Error restoring backup: ${e.message}",
-                    isSuccess = false
-                )
-            }
-        }
+    fun restoreBackup(fileId: String) = runOp("Error restoring backup") {
+        val backupData = backupRepository.restoreBackup(fileId)
+        analyticsHelper.logEvent("backup_restored")
+        "Backup restored (${backupData.transactions.size} movements, ${backupData.categories.size} categories, ${backupData.loans.size} loans)"
     }
 
-    fun deleteBackup(fileId: String) {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, message = null)
-            try {
-                googleDriveManager.deleteBackup(fileId)
-                loadBackups()
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    message = "Backup deleted",
-                    isSuccess = true
-                )
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    message = "Error deleting backup: ${e.message}",
-                    isSuccess = false
-                )
-            }
-        }
+    fun deleteBackup(fileId: String) = runOp("Error deleting backup") {
+        googleDriveManager.deleteBackup(fileId)
+        loadBackups()
+        "Backup deleted"
     }
 
     private fun loadBackups() {

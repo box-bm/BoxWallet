@@ -2,6 +2,10 @@
 
 package com.boxdev.boxwallet.ui.screens.analytics
 
+import com.boxdev.boxwallet.ui.components.LocalDateDialog
+import com.boxdev.boxwallet.ui.components.selectableDates
+import com.boxdev.boxwallet.ui.components.amountKind
+import com.boxdev.boxwallet.ui.components.Panel
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material.icons.outlined.CalendarMonth
@@ -51,7 +55,6 @@ import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Share
-import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.semantics.heading
@@ -86,16 +89,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonGroup
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -112,16 +109,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SelectableDates
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -142,10 +133,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.util.rememberCurrencyFormatter
 import java.time.DayOfWeek
-import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
-import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.time.temporal.ChronoUnit
@@ -258,7 +247,7 @@ fun AnalyticsScreen(
         val summary: @Composable () -> Unit = { PeriodSummary(uiState) }
         val emptyPeriod: @Composable () -> Unit = {
             if (periodEmpty) {
-                Surface(color = MaterialTheme.colorScheme.surfaceContainer, shape = MaterialTheme.shapes.large) {
+                Panel {
                     EmptyState(
                         icon = Icons.Outlined.InsertChart,
                         title = stringResource(R.string.analytics_empty_period_title),
@@ -385,23 +374,13 @@ fun AnalyticsScreen(
     }
 
     if (showPicker) {
+        val dismiss = { showPicker = false }
+        val confirm: (Int) -> Unit = { offset -> viewModel.setPeriodOffset(offset); showPicker = false }
         when (uiState.frequency) {
-            AnalyticsFrequency.DAILY, AnalyticsFrequency.WEEKLY -> DailyWeeklyDatePicker(
-                frequency = uiState.frequency,
-                periodOffset = uiState.periodOffset,
-                onDismiss = { showPicker = false },
-                onConfirm = { offset -> viewModel.setPeriodOffset(offset); showPicker = false }
-            )
-            AnalyticsFrequency.MONTHLY -> MonthYearPickerDialog(
-                periodOffset = uiState.periodOffset,
-                onDismiss = { showPicker = false },
-                onConfirm = { offset -> viewModel.setPeriodOffset(offset); showPicker = false }
-            )
-            AnalyticsFrequency.YEARLY -> YearPickerDialog(
-                periodOffset = uiState.periodOffset,
-                onDismiss = { showPicker = false },
-                onConfirm = { offset -> viewModel.setPeriodOffset(offset); showPicker = false }
-            )
+            AnalyticsFrequency.DAILY, AnalyticsFrequency.WEEKLY ->
+                DailyWeeklyDatePicker(uiState.frequency, uiState.periodOffset, onDismiss = dismiss, onConfirm = confirm)
+            AnalyticsFrequency.MONTHLY -> MonthYearPickerDialog(uiState.periodOffset, onDismiss = dismiss, onConfirm = confirm)
+            AnalyticsFrequency.YEARLY -> YearPickerDialog(uiState.periodOffset, onDismiss = dismiss, onConfirm = confirm)
         }
     }
 
@@ -458,7 +437,7 @@ private fun PeriodSummary(state: AnalyticsUiState) {
             )
             AmountText(
                 amount = kotlin.math.abs(net),
-                kind = if (net >= 0) AmountKind.Income else AmountKind.Expense,
+                kind = amountKind(net >= 0),
                 style = BoxTheme.moneyType.hero.copy(fontSize = 44.sp, lineHeight = 48.sp),
                 color = onContainer,
                 autoSize = true,
@@ -593,7 +572,7 @@ private fun BalancedColumns(sections: List<@Composable () -> Unit>, gap: Dp = 16
 
 @Composable
 private fun ReportSection(title: String, subtitle: String? = null, content: @Composable () -> Unit) {
-    Surface(color = MaterialTheme.colorScheme.surfaceContainer, shape = MaterialTheme.shapes.large) {
+    Panel {
         Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 20.dp)) {
             SectionHeader(title = title, modifier = Modifier.padding(bottom = if (subtitle == null) 8.dp else 0.dp))
             if (subtitle != null) {
@@ -797,7 +776,7 @@ private fun InstallmentRow(
         trailingContent = {
             AmountText(
                 due.amount,
-                kind = if (isIncome) AmountKind.Income else AmountKind.Expense,
+                kind = amountKind(isIncome),
                 style = BoxTheme.moneyType.small,
             )
         },
@@ -887,61 +866,30 @@ private fun ExportRangeSheet(
     val today = LocalDate.now()
     val dateFormatter = remember { DateTimeFormatter.ofPattern("MMM d, yyyy") }
 
-    var startDate by remember { mutableStateOf<LocalDate?>(today.minusMonths(1)) }
-    var endDate by remember { mutableStateOf<LocalDate?>(today) }
+    var startDate by remember { mutableStateOf(today.minusMonths(1)) }
+    var endDate by remember { mutableStateOf(today) }
     var showStartPicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
 
     if (showStartPicker) {
-        val pickerState = rememberDatePickerState(
-            initialSelectedDateMillis = startDate?.atStartOfDay()?.toInstant(ZoneOffset.UTC)?.toEpochMilli(),
-            selectableDates = object : SelectableDates {
-                override fun isSelectableDate(utcTimeMillis: Long): Boolean =
-                    !Instant.ofEpochMilli(utcTimeMillis).atOffset(ZoneOffset.UTC).toLocalDate().isAfter(today)
-            }
-        )
-        DatePickerDialog(
-            onDismissRequest = { showStartPicker = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    pickerState.selectedDateMillis?.let { ms ->
-                        val picked = Instant.ofEpochMilli(ms).atOffset(ZoneOffset.UTC).toLocalDate()
-                        startDate = picked
-                        if (endDate?.isBefore(picked) == true) endDate = picked
-                    }
-                    showStartPicker = false
-                }) { Text(stringResource(R.string.action_ok)) }
+        LocalDateDialog(
+            initial = startDate,
+            selectable = selectableDates(max = today),
+            onPick = { picked ->
+                startDate = picked
+                if (endDate.isBefore(picked)) endDate = picked
             },
-            dismissButton = {
-                TextButton(onClick = { showStartPicker = false }) { Text(stringResource(R.string.action_cancel)) }
-            }
-        ) { DatePicker(state = pickerState) }
+            onDismiss = { showStartPicker = false },
+        )
     }
 
     if (showEndPicker) {
-        val pickerState = rememberDatePickerState(
-            initialSelectedDateMillis = endDate?.atStartOfDay()?.toInstant(ZoneOffset.UTC)?.toEpochMilli(),
-            selectableDates = object : SelectableDates {
-                override fun isSelectableDate(utcTimeMillis: Long): Boolean {
-                    val date = Instant.ofEpochMilli(utcTimeMillis).atOffset(ZoneOffset.UTC).toLocalDate()
-                    return !date.isAfter(today) && (startDate == null || !date.isBefore(startDate!!))
-                }
-            }
+        LocalDateDialog(
+            initial = endDate,
+            selectable = selectableDates(max = today, min = startDate),
+            onPick = { endDate = it },
+            onDismiss = { showEndPicker = false },
         )
-        DatePickerDialog(
-            onDismissRequest = { showEndPicker = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    pickerState.selectedDateMillis?.let { ms ->
-                        endDate = Instant.ofEpochMilli(ms).atOffset(ZoneOffset.UTC).toLocalDate()
-                    }
-                    showEndPicker = false
-                }) { Text(stringResource(R.string.action_ok)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showEndPicker = false }) { Text(stringResource(R.string.action_cancel)) }
-            }
-        ) { DatePicker(state = pickerState) }
     }
 
     ModalBottomSheet(
@@ -993,37 +941,27 @@ private fun ExportRangeSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Box(modifier = Modifier.weight(1f)) {
-                    OutlinedTextField(
-                        value = startDate?.format(dateFormatter) ?: "—",
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text(stringResource(R.string.analytics_export_from)) },
-                        trailingIcon = { Icon(Icons.Default.CalendarMonth, contentDescription = null) },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Box(modifier = Modifier.matchParentSize().clickable { showStartPicker = true })
-                }
-                Box(modifier = Modifier.weight(1f)) {
-                    OutlinedTextField(
-                        value = endDate?.format(dateFormatter) ?: "—",
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text(stringResource(R.string.analytics_export_to)) },
-                        trailingIcon = { Icon(Icons.Default.CalendarMonth, contentDescription = null) },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Box(modifier = Modifier.matchParentSize().clickable { showEndPicker = true })
+                listOf(
+                    Triple(R.string.analytics_export_from, startDate) { showStartPicker = true },
+                    Triple(R.string.analytics_export_to, endDate) { showEndPicker = true },
+                ).forEach { (label, date, open) ->
+                    Box(modifier = Modifier.weight(1f)) {
+                        OutlinedTextField(
+                            value = date.format(dateFormatter),
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text(stringResource(label)) },
+                            trailingIcon = { Icon(Icons.Default.CalendarMonth, contentDescription = null) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Box(modifier = Modifier.matchParentSize().clickable(onClick = open))
+                    }
                 }
             }
 
             Button(
-                onClick = {
-                    val s = startDate
-                    val e = endDate
-                    if (s != null && e != null) onGenerate(s, e)
-                },
-                enabled = startDate != null && endDate != null && !isExporting,
+                onClick = { onGenerate(startDate, endDate) },
+                enabled = !isExporting,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 if (isExporting) {
@@ -1049,41 +987,18 @@ private fun DailyWeeklyDatePicker(
         AnalyticsFrequency.DAILY -> today.plusDays(periodOffset.toLong())
         else -> today.with(DayOfWeek.MONDAY).plusWeeks(periodOffset.toLong())
     }
-    val state = rememberDatePickerState(
-        initialSelectedDateMillis = initialDate.atStartOfDay().toInstant(ZoneOffset.UTC)
-            .toEpochMilli(),
-        selectableDates = object : SelectableDates {
-            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
-                val date =
-                    Instant.ofEpochMilli(utcTimeMillis).atOffset(ZoneOffset.UTC).toLocalDate()
-                return !date.isAfter(today)
+    LocalDateDialog(
+        initial = initialDate,
+        selectable = selectableDates(max = today),
+        onPick = { selectedDate ->
+            val offset = when (frequency) {
+                AnalyticsFrequency.DAILY -> ChronoUnit.DAYS.between(today, selectedDate).toInt()
+                else -> ChronoUnit.WEEKS.between(today.with(DayOfWeek.MONDAY), selectedDate.with(DayOfWeek.MONDAY)).toInt()
             }
-        }
-    )
-    DatePickerDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(onClick = {
-                state.selectedDateMillis?.let { millis ->
-                    val selectedDate =
-                        Instant.ofEpochMilli(millis).atOffset(ZoneOffset.UTC).toLocalDate()
-                    val offset = when (frequency) {
-                        AnalyticsFrequency.DAILY -> ChronoUnit.DAYS.between(today, selectedDate)
-                            .toInt()
-
-                        else -> ChronoUnit.WEEKS.between(
-                            today.with(DayOfWeek.MONDAY),
-                            selectedDate.with(DayOfWeek.MONDAY)
-                        ).toInt()
-                    }
-                    onConfirm(offset)
-                }
-            }) { Text(stringResource(R.string.action_ok)) }
+            onConfirm(offset)
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
-        }
-    ) { DatePicker(state = state) }
+        onDismiss = onDismiss,
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1096,13 +1011,11 @@ private fun MonthYearPickerDialog(
     val currentYearMonth = YearMonth.now()
     val initialYearMonth = currentYearMonth.plusMonths(periodOffset.toLong())
     val currentYear = currentYearMonth.year
-    val years = (currentYear downTo currentYear - 20).toList()
     val months = java.time.Month.entries
 
     var selectedMonth by remember { mutableStateOf(initialYearMonth.month) }
     var selectedYear by remember { mutableStateOf(initialYearMonth.year) }
     var monthExpanded by remember { mutableStateOf(false) }
-    var yearExpanded by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1150,54 +1063,55 @@ private fun MonthYearPickerDialog(
                     }
                 }
 
-                // Year dropdown
-                ExposedDropdownMenuBox(
-                    expanded = yearExpanded,
-                    onExpandedChange = { yearExpanded = it }
-                ) {
-                    OutlinedTextField(
-                        value = selectedYear.toString(),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text(stringResource(R.string.analytics_year)) },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = yearExpanded) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                    )
-                    ExposedDropdownMenu(
-                        expanded = yearExpanded,
-                        onDismissRequest = { yearExpanded = false }
-                    ) {
-                        years.forEach { year ->
-                            DropdownMenuItem(
-                                text = { Text(year.toString()) },
-                                onClick = {
-                                    selectedYear = year
-                                    // Clamp month if switching to current year
-                                    if (year == currentYear && selectedMonth > currentYearMonth.month) {
-                                        selectedMonth = currentYearMonth.month
-                                    }
-                                    yearExpanded = false
-                                }
-                            )
-                        }
+                YearDropdown(selectedYear) { year ->
+                    selectedYear = year
+                    // Clamp month if switching to current year
+                    if (year == currentYear && selectedMonth > currentYearMonth.month) {
+                        selectedMonth = currentYearMonth.month
                     }
                 }
             }
         },
         confirmButton = {
             TextButton(onClick = {
-                val selected = YearMonth.of(selectedYear, selectedMonth)
-                val offset = ((selected.year - currentYearMonth.year) * 12 +
-                        (selected.monthValue - currentYearMonth.monthValue))
-                onConfirm(offset)
+                onConfirm(ChronoUnit.MONTHS.between(currentYearMonth, YearMonth.of(selectedYear, selectedMonth)).toInt())
             }) { Text(stringResource(R.string.action_ok)) }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         }
     )
+}
+
+/** Year picker covering this year and the 20 before it. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun YearDropdown(selected: Int, onSelect: (Int) -> Unit) {
+    val currentYear = LocalDate.now().year
+    var expanded by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+        OutlinedTextField(
+            value = selected.toString(),
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.analytics_year)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+        )
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            (currentYear downTo currentYear - 20).forEach { year ->
+                DropdownMenuItem(
+                    text = { Text(year.toString()) },
+                    onClick = {
+                        onSelect(year)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1208,45 +1122,13 @@ private fun YearPickerDialog(
     onConfirm: (Int) -> Unit
 ) {
     val currentYear = LocalDate.now().year
-    val initialYear = currentYear + periodOffset
-    val years = (currentYear downTo currentYear - 20).toList()
-
-    var selectedYear by remember { mutableStateOf(initialYear) }
-    var yearExpanded by remember { mutableStateOf(false) }
+    var selectedYear by remember { mutableStateOf(currentYear + periodOffset) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.analytics_select_year)) },
         text = {
-            ExposedDropdownMenuBox(
-                expanded = yearExpanded,
-                onExpandedChange = { yearExpanded = it }
-            ) {
-                OutlinedTextField(
-                    value = selectedYear.toString(),
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text(stringResource(R.string.analytics_year)) },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = yearExpanded) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                )
-                ExposedDropdownMenu(
-                    expanded = yearExpanded,
-                    onDismissRequest = { yearExpanded = false }
-                ) {
-                    years.forEach { year ->
-                        DropdownMenuItem(
-                            text = { Text(year.toString()) },
-                            onClick = {
-                                selectedYear = year
-                                yearExpanded = false
-                            }
-                        )
-                    }
-                }
-            }
+            YearDropdown(selectedYear) { selectedYear = it }
         },
         confirmButton = {
             TextButton(onClick = {

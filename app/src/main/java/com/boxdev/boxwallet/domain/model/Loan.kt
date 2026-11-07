@@ -15,7 +15,6 @@ data class Loan(
     val categoryId: Long? = null,
     val startDate: LocalDateTime,
     val paidInstallments: Int = 0,
-    val nextDueDate: LocalDate? = null,
     val loanType: LoanType = LoanType.EXPENSE,
     val frequency: RecurrenceFrequency = RecurrenceFrequency.MONTHLY,
     val frequencyInterval: Int = 1
@@ -26,7 +25,23 @@ data class Loan(
     val isComplete: Boolean get() = paidInstallments >= totalInstallments
     /** Money still to move on this loan: to pay for [LoanType.EXPENSE], to collect for [LoanType.INCOME]. */
     val remainingAmount: Double get() = remainingInstallments.coerceAtLeast(0) * installmentAmount
+    /** Money already moved on this loan: paid for [LoanType.EXPENSE], collected for [LoanType.INCOME]. */
+    val settledAmount: Double get() = paidInstallments * installmentAmount
+    /** Due date of the first unpaid installment, or null once the loan is complete. */
+    val nextDueDate: LocalDate? get() = if (isComplete) null else installmentDate(paidInstallments + 1)
+
+    /** Scheduled due date of installment [number] (1-based). */
+    fun installmentDate(number: Int): LocalDate =
+        frequency.advance(startDate.toLocalDate(), frequencyInterval, (number - 1).toLong())
+
+    fun status(today: LocalDate): LoanStatus = when {
+        isComplete -> LoanStatus.PAID
+        nextDueDate?.isBefore(today) == true -> LoanStatus.OVERDUE
+        else -> LoanStatus.ACTIVE
+    }
 }
+
+enum class LoanStatus { PAID, OVERDUE, ACTIVE }
 
 /** What is still outstanding across loans, kept apart by direction and never netted. */
 data class LoanTotals(val toPay: Double, val toCollect: Double)
@@ -36,7 +51,7 @@ fun List<Loan>.outstandingTotals(): LoanTotals = LoanTotals(
     toCollect = filter { it.loanType == LoanType.INCOME }.sumOf { it.remainingAmount },
 )
 
-fun LoanEntity.toDomain(paidInstallments: Int = 0, nextDueDate: LocalDate? = null): Loan = Loan(
+fun LoanEntity.toDomain(paidInstallments: Int = 0): Loan = Loan(
     id = id,
     name = name,
     description = description,
@@ -45,7 +60,6 @@ fun LoanEntity.toDomain(paidInstallments: Int = 0, nextDueDate: LocalDate? = nul
     categoryId = categoryId,
     startDate = LocalDateTime.ofInstant(Instant.ofEpochMilli(startDate), ZoneOffset.UTC),
     paidInstallments = paidInstallments,
-    nextDueDate = nextDueDate,
     loanType = LoanType.valueOf(loanType),
     frequency = RecurrenceFrequency.valueOf(frequency),
     frequencyInterval = frequencyInterval
