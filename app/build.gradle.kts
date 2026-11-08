@@ -1,3 +1,5 @@
+import org.gradle.process.CommandLineArgumentProvider
+
 import java.util.Properties
 
 plugins {
@@ -10,6 +12,10 @@ plugins {
 
 val versionProps = Properties().apply {
     rootProject.file("version.properties").inputStream().use { load(it) }
+}
+
+val mockitoAgent: Configuration by configurations.creating {
+    isTransitive = false
 }
 
 android {
@@ -73,9 +79,12 @@ android {
     }
     testOptions {
         unitTests.isIncludeAndroidResources = true
-        // Mockito's inline mock maker self-attaches; without this it forks an external process, which fails
-        // once Robolectric tests have run in the same worker.
-        unitTests.all { it.jvmArgs("-Djdk.attach.allowAttachSelf=true") }
+        // Mockito's inline mock maker is loaded as a java agent instead of self-attaching, which was flaky.
+        unitTests.all { test ->
+            test.jvmArgumentProviders.add(CommandLineArgumentProvider {
+                listOf("-javaagent:${mockitoAgent.asPath}")
+            })
+        }
     }
 }
 
@@ -101,7 +110,9 @@ dependencies {
     implementation(libs.androidx.compose.material3.adaptive.layout)
     implementation(libs.androidx.compose.material3.adaptive.navigation)
     testImplementation(libs.junit)
+    testImplementation(libs.mockito.core)
     testImplementation(libs.mockito.kotlin)
+    mockitoAgent(libs.mockito.core)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.room.testing)
