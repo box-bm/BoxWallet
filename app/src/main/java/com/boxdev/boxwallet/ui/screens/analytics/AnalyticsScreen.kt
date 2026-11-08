@@ -42,7 +42,6 @@ import androidx.compose.material.icons.outlined.InsertChart
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ListItemDefaults
 import com.boxdev.boxwallet.ui.theme.BoxTheme
-import com.boxdev.boxwallet.ui.theme.isWide
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.unit.Constraints
@@ -151,7 +150,8 @@ fun AnalyticsScreen(
     var showPicker by remember { mutableStateOf(false) }
     var showExportSheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
-    val wide = BoxTheme.widthClass.isWide
+    // Two report columns only where two panes would show (expanded); medium widths keep one column.
+    val wide = BoxTheme.layout.twoPane
     val scrollState = rememberScrollState()
 
     TabReselectEffect(NavRoutes.Analytics.route) {
