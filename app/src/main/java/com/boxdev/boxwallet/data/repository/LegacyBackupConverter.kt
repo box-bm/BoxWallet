@@ -5,6 +5,7 @@ import com.boxdev.boxwallet.data.local.entity.CategoryEntity
 import com.boxdev.boxwallet.data.local.entity.LoanEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 import com.boxdev.boxwallet.domain.model.BackupData
+import com.boxdev.boxwallet.domain.money.CurrencyCatalog
 import com.boxdev.boxwallet.domain.money.ExchangeRate
 import com.boxdev.boxwallet.domain.money.minorDigits
 import com.google.gson.Gson
@@ -44,18 +45,32 @@ object LegacyBackupConverter {
         }
     }
 
-    /** Gson skips Kotlin defaults and nullability: check what the restore relies on. */
+    /**
+     * Gson skips Kotlin defaults and nullability: check what the restore relies on. Every currency
+     * (main, accounts, movements, loans) must be one the app supports, or the restore fails here,
+     * before anything is written.
+     */
     private fun fromV3(root: JsonObject): BackupData {
         val code = root.string("mainCurrencyCode") ?: throw IllegalArgumentException("Backup is missing \"mainCurrencyCode\"")
-        runCatching { Currency.getInstance(code) }.getOrElse { throw IllegalArgumentException("Backup has an unknown currency: $code") }
-        val data = gson.fromJson(root, BackupData::class.java)
+        requireSupported(code, "main currency")
+        val parsed = gson.fromJson(root, BackupData::class.java)
         @Suppress("SENSELESS_COMPARISON", "USELESS_ELVIS")
-        return data.copy(
-            accounts = data.accounts ?: emptyList(),
-            transactions = data.transactions ?: emptyList(),
-            categories = data.categories ?: emptyList(),
-            loans = data.loans ?: emptyList(),
+        val data = parsed.copy(
+            accounts = parsed.accounts ?: emptyList(),
+            transactions = parsed.transactions ?: emptyList(),
+            categories = parsed.categories ?: emptyList(),
+            loans = parsed.loans ?: emptyList(),
         )
+        data.accounts.forEach { requireSupported(it.currencyCode, "account ${it.id}") }
+        data.transactions.forEach { requireSupported(it.currencyCode, "movement ${it.id}") }
+        data.loans.forEach { requireSupported(it.currencyCode, "loan ${it.id}") }
+        return data
+    }
+
+    /** [code] is nullable in practice: Gson leaves a missing field null despite the Kotlin type. */
+    private fun requireSupported(code: String?, owner: String) {
+        require(code != null) { "Backup is missing the currency of $owner" }
+        require(CurrencyCatalog.isSupported(code)) { "Backup has an unknown currency for $owner: $code" }
     }
 
     fun fromV2(json: JsonObject, main: Currency, accountId: Long, accountName: String = "Main"): BackupData {

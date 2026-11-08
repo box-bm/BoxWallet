@@ -185,21 +185,29 @@ class BackupRepository @Inject constructor(
         /**
          * Old backups come from a schema without foreign keys: drop references to rows the backup
          * doesn't contain and order recurrences so a parent is inserted before its occurrences.
+         * A movement or loan whose account is missing goes to an account in its own currency, or
+         * else the first one (the restored default); with no accounts at all the insert fails and
+         * the restore rolls back.
          */
         private fun sanitized(data: BackupData): BackupData {
             val accountIds = data.accounts.mapTo(HashSet()) { it.id }
             val categoryIds = data.categories.mapTo(HashSet()) { it.id }
             val loanIds = data.loans.mapTo(HashSet()) { it.id }
             val txIds = data.transactions.mapTo(HashSet()) { it.id }
+            val fallbackByCurrency = data.accounts.reversed().associate { it.currencyCode to it.id }
+            val firstAccount = data.accounts.firstOrNull()?.id
+            fun existingAccount(id: Long, currencyCode: String): Long =
+                if (id in accountIds) id else fallbackByCurrency[currencyCode] ?: firstAccount ?: id
             val loans = data.loans.map { loan ->
                 loan.copy(
                     categoryId = loan.categoryId?.takeIf { it in categoryIds },
-                    accountId = loan.accountId?.takeIf { it in accountIds },
+                    accountId = loan.accountId?.let { existingAccount(it, loan.currencyCode) },
                 )
             }
             val transactions = data.transactions.map { tx ->
                 val loanKept = tx.loanId?.let { it in loanIds } ?: true
                 tx.copy(
+                    accountId = existingAccount(tx.accountId, tx.currencyCode),
                     categoryId = tx.categoryId?.takeIf { it in categoryIds },
                     loanId = if (loanKept) tx.loanId else null,
                     installmentNumber = if (loanKept) tx.installmentNumber else null,

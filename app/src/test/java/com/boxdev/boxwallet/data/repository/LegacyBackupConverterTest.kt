@@ -143,6 +143,35 @@ class LegacyBackupConverterTest {
         }
     }
 
+    private fun v3(account: String = "GTQ", tx: String = "GTQ", loan: String = "GTQ", main: String = "GTQ"): String = """
+        {"version":3,"mainCurrencyCode":"$main",
+         "accounts":[{"id":1,"name":"A","type":"CASH","currencyCode":"$account","createdAt":0}],
+         "transactions":[{"id":1,"accountId":1,"type":"EXPENSE","date":0,"originalAmountMinor":1,"currencyCode":"$tx",
+           "accountAmountMinor":1,"accountRate":1,"accountRateSource":"IDENTITY","amountMinor":1,"mainRate":1,"mainRateSource":"IDENTITY"}],
+         "loans":[{"id":1,"name":"L","totalAmountMinor":1,"currencyCode":"$loan","accountId":1,"totalInstallments":1,"startDate":0}]}
+    """.trimIndent()
+
+    @Test
+    fun `decode accepts v3 with CFA and East Caribbean currencies`() {
+        val data = LegacyBackupConverter.decode(v3(account = "XOF", tx = "XCD", loan = "XAF", main = "XPF"), gtq, "Main")
+        assertEquals("XCD", data.transactions.single().currencyCode)
+    }
+
+    @Test
+    fun `decode rejects v3 with an unknown currency anywhere`() {
+        val cases = listOf(
+            v3(main = "XAU") to "XAU",
+            v3(account = "ZZZ") to "ZZZ",
+            v3(tx = "XXX") to "XXX",
+            v3(loan = "QQQ") to "QQQ",
+            v3(tx = "null").replace("\"null\"", "null") to "missing",
+        )
+        for ((json, code) in cases) {
+            val e = assertThrows(IllegalArgumentException::class.java) { LegacyBackupConverter.decode(json, gtq, "Main") }
+            assertTrue("$code: ${e.message}", e.message!!.contains(code))
+        }
+    }
+
     @Test
     fun `decode rejects an unknown version with a clear error`() {
         val e = assertThrows(UnsupportedBackupVersionException::class.java) {

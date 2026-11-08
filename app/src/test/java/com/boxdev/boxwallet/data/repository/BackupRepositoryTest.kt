@@ -8,6 +8,7 @@ import com.boxdev.boxwallet.data.local.database.BoxWalletDatabase
 import com.boxdev.boxwallet.data.local.entity.AccountEntity
 import com.boxdev.boxwallet.data.local.entity.AppMetaEntity
 import com.boxdev.boxwallet.data.local.entity.CategoryEntity
+import com.boxdev.boxwallet.data.local.entity.LoanEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 import com.boxdev.boxwallet.data.rates.CurrencyChangeLock
 import com.boxdev.boxwallet.data.remote.GoogleDriveManager
@@ -184,6 +185,33 @@ class BackupRepositoryTest {
         assertEquals(2L, rows.getValue(1).parentRecurrenceId)
         assertNull(rows.getValue(1).categoryId)
         assertNull(rows.getValue(3).parentRecurrenceId)
+    }
+
+    @Test
+    fun `movements and loans of an account missing from the backup go to an existing account`() = runTest {
+        val backup = BackupData(
+            mainCurrencyCode = "USD",
+            accounts = listOf(
+                AccountEntity(id = 1, name = "Main", type = "CHECKING", currencyCode = "USD", createdAt = 0L),
+                AccountEntity(id = 2, name = "Quetzales", type = "CASH", currencyCode = "GTQ", createdAt = 0L),
+            ),
+            transactions = listOf(
+                tx(id = 1, accountId = 404, amount = 1, code = "USD"),
+                tx(id = 2, accountId = 404, amount = 2, code = "GTQ"),
+                tx(id = 3, accountId = 2, amount = 3, code = "GTQ"),
+            ),
+            loans = listOf(
+                LoanEntity(id = 1, name = "L", totalAmountMinor = 1, currencyCode = "USD", accountId = 404, totalInstallments = 1, startDate = 0L),
+            ),
+        )
+
+        repo.restore(backup)
+
+        val rows = db.transactionDao().getAllTransactionsSync().associateBy { it.id }
+        assertEquals(1L, rows.getValue(1).accountId)
+        assertEquals(2L, rows.getValue(2).accountId) // the account in the movement's own currency
+        assertEquals(2L, rows.getValue(3).accountId)
+        assertEquals(1L, db.loanDao().getAllLoansSync().single().accountId)
     }
 
     @Test
