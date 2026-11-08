@@ -75,6 +75,7 @@ import com.boxdev.boxwallet.domain.model.LoanType
 import com.boxdev.boxwallet.ui.components.AmountKind
 import com.boxdev.boxwallet.ui.components.AmountText
 import com.boxdev.boxwallet.ui.components.AppPane
+import com.boxdev.boxwallet.ui.components.PanePlaceholder
 import com.boxdev.boxwallet.ui.components.AppSearchBar
 import com.boxdev.boxwallet.ui.components.CategoryFilterChips
 import com.boxdev.boxwallet.ui.components.CollapsibleFilterPanel
@@ -195,11 +196,7 @@ fun LoansScreen(
                     ) {
                         val id = selectedLoanId
                         if (id == null) {
-                            EmptyState(
-                                icon = Icons.Outlined.TouchApp,
-                                title = stringResource(R.string.loans_select_hint),
-                                modifier = Modifier.padding(top = 96.dp),
-                            )
+                            PanePlaceholder(icon = Icons.Outlined.TouchApp, title = stringResource(R.string.loans_select_hint))
                         } else {
                             LoanDetailScreen(
                                 loanId = id,

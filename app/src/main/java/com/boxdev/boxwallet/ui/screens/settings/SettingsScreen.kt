@@ -77,8 +77,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.ui.components.AppPane
+import com.boxdev.boxwallet.ui.components.PanePlaceholder
 import com.boxdev.boxwallet.ui.components.BackButton
-import com.boxdev.boxwallet.ui.components.EmptyState
 import com.boxdev.boxwallet.ui.theme.BoxTheme
 import kotlinx.coroutines.launch
 
@@ -211,10 +211,9 @@ private fun SettingsListDetail(
                             .padding(start = if (bothShown) 0.dp else margin, end = margin, bottom = margin)
                     ) {
                         when (selected) {
-                            null -> EmptyState(
+                            null -> PanePlaceholder(
                                 icon = Icons.Outlined.Settings,
                                 title = stringResource(R.string.settings_select_hint),
-                                modifier = Modifier.padding(top = 96.dp),
                             )
                             SettingsSection.GENERAL -> GeneralSettingsScreen(onNavigateBack = null)
                             SettingsSection.CURRENCIES -> CurrenciesScreen(

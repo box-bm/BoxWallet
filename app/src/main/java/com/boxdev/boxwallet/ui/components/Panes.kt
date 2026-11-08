@@ -2,6 +2,10 @@ package com.boxdev.boxwallet.ui.components
 
 import android.content.res.Configuration
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -63,6 +67,21 @@ fun PaneRow(
             Spacer(Modifier.width(24.dp))
             AppPane(Modifier.weight(1f).fillMaxHeight()) { second() }
         }
+    }
+}
+
+/**
+ * What an empty detail pane shows before anything is selected. It scrolls, so the hint stays
+ * reachable on short windows (phone landscape), and starts lower when there is room.
+ */
+@Composable
+fun PanePlaceholder(icon: ImageVector, title: String, modifier: Modifier = Modifier) {
+    Box(modifier.fillMaxSize().verticalScroll(rememberScrollState()), contentAlignment = Alignment.TopCenter) {
+        EmptyState(
+            icon = icon,
+            title = title,
+            modifier = Modifier.padding(top = if (BoxTheme.layout.compactHeight) 0.dp else 96.dp),
+        )
     }
 }
 
