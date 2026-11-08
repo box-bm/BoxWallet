@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
@@ -29,12 +31,25 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.ui.theme.BoxTheme
 import com.boxdev.boxwallet.ui.theme.BoxWalletTheme
 import com.boxdev.boxwallet.ui.theme.LocalAppLayout
 import com.boxdev.boxwallet.ui.theme.appLayout
+
+/** How wide the search bar runs: the whole row, or only over the first of two panes below it. */
+sealed interface SearchBarSpan {
+    /** Single pane: the bar spans the content width. */
+    data object Full : SearchBarSpan
+
+    /** Two 50/50 panes: the bar spans the first one. */
+    data object HalfPane : SearchBarSpan
+
+    /** A fixed first pane: the bar is exactly [width] wide, like the pane under it. */
+    data class Fixed(val width: Dp) : SearchBarSpan
+}
 
 /**
  * Search entry point that sits on the window background above the panes. It holds no query text:
@@ -44,15 +59,39 @@ import com.boxdev.boxwallet.ui.theme.appLayout
 fun AppSearchBar(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    span: SearchBarSpan = SearchBarSpan.Full,
     trailing: @Composable (() -> Unit)? = null,
 ) {
     val placeholder = stringResource(R.string.search_in_app)
-    Surface(
+    val margin = BoxTheme.layout.margin
+    Row(
         modifier = modifier
-            .windowInsetsPadding(WindowInsets.statusBars)
-            .padding(start = BoxTheme.layout.margin, end = BoxTheme.layout.margin, top = 8.dp, bottom = 8.dp)
-            .fillMaxWidth()
-            .height(56.dp),
+            // Same horizontal insets as the panes below, so their edges line up.
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+            .padding(start = margin, end = margin, top = 8.dp, bottom = 8.dp)
+            .fillMaxWidth(),
+    ) {
+        val barModifier = when (span) {
+            SearchBarSpan.Full, SearchBarSpan.HalfPane -> Modifier.weight(1f)
+            is SearchBarSpan.Fixed -> Modifier.width(span.width)
+        }
+        SearchBarPill(onClick, placeholder, trailing, barModifier.height(56.dp))
+        if (span == SearchBarSpan.HalfPane) {
+            Spacer(Modifier.width(24.dp))
+            Spacer(Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun SearchBarPill(
+    onClick: () -> Unit,
+    placeholder: String,
+    trailing: @Composable (() -> Unit)?,
+    modifier: Modifier,
+) {
+    Surface(
+        modifier = modifier,
         shape = CircleShape,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
@@ -93,7 +132,7 @@ private fun SearchBarPreviewContent(width: Int) {
     BoxWalletTheme {
         CompositionLocalProvider(LocalAppLayout provides appLayout(width, 800)) {
             Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
-                AppSearchBar(onClick = {})
+                AppSearchBar(onClick = {}, span = if (width >= 840) SearchBarSpan.HalfPane else SearchBarSpan.Full)
             }
         }
     }

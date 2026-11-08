@@ -77,6 +77,7 @@ import com.boxdev.boxwallet.ui.components.AmountText
 import com.boxdev.boxwallet.ui.components.AppPane
 import com.boxdev.boxwallet.ui.components.PanePlaceholder
 import com.boxdev.boxwallet.ui.components.AppSearchBar
+import com.boxdev.boxwallet.ui.components.SearchBarSpan
 import com.boxdev.boxwallet.ui.components.CategoryFilterChips
 import com.boxdev.boxwallet.ui.components.CollapsibleFilterPanel
 import com.boxdev.boxwallet.ui.components.ConnectedChoiceRow
@@ -114,7 +115,7 @@ fun LoansScreen(
     val directive = calculatePaneScaffoldDirective(currentWindowAdaptiveInfo()).copy(
         maxHorizontalPartitions = if (BoxTheme.layout.twoPane) 2 else 1,
         horizontalPartitionSpacerSize = 24.dp,
-        defaultPanePreferredWidth = 360.dp,
+        defaultPanePreferredWidth = LIST_PANE_WIDTH,
     )
     val navigator = rememberListDetailPaneScaffoldNavigator<Long>(scaffoldDirective = directive)
     val scope = rememberCoroutineScope()
@@ -146,6 +147,8 @@ fun LoansScreen(
             if (listShown) {
                 AppSearchBar(
                     onClick = onNavigateToSearch,
+                    // The list pane is 360dp including its start margin.
+                    span = if (bothShown) SearchBarSpan.Fixed(LIST_PANE_WIDTH - margin) else SearchBarSpan.Full,
                     trailing = {
                         FilterToggleAction(
                             filtersOpen = showFilters,
@@ -376,3 +379,6 @@ private fun LoanTotalsHeader(totals: LoanTotals, modifier: Modifier = Modifier) 
         }
     }
 }
+
+/** Width the list-detail scaffold gives the loans list on two-pane windows. */
+private val LIST_PANE_WIDTH = 360.dp

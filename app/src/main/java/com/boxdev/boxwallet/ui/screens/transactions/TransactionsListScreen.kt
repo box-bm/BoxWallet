@@ -71,6 +71,7 @@ import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.ui.components.AmountText
 import com.boxdev.boxwallet.ui.components.AppSearchBar
+import com.boxdev.boxwallet.ui.components.SearchBarSpan
 import com.boxdev.boxwallet.ui.components.PaneRow
 import com.boxdev.boxwallet.ui.components.mainMoney
 import com.boxdev.boxwallet.ui.components.ConnectedChoiceRow
@@ -205,6 +206,7 @@ fun TransactionsListScreen(
         topBar = {
             AppSearchBar(
                 onClick = onNavigateToSearch,
+                span = if (twoPane) SearchBarSpan.Fixed(FILTERS_PANE_WIDTH) else SearchBarSpan.Full,
                 trailing = if (!twoPane) {
                     {
                         FilterToggleAction(
@@ -221,7 +223,7 @@ fun TransactionsListScreen(
             // Expanded: filters stay open as a side pane.
             PaneRow(
                 modifier = Modifier.padding(padding),
-                firstWidth = 360.dp,
+                firstWidth = FILTERS_PANE_WIDTH,
                 first = {
                     filterPanel(
                         Modifier
@@ -331,3 +333,6 @@ private fun TransactionsByDay(
         item { Spacer(Modifier.height(8.dp)) }
     }
 }
+
+/** Width of the filters pane beside the list on two-pane windows. */
+private val FILTERS_PANE_WIDTH = 360.dp
