@@ -501,6 +501,12 @@
     <string name="loan_currency_locked">Currency cannot change once an installment is paid.</string>
     <string name="loan_currency_locked_description">Currency: %1$s. Locked because an installment is already paid.</string>
     <string name="loan_missing_rate">No exchange rate available for %1$s. Connect to the internet and try again.</string>
+    <string name="transaction_error_invalid_amount">Enter a valid amount</string>
+    <string name="transaction_error_account_loading">Still loading the account. Try again in a moment.</string>
+    <string name="transaction_error_not_found">This movement no longer exists.</string>
+    <string name="transaction_error_missing_rate">No exchange rate available for %1$s. Connect to the internet and try again.</string>
+    <string name="transaction_error_save">Couldn\'t save the movement. Try again.</string>
+    <string name="transaction_error_delete">Couldn\'t delete the movement. Try again.</string>
     <string name="onboarding_country_title">Where do you live?</string>
     <string name="onboarding_country_description">We use your country to pick your main currency.</string>
     <string name="onboarding_country_search">Search country</string>

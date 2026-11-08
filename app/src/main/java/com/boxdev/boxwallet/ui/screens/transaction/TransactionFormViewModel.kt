@@ -13,14 +13,16 @@ import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.domain.model.ReminderDuration
 import com.boxdev.boxwallet.domain.model.Transaction
-import com.boxdev.boxwallet.domain.money.AmountInput
 import com.boxdev.boxwallet.domain.money.AmountResult
 import com.boxdev.boxwallet.domain.money.ExchangeRate
+import com.boxdev.boxwallet.domain.money.MissingRateException
 import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.domain.money.RateSource
 import com.boxdev.boxwallet.domain.money.TransactionAmounts
 import com.boxdev.boxwallet.domain.money.parseMajor
+import android.util.Log
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,6 +37,18 @@ import java.math.MathContext
 import java.time.LocalDateTime
 import java.util.Currency
 import javax.inject.Inject
+
+/** Why the form can't save, shown under the fields so a failed save never leaves the sheet silently open. */
+sealed interface TransactionFormError {
+    data object InvalidAmount : TransactionFormError
+    data object NeedsRate : TransactionFormError
+    data object AccountLoading : TransactionFormError
+    data object NotFound : TransactionFormError
+    /** No rate is known to convert [from] (e.g. the account → main leg) and nothing can be typed for it. */
+    data class MissingRate(val from: Currency) : TransactionFormError
+    data object SaveFailed : TransactionFormError
+    data object DeleteFailed : TransactionFormError
+}
 
 data class TransactionFormState(
     val id: Long = 0,
@@ -65,7 +79,7 @@ data class TransactionFormState(
     val isEditing: Boolean = false,
     val isLoading: Boolean = false,
     val isSaved: Boolean = false,
-    val error: String? = null,
+    val error: TransactionFormError? = null,
     val wasCleared: Boolean = false
 ) {
     val money: Money? get() = parseMajor(amount, currency)
@@ -172,7 +186,7 @@ class TransactionFormViewModel @Inject constructor(
                     wasCleared = t.isCleared,
                 )
             } else {
-                _formState.update { it.copy(isLoading = false, error = "Transaction not found") }
+                _formState.update { it.copy(isLoading = false, error = TransactionFormError.NotFound) }
             }
         }
     }
@@ -205,7 +219,14 @@ class TransactionFormViewModel @Inject constructor(
 
     private var rateJob: Job? = null
 
-    /** Previews the automatic rate for the current currency and date (unless the user typed one). */
+    /** Rates resolved per currency pair and day, so typing an amount doesn't resolve (or download) again. */
+    private val rateCache = FormRateCache(transactionAmounts, viewModelScope)
+
+    /**
+     * Previews the automatic rate for the current currency and date (unless the user typed one).
+     * The rate comes from [rateCache]; only a new currency or date triggers a resolve, and the
+     * equivalent is always recomputed locally from the latest typed amount.
+     */
     private fun refreshRate() {
         rateJob?.cancel()
         val s = _formState.value
@@ -215,17 +236,18 @@ class TransactionFormViewModel @Inject constructor(
             return
         }
         if (s.manualRate != null) return
+        val day = s.date.toLocalDate()
         rateJob = viewModelScope.launch {
             val main = userPreferences.mainCurrency.first()
-            val original = s.money ?: Money.of(BigDecimal.ONE, s.currency)
-            val result = transactionAmounts.compute(AmountInput(original, s.date.toLocalDate(), accountCurrency, main))
+            val result = rateCache.rates(FormRateCache.Key(s.currency, accountCurrency, main, day))
             _formState.update {
-                if (it.manualRate != null || it.currency != s.currency) return@update it
+                val stale = it.currency != s.currency || it.accountCurrency != accountCurrency || it.date.toLocalDate() != day
+                if (it.manualRate != null || stale) return@update it
                 when (result) {
                     is AmountResult.Ready -> it.copy(
                         rate = result.accountRate,
                         needsManualRate = false,
-                        equivalent = result.accountAmount.toMajor().toPlainString().takeIf { _ -> it.money != null },
+                        equivalent = FormRateCache.equivalent(it.amount, it.currency, accountCurrency, result),
                     )
                     AmountResult.NeedsManualRate -> it.copy(rate = null, needsManualRate = true, equivalent = null)
                 }
@@ -265,12 +287,14 @@ class TransactionFormViewModel @Inject constructor(
     fun save() {
         val s = _formState.value
         if (!s.isValid) {
-            _formState.update { it.copy(error = "Please enter a valid amount") }
+            _formState.update { it.copy(error = TransactionFormError.InvalidAmount) }
             return
         }
         if (!s.canSave) {
             _formState.update {
-                it.copy(error = if (s.needsManualRate) "Enter the exchange rate" else "Still loading the account")
+                it.copy(
+                    error = if (s.needsManualRate) TransactionFormError.NeedsRate else TransactionFormError.AccountLoading
+                )
             }
             return
         }
@@ -303,7 +327,7 @@ class TransactionFormViewModel @Inject constructor(
                 val transaction = transactionAmounts.forSave(draft, previous, accountCurrency, main, s.manualRateValue)
                 if (transaction == null) {
                     _formState.update {
-                        it.copy(isLoading = false, needsManualRate = true, rate = null, error = "Enter the exchange rate")
+                        it.copy(isLoading = false, needsManualRate = true, rate = null, error = TransactionFormError.NeedsRate)
                     }
                     return@launch
                 }
@@ -327,8 +351,13 @@ class TransactionFormViewModel @Inject constructor(
                 )
 
                 _formState.update { it.copy(isLoading = false, isSaved = true) }
+            } catch (e: MissingRateException) {
+                _formState.update { it.copy(isLoading = false, error = TransactionFormError.MissingRate(e.from)) }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                _formState.update { it.copy(isLoading = false, error = e.message ?: "Error saving") }
+                Log.e(TAG, "Saving the movement failed", e)
+                _formState.update { it.copy(isLoading = false, error = TransactionFormError.SaveFailed) }
             }
         }
     }
@@ -342,9 +371,16 @@ class TransactionFormViewModel @Inject constructor(
                 transactionRepository.deleteTransaction(s.id)
                 analyticsHelper.logEvent("transaction_deleted", mapOf("type" to s.type.name))
                 _formState.update { it.copy(isLoading = false, isSaved = true) }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                _formState.update { it.copy(isLoading = false, error = e.message ?: "Error deleting") }
+                Log.e(TAG, "Deleting the movement failed", e)
+                _formState.update { it.copy(isLoading = false, error = TransactionFormError.DeleteFailed) }
             }
         }
+    }
+
+    private companion object {
+        const val TAG = "TransactionForm"
     }
 }

@@ -44,6 +44,7 @@ import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.domain.model.ReminderDuration
 import com.boxdev.boxwallet.data.local.entity.TransactionType
+import com.boxdev.boxwallet.ui.screens.transaction.TransactionFormError
 import com.boxdev.boxwallet.ui.screens.transaction.TransactionFormViewModel
 import com.boxdev.boxwallet.domain.money.CurrencyCatalog
 import com.boxdev.boxwallet.domain.money.pickerSections
@@ -209,6 +210,16 @@ fun TransactionSheet(
                 }
             }
 
+            // Outside the scrolling fields so it's visible right above the button that failed.
+            formState.error?.let { error ->
+                Text(
+                    text = transactionFormErrorText(error),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp),
+                )
+            }
+
             SheetPrimaryButton(
                 text = stringResource(if (formState.isEditing) R.string.transaction_update else R.string.transaction_save),
                 enabled = formState.canSave,
@@ -242,4 +253,15 @@ fun TransactionSheet(
             onDismiss = { showDeleteDialog = false }
         )
     }
+}
+
+@Composable
+private fun transactionFormErrorText(error: TransactionFormError): String = when (error) {
+    TransactionFormError.InvalidAmount -> stringResource(R.string.transaction_error_invalid_amount)
+    TransactionFormError.NeedsRate -> stringResource(R.string.conversion_needs_rate)
+    TransactionFormError.AccountLoading -> stringResource(R.string.transaction_error_account_loading)
+    TransactionFormError.NotFound -> stringResource(R.string.transaction_error_not_found)
+    is TransactionFormError.MissingRate -> stringResource(R.string.transaction_error_missing_rate, error.from.currencyCode)
+    TransactionFormError.SaveFailed -> stringResource(R.string.transaction_error_save)
+    TransactionFormError.DeleteFailed -> stringResource(R.string.transaction_error_delete)
 }
