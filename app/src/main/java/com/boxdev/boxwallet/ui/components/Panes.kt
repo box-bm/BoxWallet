@@ -37,6 +37,7 @@ fun AppPane(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> U
 
 /**
  * Lays out one or two panes with [BoxTheme.layout] margin at start, end and bottom and a 24dp gap.
+ * A fixed [firstWidth] is meant for two-pane (expanded) layouts only.
  * `second == null` gives a single pane. [firstWidth] null splits 50/50, otherwise the first pane is fixed.
  */
 @Composable
