@@ -133,8 +133,8 @@ private val onboardingPages = listOf(
     )
 )
 
-private const val PRIVACY_PAGE_INDEX = 2
-private const val COUNTRY_PAGE_INDEX = 3
+private val PRIVACY_PAGE_INDEX = onboardingPages.indexOfFirst { it.titleRes == R.string.onboarding_privacy_title }
+private val COUNTRY_PAGE_INDEX = onboardingPages.indexOfFirst { it.titleRes == R.string.onboarding_country_title }
 
 @Composable
 fun OnboardingScreen(
@@ -206,8 +206,11 @@ fun OnboardingScreen(
                 title = R.string.onboarding_get_started_title
                 body = R.string.onboarding_get_started_description
             }
+            // The country page lets its list be the only scroller; other pages scroll as a whole.
+            val pageModifier = if (page == COUNTRY_PAGE_INDEX) Modifier.fillMaxSize()
+            else Modifier.fillMaxSize().verticalScroll(rememberScrollState())
             Column(
-                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 28.dp),
+                pageModifier.padding(horizontal = 28.dp),
                 horizontalAlignment = if (wide) Alignment.Start else Alignment.CenterHorizontally,
             ) {
                 Text(
@@ -247,6 +250,7 @@ fun OnboardingScreen(
                 if (page == COUNTRY_PAGE_INDEX) {
                     Spacer(Modifier.height(20.dp))
                     CountryStep(
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
                         countries = viewModel.countries,
                         selected = uiState.country,
                         currency = uiState.currency,
@@ -301,7 +305,7 @@ fun OnboardingScreen(
                 contentAlignment = Alignment.CenterEnd,
             ) {
                 if (!isLastPage) {
-                    TextButton(onClick = { coroutineScope.launch { pagerState.animateScrollToPage(totalPages - 1) } }) {
+                    TextButton(onClick = { coroutineScope.launch { pagerState.animateScrollToPage(if (pagerState.currentPage < COUNTRY_PAGE_INDEX) COUNTRY_PAGE_INDEX else totalPages - 1) } }) {
                         Text(stringResource(R.string.onboarding_skip))
                     }
                 }
@@ -500,6 +504,7 @@ private fun RestoreFromBackupDialog(
 
 @Composable
 private fun CountryStep(
+    modifier: Modifier,
     countries: List<Country>,
     selected: Country?,
     currency: Currency?,
@@ -517,7 +522,7 @@ private fun CountryStep(
         if (index > 0) listState.scrollToItem(index)
     }
 
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         OutlinedTextField(
             value = query,
             onValueChange = { query = it },
@@ -531,7 +536,7 @@ private fun CountryStep(
         Surface(
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
             shape = MaterialTheme.shapes.large,
-            modifier = Modifier.fillMaxWidth().height(220.dp),
+            modifier = Modifier.fillMaxWidth().weight(1f),
         ) {
             if (visible.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
