@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -153,8 +155,9 @@ private fun SettingsListDetail(
     LaunchedEffect(selected) { onSelectionChange(selected) }
     LaunchedEffect(preselected) {
         if (preselected != null) {
-            onPreselectedConsumed()
+            // Navigate first: consuming changes this effect's key, which would cancel a navigation still running.
             if (preselected != selected) navigator.navigateTo(ListDetailPaneScaffoldRole.Detail, preselected)
+            onPreselectedConsumed()
         }
     }
 
@@ -174,7 +177,11 @@ private fun SettingsListDetail(
     ) { padding ->
         NavigableListDetailPaneScaffold(
             navigator = navigator,
-            modifier = Modifier.padding(padding).consumeWindowInsets(padding),
+            modifier = Modifier
+                .padding(padding)
+                .consumeWindowInsets(padding)
+                // No bottom bar here: the panes stop above the system navigation bar.
+                .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)),
             listPane = {
                 AnimatedPane {
                     AppPane(

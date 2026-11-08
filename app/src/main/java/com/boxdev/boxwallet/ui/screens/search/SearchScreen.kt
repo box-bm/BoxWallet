@@ -15,7 +15,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -131,11 +134,12 @@ fun SearchScreen(
             Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(start = margin, end = margin, bottom = margin)
-                .imePadding(),
+                // The pane ends above the keyboard when it shows, else above the navigation bar.
+                .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars).only(WindowInsetsSides.Bottom))
+                .padding(start = margin, end = margin, bottom = margin),
             contentAlignment = Alignment.TopCenter,
         ) {
-            AppPane(Modifier.widthIn(max = 720.dp).fillMaxHeight()) {
+            AppPane(Modifier.fillMaxWidth().widthIn(max = 720.dp).fillMaxHeight()) {
             when {
                 uiState.isLoading -> LoadingIndicator(Modifier.padding(top = 64.dp))
 
