@@ -7,6 +7,7 @@ import androidx.work.Configuration
 import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.worker.ReminderAlarmReceiver
+import com.boxdev.boxwallet.worker.ExchangeRateSyncWorker
 import com.boxdev.boxwallet.worker.ReminderWorker
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
@@ -47,11 +48,16 @@ class BoxWalletApplication : Application(), Configuration.Provider {
         ReminderAlarmReceiver.ensureNotificationChannel(this)
         // Schedule periodic reminder check as fallback
         ReminderWorker.schedule(this)
+        ExchangeRateSyncWorker.schedule(this)
         // Installs that finished onboarding before the database rebuild start with an empty
         // database and no account. Fresh installs get theirs when onboarding completes, once the
         // main currency is chosen. Write paths also go through AccountRepository.defaultAccount().
         appScope.launch {
             if (!userPreferences.isFirstLaunch.first()) accountRepository.ensureDefaultAccount()
+            val lastSync = userPreferences.lastRateSyncAt.first()
+            if (lastSync == null || System.currentTimeMillis() - lastSync > 24 * 60 * 60 * 1000L) {
+                ExchangeRateSyncWorker.syncNow(this@BoxWalletApplication)
+            }
         }
     }
 }
