@@ -20,6 +20,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -164,6 +168,12 @@ fun NavigationTab(
     }
 
     val rail = layout.nav == NavKind.Rail
+    // The rail already pads itself past the display cutout on its side; the content beside it must not again.
+    val railInsets = if (rail && !isSecondary(currentRoute)) {
+        Modifier.consumeWindowInsets(WindowInsets.safeDrawing.only(WindowInsetsSides.Start))
+    } else {
+        Modifier
+    }
     // The NavHost keeps one position in the composition whatever the navigation kind: its screens'
     // rememberSaveable state is keyed by that position, so moving it between a rail and a bar layout
     // (a fold or rotation recreates the activity) would silently drop that state.
@@ -300,7 +310,7 @@ fun NavigationTab(
                 }
             },
         ) { padding ->
-            Box(Modifier.padding(padding)) {
+            Box(Modifier.padding(padding).then(railInsets)) {
                 content(Modifier)
                 if (fabExpanded && !rail) {
                     // Tap outside the open FAB menu to close it.
