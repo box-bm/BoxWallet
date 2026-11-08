@@ -57,7 +57,7 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BackupScreen(
-    onNavigateBack: () -> Unit,
+    onNavigateBack: (() -> Unit)?,
     onChangeMainCurrency: (String) -> Unit = {},
     viewModel: BackupViewModel = hiltViewModel()
 ) {

@@ -7,7 +7,15 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Handshake
 import androidx.compose.material.icons.filled.Insights
@@ -17,11 +25,16 @@ import androidx.compose.material.icons.outlined.Handshake
 import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
@@ -32,9 +45,11 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
 import com.boxdev.boxwallet.analytics.AnalyticsHelper
 import com.boxdev.boxwallet.R
+import com.boxdev.boxwallet.ui.components.AppPane
 import com.boxdev.boxwallet.ui.screens.analytics.AnalyticsScreen
 import com.boxdev.boxwallet.ui.screens.home.HomeScreen
 import com.boxdev.boxwallet.ui.screens.loans.LoanDetailScreen
+import com.boxdev.boxwallet.ui.screens.loans.LoanFormScreen
 import com.boxdev.boxwallet.ui.screens.loans.LoansScreen
 import com.boxdev.boxwallet.ui.screens.search.SearchScreen
 import com.boxdev.boxwallet.ui.screens.settings.BackupScreen
@@ -45,8 +60,11 @@ import com.boxdev.boxwallet.ui.screens.settings.MainCurrencyChangeScreen
 import com.boxdev.boxwallet.ui.screens.settings.DataManagementScreen
 import com.boxdev.boxwallet.ui.screens.settings.GeneralSettingsScreen
 import com.boxdev.boxwallet.ui.screens.settings.SettingsScreen
+import com.boxdev.boxwallet.ui.screens.settings.SettingsSection
 import com.boxdev.boxwallet.ui.screens.settings.ThemeCustomizationScreen
+import com.boxdev.boxwallet.ui.screens.transaction.TransactionFormScreen
 import com.boxdev.boxwallet.ui.screens.transactions.TransactionsListScreen
+import com.boxdev.boxwallet.ui.theme.BoxTheme
 
 enum class Destination(
     val route: String,
@@ -97,6 +115,24 @@ private fun fadeThrough() = fadeIn(animationSpec = tween(TRANSITION_DURATION - 9
     scaleIn(initialScale = 0.96f, animationSpec = tween(TRANSITION_DURATION - 90, delayMillis = 90, easing = EmphasizedDecelerate))
 private fun fadeThroughExit() = fadeOut(animationSpec = tween(90))
 
+/** A create/edit form: rises slightly and fades in over its origin, and leaves the same way. */
+private fun NavGraphBuilder.formComposable(route: String, content: @Composable (NavBackStackEntry) -> Unit) = composable(
+    route,
+    arguments = listOf(navArgument("id") { type = NavType.LongType; defaultValue = -1L }),
+    enterTransition = { slideInVertically { it / 8 } + fadeIn() },
+    popExitTransition = { slideOutVertically { it / 8 } + fadeOut() },
+) { content(it) }
+
+/**
+ * Runs [action] only while this entry is on top and settled, so a second exit during the pop
+ * animation is ignored. Returns whether it ran.
+ */
+private inline fun NavBackStackEntry.ifResumed(action: () -> Unit): Boolean {
+    if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) return false
+    action()
+    return true
+}
+
 /** A bottom-nav tab destination: lateral switches use fade-through. */
 private fun NavGraphBuilder.tabComposable(route: String, content: @Composable () -> Unit) = composable(
     route,
@@ -111,16 +147,32 @@ fun NavGraph(
     navController: NavHostController,
     modifier: Modifier,
     analyticsHelper: AnalyticsHelper,
-    onEditTransaction: (Long) -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
+    /** Whether Loans shows a loan in a single pane (in place of its list). */
+    onLoanDetailInSinglePaneChange: (Boolean) -> Unit = {},
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val onNavigateToSearch: () -> Unit = { navController.navigate(NavRoutes.Search.route) { launchSingleTop = true } }
-    val openLoan: (Long) -> Unit = { loanId -> navController.navigate(NavRoutes.LoanDetail.createRoute(loanId)) }
+    val openLoan: (Long) -> Unit = { loanId ->
+        navController.navigate(NavRoutes.LoanDetail.createRoute(loanId)) { launchSingleTop = true }
+    }
+    val onEditTransaction: (Long) -> Unit = { navController.navigate(NavRoutes.TransactionForm.createRoute(it)) { launchSingleTop = true } }
+    val onEditLoan: (Long) -> Unit = { navController.navigate(NavRoutes.LoanForm.createRoute(it)) { launchSingleTop = true } }
     LaunchedEffect(navBackStackEntry) {
         navBackStackEntry?.destination?.route?.let { route ->
             analyticsHelper.logScreenView(route.substringBefore("/"))
         }
+    }
+
+    // A settings section opened on one pane moves into the Settings detail pane once two show.
+    val twoPane = BoxTheme.layout.twoPane
+    val currentRoute = navBackStackEntry?.destination?.route
+    LaunchedEffect(twoPane, currentRoute) {
+        val section = SettingsSection.toMoveIntoPane(twoPane, currentRoute) ?: return@LaunchedEffect
+        val settingsEntry = runCatching { navController.getBackStackEntry(NavRoutes.Settings.route) }.getOrNull()
+            ?: return@LaunchedEffect
+        settingsEntry.savedStateHandle[SettingsSection.PRESELECT_KEY] = section.name
+        navController.popBackStack(NavRoutes.Settings.route, inclusive = false)
     }
 
     NavHost(
@@ -150,16 +202,17 @@ fun NavGraph(
         tabComposable(NavRoutes.TransactionsList.route) {
             TransactionsListScreen(
                 onEditTransaction = onEditTransaction,
-                onNavigateToSettings = onNavigateToSettings,
                 onNavigateToSearch = onNavigateToSearch,
             )
         }
 
         tabComposable(NavRoutes.Loans.route) {
             LoansScreen(
-                onNavigateToSettings = onNavigateToSettings,
                 onNavigateToSearch = onNavigateToSearch,
-                onNavigateToLoanDetail = openLoan,
+                onDetailInSinglePaneChange = onLoanDetailInSinglePaneChange,
+                // Loans opens a loan in its own detail pane rather than the loan_detail route: log it the same.
+                onLoanOpened = { analyticsHelper.logScreenView(NavRoutes.LoanDetail.route.substringBefore("/")) },
+                onEditLoan = onEditLoan,
             )
         }
 
@@ -167,12 +220,21 @@ fun NavGraph(
             route = NavRoutes.LoanDetail.route,
             arguments = listOf(navArgument("loanId") { type = NavType.LongType })
         ) {
-            LoanDetailScreen(onNavigateBack = { navController.popBackStack() })
+            // Opened from Home, Search or Reports: one pane on the window background.
+            val margin = BoxTheme.layout.margin
+            AppPane(
+                Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
+                    .padding(start = margin, top = 8.dp, end = margin, bottom = margin)
+            ) {
+                LoanDetailScreen(onNavigateBack = { navController.popBackStack() }, onEditLoan = onEditLoan)
+            }
         }
 
         tabComposable(NavRoutes.Analytics.route) {
             AnalyticsScreen(
-                onNavigateToSettings = onNavigateToSettings,
                 onNavigateToSearch = onNavigateToSearch,
                 onEditTransaction = onEditTransaction,
                 onOpenLoan = openLoan,
@@ -181,7 +243,13 @@ fun NavGraph(
             )
         }
 
-        composable(NavRoutes.Search.route) {
+        composable(
+            NavRoutes.Search.route,
+            enterTransition = { fadeThrough() },
+            exitTransition = { fadeThroughExit() },
+            popEnterTransition = { fadeThrough() },
+            popExitTransition = { fadeThroughExit() },
+        ) {
             SearchScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onOpenTransaction = onEditTransaction,
@@ -189,15 +257,38 @@ fun NavGraph(
             )
         }
 
-        composable(NavRoutes.Settings.route) {
+        formComposable(NavRoutes.TransactionForm.route) { entry ->
+            TransactionFormScreen(onDone = { entry.ifResumed { navController.popBackStack() } })
+        }
+
+        formComposable(NavRoutes.LoanForm.route) { entry ->
+            LoanFormScreen(
+                onDone = { entry.ifResumed { navController.popBackStack() } },
+                // A deleted loan's standalone detail would only say "not found": leave it too. The
+                // Loans pane clears its own selection.
+                onDeleted = {
+                    entry.ifResumed {
+                        navController.popBackStack()
+                        if (navController.currentDestination?.route == NavRoutes.LoanDetail.route) {
+                            navController.popBackStack()
+                        }
+                    }
+                },
+            )
+        }
+
+        composable(NavRoutes.Settings.route) { entry ->
+            val preselected by entry.savedStateHandle
+                .getStateFlow<String?>(SettingsSection.PRESELECT_KEY, null)
+                .collectAsState()
+            // Wide windows show sections in a detail pane; their outgoing links stay full routes.
             SettingsScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToGeneral = { navController.navigate(NavRoutes.GeneralSettings.route) },
-                onNavigateToCurrencies = { navController.navigate(NavRoutes.Currencies.route) },
-                onNavigateToCategories = { navController.navigate(NavRoutes.Categories.route) },
-                onNavigateToTheme = { navController.navigate(NavRoutes.ThemeCustomization.route) },
-                onNavigateToBackup = { navController.navigate(NavRoutes.Backup.route) },
-                onNavigateToDataManagement = { navController.navigate(NavRoutes.DataManagement.route) },
+                onOpenSection = { navController.navigate(it.route) },
+                onOpenCurrency = { navController.navigate(NavRoutes.CurrencyDetail.createRoute(it)) },
+                onChangeMainCurrency = { navController.navigate(NavRoutes.MainCurrencyChange.createRoute(it)) },
+                preselected = preselected?.let(SettingsSection::valueOf),
+                onPreselectedConsumed = { entry.savedStateHandle.set<String?>(SettingsSection.PRESELECT_KEY, null) },
             )
         }
 

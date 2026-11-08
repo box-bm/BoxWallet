@@ -1,9 +1,5 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
-
 package com.boxdev.boxwallet.ui.navigation
 
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberUpdatedState
@@ -26,10 +22,4 @@ fun TabReselectEffect(route: String, onReselect: suspend () -> Unit) {
     LaunchedEffect(events, route) {
         events.filter { it == route }.collect { action.value() }
     }
-}
-
-/** Expands a collapsed flexible top app bar again, used together with scroll-to-top. */
-fun TopAppBarScrollBehavior.expand() {
-    state.heightOffset = 0f
-    state.contentOffset = 0f
 }

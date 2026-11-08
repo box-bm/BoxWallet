@@ -33,7 +33,7 @@ import com.boxdev.boxwallet.util.categoryIconOptions
 
 @Composable
 fun CategoriesScreen(
-    onNavigateBack: () -> Unit,
+    onNavigateBack: (() -> Unit)?,
     viewModel: CategoriesViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()

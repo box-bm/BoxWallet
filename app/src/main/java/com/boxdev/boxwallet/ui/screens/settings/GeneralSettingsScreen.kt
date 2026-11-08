@@ -40,7 +40,7 @@ import com.boxdev.boxwallet.R
 
 @Composable
 fun GeneralSettingsScreen(
-    onNavigateBack: () -> Unit,
+    onNavigateBack: (() -> Unit)?,
     viewModel: GeneralSettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()

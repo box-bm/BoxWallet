@@ -188,12 +188,12 @@ components:
     textColor: "{colors.on-surface}"
     typography: "{typography.body-large}"
     rounded: "{rounded.group-inner}"
-  sheet-primary-button:
+  form-save-button:
     backgroundColor: "{colors.primary}"
     textColor: "{colors.on-primary}"
-    typography: "{typography.title-medium}"
+    typography: "{typography.label-large}"
     rounded: "{rounded.full}"
-    height: "56px"
+    height: "40px"
   section-header:
     textColor: "{colors.on-surface}"
     typography: "{typography.title-large}"
@@ -218,14 +218,15 @@ The brand palette is the default look. Material You dynamic color is an opt-in t
 - Categories are identified by a stable MaterialShapes silhouette and tone, which relaxes to a circle on press.
 - Income and expense are their own semantic roles (jade and cochineal), always signed with + or −.
 - Generous expressive radii (8 to 36px) and connected list groups with round outer and tight inner corners.
-- Adaptive by width class: short navigation bar and FAB menu when compact; wide navigation rail and multi-pane layouts when wide.
+- Content lives on white panes over a surface-container window, with one search bar on the background above them.
+- Adaptive by width class: short navigation bar and FAB menu when compact; navigation rail when wide; two panes from Expanded width.
 
 ## Colors
 
 An añil-indigo shell with a marigold attention color, indigo-tinted neutrals, and two money roles that sit outside Material's scheme. Values below are the light standard-contrast scheme; dark and contrast variants are generated from the same HCT seeds (see the sidecar).
 
 ### Primary
-- **Añil Indigo** (primary): the shell and selection color. Fills the balance panel slab, the sheet primary button, category-breakdown bars, active loan progress, the selected category ring, the text cursor, settings group titles and selected menu values.
+- **Añil Indigo** (primary): the shell and selection color. Fills the balance panel slab, the form Save button, category-breakdown bars, active loan progress, the selected category ring, the text cursor, settings group titles and selected menu values.
 - **Periwinkle Wash** (primary-container): FAB container, one of the four category tones.
 
 ### Secondary
@@ -239,9 +240,10 @@ An añil-indigo shell with a marigold attention color, indigo-tinted neutrals, a
 - **Cochineal** (expense / expense-container): expense amounts, the expense share of the proportion bar, the expense line in the monthly trend chart.
 
 ### Neutral
-- **Lavender Paper** (surface): app background and top bars.
+- **Lavender Paper** (surface): background and top bars of the full-screen secondary pages (settings pages on compact, loan detail opened on its own), of the full-screen movement and loan forms, and of sheets.
+- **Paper White** (surface-container-lowest): every pane (`AppPane`). White in light theme, black in dark.
 - **Ink Plum** (on-surface): primary text and neutral amounts. **Slate Plum** (on-surface-variant) carries secondary text, labels and unfilled placeholder amounts.
-- **Surface container family** (surface-container-low through -highest): the depth system. Low for side panes (Records filters, Loans detail pane); base for list rows, loan cards, settings rows and the navigation rail; high for form rows, the amount field and the search field; highest for progress tracks, info chips and the neutral category tone.
+- **Surface container family** (surface-container-low through -highest): the depth system. Low for the compact filter panel that folds open in Movements; base for the window background (behind the panes, the navigation bar and the rail are the same color), list rows, loan cards and settings rows; high for form rows, the amount field and the search field; highest for progress tracks, info chips and the neutral category tone.
 - **Outline Variant**: chart grid lines only.
 
 ### Named Rules
@@ -260,12 +262,12 @@ An añil-indigo shell with a marigold attention color, indigo-tinted neutrals, a
 **Character:** Roboto Flex pushed wide and heavy gives headings and money a confident, almost poster-like voice; plain system Roboto keeps reading text native and quiet. The contrast between the two is the type system.
 
 ### Hierarchy
-- **Money Hero** (800, 52px/56px, -1.5px, tnum): the Home balance and the amount being typed in a sheet. Auto-sizes down to 28px rather than wrapping or truncating.
+- **Money Hero** (800, 52px/56px, -1.5px, tnum): the Home balance and the amount being typed in a form. Auto-sizes down to 28px rather than wrapping or truncating.
 - **Money Large** (700, 28px/34px, tnum): income and expense tiles, loan remaining amounts, the currency symbol beside a hero amount.
 - **Money Medium** (600, 18px/24px, tnum): the default amount in list rows.
 - **Money Small** (500, 14px/20px, tnum): secondary amounts (loan totals, category breakdown, the month's net).
 - **Display / Headline** (Roboto Flex, 700 bold with negative tracking; headline-small and title-large at 600): screen titles in flexible app bars, sheet headers (headline-small), section headers (title-large).
-- **Title Medium / Small** (Roboto, 600): card titles, settings group titles, button text in sheets.
+- **Title Medium / Small** (Roboto, 600): card titles, settings group titles.
 - **Body** (Roboto, 400, 16px and 14px): list row titles and supporting lines.
 - **Label Large** (Roboto, 600, 14px): chip text, field labels, stat captions.
 
@@ -276,22 +278,37 @@ An añil-indigo shell with a marigold attention color, indigo-tinted neutrals, a
 
 ## Layout
 
-Layout is driven by three width classes: Compact (under 600dp), Medium (600 to 839dp), Expanded (840dp and up). Phones and folded foldables are Compact; unfolded foldables and tablets are wide.
+Layout is driven by the window size, not the device or its orientation: there is no orientation lock. Three width classes, from the M3 breakpoints: Compact (under 600dp), Medium (600 to 839dp), Expanded (840dp and up). Phones in portrait and folded foldables are Compact. A phone in landscape rotates into the rail and panes rather than stretching the portrait layout: small phones land in Medium, Pixel-class phones are wide enough for Expanded and get two panes. Unfolded foldables and tablets are Expanded. Under 480dp of height (phone landscape) nothing may depend on a tall window: the collapsed rail drops its labels (the icons keep the names for accessibility), takes a small FAB and scrolls only if its destinations still don't fit.
 
-- **Compact:** single column with 16px side margins, a ShortNavigationBar, and a FloatingActionButtonMenu at bottom-end whose action is contextual (Records adds a movement, Loans adds a loan, Home asks). Lists end with a 96px spacer to clear the FAB.
-- **Wide:** a WideNavigationRail on surface-container with the FAB in its header; the rail is collapsed below 1200dp and expanded (labels beside icons, extended FAB) at 1200dp and above. Home splits into two equal panes (balance and loans | recent movements) with 24px margins and gutter. Records keeps its filters open as a 340px side pane. Reports flows into two equal columns for the selected period, then a full-width "Last 12 months" divider, then two columns for cash flow and financial health. Loans becomes list-detail (46% | 54%) at Expanded width only.
+- **Window and panes:** the whole window is surface-container, the same color as the navigation bar and rail. All content sits on panes (`AppPane`): surface-container-lowest with extra-large corners. Margins are 16px on Compact and 24px on Medium and wider, with a 24px spacer between two panes. A fixed pane is 360dp beside a flexible one; otherwise two panes split 50/50. Back only appears in single-pane layouts; selection is only shown in two-pane layouts, and an empty detail pane shows a placeholder.
+- **Compact:** one pane, a ShortNavigationBar, and a FloatingActionButtonMenu at bottom-end whose action is contextual (Movements adds a movement, Loans adds a loan, Home asks). Lists end with a 96px spacer to clear the FAB.
+- **Medium:** one pane beside a collapsed WideNavigationRail with the FAB in its header.
+- **Expanded:** the rail plus two panes where the screen has them; the rail is expanded (labels beside icons, extended FAB) at 1200dp and above.
+- **Secondary destinations** (Settings and its pages, Search, a loan opened on its own, currency detail, the movement and loan forms) hide the navigation: the rail on wide windows and the bottom bar on compact, with a back button in their place. The FAB shows only on Home, Movements and Loans, in the bar layout and in the rail header alike, and hides while a loan fills the Loans pane on its own. Wherever no bottom bar sits under them (rail layouts, secondary destinations), panes end above the system navigation bar.
+
+| Screen | Compact | Medium | Expanded |
+|---|---|---|---|
+| Home | 1 pane: balance, recent movements, loans | 1 pane | 2 panes 50/50: balance and loans \| recent movements |
+| Movements | 1 pane, filters fold open behind Tune | 1 pane with Tune | filters fixed 360dp \| list |
+| Loans | list, then detail in the same pane with back | same | list-detail (`NavigableListDetailPaneScaffold`): list 360dp \| detail, placeholder with no selection, selected card highlighted |
+| Reports | 1 pane | 1 pane | 1 pane with its two inner columns |
+| Settings | list, then the page with back | same | list-detail: sections 360dp \| page (General, Currencies, Categories, Theme, Backup, Data) |
+| Search | full screen | same | same, results up to 720dp |
+
+A loan opened from Home, Search or Reports is its own destination and back returns to where it came from. Currency detail and changing the main currency stay full destinations over Settings. Folding, unfolding or rotating keeps the selection (detail in one pane if something was selected, the list if not) and the scroll position.
+
 - **Readable measure:** settings pages and similar single-column content cap at 720dp and center.
-- **Rhythm:** a 4px base with 8, 12, 16, 20, 24 and 32 as the working steps. 16px is the default gap between content blocks and screen margin on compact; 24px separates settings groups and wide panes; 20px is card padding.
+- **Rhythm:** a 4px base with 8, 12, 16, 20, 24 and 32 as the working steps. 16px is the default gap between content blocks and the window margin on compact; 24px separates settings groups and panes and is the margin on wider windows; 20px is card padding.
 
 ## Elevation & Depth
 
-The system is flat and tonal. No component declares a shadow; depth comes from the surface-container stack (low, base, high, highest) and from the single primary slab. The only shadows are the stock Material elevations on FABs, menus and bottom sheets.
+The system is flat and tonal. No component declares a shadow; depth comes from the surface-container stack (lowest for panes, then low, base, high, highest) and from the single primary slab. Panes are set apart from the surface-container window by tone, not by a shadow: lighter in the light theme, darker in the dark theme. The only shadows are the stock Material elevations on FABs, menus and bottom sheets.
 
 **The Tonal Stack Rule.** To raise something, step it one level up the surface-container family; never add a shadow or a border to lift it.
 
 ## Shapes
 
-Expressive and soft. The corner scale is extra-small 8, small 12, medium 20, large 28, extra-large 36px: loan cards and side panes use large, the balance panel, amount field, search field and Loans detail pane use extra-large. Chips and buttons are full pills.
+Expressive and soft. The corner scale is extra-small 8, small 12, medium 20, large 28, extra-large 36px: loan cards and the compact filter panel use large; panes, the balance panel, the amount field and the search field use extra-large. Chips and buttons are full pills.
 
 Lists are connected groups: rows are separated by Material's segmented gap and share outer corners of the group (24px outer, 6px inner for form groups; Material segmented shapes for list items), so a group reads as one object. A lone row keeps the large outer radius instead of collapsing to small corners.
 
@@ -321,17 +338,25 @@ A 44px polygon (40px in charts) clipped from the category's MaterialShapes silho
 
 ### Inputs / Fields
 - **Amount field:** the amount is the point of the form. Surface-container-high, extra-large corners, typed at Money Hero size and centered, currency symbol in Money Large before it; the ink animates from on-surface-variant (empty, "0.00") to the direction's money color. Error adds a 2px error border and error label.
-- **Global search:** one search for the whole app, opened from the search action in every tab's top bar. A full screen with a 56px pill TextField on surface-container-high (no indicator line), All / Movements / Loans scope chips, and results grouped into Loans and Movements. Matching ignores case and accents and also covers category names and amounts. List screens keep their filters behind a top-bar Tune toggle with a badge counting the active filters.
-- **Choice rows:** connected ToggleButton groups (the Expressive replacement for segmented buttons); unselected on surface-container-highest. The income/expense choice in sheets takes the money container colors.
+- **Top search bar:** each tab opens with a collapsed M3 SearchBar on the window background, above the pane, in place of a top app bar and its search action: a 56px pill on surface-container-high, a leading search icon, the placeholder "Search BoxWallet" and one trailing action per screen. Home: Settings (the only way into Settings). Movements and Loans: Tune with a badge counting the active filters (only while the filters are not open as their own pane). Reports: Export. With two panes, the bar spans the first one. It does not collapse on scroll; tapping it opens Global search. The tabs have no titles; "BoxWallet" lives only in the placeholder, and the Movements count ("N movements") is a line at the top of its list.
+- **Global search:** one search for the whole app, opened from the top search bar. A full screen with a 56px pill TextField on surface-container-high (no indicator line), All / Movements / Loans scope chips, and results grouped into Loans and Movements. Matching ignores case and accents and also covers category names and amounts.
+- **Choice rows:** connected ToggleButton groups (the Expressive replacement for segmented buttons); unselected on surface-container-highest. The income/expense choice in forms takes the money container colors.
 - **Category picker:** a horizontal row of category badges; the chosen one morphs to a circle and gets a 2px primary ring.
 
 ### Buttons
-- **Sheet primary:** full-width 56px filled button with Expressive morphing shapes and title-medium text.
-- **Destructive:** delete in sheets is a filled tonal icon button on error-container; confirm-delete dialogs use a filled error button.
+- **Form Save:** a filled button with Expressive morphing shapes at the end of the form's top bar; disabled until the form can be saved.
+- **Destructive:** delete in a form is an error-tinted icon button in the top bar, before Save; confirm-delete dialogs use a filled error button.
 - **FAB:** ToggleFloatingActionButton opening a FloatingActionButtonMenu (add movement, add loan); in the rail it is a FAB or extended FAB with a dropdown menu.
 
 ### Navigation and Chrome
-ShortNavigationBar (compact) and WideNavigationRail (wide) with filled icons on the active destination and outlined icons otherwise. Destinations are Home, Movements (receipt), Loans (handshake) and Reports (insights). Tapping the selected tab returns to its root and then scrolls it to the top with the app bar re-expanded. The product calls every income or expense a **movement / movimiento**; never "transaction" or "record" in UI copy. Screen tops use flexible app bars: medium flexible on Home, large flexible on settings pages, collapsing on scroll. Section headers are title-large with a text-button action at 48px height. Loading uses the Expressive LoadingIndicator.
+ShortNavigationBar (compact) and WideNavigationRail (wide) with filled icons on the active destination and outlined icons otherwise. Destinations are Home, Movements (receipt), Loans (handshake) and Reports (insights). Tapping a tab always switches to it, even from a secondary destination; tapping the selected tab returns to its root and then scrolls it to the top. The product calls every income or expense a **movement / movimiento**; never "transaction" or "record" in UI copy. Tabs start with the top search bar instead of an app bar; settings pages and a standalone loan detail use large flexible app bars that collapse on scroll. Section headers are title-large with a text-button action at 48px height. Loading uses the Expressive LoadingIndicator.
+
+### Forms
+Creating or editing a movement or a loan is a full-screen form (M3 full-screen dialog pattern) on its own navigation destination (`transaction_form?id=`, `loan_form?id=`), opened from the FAB or rail header, from any movement row (Home, Movements, Search, Reports) and from a loan's edit action (in the Loans pane or on its own). It hides the navigation like any secondary destination.
+- **Top bar:** ✕ (labelled "Close") at the start, the title ("New Movement" / "Edit Movement", "New Loan" / "Edit Loan"), then, when editing, the delete icon and a filled Save at the end. There is no button at the foot of the form.
+- **Body:** the form's fields in a scrolling column on surface (Lavender Paper), capped at 640dp and centered on wide windows, with the window margin at the sides. The form pads itself above the keyboard (the activity resizes rather than pans), so the focused field scrolls into view and the top bar with Save stays on screen. A failed save is reported in error text above the fields, announced politely, and the form scrolls back to it.
+- **Leaving:** Save and a confirmed delete return to where the form was opened, once. ✕ and system back close straight away when nothing changed (back then uses the predictive-back animation); after an edit they ask "Discard changes?" (Keep editing / Discard).
+- **Motion:** the form enters by rising an eighth of its height while fading in, and leaves the same way.
 
 ### Loans
 A loan's direction is always said in words, never as "expense" or "income": "I owe" / "Owed to me" on the form, "Left to pay" / "Left to collect" on cards, rows and detail, "Total Paid" / "Total Collected" in detail. The Loans tab opens with what is outstanding by direction ("You owe" / "Owed to you", never netted). Progress shows what has been settled, so it stays primary and never turns red; overdue is carried by the status chip and the due-date line. Installments in detail use the same paid / open / overdue rule as Reports (`installmentState`): overdue rows sit on the error container with "Overdue since", and "Next payment" marks the first installment still ahead. Home lists loans as one-line rows (`LoanRow`); full cards live on the Loans tab, where paid-off loans fold into "Completed (n)".
@@ -357,7 +382,8 @@ MaterialExpressiveTheme with the expressive motion scheme. Fast spatial springs 
 - **Do** read colors from scheme roles and `BoxTheme.money`, so dynamic color, dark mode and system contrast all keep working.
 - **Do** build lists as connected segmented groups on surface-container, using segmentShapes or GroupShapes for corners.
 - **Do** give every category its CategoryBadge wherever the category appears.
-- **Do** branch layout on `BoxTheme.widthClass`: panes and the rail when wide, the short bar and FAB menu when compact.
+- **Do** branch layout on `BoxTheme.layout` (width class, navigation kind, two panes, margin): the rail when wide, two panes from Expanded, the short bar and FAB menu when compact.
+- **Do** put every screen's content on an `AppPane` (or `PaneRow`) over the surface-container window; the search bar sits on the window, not on the pane.
 - **Do** pair status color with an icon and a label.
 
 ### Don't:

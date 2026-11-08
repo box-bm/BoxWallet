@@ -25,6 +25,10 @@ fun resolveTabClick(target: String, currentRoute: String?, tabsInBackStack: Set<
     return if (root == target) TabAction.PopToRoot(target) else TabAction.Switch(target, popTo = root)
 }
 
+/** True for any route that is not a tab root (settings, details, search, forms): navigation hides there. */
+fun isSecondary(route: String?): Boolean =
+    route != null && route !in Destination.entries.map { it.route }
+
 fun NavController.performTabAction(action: TabAction, onScrollToTop: (String) -> Unit) {
     when (action) {
         is TabAction.Switch -> {

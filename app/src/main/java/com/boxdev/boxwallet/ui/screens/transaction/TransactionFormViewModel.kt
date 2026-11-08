@@ -1,5 +1,6 @@
 package com.boxdev.boxwallet.ui.screens.transaction
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boxdev.boxwallet.analytics.AnalyticsHelper
@@ -29,6 +30,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -38,7 +40,7 @@ import java.time.LocalDateTime
 import java.util.Currency
 import javax.inject.Inject
 
-/** Why the form can't save, shown under the fields so a failed save never leaves the sheet silently open. */
+/** Why the form can't save, shown under the fields so a failed save never leaves the form silently open. */
 sealed interface TransactionFormError {
     data object InvalidAmount : TransactionFormError
     data object NeedsRate : TransactionFormError
@@ -124,6 +126,7 @@ data class TransactionFormState(
 
 @HiltViewModel
 class TransactionFormViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     private val transactionRepository: TransactionRepository,
     categoryRepository: CategoryRepository,
     private val accountRepository: AccountRepository,
@@ -138,14 +141,27 @@ class TransactionFormViewModel @Inject constructor(
     private val _formState = MutableStateFlow(TransactionFormState())
     val formState: StateFlow<TransactionFormState> = _formState.asStateFlow()
 
+    /** The form as it stood when loading finished; null while loading, so no edit can be detected yet. */
+    private val initial = MutableStateFlow<TransactionFormState?>(null)
+
+    /** True once the user has edited a field since loading finished. */
+    val hasUnsavedChanges: StateFlow<Boolean> = combine(_formState, initial) { state, base ->
+        base != null && state.differsFrom(base)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
     val categories: StateFlow<List<Category>> = categoryRepository.getAllCategories()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val recentCurrencies: StateFlow<List<CurrencyUsage>> = transactionRepository.recentCurrencies()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    fun loadTransaction(transactionId: Long?) {
+    init {
+        loadTransaction(savedStateHandle.get<Long>("id"))
+    }
+
+    private fun loadTransaction(transactionId: Long?) {
         editing = null
+        initial.value = null
         if (transactionId == null || transactionId == -1L) {
             // Loading until the account is known, so a quick save can't store a placeholder currency.
             _formState.value = TransactionFormState(isLoading = true)
@@ -154,6 +170,7 @@ class TransactionFormViewModel @Inject constructor(
                 _formState.update {
                     it.copy(currency = account.currency, accountCurrency = account.currency, isLoading = false)
                 }
+                initial.value = _formState.value
             }
             return
         }
@@ -185,6 +202,7 @@ class TransactionFormViewModel @Inject constructor(
                     isLoading = false,
                     wasCleared = t.isCleared,
                 )
+                initial.value = _formState.value
             } else {
                 _formState.update { it.copy(isLoading = false, error = TransactionFormError.NotFound) }
             }

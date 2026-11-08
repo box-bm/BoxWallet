@@ -36,7 +36,7 @@ import com.boxdev.boxwallet.data.datastore.ThemeMode
 
 @Composable
 fun ThemeCustomizationScreen(
-    onNavigateBack: () -> Unit,
+    onNavigateBack: (() -> Unit)?,
     viewModel: ThemeViewModel = hiltViewModel()
 ) {
     val themeSettings by viewModel.themeSettings.collectAsState()
