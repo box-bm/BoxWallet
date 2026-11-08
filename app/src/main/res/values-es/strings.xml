@@ -30,7 +30,7 @@
     <!-- Transaction Item -->
     <string name="transaction_has_reminder">Tiene recordatorio</string>
 
-    <!-- Transaction Sheet -->
+    <!-- Transaction Form -->
     <string name="transaction_edit_title">Editar Movimiento</string>
     <string name="transaction_new_title">Nuevo Movimiento</string>
     <string name="transaction_type_expense">Gasto</string>
@@ -49,12 +49,10 @@
     <string name="transaction_frequency_label">Frecuencia</string>
     <string name="transaction_frequency_placeholder">Seleccionar frecuencia</string>
     <string name="transaction_every_n_months">Cada N meses</string>
-    <string name="transaction_save">Guardar</string>
-    <string name="transaction_update">Actualizar</string>
     <string name="transaction_delete_title">Eliminar Movimiento</string>
     <string name="transaction_delete_message">\u00bfEst\u00e1s seguro? Esta acci\u00f3n no se puede deshacer.</string>
 
-    <!-- Loan Sheet -->
+    <!-- Loan Form -->
     <string name="loan_edit_title">Editar Pr\u00e9stamo</string>
     <string name="loan_new_title">Nuevo Pr\u00e9stamo</string>
     <string name="loan_name_label">Nombre del Pr\u00e9stamo *</string>
@@ -65,7 +63,6 @@
     <string name="loan_each_installment">Cada cuota: %1$s (%2$s)</string>
     <string name="loan_start_date">Fecha de Inicio</string>
     <string name="loan_type_label">Tipo</string>
-    <string name="loan_create">Crear Pr\u00e9stamo</string>
     <string name="loan_delete_title">Eliminar Pr\u00e9stamo</string>
     <string name="loan_delete_message">Esto tambi\u00e9n eliminar\u00e1 las %1$s cuotas. Esta acci\u00f3n no se puede deshacer.</string>
     <string name="loan_delete_button">Eliminar Pr\u00e9stamo</string>
@@ -347,6 +344,7 @@
     <string name="action_back">Atr\u00e1s</string>
     <string name="action_delete">Eliminar</string>
     <string name="action_cancel">Cancelar</string>
+    <string name="action_close">Cerrar</string>
     <string name="action_ok">Aceptar</string>
     <string name="action_save">Guardar</string>
     <string name="action_edit">Editar</string>
@@ -386,6 +384,9 @@
     <string name="analytics_next_period">Periodo siguiente</string>
     <string name="form_when">Fecha y hora</string>
     <string name="form_options">Opciones</string>
+    <string name="form_discard_title">¿Descartar cambios?</string>
+    <string name="form_discard">Descartar</string>
+    <string name="form_keep_editing">Seguir editando</string>
     <string name="loan_terms">Condiciones</string>
     <string name="home_month_net">Neto</string>
     <string name="theme_preview">Vista previa</string>

@@ -7,7 +7,9 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,6 +33,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
@@ -45,6 +49,7 @@ import com.boxdev.boxwallet.ui.components.AppPane
 import com.boxdev.boxwallet.ui.screens.analytics.AnalyticsScreen
 import com.boxdev.boxwallet.ui.screens.home.HomeScreen
 import com.boxdev.boxwallet.ui.screens.loans.LoanDetailScreen
+import com.boxdev.boxwallet.ui.screens.loans.LoanFormScreen
 import com.boxdev.boxwallet.ui.screens.loans.LoansScreen
 import com.boxdev.boxwallet.ui.screens.search.SearchScreen
 import com.boxdev.boxwallet.ui.screens.settings.BackupScreen
@@ -57,6 +62,7 @@ import com.boxdev.boxwallet.ui.screens.settings.GeneralSettingsScreen
 import com.boxdev.boxwallet.ui.screens.settings.SettingsScreen
 import com.boxdev.boxwallet.ui.screens.settings.SettingsSection
 import com.boxdev.boxwallet.ui.screens.settings.ThemeCustomizationScreen
+import com.boxdev.boxwallet.ui.screens.transaction.TransactionFormScreen
 import com.boxdev.boxwallet.ui.screens.transactions.TransactionsListScreen
 import com.boxdev.boxwallet.ui.theme.BoxTheme
 
@@ -109,6 +115,24 @@ private fun fadeThrough() = fadeIn(animationSpec = tween(TRANSITION_DURATION - 9
     scaleIn(initialScale = 0.96f, animationSpec = tween(TRANSITION_DURATION - 90, delayMillis = 90, easing = EmphasizedDecelerate))
 private fun fadeThroughExit() = fadeOut(animationSpec = tween(90))
 
+/** A create/edit form: rises slightly and fades in over its origin, and leaves the same way. */
+private fun NavGraphBuilder.formComposable(route: String, content: @Composable (NavBackStackEntry) -> Unit) = composable(
+    route,
+    arguments = listOf(navArgument("id") { type = NavType.LongType; defaultValue = -1L }),
+    enterTransition = { slideInVertically { it / 8 } + fadeIn() },
+    popExitTransition = { slideOutVertically { it / 8 } + fadeOut() },
+) { content(it) }
+
+/**
+ * Runs [action] only while this entry is on top and settled, so a second exit during the pop
+ * animation is ignored. Returns whether it ran.
+ */
+private inline fun NavBackStackEntry.ifResumed(action: () -> Unit): Boolean {
+    if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) return false
+    action()
+    return true
+}
+
 /** A bottom-nav tab destination: lateral switches use fade-through. */
 private fun NavGraphBuilder.tabComposable(route: String, content: @Composable () -> Unit) = composable(
     route,
@@ -123,14 +147,17 @@ fun NavGraph(
     navController: NavHostController,
     modifier: Modifier,
     analyticsHelper: AnalyticsHelper,
-    onEditTransaction: (Long) -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     /** Whether Loans shows a loan in a single pane (in place of its list). */
     onLoanDetailInSinglePaneChange: (Boolean) -> Unit = {},
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val onNavigateToSearch: () -> Unit = { navController.navigate(NavRoutes.Search.route) { launchSingleTop = true } }
-    val openLoan: (Long) -> Unit = { loanId -> navController.navigate(NavRoutes.LoanDetail.createRoute(loanId)) }
+    val openLoan: (Long) -> Unit = { loanId ->
+        navController.navigate(NavRoutes.LoanDetail.createRoute(loanId)) { launchSingleTop = true }
+    }
+    val onEditTransaction: (Long) -> Unit = { navController.navigate(NavRoutes.TransactionForm.createRoute(it)) { launchSingleTop = true } }
+    val onEditLoan: (Long) -> Unit = { navController.navigate(NavRoutes.LoanForm.createRoute(it)) { launchSingleTop = true } }
     LaunchedEffect(navBackStackEntry) {
         navBackStackEntry?.destination?.route?.let { route ->
             analyticsHelper.logScreenView(route.substringBefore("/"))
@@ -185,6 +212,7 @@ fun NavGraph(
                 onDetailInSinglePaneChange = onLoanDetailInSinglePaneChange,
                 // Loans opens a loan in its own detail pane rather than the loan_detail route: log it the same.
                 onLoanOpened = { analyticsHelper.logScreenView(NavRoutes.LoanDetail.route.substringBefore("/")) },
+                onEditLoan = onEditLoan,
             )
         }
 
@@ -201,7 +229,7 @@ fun NavGraph(
                     .windowInsetsPadding(WindowInsets.safeDrawing)
                     .padding(start = margin, top = 8.dp, end = margin, bottom = margin)
             ) {
-                LoanDetailScreen(onNavigateBack = { navController.popBackStack() })
+                LoanDetailScreen(onNavigateBack = { navController.popBackStack() }, onEditLoan = onEditLoan)
             }
         }
 
@@ -226,6 +254,26 @@ fun NavGraph(
                 onNavigateBack = { navController.popBackStack() },
                 onOpenTransaction = onEditTransaction,
                 onOpenLoan = openLoan,
+            )
+        }
+
+        formComposable(NavRoutes.TransactionForm.route) { entry ->
+            TransactionFormScreen(onDone = { entry.ifResumed { navController.popBackStack() } })
+        }
+
+        formComposable(NavRoutes.LoanForm.route) { entry ->
+            LoanFormScreen(
+                onDone = { entry.ifResumed { navController.popBackStack() } },
+                // A deleted loan's standalone detail would only say "not found": leave it too. The
+                // Loans pane clears its own selection.
+                onDeleted = {
+                    entry.ifResumed {
+                        navController.popBackStack()
+                        if (navController.currentDestination?.route == NavRoutes.LoanDetail.route) {
+                            navController.popBackStack()
+                        }
+                    }
+                },
             )
         }
 

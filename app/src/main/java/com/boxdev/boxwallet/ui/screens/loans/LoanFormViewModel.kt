@@ -1,5 +1,6 @@
 package com.boxdev.boxwallet.ui.screens.loans
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boxdev.boxwallet.analytics.AnalyticsHelper
@@ -15,12 +16,14 @@ import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.domain.money.MissingRateException
 import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.domain.money.parseMajor
+import com.boxdev.boxwallet.ui.screens.transaction.differsFrom
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
@@ -43,8 +46,10 @@ data class LoanFormState(
     val isEditing: Boolean = false,
     val isLoading: Boolean = false,
     val isSaved: Boolean = false,
+    /** Set once a confirmed delete went through; the form then leaves the loan's screens too. */
+    val deleted: Boolean = false,
     val error: String? = null,
-    /** Set when a foreign-currency loan had no rate at all; the sheet shows a localized message. */
+    /** Set when a foreign-currency loan had no rate at all; the form shows a localized message. */
     val missingRateCurrency: Currency? = null,
     /** Installments already paid; the currency can't change once there is any. */
     val paidInstallments: Int = 0,
@@ -70,6 +75,7 @@ data class LoanFormState(
 
 @HiltViewModel
 class LoanFormViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     private val loanRepository: LoanRepository,
     categoryRepository: CategoryRepository,
     private val accountRepository: AccountRepository,
@@ -83,20 +89,34 @@ class LoanFormViewModel @Inject constructor(
     private val _formState = MutableStateFlow(LoanFormState())
     val formState: StateFlow<LoanFormState> = _formState.asStateFlow()
 
+    /** The form as it stood when loading finished; null while loading, so no edit can be detected yet. */
+    private val initial = MutableStateFlow<LoanFormState?>(null)
+
+    /** True once the user has edited a field since loading finished. */
+    val hasUnsavedChanges: StateFlow<Boolean> = combine(_formState, initial) { state, base ->
+        base != null && state.differsFrom(base)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
     val categories: StateFlow<List<Category>> = categoryRepository.getAllCategories()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val recentCurrencies: StateFlow<List<CurrencyUsage>> = transactionRepository.recentCurrencies()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    fun loadLoan(loanId: Long?) {
+    init {
+        loadLoan(savedStateHandle.get<Long>("id"))
+    }
+
+    private fun loadLoan(loanId: Long?) {
         editing = null
+        initial.value = null
         if (loanId == null || loanId == -1L) {
             // A new loan defaults to its account's currency; loading until known so a save can't use a placeholder.
             _formState.value = LoanFormState(isLoading = true)
             viewModelScope.launch {
                 val account = accountRepository.defaultAccount()
                 _formState.update { it.copy(currency = account.currency, isLoading = false) }
+                initial.value = _formState.value
             }
             return
         }
@@ -121,6 +141,7 @@ class LoanFormViewModel @Inject constructor(
                     isLoading = false,
                     paidInstallments = loan.paidInstallments,
                 )
+                initial.value = _formState.value
             } else {
                 _formState.update { it.copy(isLoading = false, error = "Loan not found") }
             }
@@ -205,7 +226,7 @@ class LoanFormViewModel @Inject constructor(
             try {
                 loanRepository.deleteLoan(s.id)
                 analyticsHelper.logEvent("loan_deleted")
-                _formState.update { it.copy(isLoading = false, isSaved = true) }
+                _formState.update { it.copy(isLoading = false, deleted = true) }
             } catch (e: Exception) {
                 _formState.update { it.copy(isLoading = false, error = e.message ?: "Error deleting loan") }
             }

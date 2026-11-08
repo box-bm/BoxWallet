@@ -68,6 +68,12 @@ class TabNavigationTest {
     }
 
     @Test
+    fun `movement and loan forms are secondary`() {
+        assertTrue(isSecondary(NavRoutes.TransactionForm.route))
+        assertTrue(isSecondary(NavRoutes.LoanForm.route))
+    }
+
+    @Test
     fun `unknown route is not secondary`() {
         assertFalse(isSecondary(null))
     }

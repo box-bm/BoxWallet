@@ -30,7 +30,7 @@
     <!-- Transaction Item -->
     <string name="transaction_has_reminder">Has reminder</string>
 
-    <!-- Transaction Sheet -->
+    <!-- Transaction Form -->
     <string name="transaction_edit_title">Edit Movement</string>
     <string name="transaction_new_title">New Movement</string>
     <string name="transaction_type_expense">Expense</string>
@@ -53,12 +53,10 @@
     <string name="transaction_frequency_label">Frequency</string>
     <string name="transaction_frequency_placeholder">Select frequency</string>
     <string name="transaction_every_n_months">Every N months</string>
-    <string name="transaction_save">Save</string>
-    <string name="transaction_update">Update</string>
     <string name="transaction_delete_title">Delete Movement</string>
     <string name="transaction_delete_message">Are you sure? This cannot be undone.</string>
 
-    <!-- Loan Sheet -->
+    <!-- Loan Form -->
     <string name="loan_edit_title">Edit Loan</string>
     <string name="loan_new_title">New Loan</string>
     <string name="loan_name_label">Loan Name *</string>
@@ -69,7 +67,6 @@
     <string name="loan_each_installment">Each installment: %1$s (%2$s)</string>
     <string name="loan_start_date">Start Date</string>
     <string name="loan_type_label">Type</string>
-    <string name="loan_create">Create Loan</string>
     <string name="loan_delete_title">Delete Loan</string>
     <string name="loan_delete_message">This will also delete all %1$s installments. This cannot be undone.</string>
     <string name="loan_delete_button">Delete Loan</string>
@@ -366,6 +363,7 @@
     <string name="action_back">Back</string>
     <string name="action_delete">Delete</string>
     <string name="action_cancel">Cancel</string>
+    <string name="action_close">Close</string>
     <string name="action_ok">OK</string>
     <string name="action_save">Save</string>
     <string name="action_edit">Edit</string>
@@ -402,6 +400,9 @@
     <string name="analytics_next_period">Next period</string>
     <string name="form_when">Date &amp; time</string>
     <string name="form_options">Options</string>
+    <string name="form_discard_title">Discard changes?</string>
+    <string name="form_discard">Discard</string>
+    <string name="form_keep_editing">Keep editing</string>
     <string name="loan_terms">Terms</string>
     <string name="home_month_net">Net</string>
     <string name="theme_preview">Preview</string>

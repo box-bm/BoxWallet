@@ -43,9 +43,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -87,37 +85,15 @@ import java.time.ZoneOffset
 // Sheet chrome
 // ---------------------------------------------------------------------------------------------
 
-/** Sheet title row, with a delete action when editing. */
+/** Sheet title row. */
 @Composable
-fun SheetHeader(title: String, onDelete: (() -> Unit)? = null) {
+fun SheetHeader(title: String) {
     Row(
         modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
-        if (onDelete != null) {
-            FilledTonalIconButton(
-                onClick = onDelete,
-                shapes = IconButtonDefaults.shapes(),
-                colors = IconButtonDefaults.filledTonalIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                ),
-            ) { Icon(Icons.Outlined.DeleteOutline, contentDescription = stringResource(R.string.action_delete)) }
-        }
     }
-}
-
-/** Full-width primary action at the foot of a sheet. */
-@Composable
-fun SheetPrimaryButton(text: String, enabled: Boolean, onClick: () -> Unit) {
-    Button(
-        onClick = onClick,
-        enabled = enabled,
-        shapes = ButtonDefaults.shapes(),
-        contentPadding = ButtonDefaults.MediumContentPadding,
-        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp).heightIn(min = 56.dp),
-    ) { Text(text, style = MaterialTheme.typography.titleMedium) }
 }
 
 // ---------------------------------------------------------------------------------------------
