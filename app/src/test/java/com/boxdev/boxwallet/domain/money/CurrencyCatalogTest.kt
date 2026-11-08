@@ -25,10 +25,13 @@ class CurrencyCatalogTest {
 
     @Test fun forCountry_invalid_isNull() = assertNull(CurrencyCatalog.forCountry("ZZ"))
 
-    @Test fun all_excludesXCodesAndIsSorted() {
+    @Test fun all_excludesNonCurrencyXCodesAndIsSorted() {
         val all = CurrencyCatalog.all(Locale.US)
-        assertFalse(all.any { it.currencyCode == "XAU" })
-        assertFalse(all.any { it.currencyCode.startsWith("X") })
+        val codes = all.map { it.currencyCode }.toSet()
+        for (code in listOf("XAU", "XAG", "XPT", "XPD", "XDR", "XXX", "XTS", "XSU", "XUA")) {
+            assertFalse(code, code in codes)
+        }
+        for (code in listOf("XOF", "XAF", "XCD", "XPF")) assertTrue(code, code in codes)
         val names = all.map { CurrencyCatalog.displayName(it, Locale.US) }
         val collator = java.text.Collator.getInstance(Locale.US)
         assertEquals(names.sortedWith(collator), names)
@@ -43,6 +46,12 @@ class CurrencyCatalogTest {
     @Test fun isSupported() {
         assertTrue(CurrencyCatalog.isSupported("GTQ"))
         assertFalse(CurrencyCatalog.isSupported("XAU"))
+        assertFalse(CurrencyCatalog.isSupported("XXX"))
+        assertFalse(CurrencyCatalog.isSupported("XDR"))
+        assertTrue(CurrencyCatalog.isSupported("XOF"))
+        assertTrue(CurrencyCatalog.isSupported("XAF"))
+        assertTrue(CurrencyCatalog.isSupported("XCD"))
+        assertTrue(CurrencyCatalog.isSupported("XPF"))
         assertFalse(CurrencyCatalog.isSupported("nope"))
     }
 

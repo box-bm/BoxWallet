@@ -21,11 +21,23 @@ object CurrencyCatalog {
         "EUR" to "€",
     )
 
-    /** All selectable currencies (ISO 4217 "X**" pseudo/metal codes excluded), sorted by display name. */
+    /**
+     * ISO 4217 codes that are not spendable currencies: precious metals, IMF/settlement units,
+     * bond-market units, test and "no currency" codes. Live "X" currencies (XOF, XAF, XCD, XPF,
+     * XCG) are not here and stay selectable.
+     */
+    private val NON_CURRENCY_CODES = setOf(
+        "XAU", "XAG", "XPT", "XPD", // metals
+        "XDR", "XSU", "XUA", "XFO", "XFU", "XAD", // IMF / settlement / historical units
+        "XBA", "XBB", "XBC", "XBD", // European bond-market units
+        "XTS", "XXX", // testing / no currency
+    )
+
+    /** All selectable currencies (metals and other non-currency ISO codes excluded), sorted by display name. */
     fun all(locale: Locale): List<Currency> {
         val collator = Collator.getInstance(locale)
         return Currency.getAvailableCurrencies()
-            .filter { !it.currencyCode.startsWith("X") }
+            .filter { it.currencyCode !in NON_CURRENCY_CODES }
             .sortedWith(compareBy(collator) { displayName(it, locale) })
     }
 
@@ -55,7 +67,7 @@ object CurrencyCatalog {
     }
 
     fun isSupported(code: String): Boolean {
-        if (code.startsWith("X")) return false
+        if (code in NON_CURRENCY_CODES) return false
         return try {
             Currency.getInstance(code)
             true

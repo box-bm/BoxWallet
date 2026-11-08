@@ -53,6 +53,13 @@ class ExchangeRateApiTest {
     }
 
     @Test
+    fun `keeps CFA and East Caribbean rates but drops metals`() = runTest {
+        val body = """{"date":"2026-11-07","usd":{"xof":565.2,"xaf":565.2,"xcd":2.7,"xau":0.0004,"xdr":0.75,"usd":1}}"""
+        val snap = ExchangeRateApi(FakeTransport(listOf(HttpResult.Ok(body)))).fetch()
+        assertEquals(setOf("XOF", "XAF", "XCD", "USD"), snap!!.unitsPerUsd.keys)
+    }
+
+    @Test
     fun `malformed json returns null and reports`() = runTest {
         var reports = 0
         val t = FakeTransport(listOf(HttpResult.Ok("not json"), HttpResult.Ok("{bad")))

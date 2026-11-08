@@ -37,4 +37,12 @@ class OnboardingCountryTest {
         val names = filterCountries(spanish, "PANAMA", Locale("es")).map { it.code }
         assertEquals(true, "PA" in names)
     }
+
+    @Test
+    fun cfaAndEastCaribbeanCountriesAreListed() {
+        val byCode = filterCountries(countries, "", Locale.US).associateBy { it.code }
+        assertEquals("XOF", byCode["SN"]?.currency?.currencyCode)
+        assertEquals("XAF", byCode["CM"]?.currency?.currencyCode)
+        assertEquals("XCD", byCode["AG"]?.currency?.currencyCode)
+    }
 }
