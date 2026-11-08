@@ -24,7 +24,7 @@ class ExchangeRateRepository @Inject constructor(
     override suspend fun nearest(day: LocalDate, code: String): BigDecimal? {
         if (code == USD) return BigDecimal.ONE
         val d = day.toEpochDay()
-        return (dao.nearestBefore(d, code) ?: dao.nearestAfter(d, code))?.unitsPerUsd
+        return (dao.rateOn(d, code) ?: dao.nearestBefore(d, code) ?: dao.nearestAfter(d, code))?.unitsPerUsd
     }
 
     override suspend fun download(day: LocalDate): Boolean {

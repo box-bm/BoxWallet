@@ -75,6 +75,19 @@ class ExchangeRateResolverTest {
     }
 
     @Test
+    fun `partial exact uses exact leg and is approximate`() = runTest {
+        val prev = day.minusDays(1)
+        // Lookup mimics the repository: nearest prefers the same-day row.
+        val l = FakeLookup(
+            exact = mutableMapOf((day to "GTQ") to BigDecimal("8")),
+            nearest = mapOf((day to "GTQ") to BigDecimal("8"), (day to "EUR") to BigDecimal("1"), (prev to "EUR") to BigDecimal("1")),
+        )
+        val r = resolver(l).resolve(day, gtq, eur)!!
+        assertEquals(RateSource.APPROXIMATE, r.source)
+        assertEquals(0, BigDecimal("0.125").compareTo(r.value))
+    }
+
+    @Test
     fun `no rate at all returns null`() = runTest {
         assertNull(resolver(FakeLookup()).resolve(day, gtq, eur))
     }

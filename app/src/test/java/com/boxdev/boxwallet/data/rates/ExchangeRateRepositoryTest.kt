@@ -84,6 +84,13 @@ class ExchangeRateRepositoryTest {
     }
 
     @Test
+    fun `nearest returns same day row when present`() = runTest {
+        val d = LocalDate.of(2026, 1, 10)
+        db.exchangeRateDao().upsertAll(listOf(row(d.minusDays(1), "GTQ", "7"), row(d, "GTQ", "8"), row(d.plusDays(1), "GTQ", "9")))
+        assertEquals(0, BigDecimal("8").compareTo(repo().nearest(d, "GTQ")))
+    }
+
+    @Test
     fun `download rejects out of range dates without network`() = runTest {
         val r = repo()
         assertFalse(r.download(LocalDate.of(2024, 3, 1)))
