@@ -578,4 +578,5 @@
         <item quantity="one">No incluye %1$d préstamo en otra moneda</item>
         <item quantity="other">No incluye %1$d préstamos en otras monedas</item>
     </plurals>
+    <string name="search_in_app">Buscar en BoxWallet</string>
 </resources>

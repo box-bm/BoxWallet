@@ -591,4 +591,5 @@
         <item quantity="one">Excludes %1$d loan in another currency</item>
         <item quantity="other">Excludes %1$d loans in other currencies</item>
     </plurals>
+    <string name="search_in_app">Search BoxWallet</string>
 </resources>
