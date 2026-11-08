@@ -193,29 +193,35 @@ fun NavigationTab(
                 state = railState,
                 header = {
                     // The rail places its header at x = 0, so the FAB carries the rail's item inset itself.
-                    Box(Modifier.padding(start = 20.dp, top = 8.dp)) {
-                        if (railExpanded) {
-                            ExtendedFloatingActionButton(
-                                onClick = { primaryAction(!fabExpanded) },
-                                icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                                text = { Text(stringResource(R.string.fab_new)) },
-                            )
-                        } else {
-                            FloatingActionButton(onClick = { primaryAction(!fabExpanded) }) {
-                                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.fab_new))
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = showFab,
+                        enter = scaleIn() + fadeIn(),
+                        exit = scaleOut() + fadeOut(),
+                    ) {
+                        Box(Modifier.padding(start = 20.dp, top = 8.dp)) {
+                            if (railExpanded) {
+                                ExtendedFloatingActionButton(
+                                    onClick = { primaryAction(!fabExpanded) },
+                                    icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                                    text = { Text(stringResource(R.string.fab_new)) },
+                                )
+                            } else {
+                                FloatingActionButton(onClick = { primaryAction(!fabExpanded) }) {
+                                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.fab_new))
+                                }
                             }
-                        }
-                        DropdownMenu(expanded = fabExpanded, onDismissRequest = { fabExpanded = false }) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.fab_add_transaction)) },
-                                leadingIcon = { Icon(Icons.AutoMirrored.Outlined.ReceiptLong, contentDescription = null) },
-                                onClick = openTransactionSheet,
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.fab_add_loan)) },
-                                leadingIcon = { Icon(Icons.Outlined.Handshake, contentDescription = null) },
-                                onClick = openLoanSheet,
-                            )
+                            DropdownMenu(expanded = fabExpanded, onDismissRequest = { fabExpanded = false }) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.fab_add_transaction)) },
+                                    leadingIcon = { Icon(Icons.AutoMirrored.Outlined.ReceiptLong, contentDescription = null) },
+                                    onClick = openTransactionSheet,
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.fab_add_loan)) },
+                                    leadingIcon = { Icon(Icons.Outlined.Handshake, contentDescription = null) },
+                                    onClick = openLoanSheet,
+                                )
+                            }
                         }
                     }
                 },
