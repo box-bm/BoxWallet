@@ -1,5 +1,6 @@
 package com.boxdev.boxwallet.ui.screens.transaction
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boxdev.boxwallet.analytics.AnalyticsHelper
@@ -124,6 +125,7 @@ data class TransactionFormState(
 
 @HiltViewModel
 class TransactionFormViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     private val transactionRepository: TransactionRepository,
     categoryRepository: CategoryRepository,
     private val accountRepository: AccountRepository,
@@ -143,6 +145,10 @@ class TransactionFormViewModel @Inject constructor(
 
     val recentCurrencies: StateFlow<List<CurrencyUsage>> = transactionRepository.recentCurrencies()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    init {
+        loadTransaction(savedStateHandle.get<Long>("id"))
+    }
 
     fun loadTransaction(transactionId: Long?) {
         editing = null

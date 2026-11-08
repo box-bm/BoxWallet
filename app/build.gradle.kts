@@ -73,6 +73,9 @@ android {
     }
     testOptions {
         unitTests.isIncludeAndroidResources = true
+        // Mockito's inline mock maker self-attaches; without this it forks an external process, which fails
+        // once Robolectric tests have run in the same worker.
+        unitTests.all { it.jvmArgs("-Djdk.attach.allowAttachSelf=true") }
     }
 }
 

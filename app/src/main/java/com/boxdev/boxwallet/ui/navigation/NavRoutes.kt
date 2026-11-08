@@ -7,6 +7,12 @@ sealed class NavRoutes(val route: String) {
     data object LoanDetail : NavRoutes("loan_detail/{loanId}") {
         fun createRoute(loanId: Long) = "loan_detail/$loanId"
     }
+    data object TransactionForm : NavRoutes("transaction_form?id={id}") {
+        fun createRoute(id: Long? = null) = if (id == null) "transaction_form" else "transaction_form?id=$id"
+    }
+    data object LoanForm : NavRoutes("loan_form?id={id}") {
+        fun createRoute(id: Long? = null) = if (id == null) "loan_form" else "loan_form?id=$id"
+    }
     data object Analytics : NavRoutes("analytics")
     data object Search : NavRoutes("search")
     data object Settings : NavRoutes("settings")

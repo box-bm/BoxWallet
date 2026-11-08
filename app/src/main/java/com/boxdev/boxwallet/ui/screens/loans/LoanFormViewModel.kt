@@ -1,5 +1,6 @@
 package com.boxdev.boxwallet.ui.screens.loans
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boxdev.boxwallet.analytics.AnalyticsHelper
@@ -70,6 +71,7 @@ data class LoanFormState(
 
 @HiltViewModel
 class LoanFormViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     private val loanRepository: LoanRepository,
     categoryRepository: CategoryRepository,
     private val accountRepository: AccountRepository,
@@ -88,6 +90,10 @@ class LoanFormViewModel @Inject constructor(
 
     val recentCurrencies: StateFlow<List<CurrencyUsage>> = transactionRepository.recentCurrencies()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    init {
+        loadLoan(savedStateHandle.get<Long>("id"))
+    }
 
     fun loadLoan(loanId: Long?) {
         editing = null
