@@ -30,6 +30,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.currentStateAsState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -69,12 +72,13 @@ import java.util.Locale
 
 /**
  * Full-screen create/edit form for a movement. The view model loads the movement from the
- * navigation `id` argument; [onDone] runs once, after ✕, a save or a confirmed delete (a system
- * back without edits is popped by the NavHost itself).
+ * navigation `id` argument; [onDone] runs after ✕, a save or a confirmed delete (a system back
+ * without edits is popped by the NavHost itself). It returns whether it navigated: while the entry
+ * is still animating in it may refuse, and the form stays usable to try again.
  */
 @Composable
 fun TransactionFormScreen(
-    onDone: () -> Unit,
+    onDone: () -> Boolean,
     viewModel: TransactionFormViewModel = hiltViewModel(),
 ) {
     val formState by viewModel.formState.collectAsState()
@@ -83,15 +87,14 @@ fun TransactionFormScreen(
     val currentOnDone by rememberUpdatedState(onDone)
     val scrollState = rememberScrollState()
     var finished by rememberSaveable { mutableStateOf(false) }
-    val finish: () -> Unit = {
-        if (!finished) {
-            finished = true
-            currentOnDone()
-        }
-    }
+    // The latch is only set once the exit really navigated, so an early ✕ can't lock the form.
+    val finish: () -> Unit = { if (!finished && currentOnDone()) finished = true }
+    val resumed = LocalLifecycleOwner.current.lifecycle.currentStateAsState().value
+        .isAtLeast(Lifecycle.State.RESUMED)
 
-    // Delete also flags isSaved, so this covers both exits.
-    LaunchedEffect(formState.isSaved) { if (formState.isSaved) finish() }
+    // Delete also flags isSaved, so this covers both exits; a save that lands while the form is
+    // still animating in exits once it settles.
+    LaunchedEffect(formState.isSaved, resumed) { if (formState.isSaved && resumed) finish() }
     // A failed save is reported above the fields: bring it into view.
     LaunchedEffect(formState.error) { if (formState.error != null) scrollState.animateScrollTo(0) }
 

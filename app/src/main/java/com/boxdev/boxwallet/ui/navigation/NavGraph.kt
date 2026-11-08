@@ -123,9 +123,14 @@ private fun NavGraphBuilder.formComposable(route: String, content: @Composable (
     popExitTransition = { slideOutVertically { it / 8 } + fadeOut() },
 ) { content(it) }
 
-/** Runs [action] only while this entry is on top and settled, so a second exit during the pop animation is ignored. */
-private inline fun NavBackStackEntry.ifResumed(action: () -> Unit) {
-    if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) action()
+/**
+ * Runs [action] only while this entry is on top and settled, so a second exit during the pop
+ * animation is ignored. Returns whether it ran.
+ */
+private inline fun NavBackStackEntry.ifResumed(action: () -> Unit): Boolean {
+    if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) return false
+    action()
+    return true
 }
 
 /** A bottom-nav tab destination: lateral switches use fade-through. */
@@ -148,7 +153,9 @@ fun NavGraph(
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val onNavigateToSearch: () -> Unit = { navController.navigate(NavRoutes.Search.route) { launchSingleTop = true } }
-    val openLoan: (Long) -> Unit = { loanId -> navController.navigate(NavRoutes.LoanDetail.createRoute(loanId)) }
+    val openLoan: (Long) -> Unit = { loanId ->
+        navController.navigate(NavRoutes.LoanDetail.createRoute(loanId)) { launchSingleTop = true }
+    }
     val onEditTransaction: (Long) -> Unit = { navController.navigate(NavRoutes.TransactionForm.createRoute(it)) { launchSingleTop = true } }
     val onEditLoan: (Long) -> Unit = { navController.navigate(NavRoutes.LoanForm.createRoute(it)) { launchSingleTop = true } }
     LaunchedEffect(navBackStackEntry) {

@@ -40,7 +40,7 @@ import java.time.LocalDateTime
 import java.util.Currency
 import javax.inject.Inject
 
-/** Why the form can't save, shown under the fields so a failed save never leaves the sheet silently open. */
+/** Why the form can't save, shown under the fields so a failed save never leaves the form silently open. */
 sealed interface TransactionFormError {
     data object InvalidAmount : TransactionFormError
     data object NeedsRate : TransactionFormError

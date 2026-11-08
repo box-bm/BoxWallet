@@ -25,6 +25,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.any
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.time.LocalDateTime
@@ -86,6 +88,16 @@ class LoanFormViewModelTest {
         verify(loanRepository).deleteLoan(7L)
         assertTrue(vm.formState.value.deleted)
         assertFalse(vm.formState.value.isSaved)
+    }
+
+    @Test
+    fun theNavHostDefaultIdStartsANewLoan() = runTest {
+        val vm = vm(mapOf("id" to -1L))
+        advanceUntilIdle()
+        verify(accountRepository).defaultAccount()
+        verify(loanRepository, never()).getLoanById(any())
+        assertFalse(vm.formState.value.isEditing)
+        assertFalse(vm.formState.value.isLoading)
     }
 
     @Test

@@ -49,7 +49,7 @@ data class LoanFormState(
     /** Set once a confirmed delete went through; the form then leaves the loan's screens too. */
     val deleted: Boolean = false,
     val error: String? = null,
-    /** Set when a foreign-currency loan had no rate at all; the sheet shows a localized message. */
+    /** Set when a foreign-currency loan had no rate at all; the form shows a localized message. */
     val missingRateCurrency: Currency? = null,
     /** Installments already paid; the currency can't change once there is any. */
     val paidInstallments: Int = 0,

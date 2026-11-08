@@ -30,7 +30,7 @@
     <!-- Transaction Item -->
     <string name="transaction_has_reminder">Has reminder</string>
 
-    <!-- Transaction Sheet -->
+    <!-- Transaction Form -->
     <string name="transaction_edit_title">Edit Movement</string>
     <string name="transaction_new_title">New Movement</string>
     <string name="transaction_type_expense">Expense</string>
@@ -56,7 +56,7 @@
     <string name="transaction_delete_title">Delete Movement</string>
     <string name="transaction_delete_message">Are you sure? This cannot be undone.</string>
 
-    <!-- Loan Sheet -->
+    <!-- Loan Form -->
     <string name="loan_edit_title">Edit Loan</string>
     <string name="loan_new_title">New Loan</string>
     <string name="loan_name_label">Loan Name *</string>

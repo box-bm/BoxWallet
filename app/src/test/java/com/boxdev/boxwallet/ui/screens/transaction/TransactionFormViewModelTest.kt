@@ -27,6 +27,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.any
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.time.LocalDateTime
@@ -77,6 +79,16 @@ class TransactionFormViewModelTest {
         val vm = vm(emptyMap())
         advanceUntilIdle()
         verify(accountRepository).defaultAccount()
+        assertFalse(vm.formState.value.isEditing)
+        assertFalse(vm.formState.value.isLoading)
+    }
+
+    @Test
+    fun theNavHostDefaultIdStartsANewMovement() = runTest {
+        val vm = vm(mapOf("id" to -1L))
+        advanceUntilIdle()
+        verify(accountRepository).defaultAccount()
+        verify(transactionRepository, never()).getTransactionById(any())
         assertFalse(vm.formState.value.isEditing)
         assertFalse(vm.formState.value.isLoading)
     }
