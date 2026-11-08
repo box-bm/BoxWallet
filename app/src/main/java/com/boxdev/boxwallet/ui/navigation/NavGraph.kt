@@ -7,7 +7,9 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -45,6 +47,7 @@ import com.boxdev.boxwallet.ui.components.AppPane
 import com.boxdev.boxwallet.ui.screens.analytics.AnalyticsScreen
 import com.boxdev.boxwallet.ui.screens.home.HomeScreen
 import com.boxdev.boxwallet.ui.screens.loans.LoanDetailScreen
+import com.boxdev.boxwallet.ui.screens.loans.LoanFormScreen
 import com.boxdev.boxwallet.ui.screens.loans.LoansScreen
 import com.boxdev.boxwallet.ui.screens.search.SearchScreen
 import com.boxdev.boxwallet.ui.screens.settings.BackupScreen
@@ -57,6 +60,7 @@ import com.boxdev.boxwallet.ui.screens.settings.GeneralSettingsScreen
 import com.boxdev.boxwallet.ui.screens.settings.SettingsScreen
 import com.boxdev.boxwallet.ui.screens.settings.SettingsSection
 import com.boxdev.boxwallet.ui.screens.settings.ThemeCustomizationScreen
+import com.boxdev.boxwallet.ui.screens.transaction.TransactionFormScreen
 import com.boxdev.boxwallet.ui.screens.transactions.TransactionsListScreen
 import com.boxdev.boxwallet.ui.theme.BoxTheme
 
@@ -109,6 +113,14 @@ private fun fadeThrough() = fadeIn(animationSpec = tween(TRANSITION_DURATION - 9
     scaleIn(initialScale = 0.96f, animationSpec = tween(TRANSITION_DURATION - 90, delayMillis = 90, easing = EmphasizedDecelerate))
 private fun fadeThroughExit() = fadeOut(animationSpec = tween(90))
 
+/** A create/edit form: rises slightly and fades in over its origin, and leaves the same way. */
+private fun NavGraphBuilder.formComposable(route: String, content: @Composable () -> Unit) = composable(
+    route,
+    arguments = listOf(navArgument("id") { type = NavType.LongType; defaultValue = -1L }),
+    enterTransition = { slideInVertically { it / 8 } + fadeIn() },
+    popExitTransition = { slideOutVertically { it / 8 } + fadeOut() },
+) { content() }
+
 /** A bottom-nav tab destination: lateral switches use fade-through. */
 private fun NavGraphBuilder.tabComposable(route: String, content: @Composable () -> Unit) = composable(
     route,
@@ -123,7 +135,6 @@ fun NavGraph(
     navController: NavHostController,
     modifier: Modifier,
     analyticsHelper: AnalyticsHelper,
-    onEditTransaction: (Long) -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     /** Whether Loans shows a loan in a single pane (in place of its list). */
     onLoanDetailInSinglePaneChange: (Boolean) -> Unit = {},
@@ -131,6 +142,8 @@ fun NavGraph(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val onNavigateToSearch: () -> Unit = { navController.navigate(NavRoutes.Search.route) { launchSingleTop = true } }
     val openLoan: (Long) -> Unit = { loanId -> navController.navigate(NavRoutes.LoanDetail.createRoute(loanId)) }
+    val onEditTransaction: (Long) -> Unit = { navController.navigate(NavRoutes.TransactionForm.createRoute(it)) { launchSingleTop = true } }
+    val onEditLoan: (Long) -> Unit = { navController.navigate(NavRoutes.LoanForm.createRoute(it)) { launchSingleTop = true } }
     LaunchedEffect(navBackStackEntry) {
         navBackStackEntry?.destination?.route?.let { route ->
             analyticsHelper.logScreenView(route.substringBefore("/"))
@@ -185,6 +198,7 @@ fun NavGraph(
                 onDetailInSinglePaneChange = onLoanDetailInSinglePaneChange,
                 // Loans opens a loan in its own detail pane rather than the loan_detail route: log it the same.
                 onLoanOpened = { analyticsHelper.logScreenView(NavRoutes.LoanDetail.route.substringBefore("/")) },
+                onEditLoan = onEditLoan,
             )
         }
 
@@ -201,7 +215,7 @@ fun NavGraph(
                     .windowInsetsPadding(WindowInsets.safeDrawing)
                     .padding(start = margin, top = 8.dp, end = margin, bottom = margin)
             ) {
-                LoanDetailScreen(onNavigateBack = { navController.popBackStack() })
+                LoanDetailScreen(onNavigateBack = { navController.popBackStack() }, onEditLoan = onEditLoan)
             }
         }
 
@@ -227,6 +241,14 @@ fun NavGraph(
                 onOpenTransaction = onEditTransaction,
                 onOpenLoan = openLoan,
             )
+        }
+
+        formComposable(NavRoutes.TransactionForm.route) {
+            TransactionFormScreen(onDone = { navController.popBackStack() })
+        }
+
+        formComposable(NavRoutes.LoanForm.route) {
+            LoanFormScreen(onDone = { navController.popBackStack() })
         }
 
         composable(NavRoutes.Settings.route) { entry ->

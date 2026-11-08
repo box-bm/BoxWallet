@@ -108,18 +108,6 @@ fun SheetHeader(title: String, onDelete: (() -> Unit)? = null) {
     }
 }
 
-/** Full-width primary action at the foot of a sheet. */
-@Composable
-fun SheetPrimaryButton(text: String, enabled: Boolean, onClick: () -> Unit) {
-    Button(
-        onClick = onClick,
-        enabled = enabled,
-        shapes = ButtonDefaults.shapes(),
-        contentPadding = ButtonDefaults.MediumContentPadding,
-        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp).heightIn(min = 56.dp),
-    ) { Text(text, style = MaterialTheme.typography.titleMedium) }
-}
-
 // ---------------------------------------------------------------------------------------------
 // Amount
 // ---------------------------------------------------------------------------------------------

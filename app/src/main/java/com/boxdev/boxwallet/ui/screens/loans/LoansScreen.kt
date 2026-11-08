@@ -106,6 +106,7 @@ fun LoansScreen(
     onDetailInSinglePaneChange: (Boolean) -> Unit = {},
     /** Called each time a loan opens in the detail pane. */
     onLoanOpened: () -> Unit = {},
+    onEditLoan: (Long) -> Unit = {},
     viewModel: LoansViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -220,6 +221,7 @@ fun LoansScreen(
                         } else {
                             LoanDetailScreen(
                                 loanId = id,
+                                onEditLoan = onEditLoan,
                                 onNavigateBack = if (bothShown) null else {
                                     { scope.launch { navigator.navigateBack() } }
                                 },

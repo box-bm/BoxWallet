@@ -26,6 +26,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,7 +60,8 @@ import java.util.Locale
 
 /**
  * Full-screen create/edit form for a loan. The view model loads the loan from the navigation `id`
- * argument; [onDone] runs once, after a save or a confirmed delete.
+ * argument; [onDone] runs once, after ✕, a save or a confirmed delete (a system back without edits
+ * is popped by the NavHost itself).
  */
 @Composable
 fun LoanFormScreen(
@@ -70,7 +72,7 @@ fun LoanFormScreen(
     val hasUnsavedChanges by viewModel.hasUnsavedChanges.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
     val currentOnDone by rememberUpdatedState(onDone)
-    var finished by remember { mutableStateOf(false) }
+    var finished by rememberSaveable { mutableStateOf(false) }
     val finish: () -> Unit = {
         if (!finished) {
             finished = true
@@ -106,12 +108,9 @@ fun LoanFormScreen(
     }
 }
 
-/**
- * The loan form's fields plus the pickers they open (currency sheet, date/time dialogs).
- * Shared by [LoanFormScreen] and, until it is removed, the bottom-sheet form.
- */
+/** The loan form's fields plus the pickers they open (currency sheet, date/time dialogs). */
 @Composable
-fun LoanFormFields(
+private fun LoanFormFields(
     viewModel: LoanFormViewModel,
     modifier: Modifier = Modifier,
 ) {

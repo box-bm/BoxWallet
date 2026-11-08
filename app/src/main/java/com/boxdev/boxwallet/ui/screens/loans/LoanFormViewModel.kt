@@ -105,7 +105,7 @@ class LoanFormViewModel @Inject constructor(
         loadLoan(savedStateHandle.get<Long>("id"))
     }
 
-    fun loadLoan(loanId: Long?) {
+    private fun loadLoan(loanId: Long?) {
         editing = null
         initial.value = null
         if (loanId == null || loanId == -1L) {

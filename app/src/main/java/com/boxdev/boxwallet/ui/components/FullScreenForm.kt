@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -51,6 +52,9 @@ import com.boxdev.boxwallet.ui.theme.BoxWalletTheme
  * Save in the top bar, with the [content] in a scrolling column capped at 640dp and centered.
  *
  * ✕ and system back both close; when [hasUnsavedChanges] they first ask to discard the edits.
+ * Without edits, system back is left to the NavHost, which pops the entry with the predictive-back
+ * animation (and so never calls [onClose]). Pass [scrollState] to scroll the form from outside, for
+ * example back to an error reported at the top.
  */
 @Composable
 fun FullScreenForm(
@@ -60,6 +64,7 @@ fun FullScreenForm(
     saveEnabled: Boolean,
     onDelete: (() -> Unit)?,
     hasUnsavedChanges: Boolean,
+    scrollState: ScrollState = rememberScrollState(),
     content: @Composable ColumnScope.() -> Unit,
 ) {
     var showDiscardDialog by rememberSaveable { mutableStateOf(false) }
@@ -71,7 +76,7 @@ fun FullScreenForm(
         }
     }
 
-    BackHandler(enabled = true, onBack = requestClose)
+    BackHandler(enabled = hasUnsavedChanges, onBack = requestClose)
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
@@ -80,7 +85,7 @@ fun FullScreenForm(
                 title = { Text(title) },
                 navigationIcon = {
                     IconButton(onClick = requestClose) {
-                        Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.action_cancel))
+                        Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.action_close))
                     }
                 },
                 actions = {
@@ -110,7 +115,7 @@ fun FullScreenForm(
                 .consumeWindowInsets(innerPadding)
                 .imePadding()
                 .navigationBarsPadding()
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(scrollState),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Column(

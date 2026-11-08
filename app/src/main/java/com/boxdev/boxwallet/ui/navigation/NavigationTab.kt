@@ -83,8 +83,6 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.analytics.AnalyticsHelper
-import com.boxdev.boxwallet.ui.components.LoanSheet
-import com.boxdev.boxwallet.ui.components.TransactionSheet
 import com.boxdev.boxwallet.ui.theme.BoxTheme
 import com.boxdev.boxwallet.ui.theme.NavKind
 
@@ -145,24 +143,19 @@ fun NavigationTab(
             onScrollToTop = { tabReselect.tryEmit(it) },
         )
     }
-    var showTransactionSheet by rememberSaveable { mutableStateOf(false) }
-    var showLoanSheet by rememberSaveable { mutableStateOf(false) }
-    var selectedTransactionId by rememberSaveable { mutableStateOf<Long?>(null) }
-
-    val openTransactionSheet = {
+    val openTransactionForm = {
         fabExpanded = false
-        selectedTransactionId = null
-        showTransactionSheet = true
+        navController.navigate(NavRoutes.TransactionForm.createRoute()) { launchSingleTop = true }
     }
-    val openLoanSheet = {
+    val openLoanForm = {
         fabExpanded = false
-        showLoanSheet = true
+        navController.navigate(NavRoutes.LoanForm.createRoute()) { launchSingleTop = true }
     }
     /** The primary action is contextual: Records adds a movement, Loans adds a loan, Home asks. */
     val primaryAction: ((Boolean) -> Unit) = { checked ->
         when (currentRoute) {
-            NavRoutes.TransactionsList.route -> openTransactionSheet()
-            NavRoutes.Loans.route -> openLoanSheet()
+            NavRoutes.TransactionsList.route -> openTransactionForm()
+            NavRoutes.Loans.route -> openLoanForm()
             else -> fabExpanded = checked
         }
     }
@@ -174,10 +167,6 @@ fun NavigationTab(
             navController = navController,
             modifier = contentModifier,
             analyticsHelper = analyticsHelper,
-            onEditTransaction = { id ->
-                selectedTransactionId = id
-                showTransactionSheet = true
-            },
             onNavigateToSettings = { navController.navigate(NavRoutes.Settings.route) },
             onLoanDetailInSinglePaneChange = { loanDetailInSinglePane = it },
         ) }
@@ -258,12 +247,12 @@ fun NavigationTab(
                                         DropdownMenuItem(
                                             text = { Text(stringResource(R.string.fab_add_transaction)) },
                                             leadingIcon = { Icon(Icons.AutoMirrored.Outlined.ReceiptLong, contentDescription = null) },
-                                            onClick = openTransactionSheet,
+                                            onClick = openTransactionForm,
                                         )
                                         DropdownMenuItem(
                                             text = { Text(stringResource(R.string.fab_add_loan)) },
                                             leadingIcon = { Icon(Icons.Outlined.Handshake, contentDescription = null) },
-                                            onClick = openLoanSheet,
+                                            onClick = openLoanForm,
                                         )
                                     }
                                 }
@@ -362,12 +351,12 @@ fun NavigationTab(
                             },
                         ) {
                             FloatingActionButtonMenuItem(
-                                onClick = openTransactionSheet,
+                                onClick = openTransactionForm,
                                 text = { Text(stringResource(R.string.fab_add_transaction)) },
                                 icon = { Icon(Icons.AutoMirrored.Outlined.ReceiptLong, contentDescription = null) },
                             )
                             FloatingActionButtonMenuItem(
-                                onClick = openLoanSheet,
+                                onClick = openLoanForm,
                                 text = { Text(stringResource(R.string.fab_add_loan)) },
                                 icon = { Icon(Icons.Outlined.Handshake, contentDescription = null) },
                             )
@@ -394,23 +383,6 @@ fun NavigationTab(
     }
 
     BackHandler(enabled = fabExpanded) { fabExpanded = false }
-
-    if (showTransactionSheet) {
-        TransactionSheet(
-            transactionId = selectedTransactionId,
-            onDismiss = {
-                showTransactionSheet = false
-                selectedTransactionId = null
-            },
-        )
-    }
-
-    if (showLoanSheet) {
-        LoanSheet(
-            loanId = null,
-            onDismiss = { showLoanSheet = false },
-        )
-    }
 }
 
 /** Tracks how tall the rail's content is: the bottom of its last item plus the rail's bottom inset. */

@@ -159,7 +159,7 @@ class TransactionFormViewModel @Inject constructor(
         loadTransaction(savedStateHandle.get<Long>("id"))
     }
 
-    fun loadTransaction(transactionId: Long?) {
+    private fun loadTransaction(transactionId: Long?) {
         editing = null
         initial.value = null
         if (transactionId == null || transactionId == -1L) {

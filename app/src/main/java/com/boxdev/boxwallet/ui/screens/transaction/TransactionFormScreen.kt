@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.EventRepeat
@@ -28,10 +29,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -64,7 +69,8 @@ import java.util.Locale
 
 /**
  * Full-screen create/edit form for a movement. The view model loads the movement from the
- * navigation `id` argument; [onDone] runs once, after a save or a confirmed delete.
+ * navigation `id` argument; [onDone] runs once, after ✕, a save or a confirmed delete (a system
+ * back without edits is popped by the NavHost itself).
  */
 @Composable
 fun TransactionFormScreen(
@@ -75,7 +81,8 @@ fun TransactionFormScreen(
     val hasUnsavedChanges by viewModel.hasUnsavedChanges.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
     val currentOnDone by rememberUpdatedState(onDone)
-    var finished by remember { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
+    var finished by rememberSaveable { mutableStateOf(false) }
     val finish: () -> Unit = {
         if (!finished) {
             finished = true
@@ -85,6 +92,8 @@ fun TransactionFormScreen(
 
     // Delete also flags isSaved, so this covers both exits.
     LaunchedEffect(formState.isSaved) { if (formState.isSaved) finish() }
+    // A failed save is reported above the fields: bring it into view.
+    LaunchedEffect(formState.error) { if (formState.error != null) scrollState.animateScrollTo(0) }
 
     FullScreenForm(
         title = stringResource(if (formState.isEditing) R.string.transaction_edit_title else R.string.transaction_new_title),
@@ -93,6 +102,7 @@ fun TransactionFormScreen(
         saveEnabled = formState.canSave,
         onDelete = if (formState.isEditing) ({ showDeleteDialog = true }) else null,
         hasUnsavedChanges = hasUnsavedChanges,
+        scrollState = scrollState,
     ) {
         if (formState.isLoading) {
             Box(Modifier.fillMaxWidth().height(240.dp), contentAlignment = Alignment.Center) { LoadingIndicator() }
@@ -113,12 +123,9 @@ fun TransactionFormScreen(
     }
 }
 
-/**
- * The movement form's fields plus the pickers they open (currency sheet, date/time dialogs).
- * Shared by [TransactionFormScreen] and, until it is removed, the bottom-sheet form.
- */
+/** The movement form's fields plus the pickers they open (currency sheet, date/time dialogs). */
 @Composable
-fun TransactionFormFields(
+private fun TransactionFormFields(
     viewModel: TransactionFormViewModel,
     modifier: Modifier = Modifier,
 ) {
@@ -279,17 +286,20 @@ fun TransactionFormFields(
 
 /** The form's error line, in the error color. */
 @Composable
-fun TransactionFormErrorText(error: TransactionFormError) {
+private fun TransactionFormErrorText(error: TransactionFormError) {
     Text(
-        text = transactionFormErrorText(error),
+        text = errorMessage(error),
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.error,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp, vertical = 8.dp)
+            .semantics { liveRegion = LiveRegionMode.Polite },
     )
 }
 
 @Composable
-private fun transactionFormErrorText(error: TransactionFormError): String = when (error) {
+private fun errorMessage(error: TransactionFormError): String = when (error) {
     TransactionFormError.InvalidAmount -> stringResource(R.string.transaction_error_invalid_amount)
     TransactionFormError.NeedsRate -> stringResource(R.string.conversion_needs_rate)
     TransactionFormError.AccountLoading -> stringResource(R.string.transaction_error_account_loading)

@@ -46,9 +46,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -70,7 +68,6 @@ import com.boxdev.boxwallet.ui.components.BackButton
 import com.boxdev.boxwallet.ui.components.CategoryBadge
 import com.boxdev.boxwallet.ui.components.EmptyState
 import com.boxdev.boxwallet.ui.components.InfoChip
-import com.boxdev.boxwallet.ui.components.LoanSheet
 import com.boxdev.boxwallet.ui.components.EquivalentText
 import com.boxdev.boxwallet.ui.components.LoanEquivalentText
 import com.boxdev.boxwallet.util.rememberCurrencyFormatter
@@ -89,17 +86,17 @@ import java.time.temporal.ChronoUnit
 /**
  * Loan detail, drawn transparent so it sits on the [com.boxdev.boxwallet.ui.components.AppPane] around it.
  * In the Loans list-detail it is the detail pane bound to [loanId] (back button only in single pane);
- * opened from elsewhere it is its own destination with a back button.
+ * opened from elsewhere it is its own destination with a back button. [onEditLoan] opens the loan form.
  */
 @Composable
 fun LoanDetailScreen(
     onNavigateBack: (() -> Unit)?,
+    onEditLoan: (Long) -> Unit,
     loanId: Long? = null,
     viewModel: LoanDetailViewModel = hiltViewModel(key = loanId?.let { "loan_detail_$it" }),
 ) {
     LaunchedEffect(loanId) { loanId?.let(viewModel::bind) }
     val uiState by viewModel.uiState.collectAsState()
-    var showEditSheet by remember { mutableStateOf(false) }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
 
     Scaffold(
@@ -125,8 +122,8 @@ fun LoanDetailScreen(
                 },
                 navigationIcon = { if (onNavigateBack != null) BackButton(onNavigateBack) },
                 actions = {
-                    if (uiState.loan != null) {
-                        IconButton(onClick = { showEditSheet = true }) {
+                    uiState.loan?.let { loan ->
+                        IconButton(onClick = { onEditLoan(loan.id) }) {
                             Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.loan_detail_edit))
                         }
                     }
@@ -179,10 +176,6 @@ fun LoanDetailScreen(
                 }
             }
         }
-    }
-
-    if (showEditSheet) {
-        LoanSheet(loanId = uiState.loan?.id, onDismiss = { showEditSheet = false })
     }
 }
 
