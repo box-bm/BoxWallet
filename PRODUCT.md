@@ -13,7 +13,7 @@ Individuals in Central America who manage their own money on their own phone: th
 BoxWallet makes a personal budget legible: how much came in, how much went out, what is still owed, and where the money goes by category. Success is a user who logs a movement in seconds, always knows the month's balance and outstanding loan installments, and trusts that the numbers are theirs and correct.
 
 ## Positioning
-Private by construction: no account, no server, all data stays on the device (optional Google Drive backup the user controls). Built for Central American currencies and the loan-in-installments reality common in the region, not a generic US budgeting clone.
+Private by construction: no account, no server, all data stays on the device (optional Google Drive backup the user controls). Multi-currency by design: every ISO currency in circulation, foreign purchases converted with the rate of their day, any main currency. Built first for Central America (its currencies, everyday USD use and the loan-in-installments reality common in the region), not a generic US budgeting clone.
 
 ## Operating Context
 - Quick capture moments: logging a transaction from a bottom sheet, often one-handed.

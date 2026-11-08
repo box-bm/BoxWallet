@@ -12,8 +12,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import com.boxdev.boxwallet.data.rates.ApproximateRateFixer
-import com.boxdev.boxwallet.data.rates.ExchangeRateRepository
+import com.boxdev.boxwallet.data.rates.RateSync
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import java.util.concurrent.TimeUnit
@@ -22,14 +21,11 @@ import java.util.concurrent.TimeUnit
 class ExchangeRateSyncWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted params: WorkerParameters,
-    private val repository: ExchangeRateRepository,
-    private val fixer: ApproximateRateFixer,
+    private val rateSync: RateSync,
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        if (!repository.syncLatest()) return Result.retry()
-        fixer.fix()
-        return Result.success()
+        return if (rateSync.syncAndFix()) Result.success() else Result.retry()
     }
 
     companion object {

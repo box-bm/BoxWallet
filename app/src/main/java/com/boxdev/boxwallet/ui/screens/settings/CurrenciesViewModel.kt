@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.data.local.dao.CurrencyUsage
 import com.boxdev.boxwallet.data.rates.ExchangeRateRepository
+import com.boxdev.boxwallet.data.rates.RateSync
 import com.boxdev.boxwallet.data.repository.TransactionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,6 +59,7 @@ data class CurrenciesUiState(
 @HiltViewModel
 class CurrenciesViewModel @Inject constructor(
     private val rates: ExchangeRateRepository,
+    private val rateSync: RateSync,
     prefs: UserPreferences,
     transactions: TransactionRepository,
 ) : ViewModel() {
@@ -81,11 +83,12 @@ class CurrenciesViewModel @Inject constructor(
         CurrenciesUiState(main, lastSync, rows, recent, syncing, failed)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CurrenciesUiState())
 
+    /** "Update now": downloads the latest rates and, like the daily sync, corrects approximate ones. */
     fun refresh() {
         if (transient.value.first) return
         viewModelScope.launch {
             transient.update { true to false }
-            val ok = runCatching { rates.syncLatest() }.getOrDefault(false)
+            val ok = runCatching { rateSync.syncAndFix() }.getOrDefault(false)
             transient.update { false to !ok }
         }
     }
