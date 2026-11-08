@@ -402,6 +402,9 @@
     <string name="analytics_next_period">Next period</string>
     <string name="form_when">Date &amp; time</string>
     <string name="form_options">Options</string>
+    <string name="form_discard_title">Discard changes?</string>
+    <string name="form_discard">Discard</string>
+    <string name="form_keep_editing">Keep editing</string>
     <string name="loan_terms">Terms</string>
     <string name="home_month_net">Net</string>
     <string name="theme_preview">Preview</string>

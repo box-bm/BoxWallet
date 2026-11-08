@@ -386,6 +386,9 @@
     <string name="analytics_next_period">Periodo siguiente</string>
     <string name="form_when">Fecha y hora</string>
     <string name="form_options">Opciones</string>
+    <string name="form_discard_title">¿Descartar cambios?</string>
+    <string name="form_discard">Descartar</string>
+    <string name="form_keep_editing">Seguir editando</string>
     <string name="loan_terms">Condiciones</string>
     <string name="home_month_net">Neto</string>
     <string name="theme_preview">Vista previa</string>
