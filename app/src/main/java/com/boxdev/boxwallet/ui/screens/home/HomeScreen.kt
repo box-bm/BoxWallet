@@ -48,6 +48,8 @@ import com.boxdev.boxwallet.ui.components.PaneRow
 import com.boxdev.boxwallet.ui.components.SectionHeader
 import com.boxdev.boxwallet.ui.components.TransactionItem
 import com.boxdev.boxwallet.ui.theme.BoxTheme
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(
@@ -65,8 +67,12 @@ fun HomeScreen(
     val startList = rememberLazyListState()
     val endList = rememberLazyListState()
     TabReselectEffect(NavRoutes.Home.route) {
-        startList.animateScrollToItem(0)
-        endList.animateScrollToItem(0)
+        // Side by side, so neither scroll waits on the other; the end list is only laid out in two panes
+        // (a scroll on a list that is never laid out would never finish, blocking later reselects).
+        coroutineScope {
+            launch { startList.animateScrollToItem(0) }
+            if (twoPane) launch { endList.animateScrollToItem(0) }
+        }
     }
 
     Scaffold(
