@@ -564,4 +564,12 @@
     <string name="report_col_currency">Moneda</string>
     <string name="report_col_rate">Tasa</string>
     <string name="report_col_main_amount">Monto en moneda principal</string>
+    <string name="report_loan_remaining_in">Pendiente (%1$s)</string>
+    <string name="report_loan_total_borrowed">Total prestado (%1$s)</string>
+    <string name="report_loan_total_paid">Total pagado (%1$s)</string>
+    <string name="report_loan_total_remaining">Total pendiente (%1$s)</string>
+    <plurals name="report_loans_excluded_other_currencies">
+        <item quantity="one">No incluye %1$d préstamo en otra moneda</item>
+        <item quantity="other">No incluye %1$d préstamos en otras monedas</item>
+    </plurals>
 </resources>

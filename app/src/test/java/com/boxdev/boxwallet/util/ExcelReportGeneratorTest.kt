@@ -124,4 +124,28 @@ class ExcelReportGeneratorTest {
             assertTrue(xml.contains("<v>8800.0</v>"))
         }
     }
+
+    private fun loansSheet(file: java.io.File): String = ZipFile(file).use { zip ->
+        val idx = sheetNames(file).indexOf("Loans") + 1
+        zip.getInputStream(zip.getEntry("xl/worksheets/sheet$idx.xml")).readBytes().toString(Charsets.UTF_8)
+    }
+
+    @Test
+    fun `loan totals note counts loans in other currencies only when there are some`() {
+        val usdLoan = loan.copy(id = 8, name = "Abroad", totalAmount = Money(100_000, Currency.getInstance("USD")))
+        val eurLoan = loan.copy(id = 9, name = "Euro", totalAmount = Money(50_000, Currency.getInstance("EUR")))
+        val range = LocalDate.of(2026, 1, 1) to LocalDate.of(2026, 1, 31)
+
+        val mixed = ExcelReportGenerator.create(
+            tmp.newFile("mixed.xlsx"), emptyList(), emptyMap(),
+            mapOf(7L to loan, 8L to usdLoan, 9L to eurLoan), range.first, range.second, gtq
+        )
+        assertTrue(loansSheet(mixed).contains("Excludes 2 loans in other currencies"))
+
+        val allMain = ExcelReportGenerator.create(
+            tmp.newFile("main.xlsx"), emptyList(), emptyMap(),
+            mapOf(7L to loan), range.first, range.second, gtq
+        )
+        assertTrue(!loansSheet(allMain).contains("Excludes"))
+    }
 }

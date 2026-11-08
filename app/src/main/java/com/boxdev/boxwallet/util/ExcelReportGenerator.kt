@@ -20,6 +20,16 @@ import java.time.temporal.ChronoUnit
 
 object ExcelReportGenerator {
 
+    /** Localized labels added to the Loans sheet; [code] arguments are the main currency code. */
+    data class LoanTitles(
+        val currency: String = "Currency",
+        val remaining: (code: String) -> String = { "Remaining ($it)" },
+        val totalBorrowed: (code: String) -> String = { "Total Borrowed ($it)" },
+        val totalPaid: (code: String) -> String = { "Total Paid ($it)" },
+        val totalRemaining: (code: String) -> String = { "Total Remaining ($it)" },
+        val excludedNote: (count: Int) -> String = { "Excludes $it loans in other currencies" },
+    )
+
     /** Localized titles of the currency columns; the caller resolves them from string resources. */
     data class CurrencyTitles(
         val originalAmount: String = "Original amount",
@@ -46,7 +56,8 @@ object ExcelReportGenerator {
         startDate: LocalDate,
         endDate: LocalDate,
         mainCurrency: Currency,
-        titles: CurrencyTitles = CurrencyTitles()
+        titles: CurrencyTitles = CurrencyTitles(),
+        loanTitles: LoanTitles = LoanTitles()
     ): File {
         val dateFmt = DateTimeFormatter.ofPattern("yyyy-MM-dd")
         val timeFmt = DateTimeFormatter.ofPattern("HH:mm")
@@ -62,7 +73,7 @@ object ExcelReportGenerator {
         buildCategorySheet(wb, transactions, categories, headerStyle, boldStyle)
         buildMonthlySheet(wb, transactions, startDate, endDate, monthFmt, headerStyle, boldStyle)
         if (loans.isNotEmpty()) {
-            buildLoanOverviewSheet(wb, loans, mainCurrency, dateFmt, headerStyle, boldStyle, titleStyle)
+            buildLoanOverviewSheet(wb, loans, mainCurrency, loanTitles, dateFmt, headerStyle, boldStyle, titleStyle)
         }
         if (transactions.any { it.loanId != null }) {
             buildLoansSheet(wb, transactions, loans, dateFmt, headerStyle, boldStyle)
@@ -313,6 +324,7 @@ object ExcelReportGenerator {
         wb: XlsxWorkbook,
         loans: Map<Long, Loan>,
         mainCurrency: Currency,
+        loanTitles: LoanTitles,
         dateFmt: DateTimeFormatter,
         headerStyle: Style,
         boldStyle: Style,
@@ -324,7 +336,7 @@ object ExcelReportGenerator {
             "Loan", "Description", "Type", "Total Amount",
             "Installments", "Paid Amount", "Remaining Amount", "Progress",
             "Installment Amount", "Start Date", "Next Due Date", "Status",
-            "Currency", "Remaining (${mainCurrency.currencyCode})"
+            loanTitles.currency, loanTitles.remaining(mainCurrency.currencyCode)
         )
         sheet.header(headers, headerStyle)
 
@@ -364,15 +376,19 @@ object ExcelReportGenerator {
         val completedCount = sortedLoans.count { it.isComplete }
 
         sheet.createRow(r++).apply {
-            createCell(0).setCellValue("Total Borrowed (${mainCurrency.currencyCode})")
+            createCell(0).setCellValue(loanTitles.totalBorrowed(mainCurrency.currencyCode))
             createCell(1).also { it.setCellValue(totalBorrowed); it.cellStyle = boldStyle }
         }
         sheet.createRow(r++).apply {
-            createCell(0).setCellValue("Total Paid (${mainCurrency.currencyCode})")
+            createCell(0).setCellValue(loanTitles.totalPaid(mainCurrency.currencyCode))
             createCell(1).also { it.setCellValue(totalPaid); it.cellStyle = boldStyle }
         }
+        val excluded = sortedLoans.size - inMain.size
+        if (excluded > 0) {
+            sheet.createRow(r++).createCell(0).setCellValue(loanTitles.excludedNote(excluded))
+        }
         sheet.createRow(r++).apply {
-            createCell(0).setCellValue("Total Remaining (${mainCurrency.currencyCode})")
+            createCell(0).setCellValue(loanTitles.totalRemaining(mainCurrency.currencyCode))
             createCell(1).also { it.setCellValue(totalRemaining); it.cellStyle = boldStyle }
         }
         sheet.createRow(r++).apply {
