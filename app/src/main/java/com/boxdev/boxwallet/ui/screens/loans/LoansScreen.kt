@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -48,9 +50,11 @@ import androidx.compose.material3.adaptive.layout.AnimatedPane
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
 import androidx.compose.material3.adaptive.layout.PaneAdaptedValue
 import androidx.compose.material3.adaptive.layout.calculatePaneScaffoldDirective
+import androidx.compose.material3.adaptive.navigation.BackNavigationBehavior
 import androidx.compose.material3.adaptive.navigation.NavigableListDetailPaneScaffold
 import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -118,6 +122,13 @@ fun LoansScreen(
     val bothShown = listShown && detailShown
     val selectedLoanId = navigator.currentDestination?.contentKey
 
+    // A deleted loan leaves the detail: back to the list (two panes: the hint). Filters don't clear it.
+    LaunchedEffect(selectedLoanId, uiState.loans, uiState.isLoading) {
+        if (!uiState.isLoading && selectedLoanId != null && uiState.loans.none { it.id == selectedLoanId }) {
+            navigator.navigateBack(BackNavigationBehavior.PopUntilContentChange)
+        }
+    }
+
     val listState = rememberLazyListState()
     TabReselectEffect(NavRoutes.Loans.route) {
         if (!listShown) navigator.navigateBack() else listState.animateScrollToItem(0)
@@ -130,18 +141,19 @@ fun LoansScreen(
         containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),
         topBar = {
-            AppSearchBar(
-                onClick = onNavigateToSearch,
-                trailing = if (listShown) {
-                    {
+            // A single-pane detail shows its own app bar instead.
+            if (listShown) {
+                AppSearchBar(
+                    onClick = onNavigateToSearch,
+                    trailing = {
                         FilterToggleAction(
                             filtersOpen = showFilters,
                             onToggleFilters = { showFilters = it },
                             activeFilterCount = activeFilters,
                         )
-                    }
-                } else null,
-            )
+                    },
+                )
+            }
         },
     ) { padding ->
         NavigableListDetailPaneScaffold(
@@ -161,7 +173,9 @@ fun LoansScreen(
                             listState = listState,
                             selectedLoanId = if (bothShown) selectedLoanId else null,
                             onLoanClick = { id ->
-                                scope.launch { navigator.navigateTo(ListDetailPaneScaffoldRole.Detail, id) }
+                                if (id != selectedLoanId) {
+                                    scope.launch { navigator.navigateTo(ListDetailPaneScaffoldRole.Detail, id) }
+                                }
                             },
                         )
                     }
@@ -169,9 +183,14 @@ fun LoansScreen(
             },
             detailPane = {
                 AnimatedPane {
+                    // Without the search bar above it, the pane starts below the status bar.
+                    val top = if (listShown) Modifier else {
+                        Modifier.windowInsetsPadding(WindowInsets.statusBars).padding(top = 8.dp)
+                    }
                     AppPane(
                         Modifier
                             .fillMaxSize()
+                            .then(top)
                             .padding(start = if (bothShown) 0.dp else margin, end = margin, bottom = margin)
                     ) {
                         val id = selectedLoanId
