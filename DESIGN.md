@@ -278,13 +278,13 @@ An añil-indigo shell with a marigold attention color, indigo-tinted neutrals, a
 
 ## Layout
 
-Layout is driven by the window size, not the device or its orientation: there is no orientation lock. Three width classes, from the M3 breakpoints: Compact (under 600dp), Medium (600 to 839dp), Expanded (840dp and up). Phones in portrait and folded foldables are Compact; a phone in landscape is usually Medium, so it rotates into the rail and panes rather than stretching the portrait layout. Unfolded foldables and tablets are Expanded. Under 480dp of height (phone landscape) nothing may depend on a tall window.
+Layout is driven by the window size, not the device or its orientation: there is no orientation lock. Three width classes, from the M3 breakpoints: Compact (under 600dp), Medium (600 to 839dp), Expanded (840dp and up). Phones in portrait and folded foldables are Compact; a phone in landscape is usually Medium, so it rotates into the rail and panes rather than stretching the portrait layout. Unfolded foldables and tablets are Expanded. Under 480dp of height (phone landscape) nothing may depend on a tall window: the collapsed rail drops its labels, takes a small FAB and scrolls if its destinations still don't fit.
 
 - **Window and panes:** the whole window is surface-container, the same color as the navigation bar and rail. All content sits on panes (`AppPane`): surface-container-lowest with extra-large corners. Margins are 16px on Compact and 24px on Medium and wider, with a 24px spacer between two panes. A fixed pane is 360dp beside a flexible one; otherwise two panes split 50/50. Back only appears in single-pane layouts; selection is only shown in two-pane layouts, and an empty detail pane shows a placeholder.
 - **Compact:** one pane, a ShortNavigationBar, and a FloatingActionButtonMenu at bottom-end whose action is contextual (Movements adds a movement, Loans adds a loan, Home asks). Lists end with a 96px spacer to clear the FAB.
 - **Medium:** one pane beside a collapsed WideNavigationRail with the FAB in its header.
 - **Expanded:** the rail plus two panes where the screen has them; the rail is expanded (labels beside icons, extended FAB) at 1200dp and above.
-- **Secondary destinations** (Settings and its pages, Search, a loan opened on its own, currency detail) hide the navigation: the rail on wide windows and the bottom bar on compact, with a back button in their place. The FAB shows only on Home, Movements and Loans.
+- **Secondary destinations** (Settings and its pages, Search, a loan opened on its own, currency detail) hide the navigation: the rail on wide windows and the bottom bar on compact, with a back button in their place. The FAB shows only on Home, Movements and Loans, in the bar layout and in the rail header alike.
 
 | Screen | Compact | Medium | Expanded |
 |---|---|---|---|

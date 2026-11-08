@@ -14,6 +14,10 @@ import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.shrinkHorizontally
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -37,6 +41,7 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingActionButtonMenu
 import androidx.compose.material3.FloatingActionButtonMenuItem
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -180,6 +185,7 @@ fun NavigationTab(
     Row(modifier = modifier.background(surfaceContainer)) {
         if (rail) {
             val railExpanded = layout.railExpanded
+            val showRailLabels = railExpanded || !layout.compactHeight
             val railState = rememberWideNavigationRailState(
                 if (railExpanded) WideNavigationRailValue.Expanded else WideNavigationRailValue.Collapsed
             )
@@ -189,60 +195,76 @@ fun NavigationTab(
                 enter = fadeIn() + expandHorizontally(),
                 exit = fadeOut() + shrinkHorizontally(),
             ) {
-            WideNavigationRail(
-                state = railState,
-                header = {
-                    // The rail places its header at x = 0, so the FAB carries the rail's item inset itself.
-                    androidx.compose.animation.AnimatedVisibility(
-                        visible = showFab,
-                        enter = scaleIn() + fadeIn(),
-                        exit = scaleOut() + fadeOut(),
-                    ) {
-                        Box(Modifier.padding(start = 20.dp, top = 8.dp)) {
-                            if (railExpanded) {
-                                ExtendedFloatingActionButton(
-                                    onClick = { primaryAction(!fabExpanded) },
-                                    icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                                    text = { Text(stringResource(R.string.fab_new)) },
-                                )
-                            } else {
-                                FloatingActionButton(onClick = { primaryAction(!fabExpanded) }) {
-                                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.fab_new))
+            BoxWithConstraints(Modifier.fillMaxHeight()) {
+                // Phone landscape is shorter than the rail needs: keep its full height and let it scroll,
+                // so every destination stays reachable.
+                val railHeight = if (layout.compactHeight) maxOf(maxHeight, RAIL_MIN_HEIGHT) else maxHeight
+                Box(Modifier.verticalScroll(rememberScrollState())) {
+                    WideNavigationRail(
+                        state = railState,
+                        header = {
+                            // The rail places its header at x = 0, so the FAB carries the rail's item inset itself.
+                            androidx.compose.animation.AnimatedVisibility(
+                                visible = showFab,
+                                enter = scaleIn() + fadeIn(),
+                                exit = scaleOut() + fadeOut(),
+                            ) {
+                                // Icon-only items sit nearer the rail start; the small FAB lines up with them.
+                                val fabStart = if (showRailLabels) 20.dp else 8.dp
+                                Box(Modifier.padding(start = fabStart, top = 8.dp)) {
+                                    if (railExpanded) {
+                                        ExtendedFloatingActionButton(
+                                            onClick = { primaryAction(!fabExpanded) },
+                                            icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                                            text = { Text(stringResource(R.string.fab_new)) },
+                                        )
+                                    } else if (layout.compactHeight) {
+                                        SmallFloatingActionButton(onClick = { primaryAction(!fabExpanded) }) {
+                                            Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.fab_new))
+                                        }
+                                    } else {
+                                        FloatingActionButton(onClick = { primaryAction(!fabExpanded) }) {
+                                            Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.fab_new))
+                                        }
+                                    }
+                                    DropdownMenu(expanded = fabExpanded, onDismissRequest = { fabExpanded = false }) {
+                                        DropdownMenuItem(
+                                            text = { Text(stringResource(R.string.fab_add_transaction)) },
+                                            leadingIcon = { Icon(Icons.AutoMirrored.Outlined.ReceiptLong, contentDescription = null) },
+                                            onClick = openTransactionSheet,
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text(stringResource(R.string.fab_add_loan)) },
+                                            leadingIcon = { Icon(Icons.Outlined.Handshake, contentDescription = null) },
+                                            onClick = openLoanSheet,
+                                        )
+                                    }
                                 }
                             }
-                            DropdownMenu(expanded = fabExpanded, onDismissRequest = { fabExpanded = false }) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.fab_add_transaction)) },
-                                    leadingIcon = { Icon(Icons.AutoMirrored.Outlined.ReceiptLong, contentDescription = null) },
-                                    onClick = openTransactionSheet,
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.fab_add_loan)) },
-                                    leadingIcon = { Icon(Icons.Outlined.Handshake, contentDescription = null) },
-                                    onClick = openLoanSheet,
-                                )
-                            }
+                        },
+                        colors = WideNavigationRailDefaults.colors(containerColor = surfaceContainer),
+                        windowInsets = WideNavigationRailDefaults.windowInsets,
+                        modifier = Modifier.height(railHeight),
+                    ) {
+                        Destination.entries.forEach { destination ->
+                            val selected = selectedTab == destination
+                            WideNavigationRailItem(
+                                selected = selected,
+                                onClick = { onTabClick(destination) },
+                                icon = {
+                                    Icon(
+                                        imageVector = if (selected) destination.activeIcon else destination.icon,
+                                        contentDescription = null,
+                                    )
+                                },
+                                // Phone landscape: icons only, to keep the rail short.
+                                label = if (showRailLabels) {
+                                    { Text(stringResource(destination.labelRes)) }
+                                } else null,
+                                railExpanded = railExpanded,
+                            )
                         }
                     }
-                },
-                colors = WideNavigationRailDefaults.colors(containerColor = surfaceContainer),
-                windowInsets = WideNavigationRailDefaults.windowInsets,
-                modifier = Modifier.fillMaxHeight(),
-            ) {
-                Destination.entries.forEach { destination ->
-                    val selected = selectedTab == destination
-                    WideNavigationRailItem(
-                        selected = selected,
-                        onClick = { onTabClick(destination) },
-                        icon = {
-                            Icon(
-                                imageVector = if (selected) destination.activeIcon else destination.icon,
-                                contentDescription = null,
-                            )
-                        },
-                        label = { Text(stringResource(destination.labelRes)) },
-                        railExpanded = railExpanded,
-                    )
                 }
             }
             }
@@ -352,3 +374,6 @@ fun NavigationTab(
         )
     }
 }
+
+/** The height the rail needs for its FAB and four destinations; shorter windows scroll it. */
+private val RAIL_MIN_HEIGHT = 480.dp
