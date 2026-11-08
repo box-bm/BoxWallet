@@ -13,6 +13,7 @@ import com.boxdev.boxwallet.domain.money.Money
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -74,5 +75,16 @@ class LoanFormViewModelTest {
         verify(accountRepository).defaultAccount()
         assertFalse(vm.formState.value.isEditing)
         assertFalse(vm.formState.value.isLoading)
+    }
+
+    @Test
+    fun hasUnsavedChangesOnlyAfterAnEditOnceLoaded() = runTest {
+        val vm = vm(mapOf("id" to 7L))
+        backgroundScope.launch { vm.hasUnsavedChanges.collect {} }
+        advanceUntilIdle()
+        assertFalse(vm.hasUnsavedChanges.value)
+        vm.updateName("x")
+        advanceUntilIdle()
+        assertTrue(vm.hasUnsavedChanges.value)
     }
 }
