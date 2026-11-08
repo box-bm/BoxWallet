@@ -18,9 +18,13 @@
 # stored in users' Google Drive, so they must never be renamed or removed. Generic signatures
 # (List<TransactionEntity>) are kept by Gson's bundled rules.
 -keep class com.boxdev.boxwallet.domain.model.BackupData { <fields>; }
+-keep class com.boxdev.boxwallet.data.local.entity.AccountEntity { <fields>; }
 -keep class com.boxdev.boxwallet.data.local.entity.CategoryEntity { <fields>; }
 -keep class com.boxdev.boxwallet.data.local.entity.LoanEntity { <fields>; }
 -keep class com.boxdev.boxwallet.data.local.entity.TransactionEntity { <fields>; }
+# Enum fields of the entities above are written/read by constant name, so their names must survive.
+-keepclassmembers enum com.boxdev.boxwallet.data.local.entity.TransactionType { <fields>; }
+-keepclassmembers enum com.boxdev.boxwallet.domain.money.RateSource { <fields>; }
 
 # ========================================
 # Google API client / Drive (reflection)
