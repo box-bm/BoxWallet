@@ -9,11 +9,15 @@ import com.boxdev.boxwallet.data.remote.GoogleAuthManager
 import com.boxdev.boxwallet.data.remote.GoogleDriveManager
 import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.data.repository.BackupRepository
+import com.boxdev.boxwallet.domain.money.Country
+import com.boxdev.boxwallet.domain.money.CurrencyCatalog
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.Currency
+import java.util.Locale
 import javax.inject.Inject
 
 data class OnboardingUiState(
@@ -23,7 +27,10 @@ data class OnboardingUiState(
     val isRestoring: Boolean = false,
     val backupFiles: List<DriveBackupFile> = emptyList(),
     val error: String? = null,
-    val restoreSuccess: Boolean = false
+    val restoreSuccess: Boolean = false,
+    val country: Country? = null,
+    /** Main currency to save: the country's, unless the user overrode it. */
+    val currency: Currency? = null
 )
 
 @HiltViewModel
@@ -35,12 +42,29 @@ class OnboardingViewModel @Inject constructor(
     private val accountRepository: AccountRepository,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(OnboardingUiState())
+    val countries: List<Country> = CurrencyCatalog.countries(Locale.getDefault())
+
+    private val _uiState = MutableStateFlow(
+        initialCountry(Locale.getDefault().country, countries).let {
+            OnboardingUiState(country = it, currency = it.currency)
+        }
+    )
     val uiState: StateFlow<OnboardingUiState> = _uiState.asStateFlow()
 
-    fun completeOnboarding(analyticsEnabled: Boolean = false) {
+    fun selectCountry(code: String) {
+        val country = countries.firstOrNull { it.code == code } ?: return
+        _uiState.value = _uiState.value.copy(country = country, currency = country.currency)
+    }
+
+    fun overrideCurrency(currency: Currency) {
+        _uiState.value = _uiState.value.copy(currency = currency)
+    }
+
+    fun completeOnboarding(analyticsEnabled: Boolean = false, saveCurrency: Boolean = true) {
         viewModelScope.launch {
             userPreferences.setAnalyticsEnabled(analyticsEnabled)
+            // Before the default account exists: it is created in the current main currency.
+            if (saveCurrency) _uiState.value.currency?.let { userPreferences.setMainCurrency(it.currencyCode) }
             accountRepository.ensureDefaultAccount()
             userPreferences.completeFirstLaunch()
         }
@@ -99,7 +123,8 @@ class OnboardingViewModel @Inject constructor(
                     restoreSuccess = true
                 )
 
-                completeOnboarding()
+                // A restored backup brings its own main currency.
+                completeOnboarding(saveCurrency = false)
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isRestoring = false,

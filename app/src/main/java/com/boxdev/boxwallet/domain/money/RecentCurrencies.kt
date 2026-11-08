@@ -12,7 +12,8 @@ private const val MAX_RECENT = 5
 
 private val COMBINING_MARKS = Regex("\\p{Mn}+")
 
-private fun fold(text: String, locale: Locale): String =
+/** Lowercases and strips accents so searches match regardless of either. */
+fun foldForSearch(text: String, locale: Locale): String =
     Normalizer.normalize(text, Normalizer.Form.NFD).replace(COMBINING_MARKS, "").lowercase(locale)
 
 /**
@@ -21,7 +22,7 @@ private fun fold(text: String, locale: Locale): String =
  * the recent section (matches stay in [PickerSections.all]).
  */
 fun pickerSections(all: List<Currency>, recent: List<CurrencyUsage>, query: String, locale: Locale): PickerSections {
-    val q = fold(query.trim(), locale)
+    val q = foldForSearch(query.trim(), locale)
     if (q.isEmpty()) {
         val known = all.associateBy { it.currencyCode }
         val recentCurrencies = recent.mapNotNull { known[it.currencyCode] }.distinct().take(MAX_RECENT)
@@ -29,10 +30,10 @@ fun pickerSections(all: List<Currency>, recent: List<CurrencyUsage>, query: Stri
         return PickerSections(recentCurrencies, all.filter { it.currencyCode !in recentCodes })
     }
     val matches = all.filter {
-        fold(it.currencyCode, locale).contains(q) ||
-            fold(CurrencyCatalog.displayName(it, locale), locale).contains(q) ||
-            fold(CurrencyCatalog.symbol(it, locale), locale).contains(q) ||
-            fold(it.getSymbol(locale), locale).contains(q)
+        foldForSearch(it.currencyCode, locale).contains(q) ||
+            foldForSearch(CurrencyCatalog.displayName(it, locale), locale).contains(q) ||
+            foldForSearch(CurrencyCatalog.symbol(it, locale), locale).contains(q) ||
+            foldForSearch(it.getSymbol(locale), locale).contains(q)
     }
     return PickerSections(emptyList(), matches)
 }

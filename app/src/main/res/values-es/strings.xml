@@ -484,4 +484,11 @@
     <string name="loan_currency_locked">La moneda no se puede cambiar una vez pagada una cuota.</string>
     <string name="loan_currency_locked_description">Moneda: %1$s. Bloqueada porque ya hay una cuota pagada.</string>
     <string name="loan_missing_rate">No hay tasa de cambio para %1$s. Conéctate a internet e inténtalo de nuevo.</string>
+    <string name="onboarding_country_title">¿Dónde vives?</string>
+    <string name="onboarding_country_description">Usamos tu país para elegir tu moneda principal.</string>
+    <string name="onboarding_country_search">Buscar país</string>
+    <string name="onboarding_country_currency">Tu moneda: %1$s</string>
+    <string name="onboarding_country_change">Cambiar</string>
+    <string name="onboarding_country_empty">No se encontraron países</string>
+    <string name="onboarding_country_change_description">Cambiar moneda</string>
 </resources>

@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.Public
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.RocketLaunch
 import androidx.compose.material.icons.outlined.Restore
@@ -35,6 +38,15 @@ import androidx.annotation.StringRes
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
+import com.boxdev.boxwallet.domain.money.CurrencyCatalog
+import com.boxdev.boxwallet.domain.money.pickerSections
+import com.boxdev.boxwallet.ui.components.CurrencyPickerSheet
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -47,6 +59,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import com.boxdev.boxwallet.domain.money.Country
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -60,6 +74,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -85,6 +100,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.boxdev.boxwallet.R
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
+import java.util.Currency
 import java.util.Date
 import java.util.Locale
 
@@ -109,8 +125,16 @@ private val onboardingPages = listOf(
         icon = Icons.Outlined.Shield,
         titleRes = R.string.onboarding_privacy_title,
         descriptionRes = R.string.onboarding_privacy_description
+    ),
+    OnboardingPage(
+        icon = Icons.Outlined.Public,
+        titleRes = R.string.onboarding_country_title,
+        descriptionRes = R.string.onboarding_country_description
     )
 )
+
+private const val PRIVACY_PAGE_INDEX = 2
+private const val COUNTRY_PAGE_INDEX = 3
 
 @Composable
 fun OnboardingScreen(
@@ -118,7 +142,6 @@ fun OnboardingScreen(
     viewModel: OnboardingViewModel = hiltViewModel()
 ) {
     val totalPages = onboardingPages.size + 1
-    val privacyPageIndex = onboardingPages.size - 1
     val pagerState = rememberPagerState(pageCount = { totalPages })
     val coroutineScope = rememberCoroutineScope()
     val uiState by viewModel.uiState.collectAsState()
@@ -157,7 +180,7 @@ fun OnboardingScreen(
 
     val wide = BoxTheme.widthClass.isWide
     val heroPolygons = remember {
-        listOf(MaterialShapes.Cookie9Sided, MaterialShapes.Clover4Leaf, MaterialShapes.Gem, MaterialShapes.SoftBurst)
+        listOf(MaterialShapes.Cookie9Sided, MaterialShapes.Clover4Leaf, MaterialShapes.Gem, MaterialShapes.Flower, MaterialShapes.SoftBurst)
     }
     val heroIcons = onboardingPages.map { it.icon } + Icons.Outlined.RocketLaunch
     val scheme = MaterialTheme.colorScheme
@@ -165,6 +188,7 @@ fun OnboardingScreen(
         scheme.primaryContainer to scheme.onPrimaryContainer,
         scheme.tertiaryContainer to scheme.onTertiaryContainer,
         scheme.secondaryContainer to scheme.onSecondaryContainer,
+        scheme.tertiary to scheme.onTertiary,
         scheme.primary to scheme.onPrimary,
     )
 
@@ -198,7 +222,7 @@ fun OnboardingScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = if (wide) TextAlign.Start else TextAlign.Center,
                 )
-                if (page == privacyPageIndex) {
+                if (page == PRIVACY_PAGE_INDEX) {
                     Spacer(Modifier.height(28.dp))
                     Surface(
                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -219,6 +243,16 @@ fun OnboardingScreen(
                             Switch(checked = analyticsEnabled, onCheckedChange = null)
                         }
                     }
+                }
+                if (page == COUNTRY_PAGE_INDEX) {
+                    Spacer(Modifier.height(20.dp))
+                    CountryStep(
+                        countries = viewModel.countries,
+                        selected = uiState.country,
+                        currency = uiState.currency,
+                        onSelect = viewModel::selectCountry,
+                        onOverrideCurrency = viewModel::overrideCurrency,
+                    )
                 }
             }
         }
@@ -462,4 +496,107 @@ private fun RestoreFromBackupDialog(
             }
         }
     )
+}
+
+@Composable
+private fun CountryStep(
+    countries: List<Country>,
+    selected: Country?,
+    currency: Currency?,
+    onSelect: (String) -> Unit,
+    onOverrideCurrency: (Currency) -> Unit,
+) {
+    val locale = remember { Locale.getDefault() }
+    var query by remember { mutableStateOf("") }
+    var showPicker by remember { mutableStateOf(false) }
+    val visible = remember(query, countries) { filterCountries(countries, query, locale) }
+    val listState = rememberLazyListState()
+    // Bring the preselected (device region) country into view on first show.
+    LaunchedEffect(Unit) {
+        val index = countries.indexOfFirst { it.code == selected?.code }
+        if (index > 0) listState.scrollToItem(index)
+    }
+
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it },
+            placeholder = { Text(stringResource(R.string.onboarding_country_search)) },
+            leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
+            shape = MaterialTheme.shapes.large,
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            shape = MaterialTheme.shapes.large,
+            modifier = Modifier.fillMaxWidth().height(220.dp),
+        ) {
+            if (visible.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        stringResource(R.string.onboarding_country_empty),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else {
+                LazyColumn(state = listState) {
+                    items(visible, key = { it.code }) { country ->
+                        val isSelected = country.code == selected?.code
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 56.dp)
+                                .selectable(selected = isSelected, role = Role.RadioButton, onClick = { onSelect(country.code) })
+                                .padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                country.name,
+                                style = MaterialTheme.typography.bodyLarge,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f),
+                            )
+                            if (isSelected) {
+                                Icon(Icons.Outlined.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (currency != null) {
+            val label = "${CurrencyCatalog.displayName(currency, locale)} (${currency.currencyCode})"
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(R.string.onboarding_country_currency, label),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.weight(1f),
+                )
+                val changeDescription = stringResource(R.string.onboarding_country_change_description)
+                TextButton(
+                    onClick = { showPicker = true },
+                    modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = changeDescription },
+                ) { Text(stringResource(R.string.onboarding_country_change)) }
+            }
+        }
+    }
+
+    if (showPicker && currency != null) {
+        var pickerQuery by remember { mutableStateOf("") }
+        val allCurrencies = remember(locale) { CurrencyCatalog.all(locale) }
+        val sections = remember(pickerQuery, allCurrencies) {
+            pickerSections(allCurrencies, emptyList(), pickerQuery, locale)
+        }
+        CurrencyPickerSheet(
+            selected = currency,
+            sections = sections,
+            onQuery = { pickerQuery = it },
+            onPick = { onOverrideCurrency(it); showPicker = false },
+            onDismiss = { showPicker = false },
+        )
+    }
 }
