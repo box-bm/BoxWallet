@@ -54,7 +54,9 @@ import androidx.compose.material3.adaptive.navigation.BackNavigationBehavior
 import androidx.compose.material3.adaptive.navigation.NavigableListDetailPaneScaffold
 import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -100,6 +102,10 @@ import kotlinx.coroutines.launch
 @Composable
 fun LoansScreen(
     onNavigateToSearch: () -> Unit = {},
+    /** Called with true while a loan fills the screen in a single pane, false otherwise. */
+    onDetailInSinglePaneChange: (Boolean) -> Unit = {},
+    /** Called each time a loan opens in the detail pane. */
+    onLoanOpened: () -> Unit = {},
     viewModel: LoansViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -124,10 +130,21 @@ fun LoansScreen(
     val bothShown = listShown && detailShown
     val selectedLoanId = navigator.currentDestination?.contentKey
 
+    val detailInSinglePane = detailShown && !listShown
+    val detailInSinglePaneChange by rememberUpdatedState(onDetailInSinglePaneChange)
+    DisposableEffect(detailInSinglePane) {
+        detailInSinglePaneChange(detailInSinglePane)
+        onDispose { detailInSinglePaneChange(false) }
+    }
+    val loanOpened by rememberUpdatedState(onLoanOpened)
+    LaunchedEffect(selectedLoanId) { if (selectedLoanId != null) loanOpened() }
+
     // A deleted loan leaves the detail: back to the list (two panes: the hint). Filters don't clear it.
     LaunchedEffect(selectedLoanId, uiState.loans, uiState.isLoading) {
         if (!uiState.isLoading && selectedLoanId != null && uiState.loans.none { it.id == selectedLoanId }) {
-            navigator.navigateBack(BackNavigationBehavior.PopUntilContentChange)
+            // In the screen scope: going back changes this effect's key, which would cancel the pane
+            // animation midway and leave the old detail drawn over the list.
+            scope.launch { navigator.navigateBack(BackNavigationBehavior.PopUntilContentChange) }
         }
     }
 
@@ -349,6 +366,7 @@ private fun LoansList(
                                 index = index,
                                 count = completed.size,
                                 category = loan.categoryId?.let { categoryMap[it] },
+                                selected = loan.id == selectedLoanId,
                                 onClick = { onLoanClick(loan.id) },
                                 modifier = Modifier.animateItem(),
                             )

@@ -125,6 +125,8 @@ fun NavGraph(
     analyticsHelper: AnalyticsHelper,
     onEditTransaction: (Long) -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
+    /** Whether Loans shows a loan in a single pane (in place of its list). */
+    onLoanDetailInSinglePaneChange: (Boolean) -> Unit = {},
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val onNavigateToSearch: () -> Unit = { navController.navigate(NavRoutes.Search.route) { launchSingleTop = true } }
@@ -178,7 +180,12 @@ fun NavGraph(
         }
 
         tabComposable(NavRoutes.Loans.route) {
-            LoansScreen(onNavigateToSearch = onNavigateToSearch)
+            LoansScreen(
+                onNavigateToSearch = onNavigateToSearch,
+                onDetailInSinglePaneChange = onLoanDetailInSinglePaneChange,
+                // Loans opens a loan in its own detail pane rather than the loan_detail route: log it the same.
+                onLoanOpened = { analyticsHelper.logScreenView(NavRoutes.LoanDetail.route.substringBefore("/")) },
+            )
         }
 
         composable(

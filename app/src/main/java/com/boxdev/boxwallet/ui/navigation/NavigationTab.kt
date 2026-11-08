@@ -61,11 +61,19 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import kotlin.math.roundToInt
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
@@ -113,11 +121,13 @@ fun NavigationTab(
         else -> null
     }
     val onTabRoute = currentRoute in Destination.entries.map { it.route }
+    // A loan open in a single pane fills the Loans tab; the FAB would cover its actions.
+    var loanDetailInSinglePane by remember { mutableStateOf(false) }
     val showFab = currentRoute in listOf(
         NavRoutes.Home.route,
         NavRoutes.TransactionsList.route,
         NavRoutes.Loans.route,
-    )
+    ) && !(currentRoute == NavRoutes.Loans.route && loanDetailInSinglePane)
 
     var fabExpanded by rememberSaveable { mutableStateOf(false) }
     val tabReselect = remember { MutableSharedFlow<String>(extraBufferCapacity = 1) }
@@ -169,6 +179,7 @@ fun NavigationTab(
                 showTransactionSheet = true
             },
             onNavigateToSettings = { navController.navigate(NavRoutes.Settings.route) },
+            onLoanDetailInSinglePaneChange = { loanDetailInSinglePane = it },
         ) }
     }
 
@@ -176,6 +187,14 @@ fun NavigationTab(
     // The rail already pads itself past the display cutout on its side; the content beside it must not again.
     val railInsets = if (rail && !isSecondary(currentRoute)) {
         Modifier.consumeWindowInsets(WindowInsets.safeDrawing.only(WindowInsetsSides.Start))
+    } else {
+        Modifier
+    }
+    // Without a bottom bar under them (rail layouts), the tab panes stop above the system navigation
+    // bar. Secondary routes have no bottom bar either, but some draw edge to edge behind it
+    // (SettingsScaffold), so each of their pane layouts pads itself instead.
+    val navBarInsets = if (rail && onTabRoute) {
+        Modifier.windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
     } else {
         Modifier
     }
@@ -196,14 +215,22 @@ fun NavigationTab(
                 exit = fadeOut() + shrinkHorizontally(),
             ) {
             BoxWithConstraints(Modifier.fillMaxHeight()) {
-                // Phone landscape is shorter than the rail needs: keep its full height and let it scroll,
-                // so every destination stays reachable.
-                val railHeight = if (layout.compactHeight) maxOf(maxHeight, RAIL_MIN_HEIGHT) else maxHeight
+                // The rail fills the window height and scrolls only when its FAB and destinations don't
+                // fit (short phone landscape), so every destination stays reachable. Inside a scroll it
+                // would get an infinite height and crash, so it always gets a bounded one: the window's,
+                // or, when taller, what its content measured (its items stack from the top, so their
+                // positions don't depend on the rail height and this settles in one pass).
+                val density = LocalDensity.current
+                val railBottomInset = WideNavigationRailDefaults.windowInsets.getBottom(density)
+                val railMeasure = remember { RailContentMeasure() }
+                val railHeight = maxOf(maxHeight, with(density) { railMeasure.contentHeightPx.toDp() })
                 Box(Modifier.verticalScroll(rememberScrollState())) {
                     WideNavigationRail(
                         state = railState,
                         header = {
                             // The rail places its header at x = 0, so the FAB carries the rail's item inset itself.
+                            // Fully qualified: unqualified, it would resolve to the shell Row's RowScope extension,
+                            // but the header is not a child of that Row.
                             androidx.compose.animation.AnimatedVisibility(
                                 visible = showFab,
                                 enter = scaleIn() + fadeIn(),
@@ -244,7 +271,9 @@ fun NavigationTab(
                         },
                         colors = WideNavigationRailDefaults.colors(containerColor = surfaceContainer),
                         windowInsets = WideNavigationRailDefaults.windowInsets,
-                        modifier = Modifier.height(railHeight),
+                        modifier = Modifier
+                            .height(railHeight)
+                            .onGloballyPositioned { railMeasure.rail = it; railMeasure.update(railBottomInset) },
                     ) {
                         Destination.entries.forEach { destination ->
                             val selected = selectedTab == destination
@@ -254,7 +283,8 @@ fun NavigationTab(
                                 icon = {
                                     Icon(
                                         imageVector = if (selected) destination.activeIcon else destination.icon,
-                                        contentDescription = null,
+                                        // With the label hidden, the icon carries the destination's name.
+                                        contentDescription = if (showRailLabels) null else stringResource(destination.labelRes),
                                     )
                                 },
                                 // Phone landscape: icons only, to keep the rail short.
@@ -262,6 +292,14 @@ fun NavigationTab(
                                     { Text(stringResource(destination.labelRes)) }
                                 } else null,
                                 railExpanded = railExpanded,
+                                modifier = if (destination == Destination.entries.last()) {
+                                    Modifier.onGloballyPositioned {
+                                        railMeasure.lastItem = it
+                                        railMeasure.update(railBottomInset)
+                                    }
+                                } else {
+                                    Modifier
+                                },
                             )
                         }
                     }
@@ -338,7 +376,7 @@ fun NavigationTab(
                 }
             },
         ) { padding ->
-            Box(Modifier.padding(padding).then(railInsets)) {
+            Box(Modifier.padding(padding).then(railInsets).then(navBarInsets)) {
                 content(Modifier)
                 if (fabExpanded && !rail) {
                     // Tap outside the open FAB menu to close it.
@@ -375,5 +413,16 @@ fun NavigationTab(
     }
 }
 
-/** The height the rail needs for its FAB and four destinations; shorter windows scroll it. */
-private val RAIL_MIN_HEIGHT = 480.dp
+/** Tracks how tall the rail's content is: the bottom of its last item plus the rail's bottom inset. */
+private class RailContentMeasure {
+    var rail: LayoutCoordinates? = null
+    var lastItem: LayoutCoordinates? = null
+    var contentHeightPx by mutableIntStateOf(0)
+
+    fun update(bottomInsetPx: Int) {
+        val rail = rail?.takeIf { it.isAttached } ?: return
+        val item = lastItem?.takeIf { it.isAttached } ?: return
+        val itemBottom = rail.localPositionOf(item, Offset.Zero).y + item.size.height
+        contentHeightPx = itemBottom.roundToInt() + bottomInsetPx
+    }
+}
