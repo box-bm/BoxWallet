@@ -126,7 +126,6 @@
     <string name="transactions_filter_lowest">Menor monto</string>
 
     <!-- Reports Screen -->
-    <string name="analytics_title">Reportes</string>
     <string name="analytics_months">%1$d meses</string>
     <string name="analytics_expenses_by_category">Gastos por Categor\u00eda</string>
     <string name="analytics_no_category_data">No hay datos de categor\u00edas disponibles</string>
@@ -392,7 +391,6 @@
     <string name="theme_preview">Vista previa</string>
 
     <!-- Búsqueda global -->
-    <string name="action_search">Buscar</string>
     <string name="search_placeholder">Buscar movimientos, préstamos, categorías…</string>
     <string name="search_empty_title">Busca en todo</string>
     <string name="search_empty_message">Encuentra movimientos y préstamos por descripción, categoría o monto.</string>

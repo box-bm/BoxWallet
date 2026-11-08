@@ -130,7 +130,6 @@
     <string name="transactions_filter_lowest">Lowest</string>
 
     <!-- Reports Screen -->
-    <string name="analytics_title">Reports</string>
     <string name="analytics_months">%1$d months</string>
     <string name="analytics_expenses_by_category">Expenses by Category</string>
     <string name="analytics_no_category_data">No category data available</string>
@@ -408,7 +407,6 @@
     <string name="theme_preview">Preview</string>
 
     <!-- Global search -->
-    <string name="action_search">Search</string>
     <string name="search_placeholder">Search movements, loans, categories…</string>
     <string name="search_empty_title">Search everything</string>
     <string name="search_empty_message">Find movements and loans by description, category or amount.</string>
