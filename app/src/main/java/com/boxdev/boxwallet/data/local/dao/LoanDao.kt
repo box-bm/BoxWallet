@@ -49,4 +49,7 @@ interface LoanDao {
 
     @Query("DELETE FROM loans")
     suspend fun deleteAll()
+
+    @Query("SELECT COUNT(*) FROM loans")
+    suspend fun countAll(): Int
 }

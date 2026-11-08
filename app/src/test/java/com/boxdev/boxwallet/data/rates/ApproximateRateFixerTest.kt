@@ -50,8 +50,9 @@ class ApproximateRateFixerTest {
         )
         val prefs = UserPreferences(context)
         prefs.setMainCurrency("USD")
+        prefs.setPendingMainCurrency(null)
         lookup = FakeLookup(hasExact = true)
-        fixer = ApproximateRateFixer(db.transactionDao(), db.accountDao(), ExchangeRateResolver(lookup) { day }, prefs)
+        fixer = ApproximateRateFixer(db.transactionDao(), db.accountDao(), ExchangeRateResolver(lookup) { day }, prefs, CurrencyChangeLock())
     }
 
     @After

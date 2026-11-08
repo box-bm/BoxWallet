@@ -4,6 +4,9 @@ import androidx.room.*
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 import kotlinx.coroutines.flow.Flow
 
+/** A local date (epoch day) and a currency that a movement on that day converts from. */
+data class DayCurrency(val day: Long, val code: String)
+
 data class CurrencyUsage(val currencyCode: String, val uses: Int, val lastUsed: Long)
 
 @Dao
@@ -96,4 +99,15 @@ interface TransactionDao {
     /** Local dates (as epoch days) of movements whose currency is not [code]. */
     @Query("SELECT DISTINCT date / 86400000 FROM transactions WHERE currencyCode != :code ORDER BY 1")
     suspend fun distinctEpochDaysWhereCurrencyNot(code: String): List<Long>
+
+    /** Days and original currencies of movements whose currency is not [code]. */
+    @Query("SELECT DISTINCT date / 86400000 AS day, currencyCode AS code FROM transactions WHERE currencyCode != :code")
+    suspend fun distinctDayCurrenciesWhereCurrencyNot(code: String): List<DayCurrency>
+
+    /** Days and account currencies of movements whose account is not in [code]. */
+    @Query(
+        "SELECT DISTINCT t.date / 86400000 AS day, a.currencyCode AS code FROM transactions t " +
+            "JOIN accounts a ON a.id = t.accountId WHERE a.currencyCode != :code"
+    )
+    suspend fun distinctDayAccountCurrenciesWhereAccountNot(code: String): List<DayCurrency>
 }

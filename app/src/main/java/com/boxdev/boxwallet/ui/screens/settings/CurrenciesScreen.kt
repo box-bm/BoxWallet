@@ -48,6 +48,7 @@ import java.util.Locale
 fun CurrenciesScreen(
     onNavigateBack: () -> Unit,
     onOpenCurrency: (String) -> Unit,
+    onChangeMainCurrency: (String) -> Unit,
     viewModel: CurrenciesViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -55,6 +56,7 @@ fun CurrenciesScreen(
     val locale = remember { Locale.getDefault() }
     val snackbar = remember { SnackbarHostState() }
     var showPicker by remember { mutableStateOf(false) }
+    var showMainPicker by remember { mutableStateOf(false) }
     val failedText = stringResource(R.string.currencies_refresh_failed)
 
     LaunchedEffect(state.syncFailed) {
@@ -70,15 +72,14 @@ fun CurrenciesScreen(
         snackbarHostState = snackbar,
     ) {
         SettingsGroup(title = null) {
-            // The change flow arrives with a later task; until then the row only shows the value.
             SegmentedListItem(
-                onClick = {},
-                enabled = false,
+                onClick = { showMainPicker = true },
                 shapes = segmentShapes(index = 0, count = 1),
                 colors = settingsRowColors(),
                 leadingContent = { SettingsIcon(Icons.Outlined.CurrencyExchange) },
                 supportingContent = { Text(CurrencyCatalog.displayName(state.main, locale)) },
                 trailingContent = { Text(state.main.currencyCode, style = MaterialTheme.typography.titleMedium) },
+                modifier = Modifier.heightIn(min = 56.dp),
             ) { Text(stringResource(R.string.currencies_main_currency)) }
         }
 
@@ -161,16 +162,24 @@ fun CurrenciesScreen(
         )
     }
 
-    if (showPicker) {
+    if (showPicker || showMainPicker) {
         var query by remember { mutableStateOf("") }
         val all = remember(locale) { CurrencyCatalog.all(locale) }
         val sections = remember(query, state.recent, all) { pickerSections(all, state.recent, query, locale) }
+        val forMain = showMainPicker
         CurrencyPickerSheet(
             selected = state.main,
             sections = sections,
             onQuery = { query = it },
-            onPick = { showPicker = false; onOpenCurrency(it.currencyCode) },
-            onDismiss = { showPicker = false },
+            onPick = {
+                showPicker = false
+                showMainPicker = false
+                when {
+                    !forMain -> onOpenCurrency(it.currencyCode)
+                    it != state.main -> onChangeMainCurrency(it.currencyCode)
+                }
+            },
+            onDismiss = { showPicker = false; showMainPicker = false },
         )
     }
 }

@@ -41,6 +41,7 @@ import com.boxdev.boxwallet.ui.screens.settings.BackupScreen
 import com.boxdev.boxwallet.ui.screens.settings.CategoriesScreen
 import com.boxdev.boxwallet.ui.screens.settings.CurrenciesScreen
 import com.boxdev.boxwallet.ui.screens.settings.CurrencyDetailScreen
+import com.boxdev.boxwallet.ui.screens.settings.MainCurrencyChangeScreen
 import com.boxdev.boxwallet.ui.screens.settings.DataManagementScreen
 import com.boxdev.boxwallet.ui.screens.settings.GeneralSettingsScreen
 import com.boxdev.boxwallet.ui.screens.settings.SettingsScreen
@@ -204,7 +205,15 @@ fun NavGraph(
             CurrenciesScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onOpenCurrency = { navController.navigate(NavRoutes.CurrencyDetail.createRoute(it)) },
+                onChangeMainCurrency = { navController.navigate(NavRoutes.MainCurrencyChange.createRoute(it)) },
             )
+        }
+
+        composable(
+            NavRoutes.MainCurrencyChange.route,
+            arguments = listOf(androidx.navigation.navArgument("code") { type = androidx.navigation.NavType.StringType }),
+        ) {
+            MainCurrencyChangeScreen(onNavigateBack = { navController.popBackStack() })
         }
 
         composable(

@@ -1,0 +1,200 @@
+package com.boxdev.boxwallet.data.rates
+
+import androidx.room.withTransaction
+import com.boxdev.boxwallet.data.datastore.UserPreferences
+import com.boxdev.boxwallet.data.local.dao.AccountDao
+import com.boxdev.boxwallet.data.local.dao.LoanDao
+import com.boxdev.boxwallet.data.local.dao.TransactionDao
+import com.boxdev.boxwallet.data.local.database.BoxWalletDatabase
+import com.boxdev.boxwallet.data.local.entity.TransactionEntity
+import com.boxdev.boxwallet.data.repository.BackupRepository
+import com.boxdev.boxwallet.domain.money.AmountInput
+import com.boxdev.boxwallet.domain.money.AmountResult
+import com.boxdev.boxwallet.domain.money.ExchangeRateResolver
+import com.boxdev.boxwallet.domain.money.MissingRateException
+import com.boxdev.boxwallet.domain.money.Money
+import com.boxdev.boxwallet.domain.money.RateLookup
+import com.boxdev.boxwallet.domain.money.RateSource
+import com.boxdev.boxwallet.domain.money.TransactionAmounts
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import java.math.BigDecimal
+import java.time.LocalDate
+import java.util.Currency
+import javax.inject.Inject
+
+/** What the warning before a main currency change announces (spec 4, step 1). */
+data class ChangePreview(val transactions: Int, val loans: Int, val from: Currency, val to: Currency)
+
+/** What the change did (spec 4, step 6). Counts are movements. */
+data class ChangeSummary(val converted: Int, val approximate: Int, val manualReplaced: Int)
+
+/**
+ * Changes the main currency by recalculating every movement in one Room transaction (spec 4).
+ *
+ * - One account: the account follows the new main currency. Each movement re-resolves its account
+ *   rate (original → new), recomputes the account amount from the original, and takes main rate 1.
+ * - Several accounts: accounts and their amounts stay; only the main leg (account → new) changes.
+ *
+ * Network work happens only in [prefetch]; [apply] reads local rates and falls back to the nearest
+ * one (APPROXIMATE). With no rate at all it throws [MissingRateException] and nothing is written.
+ */
+class MainCurrencyChanger internal constructor(
+    private val database: BoxWalletDatabase,
+    private val transactionDao: TransactionDao,
+    private val accountDao: AccountDao,
+    private val loanDao: LoanDao,
+    private val lookup: RateLookup,
+    private val prefs: UserPreferences,
+    private val backup: BackupRepository,
+    private val lock: CurrencyChangeLock,
+    private val today: () -> LocalDate,
+) {
+
+    @Inject
+    constructor(
+        database: BoxWalletDatabase,
+        transactionDao: TransactionDao,
+        accountDao: AccountDao,
+        loanDao: LoanDao,
+        lookup: RateLookup,
+        prefs: UserPreferences,
+        backup: BackupRepository,
+        lock: CurrencyChangeLock,
+    ) : this(database, transactionDao, accountDao, loanDao, lookup, prefs, backup, lock, { LocalDate.now() })
+
+    suspend fun preview(to: Currency): ChangePreview =
+        ChangePreview(transactionDao.countAll(), loanDao.countAll(), prefs.mainCurrency.first(), to)
+
+    /**
+     * Downloads the rates of every day the change needs and doesn't have locally (one request per
+     * day, all currencies). False when a download fails; nothing is written to the movements.
+     * Days outside the published history are skipped (they resolve as APPROXIMATE), and so are
+     * failures for the last two days, which may not be published yet.
+     */
+    suspend fun prefetch(to: Currency, onProgress: (done: Int, total: Int) -> Unit): Boolean {
+        val code = to.currencyCode
+        val needed = if (accountDao.count() <= 1) transactionDao.distinctDayCurrenciesWhereCurrencyNot(code)
+        else transactionDao.distinctDayAccountCurrenciesWhereAccountNot(code)
+        val now = today()
+        val missing = needed.groupBy({ it.day }, { it.code })
+            .map { (day, codes) -> LocalDate.ofEpochDay(day) to codes + code }
+            .filter { (day, _) -> !day.isBefore(ExchangeRateResolver.HISTORY_START) && !day.isAfter(now) }
+            .filter { (day, codes) -> codes.any { lookup.exact(day, it) == null } }
+            .map { it.first }
+            .sorted()
+
+        onProgress(0, missing.size)
+        missing.forEachIndexed { i, day ->
+            currentCoroutineContext().ensureActive()
+            if (!lookup.download(day) && day.isBefore(now.minusDays(1))) return false
+            onProgress(i + 1, missing.size)
+        }
+        return true
+    }
+
+    /**
+     * Rewrites every movement for [to] and then makes it the main currency. Not cancellable once
+     * the transaction starts; any failure rolls the whole change back and is rethrown.
+     */
+    suspend fun apply(
+        to: Currency,
+        onProgress: (done: Int, total: Int) -> Unit = { _, _ -> },
+    ): ChangeSummary = lock.mutex.withLock {
+        if (prefs.mainCurrency.first() == to) return@withLock ChangeSummary(0, 0, 0)
+        prefs.setPendingMainCurrency(to.currencyCode)
+        try {
+            backup.writeLocalSnapshot()
+        } catch (e: Throwable) {
+            withContext(NonCancellable) { prefs.setPendingMainCurrency(null) }
+            throw e
+        }
+        withContext(NonCancellable) {
+            val summary = try {
+                database.withTransaction { recalculate(to, onProgress) }
+            } catch (e: Throwable) {
+                prefs.setPendingMainCurrency(null)
+                throw e
+            }
+            prefs.setMainCurrency(to.currencyCode)
+            prefs.setPendingMainCurrency(null)
+            summary
+        }
+    }
+
+    /**
+     * Finishes a change interrupted between the database commit and the DataStore write. The commit
+     * happened when the default account already holds the pending currency; otherwise the
+     * transaction rolled back and the mark is just cleared. Call at startup, before other DB work.
+     */
+    suspend fun completePending(): Unit = lock.mutex.withLock {
+        val pending = prefs.pendingMainCurrency.first() ?: return@withLock
+        val account = prefs.defaultAccountId.first()?.let { accountDao.getById(it) }
+            ?: accountDao.getAll().firstOrNull()
+        if (account?.currencyCode == pending) prefs.setMainCurrency(pending)
+        prefs.setPendingMainCurrency(null)
+    }
+
+    private suspend fun recalculate(to: Currency, onProgress: (Int, Int) -> Unit): ChangeSummary {
+        val amounts = TransactionAmounts(ExchangeRateResolver(LocalRates(lookup), today))
+        val accounts = accountDao.getAll()
+        val single = accounts.size <= 1
+        val accountCurrency = accounts.associate { it.id to Currency.getInstance(it.currencyCode) }
+        if (single) accounts.firstOrNull()?.let { accountDao.update(it.copy(currencyCode = to.currencyCode)) }
+
+        val rows = transactionDao.getAllTransactionsSync()
+        var approximate = 0
+        var manualReplaced = 0
+        rows.forEachIndexed { i, tx ->
+            val day = LocalDate.ofEpochDay(Math.floorDiv(tx.date, MILLIS_PER_DAY))
+            val updated = if (single) {
+                val original = Money(tx.originalAmountMinor, Currency.getInstance(tx.currencyCode))
+                val ready = amounts.compute(AmountInput(original, day, to, to)) as? AmountResult.Ready
+                    ?: throw MissingRateException(original.currency, to)
+                if (tx.accountRateSource == RateSource.MANUAL || tx.mainRateSource == RateSource.MANUAL) manualReplaced++
+                if (ready.accountRate.source == RateSource.APPROXIMATE) approximate++
+                tx.copy(
+                    accountAmountMinor = ready.accountAmount.minor,
+                    accountRate = ready.accountRate.value,
+                    accountRateSource = ready.accountRate.source,
+                ).withMain(ready.amount.minor, ready.mainRate.value, ready.mainRate.source)
+            } else {
+                val currency = accountCurrency.getValue(tx.accountId)
+                val accountAmount = Money(tx.accountAmountMinor, currency)
+                val ready = amounts.compute(AmountInput(accountAmount, day, currency, to)) as? AmountResult.Ready
+                    ?: throw MissingRateException(currency, to)
+                if (tx.mainRateSource == RateSource.MANUAL) manualReplaced++
+                if (ready.mainRate.source == RateSource.APPROXIMATE) approximate++
+                tx.withMain(ready.amount.minor, ready.mainRate.value, ready.mainRate.source)
+            }
+            transactionDao.update(updated)
+            onProgress(i + 1, rows.size)
+        }
+        return ChangeSummary(rows.size, approximate, manualReplaced)
+    }
+
+    private fun TransactionEntity.withMain(amountMinor: Long, rate: BigDecimal, source: RateSource) =
+        copy(amountMinor = amountMinor, mainRate = rate, mainRateSource = source)
+
+    /** Local rates only (no network inside the transaction), memoized for the run. */
+    private class LocalRates(private val delegate: RateLookup) : RateLookup {
+        private val exact = HashMap<Pair<LocalDate, String>, BigDecimal?>()
+        private val nearest = HashMap<Pair<LocalDate, String>, BigDecimal?>()
+
+        override suspend fun exact(day: LocalDate, code: String): BigDecimal? =
+            exact.getOrPut(day to code) { delegate.exact(day, code) }
+
+        override suspend fun nearest(day: LocalDate, code: String): BigDecimal? =
+            nearest.getOrPut(day to code) { delegate.nearest(day, code) }
+
+        override suspend fun download(day: LocalDate): Boolean = false
+    }
+
+    private companion object {
+        const val MILLIS_PER_DAY = 86_400_000L
+    }
+}

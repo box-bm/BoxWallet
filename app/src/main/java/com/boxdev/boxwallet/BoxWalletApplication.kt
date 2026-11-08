@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.boxdev.boxwallet.data.datastore.UserPreferences
+import com.boxdev.boxwallet.data.rates.MainCurrencyChanger
 import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.worker.ReminderAlarmReceiver
 import com.boxdev.boxwallet.worker.ExchangeRateSyncWorker
@@ -28,6 +29,9 @@ class BoxWalletApplication : Application(), Configuration.Provider {
 
     @Inject
     lateinit var userPreferences: UserPreferences
+
+    @Inject
+    lateinit var mainCurrencyChanger: MainCurrencyChanger
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -53,6 +57,8 @@ class BoxWalletApplication : Application(), Configuration.Provider {
         // database and no account. Fresh installs get theirs when onboarding completes, once the
         // main currency is chosen. Write paths also go through AccountRepository.defaultAccount().
         appScope.launch {
+            // First: a main currency change may have committed without saving the new currency.
+            mainCurrencyChanger.completePending()
             if (!userPreferences.isFirstLaunch.first()) accountRepository.ensureDefaultAccount()
             val lastSync = userPreferences.lastRateSyncAt.first()
             if (lastSync == null || System.currentTimeMillis() - lastSync > 24 * 60 * 60 * 1000L) {

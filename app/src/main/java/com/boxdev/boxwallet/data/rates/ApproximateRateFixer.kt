@@ -8,6 +8,7 @@ import com.boxdev.boxwallet.domain.money.ExchangeRateResolver
 import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.domain.money.RateSource
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.withLock
 import java.time.LocalDate
 import java.util.Currency
 import javax.inject.Inject
@@ -21,12 +22,15 @@ class ApproximateRateFixer @Inject constructor(
     private val accountDao: AccountDao,
     private val resolver: ExchangeRateResolver,
     private val prefs: UserPreferences,
+    private val lock: CurrencyChangeLock,
 ) {
 
     /** Returns how many movements were corrected. */
-    suspend fun fix(): Int {
+    suspend fun fix(): Int = lock.mutex.withLock {
+        // A main currency change is rewriting every movement; it resolves them itself.
+        if (prefs.pendingMainCurrency.first() != null) return@withLock 0
         val pending = transactionDao.getWithApproximateRates()
-        if (pending.isEmpty()) return 0
+        if (pending.isEmpty()) return@withLock 0
         val main = prefs.mainCurrency.first()
         var fixed = 0
         for (tx in pending) {
@@ -35,7 +39,7 @@ class ApproximateRateFixer @Inject constructor(
             transactionDao.update(updated)
             fixed++
         }
-        return fixed
+        fixed
     }
 
     private suspend fun correct(tx: TransactionEntity, accountCurrency: Currency, main: Currency): TransactionEntity? {

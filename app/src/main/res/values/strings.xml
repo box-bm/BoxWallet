@@ -538,4 +538,35 @@
     <string name="currency_range_a11y">Range: %1$s</string>
     <string name="rate_chart_summary">%1$s rate history, %2$s to %3$s. Current %4$s, minimum %5$s, maximum %6$s.</string>
     <string name="rate_chart_point">%1$s: %2$s</string>
+    <string name="main_currency_change_title">Change main currency</string>
+    <plurals name="main_currency_change_movements">
+        <item quantity="one">%d movement</item>
+        <item quantity="other">%d movements</item>
+    </plurals>
+    <plurals name="main_currency_change_loans">
+        <item quantity="one">%d loan</item>
+        <item quantity="other">%d loans</item>
+    </plurals>
+    <string name="main_currency_change_warning">%1$s and %2$s will be converted from %3$s to %4$s using the rate of each date. A local backup will be created before starting.</string>
+    <string name="main_currency_change_warning_detail">Original amounts never change. Rates you typed by hand were set against %1$s, so they will be replaced by the rate of each date.</string>
+    <string name="main_currency_change_confirm">Convert to %1$s</string>
+    <string name="main_currency_change_cancel">Cancel</string>
+    <string name="main_currency_change_phase_download">Step 1 of 2: Downloading exchange rates</string>
+    <string name="main_currency_change_phase_download_progress">%1$d of %2$d days</string>
+    <string name="main_currency_change_phase_download_preparing">Checking which rates are needed…</string>
+    <string name="main_currency_change_phase_download_note">Nothing has changed yet. You can cancel at any time during this step.</string>
+    <string name="main_currency_change_phase_apply">Step 2 of 2: Converting movements</string>
+    <string name="main_currency_change_phase_apply_progress">%1$d of %2$d movements</string>
+    <string name="main_currency_change_phase_apply_preparing">Creating the local backup…</string>
+    <string name="main_currency_change_phase_apply_note">This step can\'t be cancelled. If it is interrupted, nothing changes.</string>
+    <string name="main_currency_change_failed_network">Couldn\'t download the exchange rates. Nothing was changed. Check your connection and try again.</string>
+    <string name="main_currency_change_failed_missing_rate">There is no exchange rate for some dates yet. Nothing was changed. Connect to the internet and try again.</string>
+    <string name="main_currency_change_failed_unknown">The change couldn\'t be completed. Nothing was changed.</string>
+    <string name="main_currency_change_retry">Try again</string>
+    <string name="main_currency_change_done_title">Your main currency is now %1$s</string>
+    <string name="main_currency_change_done_converted">Movements converted</string>
+    <string name="main_currency_change_done_approximate">Approximate rates</string>
+    <string name="main_currency_change_done_approximate_note">Approximate rates are corrected automatically once the exact rate of their date is downloaded.</string>
+    <string name="main_currency_change_done_manual">Manual rates replaced</string>
+    <string name="main_currency_change_done">Done</string>
 </resources>

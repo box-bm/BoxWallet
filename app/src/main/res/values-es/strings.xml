@@ -525,4 +525,35 @@
     <string name="currency_range_a11y">Rango: %1$s</string>
     <string name="rate_chart_summary">Historial de la tasa de %1$s, de %2$s a %3$s. Actual %4$s, mínimo %5$s, máximo %6$s.</string>
     <string name="rate_chart_point">%1$s: %2$s</string>
+    <string name="main_currency_change_title">Cambiar moneda principal</string>
+    <plurals name="main_currency_change_movements">
+        <item quantity="one">%d movimiento</item>
+        <item quantity="other">%d movimientos</item>
+    </plurals>
+    <plurals name="main_currency_change_loans">
+        <item quantity="one">%d préstamo</item>
+        <item quantity="other">%d préstamos</item>
+    </plurals>
+    <string name="main_currency_change_warning">Se convertirán %1$s y %2$s de %3$s a %4$s usando la tasa de cada fecha. Se creará un respaldo local antes de empezar.</string>
+    <string name="main_currency_change_warning_detail">Los montos originales nunca cambian. Las tasas que escribiste a mano estaban definidas contra %1$s, así que se reemplazarán por la tasa de cada fecha.</string>
+    <string name="main_currency_change_confirm">Convertir a %1$s</string>
+    <string name="main_currency_change_cancel">Cancelar</string>
+    <string name="main_currency_change_phase_download">Paso 1 de 2: Descargando tasas de cambio</string>
+    <string name="main_currency_change_phase_download_progress">%1$d de %2$d días</string>
+    <string name="main_currency_change_phase_download_preparing">Revisando qué tasas hacen falta…</string>
+    <string name="main_currency_change_phase_download_note">Todavía no cambió nada. Puedes cancelar en cualquier momento durante este paso.</string>
+    <string name="main_currency_change_phase_apply">Paso 2 de 2: Convirtiendo movimientos</string>
+    <string name="main_currency_change_phase_apply_progress">%1$d de %2$d movimientos</string>
+    <string name="main_currency_change_phase_apply_preparing">Creando el respaldo local…</string>
+    <string name="main_currency_change_phase_apply_note">Este paso no se puede cancelar. Si se interrumpe, no cambia nada.</string>
+    <string name="main_currency_change_failed_network">No se pudieron descargar las tasas de cambio. No se cambió nada. Revisa tu conexión e inténtalo de nuevo.</string>
+    <string name="main_currency_change_failed_missing_rate">Todavía no hay tasa de cambio para algunas fechas. No se cambió nada. Conéctate a internet e inténtalo de nuevo.</string>
+    <string name="main_currency_change_failed_unknown">No se pudo completar el cambio. No se cambió nada.</string>
+    <string name="main_currency_change_retry">Reintentar</string>
+    <string name="main_currency_change_done_title">Tu moneda principal ahora es %1$s</string>
+    <string name="main_currency_change_done_converted">Movimientos convertidos</string>
+    <string name="main_currency_change_done_approximate">Tasas aproximadas</string>
+    <string name="main_currency_change_done_approximate_note">Las tasas aproximadas se corrigen solas cuando se descarga la tasa exacta de su fecha.</string>
+    <string name="main_currency_change_done_manual">Tasas manuales reemplazadas</string>
+    <string name="main_currency_change_done">Listo</string>
 </resources>

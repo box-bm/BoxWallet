@@ -15,6 +15,9 @@ sealed class NavRoutes(val route: String) {
     data object CurrencyDetail : NavRoutes("currency_detail/{code}") {
         fun createRoute(code: String) = "currency_detail/$code"
     }
+    data object MainCurrencyChange : NavRoutes("main_currency_change/{code}") {
+        fun createRoute(code: String) = "main_currency_change/$code"
+    }
     data object Categories : NavRoutes("categories")
     data object ThemeCustomization : NavRoutes("theme_customization")
     data object Backup : NavRoutes("backup")
