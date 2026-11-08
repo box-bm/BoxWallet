@@ -1,6 +1,16 @@
 # BoxWallet
 It's an app to make your budget, track expenses and schedule incomes.
 
+## Features
+
+- Budgets, expenses, scheduled incomes and loans in installments.
+- Multi-currency: pick a main currency during onboarding (suggested from your country) and record each movement in any ISO currency. The exchange rate for the movement date is frozen with it, so past totals never change.
+- Excel report export and optional Google Drive backup/restore.
+
+## Privacy
+
+All data stays on the device. Exchange rates are downloaded once a day from the public [fawazahmed0/exchange-api](https://github.com/fawazahmed0/exchange-api); the request is a plain download of public rate tables and sends no user data (no amounts, accounts or identifiers).
+
 ## CI/CD
 
 | Workflow | Trigger | What it does |
