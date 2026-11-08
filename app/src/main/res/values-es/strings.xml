@@ -126,7 +126,6 @@
     <string name="transactions_filter_lowest">Menor monto</string>
 
     <!-- Reports Screen -->
-    <string name="analytics_title">Reportes</string>
     <string name="analytics_months">%1$d meses</string>
     <string name="analytics_expenses_by_category">Gastos por Categor\u00eda</string>
     <string name="analytics_no_category_data">No hay datos de categor\u00edas disponibles</string>
@@ -192,6 +191,7 @@
 
     <!-- Settings Screen -->
     <string name="settings_title">Ajustes</string>
+    <string name="settings_select_hint">Elige una sección</string>
     <string name="settings_preferences_section">Preferencias</string>
     <string name="settings_general_section">General</string>
     <string name="settings_general_title">Ajustes Generales</string>
@@ -391,7 +391,6 @@
     <string name="theme_preview">Vista previa</string>
 
     <!-- Búsqueda global -->
-    <string name="action_search">Buscar</string>
     <string name="search_placeholder">Buscar movimientos, préstamos, categorías…</string>
     <string name="search_empty_title">Busca en todo</string>
     <string name="search_empty_message">Encuentra movimientos y préstamos por descripción, categoría o monto.</string>
@@ -578,4 +577,5 @@
         <item quantity="one">No incluye %1$d préstamo en otra moneda</item>
         <item quantity="other">No incluye %1$d préstamos en otras monedas</item>
     </plurals>
+    <string name="search_in_app">Buscar en BoxWallet</string>
 </resources>

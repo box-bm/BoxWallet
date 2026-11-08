@@ -19,31 +19,24 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import com.boxdev.boxwallet.ui.navigation.NavRoutes
 import com.boxdev.boxwallet.ui.navigation.TabReselectEffect
-import com.boxdev.boxwallet.ui.navigation.expand
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.SearchOff
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
@@ -51,9 +44,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.activity.compose.BackHandler
-import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -63,7 +54,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
@@ -79,15 +70,16 @@ import com.boxdev.boxwallet.ui.components.amountKind
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.ui.components.AmountText
+import com.boxdev.boxwallet.ui.components.AppSearchBar
+import com.boxdev.boxwallet.ui.components.SearchBarSpan
+import com.boxdev.boxwallet.ui.components.PaneRow
 import com.boxdev.boxwallet.ui.components.mainMoney
 import com.boxdev.boxwallet.ui.components.ConnectedChoiceRow
 import com.boxdev.boxwallet.ui.components.EmptyState
 import com.boxdev.boxwallet.ui.components.FilterGroup
 import com.boxdev.boxwallet.ui.components.FilterToggleAction
-import com.boxdev.boxwallet.ui.components.SearchAction
 import com.boxdev.boxwallet.ui.components.TransactionItem
 import com.boxdev.boxwallet.ui.theme.BoxTheme
-import com.boxdev.boxwallet.ui.theme.isWide
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -95,7 +87,6 @@ import java.time.format.FormatStyle
 @Composable
 fun TransactionsListScreen(
     onEditTransaction: (Long) -> Unit = {},
-    onNavigateToSettings: () -> Unit = {},
     onNavigateToSearch: () -> Unit = {},
     viewModel: TransactionsListViewModel = hiltViewModel()
 ) {
@@ -103,11 +94,9 @@ fun TransactionsListScreen(
     val filter = uiState.filterState
     val categoryMap = remember(uiState.availableCategories) { uiState.availableCategories.associateBy { it.id } }
     var showFilters by rememberSaveable { mutableStateOf(false) }
-    val wide = BoxTheme.widthClass.isWide
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
+    val twoPane = BoxTheme.layout.twoPane
     val listState = rememberLazyListState()
     TabReselectEffect(NavRoutes.TransactionsList.route) {
-        scrollBehavior.expand()
         listState.animateScrollToItem(0)
     }
     val activeFilters = listOf(
@@ -118,7 +107,7 @@ fun TransactionsListScreen(
         filter.showOnlyRecurrent,
     ).count { it }
 
-    BackHandler(enabled = showFilters && !wide) { showFilters = false }
+    BackHandler(enabled = showFilters && !twoPane) { showFilters = false }
 
     val filterPanel: @Composable (Modifier) -> Unit = { modifier ->
         Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(20.dp)) {
@@ -170,97 +159,83 @@ fun TransactionsListScreen(
         }
     }
 
+    val content: @Composable () -> Unit = {
+        Column(Modifier.fillMaxSize()) {
+            if (!twoPane) {
+                CollapsibleFilterPanel(visible = showFilters) {
+                    filterPanel(Modifier.padding(16.dp))
+                }
+            }
+
+            when {
+                uiState.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    LoadingIndicator()
+                }
+
+                uiState.transactions.isEmpty() -> EmptyState(
+                    icon = Icons.AutoMirrored.Outlined.ReceiptLong,
+                    title = stringResource(R.string.transactions_no_transactions),
+                    message = stringResource(R.string.home_no_transactions_hint),
+                    modifier = Modifier.padding(top = 48.dp),
+                )
+
+                uiState.filteredTransactions.isEmpty() -> EmptyState(
+                    icon = Icons.Outlined.SearchOff,
+                    title = stringResource(R.string.transactions_no_results),
+                    modifier = Modifier.padding(top = 48.dp),
+                    action = {
+                        OutlinedButton(onClick = viewModel::clearFilters) {
+                            Text(stringResource(R.string.action_clear_all))
+                        }
+                    },
+                )
+
+                else -> TransactionsByDay(
+                    uiState = uiState,
+                    listState = listState,
+                    categoryMap = categoryMap,
+                    onEditTransaction = onEditTransaction,
+                )
+            }
+        }
+    }
+
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),
         topBar = {
-            LargeFlexibleTopAppBar(
-                title = { Text(stringResource(R.string.nav_transactions)) },
-                subtitle = if (uiState.transactions.isNotEmpty()) {
+            AppSearchBar(
+                onClick = onNavigateToSearch,
+                span = if (twoPane) SearchBarSpan.Fixed(FILTERS_PANE_WIDTH) else SearchBarSpan.Full,
+                trailing = if (!twoPane) {
                     {
-                        Text(
-                            pluralStringResource(
-                                R.plurals.records_count,
-                                uiState.filteredTransactions.size,
-                                uiState.filteredTransactions.size,
-                            )
-                        )
-                    }
-                } else null,
-                actions = {
-                    SearchAction(onClick = onNavigateToSearch)
-                    if (!wide) {
                         FilterToggleAction(
                             filtersOpen = showFilters,
                             onToggleFilters = { showFilters = it },
                             activeFilterCount = activeFilters,
                         )
                     }
-                    IconButton(onClick = onNavigateToSettings) {
-                        Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.nav_settings))
-                    }
-                },
-                scrollBehavior = scrollBehavior,
+                } else null,
             )
         },
     ) { padding ->
-        Row(Modifier.fillMaxSize().padding(padding)) {
-            if (wide) {
-                // Unfolded: filters stay open as a side pane.
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
-                    shape = MaterialTheme.shapes.large,
-                    modifier = Modifier
-                        .width(340.dp)
-                        .fillMaxHeight()
-                        .padding(start = 16.dp, bottom = 16.dp),
-                ) {
+        if (twoPane) {
+            // Expanded: filters stay open as a side pane.
+            PaneRow(
+                modifier = Modifier.padding(padding),
+                firstWidth = FILTERS_PANE_WIDTH,
+                first = {
                     filterPanel(
                         Modifier
+                            .fillMaxSize()
                             .verticalScroll(rememberScrollState())
                             .padding(20.dp)
                     )
-                }
-            }
-
-            Column(Modifier.weight(1f)) {
-                if (!wide) {
-                    CollapsibleFilterPanel(visible = showFilters) {
-                        filterPanel(Modifier.padding(16.dp))
-                    }
-                }
-
-                when {
-                    uiState.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        LoadingIndicator()
-                    }
-
-                    uiState.transactions.isEmpty() -> EmptyState(
-                        icon = Icons.AutoMirrored.Outlined.ReceiptLong,
-                        title = stringResource(R.string.transactions_no_transactions),
-                        message = stringResource(R.string.home_no_transactions_hint),
-                        modifier = Modifier.padding(top = 48.dp),
-                    )
-
-                    uiState.filteredTransactions.isEmpty() -> EmptyState(
-                        icon = Icons.Outlined.SearchOff,
-                        title = stringResource(R.string.transactions_no_results),
-                        modifier = Modifier.padding(top = 48.dp),
-                        action = {
-                            OutlinedButton(onClick = viewModel::clearFilters) {
-                                Text(stringResource(R.string.action_clear_all))
-                            }
-                        },
-                    )
-
-                    else -> TransactionsByDay(
-                        uiState = uiState,
-                        listState = listState,
-                        categoryMap = categoryMap,
-                        onEditTransaction = onEditTransaction,
-                    )
-                }
-            }
+                },
+                second = content,
+            )
+        } else {
+            PaneRow(modifier = Modifier.padding(padding), first = content)
         }
     }
 }
@@ -291,11 +266,23 @@ private fun TransactionsByDay(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 112.dp),
     ) {
+        item(key = "records_count") {
+            Text(
+                text = pluralStringResource(
+                    R.plurals.records_count,
+                    uiState.filteredTransactions.size,
+                    uiState.filteredTransactions.size,
+                ),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
+            )
+        }
         groups.forEach { (date, transactions) ->
             if (date != null) {
                 stickyHeader(key = "h_$date") {
                     val net = transactions.net()
-                    Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+                    Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest, modifier = Modifier.fillMaxWidth()) {
                         Row(
                             modifier = Modifier.padding(start = 4.dp, top = 16.dp, bottom = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -346,3 +333,6 @@ private fun TransactionsByDay(
         item { Spacer(Modifier.height(8.dp)) }
     }
 }
+
+/** Width of the filters pane beside the list on two-pane windows. */
+private val FILTERS_PANE_WIDTH = 360.dp

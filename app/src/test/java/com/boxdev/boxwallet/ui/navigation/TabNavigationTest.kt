@@ -1,6 +1,8 @@
 package com.boxdev.boxwallet.ui.navigation
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TabNavigationTest {
@@ -50,5 +52,23 @@ class TabNavigationTest {
     @Test
     fun `unknown current route switches without popping`() {
         assertEquals(TabAction.Switch(loans, popTo = null), resolveTabClick(loans, null, setOf(home)))
+    }
+
+    @Test
+    fun `tab routes are not secondary`() {
+        assertFalse(isSecondary("home"))
+        assertFalse(isSecondary("loans"))
+    }
+
+    @Test
+    fun `settings, loan detail and search are secondary`() {
+        assertTrue(isSecondary("settings"))
+        assertTrue(isSecondary("loan_detail/{loanId}"))
+        assertTrue(isSecondary("search"))
+    }
+
+    @Test
+    fun `unknown route is not secondary`() {
+        assertFalse(isSecondary(null))
     }
 }

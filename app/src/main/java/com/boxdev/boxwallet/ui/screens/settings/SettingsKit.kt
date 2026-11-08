@@ -54,11 +54,13 @@ import com.boxdev.boxwallet.ui.components.readableWidth
 /**
  * Shared frame for every settings page: large flexible title that collapses on scroll, content
  * centered at a readable width so it never stretches across an unfolded screen.
+ * A null [onNavigateBack] embeds the page in a pane (Settings detail on wide windows): no back
+ * arrow, and a transparent background so the page sits on the pane.
  */
 @Composable
 fun SettingsScaffold(
     title: String,
-    onNavigateBack: () -> Unit,
+    onNavigateBack: (() -> Unit)?,
     subtitle: String? = null,
     actions: @Composable RowScope.() -> Unit = {},
     snackbarHostState: SnackbarHostState? = null,
@@ -69,16 +71,26 @@ fun SettingsScaffold(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
+    val inPane = onNavigateBack == null
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        containerColor = if (inPane) Color.Transparent else MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
         topBar = {
             LargeFlexibleTopAppBar(
                 title = { Text(title) },
                 subtitle = subtitle?.let { { Text(it) } },
-                navigationIcon = { if (showBack) BackButton(onNavigateBack) },
+                navigationIcon = { if (showBack && onNavigateBack != null) BackButton(onNavigateBack) },
                 actions = actions,
                 scrollBehavior = scrollBehavior,
+                colors = if (inPane) {
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                        scrolledContainerColor = Color.Transparent,
+                    )
+                } else {
+                    TopAppBarDefaults.topAppBarColors()
+                },
             )
         },
         snackbarHost = { snackbarHostState?.let { SnackbarHost(it) } },
@@ -133,7 +145,10 @@ fun SettingsIcon(
     ) { Icon(icon, contentDescription = null, tint = content, modifier = Modifier.size(22.dp)) }
 }
 
-/** Navigational or informational row. A null [onClick] renders a static row. */
+/**
+ * Navigational or informational row. A null [onClick] renders a static row. [selected] marks the
+ * section open in the detail pane (wide windows), in the same tint as a selected loan card.
+ */
 @Composable
 fun SettingsRow(
     index: Int,
@@ -148,13 +163,36 @@ fun SettingsRow(
     trailing: (@Composable () -> Unit)? = if (onClick != null) {
         { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) }
     } else null,
+    selected: Boolean = false,
 ) {
+    val colors = if (selected) {
+        val container = MaterialTheme.colorScheme.secondaryContainer
+        val content = MaterialTheme.colorScheme.onSecondaryContainer
+        ListItemDefaults.segmentedColors(
+            containerColor = container,
+            contentColor = content,
+            supportingContentColor = content,
+            trailingContentColor = content,
+            selectedContainerColor = container,
+        )
+    } else {
+        settingsRowColors()
+    }
     SegmentedListItem(
         onClick = onClick ?: {},
         enabled = true,
         shapes = segmentShapes(index = index, count = count),
-        colors = settingsRowColors(),
-        leadingContent = icon?.let { { SettingsIcon(it, iconContainer, iconContent) } },
+        colors = colors,
+        // On the selected tint the default secondaryContainer circle would vanish.
+        leadingContent = icon?.let {
+            {
+                if (selected) {
+                    SettingsIcon(it, MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.onSecondary)
+                } else {
+                    SettingsIcon(it, iconContainer, iconContent)
+                }
+            }
+        },
         supportingContent = subtitle?.let { { Text(it) } },
         trailingContent = trailing,
     ) { Text(title, color = titleColor) }

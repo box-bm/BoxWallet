@@ -28,7 +28,7 @@ enum class ClearDataType {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DataManagementScreen(
-    onNavigateBack: () -> Unit,
+    onNavigateBack: (() -> Unit)?,
     onNavigateToBackup: () -> Unit,
     viewModel: DataManagementViewModel = hiltViewModel()
 ) {

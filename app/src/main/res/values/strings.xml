@@ -130,7 +130,6 @@
     <string name="transactions_filter_lowest">Lowest</string>
 
     <!-- Reports Screen -->
-    <string name="analytics_title">Reports</string>
     <string name="analytics_months">%1$d months</string>
     <string name="analytics_expenses_by_category">Expenses by Category</string>
     <string name="analytics_no_category_data">No category data available</string>
@@ -203,6 +202,7 @@
 
     <!-- Settings Screen -->
     <string name="settings_title">Settings</string>
+    <string name="settings_select_hint">Choose a section</string>
     <string name="settings_preferences_section">Preferences</string>
     <string name="settings_general_section">General</string>
     <string name="settings_general_title">General Settings</string>
@@ -407,7 +407,6 @@
     <string name="theme_preview">Preview</string>
 
     <!-- Global search -->
-    <string name="action_search">Search</string>
     <string name="search_placeholder">Search movements, loans, categories…</string>
     <string name="search_empty_title">Search everything</string>
     <string name="search_empty_message">Find movements and loans by description, category or amount.</string>
@@ -591,4 +590,5 @@
         <item quantity="one">Excludes %1$d loan in another currency</item>
         <item quantity="other">Excludes %1$d loans in other currencies</item>
     </plurals>
+    <string name="search_in_app">Search BoxWallet</string>
 </resources>

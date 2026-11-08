@@ -2,10 +2,8 @@
 
 package com.boxdev.boxwallet.ui.screens.home
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -18,7 +16,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import com.boxdev.boxwallet.ui.navigation.NavRoutes
 import com.boxdev.boxwallet.ui.navigation.TabReselectEffect
-import com.boxdev.boxwallet.ui.navigation.expand
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
@@ -30,30 +27,29 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
-import androidx.compose.material3.MediumFlexibleTopAppBar
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.boxdev.boxwallet.R
-import com.boxdev.boxwallet.ui.components.SearchAction
+import com.boxdev.boxwallet.ui.components.AppSearchBar
+import com.boxdev.boxwallet.ui.components.SearchBarSpan
 import com.boxdev.boxwallet.ui.components.BalancePanel
 import com.boxdev.boxwallet.ui.components.EmptyState
 import com.boxdev.boxwallet.ui.components.LoanRow
+import com.boxdev.boxwallet.ui.components.PaneRow
 import com.boxdev.boxwallet.ui.components.SectionHeader
 import com.boxdev.boxwallet.ui.components.TransactionItem
 import com.boxdev.boxwallet.ui.theme.BoxTheme
-import com.boxdev.boxwallet.ui.theme.isWide
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(
@@ -67,25 +63,26 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val categoryMap = remember(uiState.categories) { uiState.categories.associateBy { it.id } }
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
-    val wide = BoxTheme.widthClass.isWide
+    val twoPane = BoxTheme.layout.twoPane
     val startList = rememberLazyListState()
     val endList = rememberLazyListState()
     TabReselectEffect(NavRoutes.Home.route) {
-        scrollBehavior.expand()
-        startList.animateScrollToItem(0)
-        endList.animateScrollToItem(0)
+        // Side by side, so neither scroll waits on the other; the end list is only laid out in two panes
+        // (a scroll on a list that is never laid out would never finish, blocking later reselects).
+        coroutineScope {
+            launch { startList.animateScrollToItem(0) }
+            if (twoPane) launch { endList.animateScrollToItem(0) }
+        }
     }
 
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),
         topBar = {
-            MediumFlexibleTopAppBar(
-                scrollBehavior = scrollBehavior,
-                title = { Text(stringResource(R.string.app_name)) },
-                actions = {
-                    SearchAction(onClick = onNavigateToSearch)
+            AppSearchBar(
+                onClick = onNavigateToSearch,
+                span = if (twoPane) SearchBarSpan.HalfPane else SearchBarSpan.Full,
+                trailing = {
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.nav_settings))
                     }
@@ -108,7 +105,7 @@ fun HomeScreen(
                     actionLabel = stringResource(R.string.home_see_all).takeIf { uiState.latestTransactions.isNotEmpty() },
                     onAction = onSeeAllTransactions,
                     // In two panes this header opens its column, so it aligns with the balance panel.
-                    modifier = Modifier.padding(top = if (wide) 0.dp else 16.dp),
+                    modifier = Modifier.padding(top = if (twoPane) 0.dp else 16.dp),
                 )
             }
             if (uiState.latestTransactions.isEmpty()) {
@@ -156,39 +153,43 @@ fun HomeScreen(
             }
         }
 
-        if (wide) {
-            // Unfolded / tablet: money overview and loans on the left, movements on the right.
-            Row(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                horizontalArrangement = Arrangement.spacedBy(24.dp),
-            ) {
-                LazyColumn(
-                    state = startList,
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(start = 24.dp, bottom = 32.dp),
-                ) {
-                    balance()
-                    loans()
+        PaneRow(
+            modifier = Modifier.padding(padding),
+            first = {
+                if (twoPane) {
+                    // Unfolded / tablet: money overview and loans on the left, movements on the right.
+                    LazyColumn(
+                        state = startList,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+                    ) {
+                        balance()
+                        loans()
+                    }
+                } else {
+                    LazyColumn(
+                        state = startList,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp),
+                    ) {
+                        balance()
+                        recent()
+                        loans()
+                        item { Spacer(Modifier.height(96.dp)) }
+                    }
                 }
-                LazyColumn(
-                    state = endList,
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(end = 24.dp, bottom = 32.dp),
-                ) {
-                    recent()
+            },
+            second = if (twoPane) {
+                {
+                    LazyColumn(
+                        state = endList,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+                    ) {
+                        recent()
+                    }
                 }
-            }
-        } else {
-            LazyColumn(
-                state = startList,
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(horizontal = 16.dp),
-            ) {
-                balance()
-                recent()
-                loans()
-                item { Spacer(Modifier.height(96.dp)) }
-            }
-        }
+            } else null,
+        )
     }
 }

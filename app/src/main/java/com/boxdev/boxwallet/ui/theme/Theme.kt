@@ -89,7 +89,7 @@ fun BoxWalletTheme(
     CompositionLocalProvider(
         LocalMoneyColors provides moneyColors,
         LocalMoneyType provides BoxMoneyType,
-        LocalWidthClass provides computeWidthClass(),
+        LocalAppLayout provides computeAppLayout(),
     ) {
         MaterialExpressiveTheme(
             colorScheme = colorScheme,
@@ -107,6 +107,8 @@ object BoxTheme {
         @Composable get() = LocalMoneyColors.current
     val moneyType: MoneyType
         @Composable get() = LocalMoneyType.current
+    val layout: AppLayout
+        @Composable get() = LocalAppLayout.current
     val widthClass: WidthClass
-        @Composable get() = LocalWidthClass.current
+        @Composable get() = LocalAppLayout.current.widthClass
 }

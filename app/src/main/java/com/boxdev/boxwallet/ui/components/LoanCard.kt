@@ -170,6 +170,8 @@ fun LoanRow(
     count: Int,
     modifier: Modifier = Modifier,
     category: Category? = null,
+    /** Highlights the loan open in the detail pane beside the list, like [LoanCard]. */
+    selected: Boolean = false,
     onClick: () -> Unit = {},
 ) {
     // Short "Oct 1" dates, as in Reports, so the line fits beside the amount.
@@ -181,7 +183,19 @@ fun LoanRow(
     SegmentedListItem(
         onClick = onClick,
         shapes = segmentShapes(index, count),
-        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        colors = if (selected) {
+            val container = MaterialTheme.colorScheme.secondaryContainer
+            val content = MaterialTheme.colorScheme.onSecondaryContainer
+            ListItemDefaults.segmentedColors(
+                containerColor = container,
+                contentColor = content,
+                supportingContentColor = content,
+                trailingContentColor = content,
+                selectedContainerColor = container,
+            )
+        } else {
+            ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+        },
         modifier = modifier.padding(bottom = ListItemDefaults.SegmentedGap),
         leadingContent = {
             CategoryBadge(
