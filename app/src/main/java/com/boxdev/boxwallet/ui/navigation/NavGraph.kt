@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -54,6 +55,7 @@ import com.boxdev.boxwallet.ui.screens.settings.MainCurrencyChangeScreen
 import com.boxdev.boxwallet.ui.screens.settings.DataManagementScreen
 import com.boxdev.boxwallet.ui.screens.settings.GeneralSettingsScreen
 import com.boxdev.boxwallet.ui.screens.settings.SettingsScreen
+import com.boxdev.boxwallet.ui.screens.settings.SettingsSection
 import com.boxdev.boxwallet.ui.screens.settings.ThemeCustomizationScreen
 import com.boxdev.boxwallet.ui.screens.transactions.TransactionsListScreen
 import com.boxdev.boxwallet.ui.theme.BoxTheme
@@ -133,6 +135,17 @@ fun NavGraph(
         }
     }
 
+    // A settings section opened on one pane moves into the Settings detail pane once two show.
+    val twoPane = BoxTheme.layout.twoPane
+    val currentRoute = navBackStackEntry?.destination?.route
+    LaunchedEffect(twoPane, currentRoute) {
+        val section = SettingsSection.toMoveIntoPane(twoPane, currentRoute) ?: return@LaunchedEffect
+        val settingsEntry = runCatching { navController.getBackStackEntry(NavRoutes.Settings.route) }.getOrNull()
+            ?: return@LaunchedEffect
+        settingsEntry.savedStateHandle[SettingsSection.PRESELECT_KEY] = section.name
+        navController.popBackStack(NavRoutes.Settings.route, inclusive = false)
+    }
+
     NavHost(
         navController = navController,
         startDestination = NavRoutes.Home.route,
@@ -209,14 +222,18 @@ fun NavGraph(
             )
         }
 
-        composable(NavRoutes.Settings.route) {
+        composable(NavRoutes.Settings.route) { entry ->
+            val preselected by entry.savedStateHandle
+                .getStateFlow<String?>(SettingsSection.PRESELECT_KEY, null)
+                .collectAsState()
             // Wide windows show sections in a detail pane; their outgoing links stay full routes.
             SettingsScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onOpenSection = { navController.navigate(it.route) },
                 onOpenCurrency = { navController.navigate(NavRoutes.CurrencyDetail.createRoute(it)) },
                 onChangeMainCurrency = { navController.navigate(NavRoutes.MainCurrencyChange.createRoute(it)) },
-                onOpenBackup = { navController.navigate(NavRoutes.Backup.route) },
+                preselected = preselected?.let(SettingsSection::valueOf),
+                onPreselectedConsumed = { entry.savedStateHandle.set<String?>(SettingsSection.PRESELECT_KEY, null) },
             )
         }
 

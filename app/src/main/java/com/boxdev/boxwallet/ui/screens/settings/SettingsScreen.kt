@@ -54,14 +54,16 @@ import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
 import androidx.compose.material3.adaptive.layout.PaneAdaptedValue
 import androidx.compose.material3.adaptive.layout.calculatePaneScaffoldDirective
 import androidx.compose.material3.adaptive.navigation.NavigableListDetailPaneScaffold
-import androidx.compose.material3.adaptive.navigation.ThreePaneScaffoldNavigator
 import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -83,7 +85,9 @@ import kotlinx.coroutines.launch
 /**
  * Settings. Single pane: the list, and each section opens as its own route ([onOpenSection]).
  * Two panes (expanded): the list beside the selected section, or a hint while none is selected.
- * Links out of a section (a currency, the main currency change, backup) stay full routes.
+ * Folding with a section open pushes its route, so one pane keeps showing it; unfolding on a
+ * section route comes back here with [preselected] (see NavGraph). Links out of a section (a
+ * currency, the main currency change) stay full routes.
  */
 @Composable
 fun SettingsScreen(
@@ -91,17 +95,19 @@ fun SettingsScreen(
     onOpenSection: (SettingsSection) -> Unit,
     onOpenCurrency: (String) -> Unit,
     onChangeMainCurrency: (String) -> Unit,
-    onOpenBackup: () -> Unit,
+    preselected: SettingsSection? = null,
+    onPreselectedConsumed: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val twoPane = BoxTheme.layout.twoPane
-    val directive = calculatePaneScaffoldDirective(currentWindowAdaptiveInfo()).copy(
-        maxHorizontalPartitions = if (twoPane) 2 else 1,
-        horizontalPartitionSpacerSize = 24.dp,
-        defaultPanePreferredWidth = 360.dp,
-    )
-    // Hoisted above the branch so the selection survives a fold and unfold.
-    val navigator = rememberListDetailPaneScaffoldNavigator<SettingsSection>(scaffoldDirective = directive)
+    // The section open in the detail pane, kept outside it so a fold can hand it to its route.
+    var openSection by rememberSaveable { mutableStateOf<SettingsSection?>(null) }
+    LaunchedEffect(twoPane) {
+        if (!twoPane) openSection?.let {
+            openSection = null
+            onOpenSection(it)
+        }
+    }
 
     if (!twoPane) {
         SettingsScaffold(title = stringResource(R.string.settings_title), onNavigateBack = onNavigateBack) {
@@ -109,11 +115,12 @@ fun SettingsScreen(
         }
     } else {
         SettingsListDetail(
-            navigator = navigator,
+            preselected = preselected,
+            onPreselectedConsumed = onPreselectedConsumed,
+            onSelectionChange = { openSection = it },
             onNavigateBack = onNavigateBack,
             onOpenCurrency = onOpenCurrency,
             onChangeMainCurrency = onChangeMainCurrency,
-            onOpenBackup = onOpenBackup,
             viewModel = viewModel,
         )
     }
@@ -122,19 +129,34 @@ fun SettingsScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SettingsListDetail(
-    navigator: ThreePaneScaffoldNavigator<SettingsSection>,
+    preselected: SettingsSection?,
+    onPreselectedConsumed: () -> Unit,
+    onSelectionChange: (SettingsSection?) -> Unit,
     onNavigateBack: () -> Unit,
     onOpenCurrency: (String) -> Unit,
     onChangeMainCurrency: (String) -> Unit,
-    onOpenBackup: () -> Unit,
     viewModel: SettingsViewModel,
 ) {
+    val directive = calculatePaneScaffoldDirective(currentWindowAdaptiveInfo()).copy(
+        maxHorizontalPartitions = 2,
+        horizontalPartitionSpacerSize = 24.dp,
+        defaultPanePreferredWidth = 360.dp,
+    )
+    // Lives only while two panes show: a fold drops it, and the open section moves to its route.
+    val navigator = rememberListDetailPaneScaffoldNavigator<SettingsSection>(scaffoldDirective = directive)
     val scope = rememberCoroutineScope()
     val listShown = navigator.scaffoldValue[ListDetailPaneScaffoldRole.List] == PaneAdaptedValue.Expanded
     val detailShown = navigator.scaffoldValue[ListDetailPaneScaffoldRole.Detail] == PaneAdaptedValue.Expanded
     val bothShown = listShown && detailShown
     val selected = navigator.currentDestination?.contentKey
     val margin = BoxTheme.layout.margin
+    LaunchedEffect(selected) { onSelectionChange(selected) }
+    LaunchedEffect(preselected) {
+        if (preselected != null) {
+            onPreselectedConsumed()
+            if (preselected != selected) navigator.navigateTo(ListDetailPaneScaffoldRole.Detail, preselected)
+        }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -208,7 +230,9 @@ private fun SettingsListDetail(
                             )
                             SettingsSection.DATA -> DataManagementScreen(
                                 onNavigateBack = null,
-                                onNavigateToBackup = onOpenBackup,
+                                onNavigateToBackup = {
+                                    scope.launch { navigator.navigateTo(ListDetailPaneScaffoldRole.Detail, SettingsSection.BACKUP) }
+                                },
                             )
                         }
                     }

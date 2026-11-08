@@ -30,4 +30,20 @@ class SettingsSectionTest {
         assertNull(SettingsSection.fromRoute(null))
         assertNull(SettingsSection.fromRoute("currency_detail/{code}"))
     }
+
+    @Test
+    fun `a section route moves into the pane only with two panes`() {
+        SettingsSection.entries.forEach { section ->
+            assertEquals(section, SettingsSection.toMoveIntoPane(twoPane = true, route = section.route))
+            assertNull(SettingsSection.toMoveIntoPane(twoPane = false, route = section.route))
+        }
+    }
+
+    @Test
+    fun `other routes never move into the pane`() {
+        assertNull(SettingsSection.toMoveIntoPane(twoPane = true, route = NavRoutes.Settings.route))
+        assertNull(SettingsSection.toMoveIntoPane(twoPane = true, route = NavRoutes.CurrencyDetail.route))
+        assertNull(SettingsSection.toMoveIntoPane(twoPane = true, route = NavRoutes.MainCurrencyChange.route))
+        assertNull(SettingsSection.toMoveIntoPane(twoPane = true, route = null))
+    }
 }
