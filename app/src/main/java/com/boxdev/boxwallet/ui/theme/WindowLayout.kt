@@ -7,7 +7,11 @@ import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-/** Material window width classes. Phones and folded foldables are compact; unfolded foldables are medium/expanded. */
+/**
+ * Material window width classes: compact < 600dp ≤ medium < 840dp ≤ expanded. Phones in portrait and
+ * folded foldables are compact; small phones in landscape are medium; Pixel-class phones in landscape,
+ * unfolded foldables and tablets are expanded.
+ */
 enum class WidthClass { Compact, Medium, Expanded }
 
 val WidthClass.isWide: Boolean get() = this != WidthClass.Compact

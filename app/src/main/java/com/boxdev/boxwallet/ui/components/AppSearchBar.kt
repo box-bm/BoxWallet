@@ -53,7 +53,8 @@ sealed interface SearchBarSpan {
 
 /**
  * Search entry point that sits on the window background above the panes. It holds no query text:
- * the whole bar is one button that opens search; [trailing] stays separately focusable.
+ * the search icon and placeholder form one button that opens search; [trailing] is a separate
+ * control beside it, focusable on its own.
  */
 @Composable
 fun AppSearchBar(
