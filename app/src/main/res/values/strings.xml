@@ -479,4 +479,19 @@
     <string name="transaction_settled_expense">Already paid</string>
     <string name="transaction_settled_income">Already received</string>
     <string name="account_default_name">Main</string>
+    <string name="currency_picker_title">Currency</string>
+    <string name="currency_picker_search">Search currency</string>
+    <string name="currency_picker_recent">Recently used</string>
+    <string name="currency_picker_all">All currencies</string>
+    <string name="currency_picker_empty">No currencies found</string>
+    <string name="currency_chip_description">Currency: %1$s. Tap to change</string>
+    <string name="conversion_rate_summary">1 %1$s = %2$s %3$s · %4$s</string>
+    <string name="conversion_rate_label">Exchange rate</string>
+    <string name="conversion_equivalent_label">Equivalent in %1$s</string>
+    <string name="conversion_approximate">Approximate rate</string>
+    <string name="conversion_approximate_explanation">No rate was published for this day, so a nearby one is used. Edit it if you know the exact rate.</string>
+    <string name="conversion_manual">Manual rate</string>
+    <string name="conversion_use_automatic">Use automatic rate</string>
+    <string name="conversion_needs_rate">Enter the exchange rate</string>
+    <string name="conversion_needs_rate_explanation">There is no rate available for this currency and date.</string>
 </resources>

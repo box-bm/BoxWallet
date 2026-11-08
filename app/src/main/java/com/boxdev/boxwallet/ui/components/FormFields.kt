@@ -68,6 +68,8 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -136,6 +138,8 @@ fun AmountField(
     label: String = stringResource(R.string.transaction_amount_label),
     isError: Boolean = false,
     autoFocus: Boolean = false,
+    currencyCode: String? = null,
+    onCurrencyClick: (() -> Unit)? = null,
 ) {
     val color by animateColorAsState(
         if (value.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant else kind.color(),
@@ -198,6 +202,15 @@ fun AmountField(
                         },
                     )
                 }
+            }
+            if (currencyCode != null && onCurrencyClick != null) {
+                val chipDescription = stringResource(R.string.currency_chip_description, currencyCode)
+                androidx.compose.material3.AssistChip(
+                    onClick = onCurrencyClick,
+                    label = { Text(currencyCode) },
+                    trailingIcon = { Icon(Icons.Outlined.UnfoldMore, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                    modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = chipDescription },
+                )
             }
         }
     }

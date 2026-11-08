@@ -45,7 +45,9 @@ import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.domain.model.ReminderDuration
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.ui.screens.transaction.TransactionFormViewModel
-import com.boxdev.boxwallet.util.rememberCurrencyFormatter
+import com.boxdev.boxwallet.domain.money.CurrencyCatalog
+import com.boxdev.boxwallet.domain.money.pickerSections
+import java.util.Locale
 
 @Composable
 fun TransactionSheet(
@@ -58,7 +60,9 @@ fun TransactionSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showDeleteDialog by remember { mutableStateOf(false) }
     val pickers = rememberDateTimePickerState()
-    val formatter = rememberCurrencyFormatter()
+    val recentCurrencies by viewModel.recentCurrencies.collectAsState()
+    var showCurrencyPicker by remember { mutableStateOf(false) }
+    val locale = remember { Locale.getDefault() }
     val availableReminders = remember { ReminderDuration.entries.filter { !it.debugOnly || BuildConfig.DEBUG } }
 
     LaunchedEffect(transactionId) { viewModel.loadTransaction(transactionId) }
@@ -96,11 +100,29 @@ fun TransactionSheet(
                 AmountField(
                     value = formState.amount,
                     onValueChange = viewModel::updateAmount,
-                    symbol = formatter.symbol,
+                    symbol = CurrencyCatalog.symbol(formState.currency, locale),
                     kind = amountKind(formState.type == TransactionType.INCOME),
                     isError = formState.error != null && formState.amount.isEmpty(),
                     autoFocus = !formState.isEditing,
+                    currencyCode = formState.currency.currencyCode,
+                    onCurrencyClick = { showCurrencyPicker = true },
                 )
+
+                val accountCurrency = formState.accountCurrency
+                if (formState.isForeign && accountCurrency != null) {
+                    ConversionRow(
+                        rate = formState.rate,
+                        from = formState.currency,
+                        to = accountCurrency,
+                        day = formState.date.toLocalDate(),
+                        equivalent = formState.equivalent.orEmpty(),
+                        onRateChange = viewModel::updateManualRate,
+                        onEquivalentChange = viewModel::updateEquivalent,
+                        onUseAutomatic = viewModel::useAutomaticRate,
+                        manualRate = formState.manualRate,
+                        needsManualRate = formState.needsManualRate,
+                    )
+                }
 
                 OutlinedTextField(
                     value = formState.description,
@@ -193,6 +215,21 @@ fun TransactionSheet(
                 onClick = viewModel::save,
             )
         }
+    }
+
+    if (showCurrencyPicker) {
+        var query by remember { mutableStateOf("") }
+        val allCurrencies = remember(locale) { CurrencyCatalog.all(locale) }
+        val sections = remember(query, recentCurrencies, allCurrencies) {
+            pickerSections(allCurrencies, recentCurrencies, query, locale)
+        }
+        CurrencyPickerSheet(
+            selected = formState.currency,
+            sections = sections,
+            onQuery = { query = it },
+            onPick = { viewModel.updateCurrency(it); showCurrencyPicker = false },
+            onDismiss = { showCurrencyPicker = false },
+        )
     }
 
     DateTimePickerDialogs(pickers, formState.date, viewModel::updateDate, viewModel::updateTime)

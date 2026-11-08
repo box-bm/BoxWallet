@@ -466,4 +466,19 @@
     <string name="transaction_settled_income">Ya recibido</string>
     <string name="settings_privacy_section">Privacidad</string>
     <string name="account_default_name">Principal</string>
+    <string name="currency_picker_title">Moneda</string>
+    <string name="currency_picker_search">Buscar moneda</string>
+    <string name="currency_picker_recent">Usadas recientemente</string>
+    <string name="currency_picker_all">Todas las monedas</string>
+    <string name="currency_picker_empty">No se encontraron monedas</string>
+    <string name="currency_chip_description">Moneda: %1$s. Toca para cambiar</string>
+    <string name="conversion_rate_summary">1 %1$s = %2$s %3$s · %4$s</string>
+    <string name="conversion_rate_label">Tasa de cambio</string>
+    <string name="conversion_equivalent_label">Equivalente en %1$s</string>
+    <string name="conversion_approximate">Tasa aproximada</string>
+    <string name="conversion_approximate_explanation">No hay una tasa publicada para este día, así que se usa una cercana. Edítala si conoces la tasa exacta.</string>
+    <string name="conversion_manual">Tasa manual</string>
+    <string name="conversion_use_automatic">Usar tasa automática</string>
+    <string name="conversion_needs_rate">Ingresa la tasa de cambio</string>
+    <string name="conversion_needs_rate_explanation">No hay una tasa disponible para esta moneda y fecha.</string>
 </resources>

@@ -1,5 +1,6 @@
 package com.boxdev.boxwallet.data.repository
 
+import com.boxdev.boxwallet.data.local.dao.CurrencyUsage
 import android.content.Context
 import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.data.datastore.UserPreferences
@@ -105,6 +106,9 @@ class TransactionRepository @Inject constructor(
         val accountCurrency = accountRepository.observeCurrencies().first()[entity.accountId] ?: main
         return entity.toDomain(accountCurrency, main)
     }
+
+    /** Currencies of past movements, most used and most recent first. */
+    fun recentCurrencies(limit: Int = 12): Flow<List<CurrencyUsage>> = transactionDao.recentCurrencies(limit)
 
     fun getAllTransactions(): Flow<List<Transaction>> =
         transactionDao.getAllTransactions().toDomain()
