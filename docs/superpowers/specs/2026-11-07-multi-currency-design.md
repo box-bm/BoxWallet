@@ -1,7 +1,7 @@
 # Multimoneda — diseño
 
 - **Fecha:** 2026-11-07
-- **Estado:** aprobado en conversación, pendiente de revisión escrita
+- **Estado:** aprobado en conversación; decisión de §4 (opción B) incorporada
 - **Rama:** `feat/multi-currency`
 - **Sub-proyecto 1 de 2.** El sub-proyecto 2 (captura automática de compras con Google Pay vía
   `NotificationListenerService`) se diseña después y se apoya en este.
@@ -168,6 +168,10 @@ y metales. ~160 filas/día ≈ 58k/año.
 
 ### 3.3 Resolución de la tasa de un movimiento
 
+La fecha que manda es siempre la **fecha del movimiento**, no la del día en que se registra o
+edita: un gasto del martes anotado el viernes usa la tasa del martes.
+
+
 1. Hay tasa para esa fecha en `exchange_rates` → `AUTO`.
 2. No hay, y hay red → descargar esa fecha (fechas ≥ 2024-03-02), guardar → `AUTO`.
 3. No hay red o no hay dato → la más cercana anterior (o posterior si no hay anterior) → `APPROXIMATE`.
@@ -192,23 +196,25 @@ Siempre recalcula todo; no hay estado intermedio.
    de los movimientos cuya cuenta no esté en la nueva moneda y descarga las que falten (una petición
    por fecha, todas las monedas). Si falla la red: reintentar o cancelar; ningún dato cambió.
 3. **Respaldo local** con `BackupRepository` (archivo en almacenamiento interno, se conserva el último).
-4. **Fase de datos:** una sola `@Transaction` de Room:
-   - recalcula `mainRate`, `mainRateSource` y `amountMinor` de cada movimiento
-     (cuenta → nueva principal). Una `mainRate` `MANUAL` estaba definida contra la principal
-     anterior y ya no aplica, así que se re-resuelve como `AUTO`/`APPROXIMATE`; el resumen informa
-     cuántas se reemplazaron. Las `accountRate` `MANUAL` no se tocan;
-   - **no toca** `originalAmountMinor`, `accountAmountMinor` ni `accountRate`: los saldos de las
-     cuentas no cambian.
+4. **Fase de datos:** una sola `@Transaction` de Room. La regla depende de cuántas cuentas haya:
+   - **Una sola cuenta (caso actual, sin UI de multicuenta):** la cuenta por defecto cambia de moneda
+     junto con la principal, para que ambas sigan coincidiendo. Por cada movimiento:
+     `accountRate` se re-resuelve (moneda original → nueva moneda; `1` si coinciden),
+     `accountAmountMinor` se recalcula desde `originalAmountMinor`, y `mainRate = 1` / `AUTO`,
+     `amountMinor = accountAmountMinor`. Las tasas `MANUAL` estaban definidas contra la moneda
+     anterior y ya no aplican: se re-resuelven como `AUTO`/`APPROXIMATE` y el resumen informa
+     cuántas se reemplazaron. `originalAmountMinor` y `currencyCode` nunca se tocan.
+   - **Varias cuentas (futuro):** las cuentas conservan su moneda y sus saldos. Solo se recalculan
+     `mainRate`, `mainRateSource` y `amountMinor` (cuenta → nueva principal); las `mainRate` `MANUAL`
+     se re-resuelven como arriba y las `accountRate` no se tocan.
+   - Los préstamos conservan su moneda: sus pagos son movimientos y siguen la misma regla.
 5. **Commit**, y solo después se escribe `mainCurrencyCode` en DataStore. Si el proceso muere entre
    el commit y la escritura, al arrancar se detecta la marca `pendingMainCurrency` (escrita en el
    paso 1) y se completa la escritura.
 6. **Resumen:** movimientos convertidos, tasas aproximadas, tasas manuales reemplazadas.
 
-La cuenta por defecto conserva su moneda original. Mientras multicuenta no tenga UI, esto implica que
-tras cambiar USD → GTQ la cuenta "Principal" sigue en USD y los movimientos nuevos se registran por
-defecto en GTQ (la moneda principal) con su conversión a la cuenta. **Alternativa a confirmar en la
-revisión:** mientras exista una sola cuenta, cambiar la moneda principal también cambia la moneda de
-la cuenta por defecto y convierte `accountAmountMinor` (la cuenta y la principal siguen coincidiendo).
+La fase de red (paso 2) descarga las fechas de todos los movimientos cuya moneda original difiera de
+la nueva moneda.
 
 ## 5. UI
 
@@ -285,7 +291,8 @@ Robolectric y `androidx.room:room-testing`.
 - `ExchangeRateApiTest`: respaldo a segunda URL, parseo válido/inválido, filtro ISO (con un
   transporte HTTP falso inyectado).
 - `MainCurrencyChangeTest` (Room en memoria + Robolectric): recálculo completo, rollback ante fallo,
-  saldos de cuenta intactos, `accountRate` `MANUAL` intactas.
+  con una cuenta (la cuenta cambia de moneda y coincide con la principal) y con varias
+  (saldos de cuenta intactos, `accountRate` `MANUAL` intactas).
 - `BackupMigrationTest`: fixture JSON v2 real → esquema nuevo.
 - `RecentCurrenciesTest`: orden por frecuencia y recencia.
 - Esquema exportado `app/schemas/.../1.json` como base de `MigrationTestHelper` futuro.
