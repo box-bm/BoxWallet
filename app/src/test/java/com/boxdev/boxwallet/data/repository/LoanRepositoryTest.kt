@@ -56,6 +56,7 @@ class LoanRepositoryTest {
         )
         val prefs = UserPreferences(context) // main currency defaults to USD
         repository = LoanRepository(
+            db,
             db.loanDao(),
             db.transactionDao(),
             AccountRepository(db.accountDao(), prefs, context),
@@ -96,5 +97,39 @@ class LoanRepositoryTest {
         assertTrue(error is MissingRateException)
         assertTrue(db.transactionDao().getInstallmentsByLoanId(1).isEmpty())
         assertTrue(db.loanDao().getAllLoansSync().isEmpty())
+    }
+
+    @Test
+    fun `editing an unpaid loan regenerates installments in the new currency and split`() = runTest {
+        val usd = Currency.getInstance("USD")
+        val loanId = repository.insertLoanWithInstallments(loan().copy(totalAmount = Money(20000, usd)))
+        assertEquals(listOf("USD", "USD"), db.transactionDao().getInstallmentsByLoanId(loanId).map { it.currencyCode })
+        // Switch to EUR with an odd split: 30001 / 2 -> 15000 + 15001.
+        val edited = loan().copy(id = loanId, totalAmount = Money(30001, eur))
+        repository.updateLoan(edited)
+
+        val rows = db.transactionDao().getInstallmentsByLoanId(loanId).sortedBy { it.installmentNumber }
+        assertEquals(2, rows.size)
+        assertEquals(listOf("EUR", "EUR"), rows.map { it.currencyCode })
+        assertEquals(listOf(15000L, 15001L), rows.map { it.originalAmountMinor })
+        // €150.00 / 0.8 = $187.50 ; €150.01 / 0.5 = $300.02
+        assertEquals(listOf(18750L, 30002L), rows.map { it.amountMinor })
+        assertEquals(30001L, db.loanDao().getById(loanId)!!.totalAmountMinor)
+    }
+
+    @Test
+    fun `editing an unpaid loan into a currency with no rate throws and changes nothing`() = runTest {
+        val loanId = repository.insertLoanWithInstallments(loan())
+        val before = db.transactionDao().getInstallmentsByLoanId(loanId).sortedBy { it.installmentNumber }
+
+        val gbp = Currency.getInstance("GBP")
+        val error = runCatching {
+            repository.updateLoan(loan().copy(id = loanId, totalAmount = Money(50000, gbp)))
+        }.exceptionOrNull()
+
+        assertTrue(error is MissingRateException)
+        assertEquals("EUR", db.loanDao().getById(loanId)!!.currencyCode)
+        assertEquals(20000L, db.loanDao().getById(loanId)!!.totalAmountMinor)
+        assertEquals(before, db.transactionDao().getInstallmentsByLoanId(loanId).sortedBy { it.installmentNumber })
     }
 }

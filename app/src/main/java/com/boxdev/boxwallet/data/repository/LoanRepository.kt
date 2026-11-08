@@ -1,5 +1,7 @@
 package com.boxdev.boxwallet.data.repository
 
+import androidx.room.withTransaction
+import com.boxdev.boxwallet.data.local.database.BoxWalletDatabase
 import com.boxdev.boxwallet.data.local.dao.LoanDao
 import com.boxdev.boxwallet.data.local.dao.TransactionDao
 import com.boxdev.boxwallet.data.datastore.UserPreferences
@@ -26,6 +28,7 @@ import javax.inject.Singleton
 
 @Singleton
 class LoanRepository @Inject constructor(
+    private val database: BoxWalletDatabase,
     private val loanDao: LoanDao,
     private val transactionDao: TransactionDao,
     private val accountRepository: AccountRepository,
@@ -42,12 +45,21 @@ class LoanRepository @Inject constructor(
     suspend fun getLoanById(id: Long): Loan? = observeLoan(id).first()
 
     suspend fun insertLoanWithInstallments(loan: Loan): Long {
+        val installments = buildInstallments(loan)
+        val loanId = loanDao.insert(loan.toEntity())
+        transactionDao.insertAll(installments.map { it.copy(loanId = loanId).toEntity() })
+        return loanId
+    }
+
+    /**
+     * Installments are in the loan's currency; each carries an estimate at the rate of its due date,
+     * re-resolved when it is marked paid. Computed before any write so a missing rate saves nothing.
+     */
+    private suspend fun buildInstallments(loan: Loan): List<Transaction> {
         val accountId = loan.accountId ?: accountRepository.defaultAccount().id
         val main = userPreferences.mainCurrency.first()
         val accountCurrency = accountRepository.observeCurrencies().first()[accountId] ?: main
-        // Installments are in the loan's currency; each carries an estimate at the rate of its due date,
-        // re-resolved when it is marked paid. Computed before any write so a missing rate saves nothing.
-        val installments = (1..loan.totalInstallments).map { number ->
+        return (1..loan.totalInstallments).map { number ->
             val date = loan.installmentDate(number).atStartOfDay()
             val original = loan.installmentAmount(number)
             val input = AmountInput(original, date.toLocalDate(), accountCurrency, main)
@@ -67,13 +79,22 @@ class LoanRepository @Inject constructor(
                 mainRate = ExchangeRate.IDENTITY,
             ).withAmounts(ready)
         }
-        val loanId = loanDao.insert(loan.toEntity())
-        transactionDao.insertAll(installments.map { it.copy(loanId = loanId).toEntity() })
-        return loanId
     }
 
     suspend fun updateLoan(loan: Loan) {
         val existingLoan = loanDao.getById(loan.id)
+        val installmentRows = transactionDao.getInstallmentsByLoanId(loan.id)
+        if (existingLoan != null && installmentRows.none { it.isCleared } && existingLoan.termsDiffer(loan)) {
+            // Nothing is paid yet: rebuild every installment so they match the loan's currency and split.
+            // Conversions are computed first, so a missing rate throws before anything is written.
+            val installments = buildInstallments(loan)
+            database.withTransaction {
+                loanDao.update(loan.toEntity())
+                transactionDao.deleteByLoanId(loan.id)
+                transactionDao.insertAll(installments.map { it.copy(loanId = loan.id).toEntity() })
+            }
+            return
+        }
         loanDao.update(loan.toEntity())
 
         if (existingLoan != null) {
@@ -106,5 +127,12 @@ class LoanRepository @Inject constructor(
     suspend fun deleteLoan(id: Long) {
         transactionDao.deleteByLoanId(id)
         loanDao.deleteById(id)
+    }
+
+    private fun com.boxdev.boxwallet.data.local.entity.LoanEntity.termsDiffer(loan: Loan): Boolean {
+        val new = loan.toEntity()
+        return currencyCode != new.currencyCode || totalAmountMinor != new.totalAmountMinor ||
+            totalInstallments != new.totalInstallments || frequency != new.frequency ||
+            frequencyInterval != new.frequencyInterval || startDate != new.startDate
     }
 }
