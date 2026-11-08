@@ -51,6 +51,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
@@ -86,8 +87,9 @@ import com.boxdev.boxwallet.ui.screens.analytics.installmentState
 import java.time.temporal.ChronoUnit
 
 /**
- * Loan detail. On phones it is its own destination with a back button; in the unfolded
- * list-detail layout it is the right pane, bound to [loanId] and without a back button.
+ * Loan detail, drawn transparent so it sits on the [com.boxdev.boxwallet.ui.components.AppPane] around it.
+ * In the Loans list-detail it is the detail pane bound to [loanId] (back button only in single pane);
+ * opened from elsewhere it is its own destination with a back button.
  */
 @Composable
 fun LoanDetailScreen(
@@ -102,10 +104,15 @@ fun LoanDetailScreen(
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),
         topBar = {
             LargeFlexibleTopAppBar(
                 scrollBehavior = scrollBehavior,
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent,
+                ),
                 title = {
                     Text(
                         uiState.loan?.name ?: stringResource(R.string.loan_detail_title),

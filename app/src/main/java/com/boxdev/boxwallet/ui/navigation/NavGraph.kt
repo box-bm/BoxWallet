@@ -8,6 +8,12 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Handshake
 import androidx.compose.material.icons.filled.Insights
@@ -17,11 +23,13 @@ import androidx.compose.material.icons.outlined.Handshake
 import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
@@ -32,6 +40,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
 import com.boxdev.boxwallet.analytics.AnalyticsHelper
 import com.boxdev.boxwallet.R
+import com.boxdev.boxwallet.ui.components.AppPane
 import com.boxdev.boxwallet.ui.screens.analytics.AnalyticsScreen
 import com.boxdev.boxwallet.ui.screens.home.HomeScreen
 import com.boxdev.boxwallet.ui.screens.loans.LoanDetailScreen
@@ -47,6 +56,7 @@ import com.boxdev.boxwallet.ui.screens.settings.GeneralSettingsScreen
 import com.boxdev.boxwallet.ui.screens.settings.SettingsScreen
 import com.boxdev.boxwallet.ui.screens.settings.ThemeCustomizationScreen
 import com.boxdev.boxwallet.ui.screens.transactions.TransactionsListScreen
+import com.boxdev.boxwallet.ui.theme.BoxTheme
 
 enum class Destination(
     val route: String,
@@ -155,18 +165,24 @@ fun NavGraph(
         }
 
         tabComposable(NavRoutes.Loans.route) {
-            LoansScreen(
-                onNavigateToSettings = onNavigateToSettings,
-                onNavigateToSearch = onNavigateToSearch,
-                onNavigateToLoanDetail = openLoan,
-            )
+            LoansScreen(onNavigateToSearch = onNavigateToSearch)
         }
 
         composable(
             route = NavRoutes.LoanDetail.route,
             arguments = listOf(navArgument("loanId") { type = NavType.LongType })
         ) {
-            LoanDetailScreen(onNavigateBack = { navController.popBackStack() })
+            // Opened from Home, Search or Reports: one pane on the window background.
+            val margin = BoxTheme.layout.margin
+            AppPane(
+                Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
+                    .padding(start = margin, top = 8.dp, end = margin, bottom = margin)
+            ) {
+                LoanDetailScreen(onNavigateBack = { navController.popBackStack() })
+            }
         }
 
         tabComposable(NavRoutes.Analytics.route) {
