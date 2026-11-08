@@ -158,4 +158,81 @@ class TransactionAmountsTest {
         assertEquals(ExchangeRate(BigDecimal("7.5"), RateSource.MANUAL), refreshed.mainRate)
         assertEquals(Money(18000, gtq), refreshed.amount)
     }
+
+    // Edit path (forSave)
+
+    /** Stored Oct 5: EUR→USD MANUAL 1.2, USD→GTQ AUTO 7.7. */
+    private fun manualOctober() = Transaction(
+        id = 7,
+        accountId = 1,
+        type = TransactionType.EXPENSE,
+        date = LocalDate.of(2026, 10, 5).atTime(9, 0),
+        description = "Hotel",
+        original = Money(2000, eur),
+        accountAmount = Money(2400, usd),
+        accountRate = ExchangeRate(BigDecimal("1.2"), RateSource.MANUAL),
+        amount = Money(18480, gtq),
+        mainRate = ExchangeRate(BigDecimal("7.7"), RateSource.AUTO),
+    )
+
+    @Test
+    fun `edit with manual account rate and new date re-resolves the main leg for the new date`() = runTest {
+        val november = LocalDate.of(2026, 11, 5)
+        val lookup = object : RateLookup {
+            override suspend fun exact(day: LocalDate, code: String) =
+                if (code == "GTQ") (if (day == november) BigDecimal("7.64") else BigDecimal("7.7")) else null
+            override suspend fun nearest(day: LocalDate, code: String) = exact(day, code)
+            override suspend fun download(day: LocalDate) = false
+        }
+        val previous = manualOctober()
+        val draft = previous.copy(date = november.atTime(9, 0))
+
+        val saved = amounts(lookup).forSave(draft, previous, usd, gtq, manualAccountRate = BigDecimal("1.2"))!!
+
+        assertEquals(ExchangeRate(BigDecimal("1.2"), RateSource.MANUAL), saved.accountRate)
+        assertEquals(Money(2400, usd), saved.accountAmount)
+        assertEquals(0, BigDecimal("7.64").compareTo(saved.mainRate.value))
+        assertEquals(RateSource.AUTO, saved.mainRate.source)
+        assertEquals(Money(18336, gtq), saved.amount)
+    }
+
+    @Test
+    fun `edit with manual account rate and new amount keeps the rate`() = runTest {
+        val lookup = FakeLookup(mapOf("GTQ" to BigDecimal("7.7")))
+        val previous = manualOctober()
+
+        val saved = amounts(lookup).forSave(
+            previous.copy(original = Money(3000, eur)), previous, usd, gtq, manualAccountRate = BigDecimal("1.2"),
+        )!!
+
+        assertEquals(ExchangeRate(BigDecimal("1.2"), RateSource.MANUAL), saved.accountRate)
+        assertEquals(Money(3600, usd), saved.accountAmount)
+        assertEquals(Money(27720, gtq), saved.amount)
+    }
+
+    @Test
+    fun `edit changing only the description keeps the stored conversion without the resolver`() = runTest {
+        val lookup = FakeLookup(mapOf("EUR" to eurUnits, "GTQ" to BigDecimal("7.64")))
+        val previous = manualOctober().copy(accountRate = ExchangeRate(BigDecimal("1.0852"), RateSource.AUTO))
+
+        val saved = amounts(lookup).forSave(
+            previous.copy(description = "Dinner", date = previous.date.withHour(21)), previous, usd, gtq, null,
+        )!!
+
+        assertEquals(previous.copy(description = "Dinner", date = previous.date.withHour(21)), saved)
+        assertEquals(0, lookup.calls)
+    }
+
+    @Test
+    fun `new movement or changed rate choice computes for its date`() = runTest {
+        val lookup = FakeLookup(mapOf("EUR" to eurUnits, "GTQ" to BigDecimal("7.64")))
+        val previous = manualOctober()
+
+        // Switching from MANUAL back to automatic resolves both legs.
+        val auto = amounts(lookup).forSave(previous, previous, usd, gtq, null)!!
+        assertEquals(Money(2170, usd), auto.accountAmount)
+        assertEquals(RateSource.AUTO, auto.accountRate.source)
+
+        assertEquals(null, amounts(FakeLookup(emptyMap())).forSave(previous.copy(id = 0), null, usd, gtq, null))
+    }
 }

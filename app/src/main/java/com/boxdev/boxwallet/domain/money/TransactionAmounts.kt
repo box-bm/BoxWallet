@@ -49,6 +49,44 @@ class TransactionAmounts(private val resolver: ExchangeRateResolver) {
     }
 
     /**
+     * Freezes the conversions of [draft], the movement about to be saved; [previous] is the stored
+     * version when editing. Unchanged currency, day and amount (with the same rate choice) keep the
+     * stored conversion verbatim. A day or amount change under a kept MANUAL account rate keeps that
+     * rate and re-resolves the other leg for the movement's date; anything else is computed afresh.
+     * Null when no rate exists and none was typed.
+     */
+    suspend fun forSave(
+        draft: Transaction,
+        previous: Transaction?,
+        accountCurrency: Currency,
+        main: Currency,
+        manualAccountRate: BigDecimal?,
+    ): Transaction? {
+        if (previous != null && keepsRateChoice(previous, manualAccountRate)) {
+            val frozen = draft.withAmounts(
+                AmountResult.Ready(previous.accountAmount, previous.accountRate, previous.amount, previous.mainRate)
+            )
+            if (!frozen.needsRateRefresh(previous)) {
+                val unchanged = draft.original == previous.original &&
+                    draft.date.toLocalDate() == previous.date.toLocalDate()
+                return if (unchanged) frozen else refresh(frozen)
+            }
+        }
+        val input = AmountInput(draft.original, draft.date.toLocalDate(), accountCurrency, main, manualAccountRate)
+        return when (val result = compute(input)) {
+            is AmountResult.Ready -> draft.withAmounts(result)
+            AmountResult.NeedsManualRate -> null
+        }
+    }
+
+    /** The user kept the stored rate choice: still automatic, or still the same manual rate. */
+    private fun keepsRateChoice(previous: Transaction, manualAccountRate: BigDecimal?): Boolean {
+        val wasManual = previous.accountRate.source == RateSource.MANUAL
+        return if (manualAccountRate == null) !wasManual
+        else wasManual && manualAccountRate.compareTo(previous.accountRate.value) == 0
+    }
+
+    /**
      * [transaction] with its conversions re-resolved for its own date and amount, keeping any
      * MANUAL leg as typed (spec 3.3: MANUAL is never overwritten). Null when a rate is missing.
      */

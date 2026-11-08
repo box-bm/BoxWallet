@@ -18,8 +18,6 @@ import com.boxdev.boxwallet.domain.money.ExchangeRate
 import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.domain.money.RateSource
 import com.boxdev.boxwallet.domain.money.TransactionAmounts
-import com.boxdev.boxwallet.domain.money.needsRateRefresh
-import com.boxdev.boxwallet.domain.money.withAmounts
 import com.boxdev.boxwallet.domain.money.parseMajor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -297,7 +295,8 @@ class TransactionFormViewModel @Inject constructor(
                     recurrenceInterval = s.recurrenceInterval.toIntOrNull(),
                     nextOccurrenceDate = nextOccurrenceDate
                 )
-                val transaction = convert(draft, previous, accountCurrency, s.manualRateValue)
+                val main = userPreferences.mainCurrency.first()
+                val transaction = transactionAmounts.forSave(draft, previous, accountCurrency, main, s.manualRateValue)
                 if (transaction == null) {
                     _formState.update {
                         it.copy(isLoading = false, needsManualRate = true, rate = null, error = "Enter the exchange rate")
@@ -328,48 +327,6 @@ class TransactionFormViewModel @Inject constructor(
                 _formState.update { it.copy(isLoading = false, error = e.message ?: "Error saving") }
             }
         }
-    }
-
-    /**
-     * Freezes [draft]'s conversions. An edit that doesn't invalidate the stored rates keeps them
-     * (re-applied to a changed amount when the rate is MANUAL); otherwise the rates of the movement's
-     * date are resolved. Null when no rate exists and the user hasn't typed one.
-     */
-    private suspend fun convert(
-        draft: Transaction,
-        previous: Transaction?,
-        accountCurrency: Currency,
-        manualRate: BigDecimal?,
-    ): Transaction? {
-        if (previous != null && sameRateChoice(previous, manualRate)) {
-            val frozen = draft.withAmounts(
-                AmountResult.Ready(previous.accountAmount, previous.accountRate, previous.amount, previous.mainRate)
-            )
-            if (!frozen.needsRateRefresh(previous)) {
-                if (draft.original == previous.original) return frozen
-                val accountAmount = draft.original.convert(previous.accountAmount.currency, previous.accountRate.value)
-                return frozen.withAmounts(
-                    AmountResult.Ready(
-                        accountAmount,
-                        previous.accountRate,
-                        accountAmount.convert(previous.amount.currency, previous.mainRate.value),
-                        previous.mainRate,
-                    )
-                )
-            }
-        }
-        val main = userPreferences.mainCurrency.first()
-        val input = AmountInput(draft.original, draft.date.toLocalDate(), accountCurrency, main, manualRate)
-        return when (val result = transactionAmounts.compute(input)) {
-            is AmountResult.Ready -> draft.withAmounts(result)
-            AmountResult.NeedsManualRate -> null
-        }
-    }
-
-    /** The user kept the stored rate choice: still automatic, or still the same manual rate. */
-    private fun sameRateChoice(previous: Transaction, manualRate: BigDecimal?): Boolean {
-        val wasManual = previous.accountRate.source == RateSource.MANUAL
-        return if (manualRate == null) !wasManual else wasManual && manualRate.compareTo(previous.accountRate.value) == 0
     }
 
     fun delete() {
