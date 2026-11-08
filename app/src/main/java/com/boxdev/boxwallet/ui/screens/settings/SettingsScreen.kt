@@ -4,6 +4,7 @@ package com.boxdev.boxwallet.ui.screens.settings
 
 import androidx.compose.material.icons.outlined.NotificationsOff
 import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.CurrencyExchange
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Fingerprint
@@ -58,6 +59,7 @@ import com.boxdev.boxwallet.R
 fun SettingsScreen(
     onNavigateBack: () -> Unit = {},
     onNavigateToGeneral: () -> Unit,
+    onNavigateToCurrencies: () -> Unit,
     onNavigateToCategories: () -> Unit,
     onNavigateToTheme: () -> Unit,
     onNavigateToBackup: () -> Unit,
@@ -119,11 +121,13 @@ fun SettingsScreen(
         }
 
         SettingsGroup(stringResource(R.string.settings_preferences_section)) {
-            SettingsRow(0, 3, Icons.Outlined.Tune, stringResource(R.string.settings_general_title),
+            SettingsRow(0, 4, Icons.Outlined.Tune, stringResource(R.string.settings_general_title),
                 stringResource(R.string.settings_general_subtitle), onNavigateToGeneral)
-            SettingsRow(1, 3, Icons.Outlined.Category, stringResource(R.string.settings_categories_title),
+            SettingsRow(1, 4, Icons.Outlined.CurrencyExchange, stringResource(R.string.settings_currencies_title),
+                stringResource(R.string.settings_currencies_subtitle), onNavigateToCurrencies)
+            SettingsRow(2, 4, Icons.Outlined.Category, stringResource(R.string.settings_categories_title),
                 stringResource(R.string.settings_categories_subtitle), onNavigateToCategories)
-            SettingsRow(2, 3, Icons.Outlined.Palette, stringResource(R.string.settings_theme_title),
+            SettingsRow(3, 4, Icons.Outlined.Palette, stringResource(R.string.settings_theme_title),
                 stringResource(R.string.settings_theme_subtitle), onNavigateToTheme)
         }
 
