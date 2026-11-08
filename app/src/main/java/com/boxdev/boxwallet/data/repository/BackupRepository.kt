@@ -5,10 +5,12 @@ import androidx.room.withTransaction
 import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.data.local.dao.AccountDao
+import com.boxdev.boxwallet.data.local.dao.AppMetaDao
 import com.boxdev.boxwallet.data.local.dao.CategoryDao
 import com.boxdev.boxwallet.data.local.dao.LoanDao
 import com.boxdev.boxwallet.data.local.dao.TransactionDao
 import com.boxdev.boxwallet.data.local.database.BoxWalletDatabase
+import com.boxdev.boxwallet.data.local.entity.AppMetaEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 import com.boxdev.boxwallet.data.rates.CurrencyChangeLock
 import com.boxdev.boxwallet.data.remote.GoogleDriveManager
@@ -53,6 +55,7 @@ class BackupRepository @Inject constructor(
     private val categoryDao: CategoryDao,
     private val loanDao: LoanDao,
     private val accountDao: AccountDao,
+    private val appMetaDao: AppMetaDao,
     private val prefs: UserPreferences,
     private val lock: CurrencyChangeLock,
     private val googleDriveManager: GoogleDriveManager
@@ -60,7 +63,8 @@ class BackupRepository @Inject constructor(
     private val gson = Gson()
 
     suspend fun createBackup() {
-        val json = withContext(Dispatchers.Default) { gson.toJson(snapshot()) }
+        val data = consistentSnapshot()
+        val json = withContext(Dispatchers.Default) { gson.toJson(data) }
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
         googleDriveManager.uploadBackup("boxwallet_backup_$timestamp.json", json)
     }
@@ -84,6 +88,14 @@ class BackupRepository @Inject constructor(
             target
         }
     }
+
+    /**
+     * [snapshot] under [CurrencyChangeLock] and in one read transaction, so the label
+     * (`mainCurrencyCode`) and the amounts come from the same state. Not for [writeLocalSnapshot]:
+     * that one already runs under the lock (the lock isn't reentrant).
+     */
+    internal suspend fun consistentSnapshot(): BackupData =
+        lock.mutex.withLock { database.withTransaction { snapshot() } }
 
     /** The current data in the v3 shape; exchange rates are left out (spec 6.3). */
     internal suspend fun snapshot(): BackupData = coroutineScope {
@@ -137,22 +149,44 @@ class BackupRepository @Inject constructor(
                 categoryDao.insertAll(sane.categories)
                 loanDao.insertAll(sane.loans)
                 transactionDao.insertAll(sane.transactions)
+                // Committed with the data: a crash before the DataStore writes is finished at startup.
+                appMetaDao.put(AppMetaEntity(META_MAIN_CURRENCY, sane.mainCurrencyCode))
+                accountDao.getAll().firstOrNull()?.let { appMetaDao.put(AppMetaEntity(META_DEFAULT_ACCOUNT_ID, it.id.toString())) }
             }
-            prefs.setMainCurrency(sane.mainCurrencyCode)
-            accountDao.getAll().firstOrNull()?.let { prefs.setDefaultAccountId(it.id) }
+            applyPendingRestore()
         }
         sane
     }
 
-    private companion object {
-        const val LOCAL_BACKUP_DIR = "backups"
-        const val PRE_CURRENCY_CHANGE_FILE = "pre-currency-change.json"
+    /**
+     * Finishes a restore whose transaction committed but whose main currency and default account
+     * never reached DataStore (the process died in between). Call at startup.
+     */
+    suspend fun completePendingRestore(): Unit = lock.mutex.withLock {
+        withContext(NonCancellable) { applyPendingRestore() }
+    }
+
+    /** Copies the restore marks to DataStore, then deletes them. Caller holds the lock. */
+    private suspend fun applyPendingRestore() {
+        val currency = appMetaDao.get(META_MAIN_CURRENCY)
+        val accountId = appMetaDao.get(META_DEFAULT_ACCOUNT_ID)?.toLongOrNull()
+        if (currency == null && accountId == null) return
+        currency?.let { prefs.setMainCurrency(it) }
+        accountId?.let { prefs.setDefaultAccountId(it) }
+        appMetaDao.delete(listOf(META_MAIN_CURRENCY, META_DEFAULT_ACCOUNT_ID))
+    }
+
+    internal companion object {
+        private const val LOCAL_BACKUP_DIR = "backups"
+        private const val PRE_CURRENCY_CHANGE_FILE = "pre-currency-change.json"
+        const val META_MAIN_CURRENCY = "restore_main_currency"
+        const val META_DEFAULT_ACCOUNT_ID = "restore_default_account_id"
 
         /**
          * Old backups come from a schema without foreign keys: drop references to rows the backup
          * doesn't contain and order recurrences so a parent is inserted before its occurrences.
          */
-        fun sanitized(data: BackupData): BackupData {
+        private fun sanitized(data: BackupData): BackupData {
             val accountIds = data.accounts.mapTo(HashSet()) { it.id }
             val categoryIds = data.categories.mapTo(HashSet()) { it.id }
             val loanIds = data.loans.mapTo(HashSet()) { it.id }
@@ -175,7 +209,7 @@ class BackupRepository @Inject constructor(
             return data.copy(loans = loans, transactions = parentsFirst(transactions))
         }
 
-        fun parentsFirst(rows: List<TransactionEntity>): List<TransactionEntity> {
+        private fun parentsFirst(rows: List<TransactionEntity>): List<TransactionEntity> {
             val ordered = ArrayList<TransactionEntity>(rows.size)
             val placed = HashSet<Long>()
             var pending = rows

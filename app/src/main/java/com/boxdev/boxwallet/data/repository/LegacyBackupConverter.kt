@@ -64,7 +64,7 @@ object LegacyBackupConverter {
         val digits = main.minorDigits()
         fun JsonObject.minor(name: String): Long =
             // The Double's shortest representation: 0.30000000000000004 → 0.30 → 30.
-            BigDecimal.valueOf(getValue(name).asDouble).setScale(digits, RoundingMode.HALF_EVEN).unscaledValue().toLong()
+            BigDecimal.valueOf(getValue(name).asDouble).setScale(digits, RoundingMode.HALF_EVEN).unscaledValue().longValueExact()
 
         val createdAt = json.long("createdAt") ?: System.currentTimeMillis()
         val identity = ExchangeRate.IDENTITY

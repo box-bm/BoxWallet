@@ -67,13 +67,19 @@ class OnboardingViewModel @Inject constructor(
     }
 
     fun completeOnboarding(analyticsEnabled: Boolean = false, saveCurrency: Boolean = true) {
-        viewModelScope.launch {
-            userPreferences.setAnalyticsEnabled(analyticsEnabled)
-            // Before the default account exists: it is created in the current main currency.
-            if (saveCurrency) _uiState.value.currency?.let { userPreferences.setMainCurrency(it.currencyCode) }
-            accountRepository.ensureDefaultAccount()
-            userPreferences.completeFirstLaunch()
-        }
+        viewModelScope.launch { finishOnboarding(analyticsEnabled, saveCurrency) }
+    }
+
+    internal suspend fun finishOnboarding(analyticsEnabled: Boolean, saveCurrency: Boolean) {
+        userPreferences.setAnalyticsEnabled(analyticsEnabled)
+        // A restore that committed (even before a crash) already decided the main currency: its
+        // amounts are in it, so the onboarding choice must not overwrite it.
+        backupRepository.completePendingRestore()
+        val restored = accountRepository.count() > 0
+        // Before the default account exists: it is created in the current main currency.
+        if (saveCurrency && !restored) _uiState.value.currency?.let { userPreferences.setMainCurrency(it.currencyCode) }
+        accountRepository.ensureDefaultAccount()
+        userPreferences.completeFirstLaunch()
     }
 
     fun getSignInIntent(): Intent = googleAuthManager.getSignInIntent()

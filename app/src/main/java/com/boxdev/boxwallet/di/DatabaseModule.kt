@@ -3,6 +3,7 @@ package com.boxdev.boxwallet.di
 import android.content.Context
 import androidx.room.Room
 import com.boxdev.boxwallet.data.local.dao.AccountDao
+import com.boxdev.boxwallet.data.local.dao.AppMetaDao
 import com.boxdev.boxwallet.data.local.dao.CategoryDao
 import com.boxdev.boxwallet.data.local.dao.ExchangeRateDao
 import com.boxdev.boxwallet.data.local.dao.LoanDao
@@ -42,4 +43,7 @@ object DatabaseModule {
 
     @Provides
     fun provideExchangeRateDao(db: BoxWalletDatabase): ExchangeRateDao = db.exchangeRateDao()
+
+    @Provides
+    fun provideAppMetaDao(db: BoxWalletDatabase): AppMetaDao = db.appMetaDao()
 }

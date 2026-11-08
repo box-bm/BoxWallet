@@ -93,7 +93,7 @@ class MainCurrencyChangerTest {
         prefs.setPendingMainCurrency(null)
         lookup = FakeLookup()
         val lock = CurrencyChangeLock()
-        val backup = BackupRepository(context, db, db.transactionDao(), db.categoryDao(), db.loanDao(), db.accountDao(), prefs, lock, GoogleDriveManager(context))
+        val backup = BackupRepository(context, db, db.transactionDao(), db.categoryDao(), db.loanDao(), db.accountDao(), db.appMetaDao(), prefs, lock, GoogleDriveManager(context))
         changer = MainCurrencyChanger(
             db, db.transactionDao(), db.accountDao(), db.loanDao(), lookup, prefs, backup, lock,
             today = { today },
@@ -404,7 +404,7 @@ class MainCurrencyChangerTest {
         }
         val reachable = MainCurrencyChanger(
             db, db.transactionDao(), db.accountDao(), db.loanDao(), unpublished, prefs,
-            BackupRepository(context, db, db.transactionDao(), db.categoryDao(), db.loanDao(), db.accountDao(), prefs, CurrencyChangeLock(), GoogleDriveManager(context)),
+            BackupRepository(context, db, db.transactionDao(), db.categoryDao(), db.loanDao(), db.accountDao(), db.appMetaDao(), prefs, CurrencyChangeLock(), GoogleDriveManager(context)),
             CurrencyChangeLock(), today = { today }, sourceReachable = { true },
         )
         db.transactionDao().insert(tx(acc, 1000, "USD", 1000, "1", 1000, "1", date = today))

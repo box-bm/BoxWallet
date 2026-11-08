@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.data.local.database.BoxWalletDatabase
 import com.boxdev.boxwallet.data.local.entity.AccountEntity
+import com.boxdev.boxwallet.data.local.entity.AppMetaEntity
 import com.boxdev.boxwallet.data.local.entity.CategoryEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 import com.boxdev.boxwallet.data.rates.CurrencyChangeLock
@@ -14,7 +15,10 @@ import com.boxdev.boxwallet.domain.model.BackupData
 import com.boxdev.boxwallet.domain.money.RateSource
 import com.google.gson.Gson
 import com.google.gson.JsonParser
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.yield
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -50,7 +54,7 @@ class BackupRepositoryTest {
         prefs.setMainCurrency("USD")
         lock = CurrencyChangeLock()
         repo = BackupRepository(
-            context, db, db.transactionDao(), db.categoryDao(), db.loanDao(), db.accountDao(), prefs, lock,
+            context, db, db.transactionDao(), db.categoryDao(), db.loanDao(), db.accountDao(), db.appMetaDao(), prefs, lock,
             GoogleDriveManager(context),
         )
     }
@@ -207,5 +211,56 @@ class BackupRepositoryTest {
         assertEquals(3, root.get("version").asInt)
         assertEquals("USD", root.get("mainCurrencyCode").asString)
         assertEquals("Old", root.getAsJsonArray("accounts")[0].asJsonObject.get("name").asString)
+    }
+
+    @Test
+    fun `restore applies its main currency and default account and clears the marks`() = runTest {
+        repo.restoreJson(fixture(), gtq)
+
+        assertNull(db.appMetaDao().get(BackupRepository.META_MAIN_CURRENCY))
+        assertNull(db.appMetaDao().get(BackupRepository.META_DEFAULT_ACCOUNT_ID))
+        assertEquals(gtq, prefs.mainCurrency.first())
+        assertEquals(db.accountDao().getAll().single().id, prefs.defaultAccountId.first())
+    }
+
+    @Test
+    fun `a restore committed before a crash is finished at startup`() = runTest {
+        // What the restore transaction leaves when the process dies before the DataStore writes.
+        val acc = db.accountDao().insert(AccountEntity(name = "Main", type = "CHECKING", currencyCode = "GTQ", createdAt = 0L))
+        db.appMetaDao().put(AppMetaEntity(BackupRepository.META_MAIN_CURRENCY, "GTQ"))
+        db.appMetaDao().put(AppMetaEntity(BackupRepository.META_DEFAULT_ACCOUNT_ID, acc.toString()))
+        prefs.setDefaultAccountId(12345)
+        assertEquals(usd, prefs.mainCurrency.first())
+
+        repo.completePendingRestore()
+
+        assertEquals(gtq, prefs.mainCurrency.first())
+        assertEquals(acc, prefs.defaultAccountId.first())
+        assertNull(db.appMetaDao().get(BackupRepository.META_MAIN_CURRENCY))
+        assertNull(db.appMetaDao().get(BackupRepository.META_DEFAULT_ACCOUNT_ID))
+    }
+
+    @Test
+    fun `without marks the startup step changes nothing`() = runTest {
+        prefs.setDefaultAccountId(42)
+        repo.completePendingRestore()
+        assertEquals(usd, prefs.mainCurrency.first())
+        assertEquals(42L, prefs.defaultAccountId.first())
+    }
+
+    @Test
+    fun `the Drive snapshot waits for a running currency change`() = runTest {
+        seedLocalData()
+        lock.mutex.lock()
+        val snapshot = async { repo.consistentSnapshot() }
+        runCurrent()
+        yield()
+        assertFalse(snapshot.isCompleted)
+        lock.mutex.unlock()
+
+        val data = snapshot.await()
+        assertEquals("USD", data.mainCurrencyCode)
+        assertEquals(1, data.accounts.size)
+        assertFalse(lock.mutex.isLocked)
     }
 }
