@@ -114,11 +114,13 @@ fun NavigationTab(
      * example from Loan detail back to Loans) and, once at the root, scrolls that screen to the top.
      */
     val onTabClick: (Destination) -> Unit = { destination ->
-        when {
-            selectedTab != destination -> navController.navigateToTab(destination.route)
-            currentRoute != destination.route -> navController.popBackStack(destination.route, inclusive = false)
-            else -> tabReselect.tryEmit(destination.route)
-        }
+        val tabsInBackStack = Destination.entries.map { it.route }
+            .filter { runCatching { navController.getBackStackEntry(it) }.isSuccess }
+            .toSet()
+        navController.performTabAction(
+            action = resolveTabClick(destination.route, currentRoute, tabsInBackStack),
+            onScrollToTop = { tabReselect.tryEmit(it) },
+        )
     }
     var showTransactionSheet by rememberSaveable { mutableStateOf(false) }
     var showLoanSheet by rememberSaveable { mutableStateOf(false) }
