@@ -58,7 +58,7 @@ class ExcelReportGeneratorTest {
     fun `creates every sheet for a multi-month range with loans`() {
         val file = ExcelReportGenerator.create(
             tmp.newFile("report.xlsx"), transactions, mapOf(1L to "Salary", 2L to "Home"),
-            mapOf(7L to loan), LocalDate.of(2026, 1, 1), LocalDate.of(2026, 2, 28)
+            mapOf(7L to loan), LocalDate.of(2026, 1, 1), LocalDate.of(2026, 2, 28), gtq
         )
 
         assertEquals(
@@ -76,9 +76,52 @@ class ExcelReportGeneratorTest {
     fun `skips monthly and loan sheets when not applicable`() {
         val file = ExcelReportGenerator.create(
             tmp.newFile("report.xlsx"), transactions.take(1), mapOf(1L to "Salary"),
-            emptyMap(), LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31)
+            emptyMap(), LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31), gtq
         )
 
         assertEquals(listOf("Movements", "Summary", "By Category"), sheetNames(file))
+    }
+
+    @Test
+    fun `movement row carries original amount, currency, effective rate and main amount`() {
+        val eur = Currency.getInstance("EUR")
+        val foreign = Transaction(
+            accountId = 1, type = TransactionType.EXPENSE, date = LocalDateTime.of(2026, 1, 5, 9, 0),
+            original = Money(2_000, eur), accountAmount = Money(2_000, eur), accountRate = ExchangeRate.IDENTITY,
+            amount = Money(16_579, gtq), mainRate = ExchangeRate.IDENTITY,
+        )
+        val file = ExcelReportGenerator.create(
+            tmp.newFile("report.xlsx"), listOf(foreign), emptyMap(), emptyMap(),
+            LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31), gtq
+        )
+
+        ZipFile(file).use { zip ->
+            val xml = zip.getInputStream(zip.getEntry("xl/worksheets/sheet1.xml")).readBytes().toString(Charsets.UTF_8)
+            assertTrue(xml.contains("Original amount"))
+            assertTrue(xml.contains("Amount in main currency"))
+            assertTrue(xml.contains("<c r=\"K2\"><v>20.00</v></c>"))
+            assertTrue(xml.contains("<t xml:space=\"preserve\">EUR</t>"))
+            assertTrue(xml.contains("<c r=\"M2\"><v>8.289500</v></c>"))
+            assertTrue(xml.contains("<c r=\"N2\"><v>165.79</v></c>"))
+        }
+    }
+
+    @Test
+    fun `loan portfolio remaining total uses main currency figures`() {
+        val usdLoan = loan.copy(
+            id = 8, name = "Abroad", totalAmount = Money(100_000, Currency.getInstance("USD")),
+            paidInstallments = 0, remainingMainMinor = 770_000
+        )
+        val file = ExcelReportGenerator.create(
+            tmp.newFile("report.xlsx"), emptyList(), emptyMap(),
+            mapOf(7L to loan.copy(remainingMainMinor = 110_000), 8L to usdLoan),
+            LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31), gtq
+        )
+
+        ZipFile(file).use { zip ->
+            val idx = sheetNames(file).indexOf("Loans") + 1
+            val xml = zip.getInputStream(zip.getEntry("xl/worksheets/sheet$idx.xml")).readBytes().toString(Charsets.UTF_8)
+            assertTrue(xml.contains("<v>8800.0</v>"))
+        }
     }
 }

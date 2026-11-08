@@ -560,4 +560,8 @@
     <string name="main_currency_change_done_approximate_note">Las tasas aproximadas se corrigen solas cuando se descarga la tasa exacta de su fecha.</string>
     <string name="main_currency_change_done_manual">Tasas manuales reemplazadas</string>
     <string name="main_currency_change_done">Listo</string>
+    <string name="report_col_original_amount">Monto original</string>
+    <string name="report_col_currency">Moneda</string>
+    <string name="report_col_rate">Tasa</string>
+    <string name="report_col_main_amount">Monto en moneda principal</string>
 </resources>

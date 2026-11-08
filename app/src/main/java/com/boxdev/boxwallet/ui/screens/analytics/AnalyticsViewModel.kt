@@ -9,6 +9,7 @@ import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.LoanRepository
 import com.boxdev.boxwallet.data.repository.TransactionRepository
+import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.util.ExcelReportGenerator
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Transaction
@@ -173,6 +174,7 @@ class AnalyticsViewModel @Inject constructor(
     private val transactionRepository: TransactionRepository,
     private val categoryRepository: CategoryRepository,
     private val loanRepository: LoanRepository,
+    private val userPreferences: UserPreferences,
     @ApplicationContext private val context: Context,
     private val analyticsHelper: AnalyticsHelper,
     private val movementsFilter: MovementsFilterRequest,
@@ -486,11 +488,18 @@ class AnalyticsViewModel @Inject constructor(
                     Triple(tx.await(), cats.await(), loanMap.await())
                 }
 
+                val mainCurrency = userPreferences.mainCurrency.first()
+                val titles = ExcelReportGenerator.CurrencyTitles(
+                    originalAmount = context.getString(R.string.report_col_original_amount),
+                    currency = context.getString(R.string.report_col_currency),
+                    rate = context.getString(R.string.report_col_rate),
+                    mainAmount = context.getString(R.string.report_col_main_amount),
+                )
                 val file = withContext(Dispatchers.IO) {
                     val reportsDir = File(context.cacheDir, "reports").also { if (!it.exists()) it.mkdirs() }
                     val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
                     val f = File(reportsDir, "BoxWallet_Report_$timestamp.xlsx")
-                    ExcelReportGenerator.create(f, transactionList, categories, loans, startDate, endDate)
+                    ExcelReportGenerator.create(f, transactionList, categories, loans, startDate, endDate, mainCurrency, titles)
                 }
 
                 _exportState.value = ExportState(file = file)

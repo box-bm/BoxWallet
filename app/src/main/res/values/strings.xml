@@ -573,4 +573,8 @@
     <string name="main_currency_change_done_approximate_note">Approximate rates are corrected automatically once the exact rate of their date is downloaded.</string>
     <string name="main_currency_change_done_manual">Manual rates replaced</string>
     <string name="main_currency_change_done">Done</string>
+    <string name="report_col_original_amount">Original amount</string>
+    <string name="report_col_currency">Currency</string>
+    <string name="report_col_rate">Rate</string>
+    <string name="report_col_main_amount">Amount in main currency</string>
 </resources>
