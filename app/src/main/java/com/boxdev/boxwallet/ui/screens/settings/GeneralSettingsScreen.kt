@@ -4,13 +4,11 @@ package com.boxdev.boxwallet.ui.screens.settings
 
 import com.boxdev.boxwallet.ui.components.segmentShapes
 
-import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import com.boxdev.boxwallet.ui.components.CategoryBadge
-import com.boxdev.boxwallet.ui.theme.BoxTheme
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -39,7 +37,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.boxdev.boxwallet.R
-import com.boxdev.boxwallet.data.datastore.CentralAmericanCurrency
 
 @Composable
 fun GeneralSettingsScreen(
@@ -47,35 +44,10 @@ fun GeneralSettingsScreen(
     viewModel: GeneralSettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var showCurrencyDialog by remember { mutableStateOf(false) }
     var showCategoryDialog by remember { mutableStateOf(false) }
-    val currency = uiState.selectedCurrency
     val defaultCategory = uiState.categories.find { it.id == uiState.defaultCategoryId }
 
     SettingsScaffold(title = stringResource(R.string.general_settings_title), onNavigateBack = onNavigateBack) {
-        SettingsGroup(stringResource(R.string.general_settings_regional)) {
-            SettingsRow(
-                index = 0, count = 1,
-                icon = Icons.Outlined.Payments,
-                title = stringResource(R.string.general_settings_currency),
-                subtitle = "${currency.currencyName} · ${currency.currencyCode}",
-                onClick = { showCurrencyDialog = true },
-                trailing = {
-                    Text(
-                        currency.symbol,
-                        style = BoxTheme.moneyType.large,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                },
-            )
-            Text(
-                stringResource(R.string.general_settings_currency_description),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
-            )
-        }
-
         SettingsGroup(stringResource(R.string.general_settings_transactions)) {
             SegmentedListItem(
                 onClick = { showCategoryDialog = true },
@@ -88,14 +60,6 @@ fun GeneralSettingsScreen(
         }
     }
 
-    if (showCurrencyDialog) {
-        CurrencySelectionDialog(
-            currentCurrency = currency,
-            onCurrencySelected = { viewModel.updateCurrency(it); showCurrencyDialog = false },
-            onDismiss = { showCurrencyDialog = false }
-        )
-    }
-
     if (showCategoryDialog) {
         DefaultCategorySelectionDialog(
             categories = uiState.categories,
@@ -103,78 +67,6 @@ fun GeneralSettingsScreen(
             onCategorySelected = { viewModel.setDefaultCategory(it); showCategoryDialog = false },
             onDismiss = { showCategoryDialog = false }
         )
-    }
-}
-
-@Composable
-private fun CurrencySelectionDialog(
-    currentCurrency: CentralAmericanCurrency,
-    onCurrencySelected: (CentralAmericanCurrency) -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = stringResource(R.string.general_settings_select_currency),
-                style = MaterialTheme.typography.titleLarge
-            )
-        },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState())
-            ) {
-                CentralAmericanCurrency.entries.forEach { currency ->
-                    CurrencyItem(
-                        currency = currency,
-                        isSelected = currency == currentCurrency,
-                        onClick = { onCurrencySelected(currency) }
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.action_cancel))
-            }
-        }
-    )
-}
-
-@Composable
-private fun CurrencyItem(
-    currency: CentralAmericanCurrency,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 12.dp, horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
-            Text(
-                text = "${currency.country} - ${currency.currencyName}",
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-            )
-            Text(
-                text = "${currency.currencyCode} (${currency.symbol})",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        if (isSelected) {
-            Icon(
-                imageVector = Icons.Default.Check,
-                contentDescription = stringResource(R.string.action_selected),
-                tint = MaterialTheme.colorScheme.primary
-            )
-        }
     }
 }
 

@@ -30,6 +30,7 @@ import com.boxdev.boxwallet.ui.navigation.NavigationTab
 import com.boxdev.boxwallet.ui.screens.onboarding.OnboardingScreen
 import com.boxdev.boxwallet.ui.theme.BoxWalletTheme
 import com.boxdev.boxwallet.util.CurrencyFormatter
+import java.util.Currency
 import com.boxdev.boxwallet.util.LocalCurrencyFormatter
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -63,8 +64,8 @@ class MainActivity : FragmentActivity() {
             val isBiometricEnabled by userPreferences.isBiometricEnabled.collectAsState(initial = false)
             val isFirstLaunch by userPreferences.isFirstLaunch.collectAsState(initial = false)
             val isAnalyticsEnabled by userPreferences.isAnalyticsEnabled.collectAsState(initial = true)
-            val currencySymbol by userPreferences.currencySymbol.collectAsState(initial = "$")
-            val currencyFormatter = remember(currencySymbol) { CurrencyFormatter(currencySymbol) }
+            val mainCurrency by userPreferences.mainCurrency.collectAsState(initial = Currency.getInstance("USD"))
+            val currencyFormatter = remember(mainCurrency) { CurrencyFormatter(main = mainCurrency) }
 
             LaunchedEffect(isBiometricEnabled) { biometricEnabledCache = isBiometricEnabled }
             LaunchedEffect(isAnalyticsEnabled) { analyticsHelper.setCollectionEnabled(isAnalyticsEnabled) }

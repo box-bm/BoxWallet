@@ -224,13 +224,9 @@
 
     <!-- General Settings Screen -->
     <string name="general_settings_title">Ajustes Generales</string>
-    <string name="general_settings_regional">Regional</string>
-    <string name="general_settings_currency">Moneda</string>
     <string name="general_settings_transactions">Movimientos</string>
     <string name="general_settings_default_category">Categor\u00eda Predeterminada</string>
     <string name="general_settings_current_currency">Moneda Actual</string>
-    <string name="general_settings_currency_description">Esta moneda se mostrar\u00e1 en todas las pantallas incluyendo movimientos, res\u00famenes y reportes.</string>
-    <string name="general_settings_select_currency">Seleccionar Moneda</string>
     <string name="general_settings_select_default_category">Seleccionar Categor\u00eda Predeterminada</string>
     <string name="general_settings_no_default_category">Sin categor\u00eda predeterminada</string>
 
