@@ -3,28 +3,35 @@ package com.boxdev.boxwallet.ui.screens.loans
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boxdev.boxwallet.analytics.AnalyticsHelper
+import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.LoanRepository
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Loan
 import com.boxdev.boxwallet.domain.model.LoanType
 import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
+import com.boxdev.boxwallet.domain.money.Money
+import com.boxdev.boxwallet.domain.money.parseMajor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
+import java.util.Currency
 import javax.inject.Inject
 
 data class LoanFormState(
     val id: Long = 0,
     val name: String = "",
     val description: String = "",
+    /** Typed in major units of [currency]. */
     val totalAmount: String = "",
+    val currency: Currency = Currency.getInstance("USD"),
     val installments: String = "",
     val startDate: LocalDateTime = LocalDateTime.now(),
     val categoryId: Long? = null,
@@ -36,16 +43,19 @@ data class LoanFormState(
     val isSaved: Boolean = false,
     val error: String? = null
 ) {
-    val installmentAmount: Double?
+    val total: Money? get() = parseMajor(totalAmount, currency)
+
+    /** The regular installment; the last one also absorbs the division remainder. */
+    val installmentAmount: Money?
         get() {
-            val amount = totalAmount.toDoubleOrNull() ?: return null
+            val amount = total ?: return null
             val count = installments.toIntOrNull() ?: return null
-            return if (count > 0) amount / count else null
+            return if (count > 0) Money(amount.minor / count, currency) else null
         }
 
     val isValid: Boolean
         get() = name.isNotBlank() &&
-                totalAmount.toDoubleOrNull()?.let { it > 0 } == true &&
+                total != null &&
                 (installments.toIntOrNull() ?: 0) > 0 &&
                 (frequency != RecurrenceFrequency.CUSTOM_MONTHS || (frequencyInterval.toIntOrNull() ?: 0) > 0)
 }
@@ -54,8 +64,12 @@ data class LoanFormState(
 class LoanFormViewModel @Inject constructor(
     private val loanRepository: LoanRepository,
     categoryRepository: CategoryRepository,
+    private val userPreferences: UserPreferences,
     private val analyticsHelper: AnalyticsHelper
 ) : ViewModel() {
+
+    /** The loan being edited, so fields the form doesn't show (account) survive the save. */
+    private var editing: Loan? = null
 
     private val _formState = MutableStateFlow(LoanFormState())
     val formState: StateFlow<LoanFormState> = _formState.asStateFlow()
@@ -64,19 +78,26 @@ class LoanFormViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun loadLoan(loanId: Long?) {
+        editing = null
         if (loanId == null || loanId == -1L) {
             _formState.value = LoanFormState()
+            viewModelScope.launch {
+                val main = userPreferences.mainCurrency.first()
+                _formState.update { it.copy(currency = main) }
+            }
             return
         }
         viewModelScope.launch {
             _formState.update { it.copy(isLoading = true) }
             val loan = loanRepository.getLoanById(loanId)
+            editing = loan
             if (loan != null) {
                 _formState.value = LoanFormState(
                     id = loan.id,
                     name = loan.name,
                     description = loan.description,
-                    totalAmount = loan.totalAmount.toString(),
+                    totalAmount = loan.totalAmount.toMajor().toPlainString(),
+                    currency = loan.totalAmount.currency,
                     installments = loan.totalInstallments.toString(),
                     startDate = loan.startDate,
                     categoryId = loan.categoryId,
@@ -128,8 +149,9 @@ class LoanFormViewModel @Inject constructor(
                     id = if (s.isEditing) s.id else 0,
                     name = s.name,
                     description = s.description,
-                    totalAmount = s.totalAmount.toDouble(),
+                    totalAmount = s.total!!,
                     totalInstallments = s.installments.toInt(),
+                    accountId = editing?.accountId,
                     categoryId = s.categoryId,
                     startDate = s.startDate,
                     loanType = s.loanType,

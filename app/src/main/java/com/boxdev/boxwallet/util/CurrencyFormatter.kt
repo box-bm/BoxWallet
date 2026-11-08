@@ -45,13 +45,7 @@ class CurrencyFormatter(
     /** Short form for chart axes: `Q950`, `Q1.2k`, `Q12k`, `Q3.4M`. */
     fun formatCompact(money: Money): String = compactOf(money.toMajor(), money.currency)
 
-    @Deprecated("Task 3 migrates callers to Money")
-    fun format(amount: Double): String =
-        format(Money.of(BigDecimal.valueOf(amount), main))
-
-    @Deprecated("Task 3 migrates callers to Money")
-    fun formatCompact(amount: Double): String =
-        compactOf(BigDecimal.valueOf(amount), main)
+    fun formatMainCompact(minor: Long): String = formatCompact(Money(minor, main))
 
     private fun compactOf(major: BigDecimal, currency: Currency): String {
         val abs = major.abs().toDouble()

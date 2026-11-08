@@ -3,6 +3,8 @@
 package com.boxdev.boxwallet.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.runtime.ReadOnlyComposable
+import com.boxdev.boxwallet.domain.money.Money
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -189,10 +191,15 @@ fun AmountKind.color(): Color = when (this) {
     AmountKind.Neutral -> MaterialTheme.colorScheme.onSurface
 }
 
+/** [minor] units of the main currency as [Money]. */
+@Composable
+@ReadOnlyComposable
+fun mainMoney(minor: Long): Money = Money(minor, rememberCurrencyFormatter().main)
+
 /** Formatted amount. Signed amounts carry +/− so color is never the only signal. */
 @Composable
 fun AmountText(
-    amount: Double,
+    amount: Money,
     modifier: Modifier = Modifier,
     kind: AmountKind = AmountKind.Neutral,
     style: TextStyle = BoxTheme.moneyType.medium,

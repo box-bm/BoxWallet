@@ -48,16 +48,17 @@ enum class AnalyticsFrequency {
     DAILY, WEEKLY, MONTHLY, YEARLY
 }
 
+/** Amounts are minor units of the main currency, as in every Reports type below. */
 data class MonthlyData(
     val month: YearMonth,
-    val income: Double,
-    val expense: Double
+    val income: Long,
+    val expense: Long
 )
 
 data class CategoryExpenseData(
     val categoryName: String,
     val iconName: String,
-    val amount: Double,
+    val amount: Long,
     val percentage: Float,
     /** The category itself, so the UI can draw its shape token. Null for uncategorized or "Other". */
     val category: Category? = null,
@@ -68,7 +69,7 @@ data class CategoryExpenseData(
 /** Spending on one day of the period; [isFuture] days have not happened yet. */
 data class DailySpend(
     val date: LocalDate,
-    val amount: Double,
+    val amount: Long,
     val isFuture: Boolean,
 )
 
@@ -100,7 +101,7 @@ data class LoanInstallmentsDue(
     val type: TransactionType,
     val count: Int,
     val overdueCount: Int,
-    val amount: Double,
+    val amount: Long,
     /** Oldest unpaid due date: the overdue-since date when [overdueCount] > 0, otherwise the next due date. */
     val firstDue: LocalDate,
 )
@@ -111,11 +112,11 @@ data class InstallmentSummary(
     val paidCount: Int,
     val overdueCount: Int,
     /** Installments the user pays (expense loans): total due and what is still open. */
-    val toPayDue: Double,
-    val toPayOpen: Double,
+    val toPayDue: Long,
+    val toPayOpen: Long,
     /** Installments owed to the user (income loans). Never added to [toPayDue]. */
-    val toCollectDue: Double,
-    val toCollectOpen: Double,
+    val toCollectDue: Long,
+    val toCollectOpen: Long,
     /** One state per installment in due-date order, for the count bar. */
     val states: List<InstallmentState>,
     /** Loans with unpaid installments, overdue loans first, then by oldest due date. */
@@ -135,18 +136,18 @@ data class AnalyticsUiState(
     val frequency: AnalyticsFrequency = AnalyticsFrequency.MONTHLY,
     val periodOffset: Int = 0,
     val periodLabel: String = "",
-    val periodIncome: Double = 0.0,
-    val periodExpense: Double = 0.0,
+    val periodIncome: Long = 0,
+    val periodExpense: Long = 0,
     /** Totals for the period just before this one, for the "vs previous" deltas. */
-    val previousIncome: Double = 0.0,
-    val previousExpense: Double = 0.0,
+    val previousIncome: Long = 0,
+    val previousExpense: Long = 0,
     /** True while the period is in progress: the previous totals then cover the same elapsed days only. */
     val comparisonToDate: Boolean = false,
     val transactionCount: Int = 0,
     /** Expense per day across the period (weekly and monthly views only). */
     val dailySpending: List<DailySpend> = emptyList(),
     /** Expense divided by the days of the period that have already happened. */
-    val avgDailyExpense: Double = 0.0,
+    val avgDailyExpense: Long = 0,
     val topExpenses: List<Transaction> = emptyList(),
     /** Every movement of the day, newest first (Daily view only). */
     val dayMovements: List<Transaction> = emptyList(),
@@ -221,13 +222,13 @@ class AnalyticsViewModel @Inject constructor(
                 val categoryMap = categories.associateBy { it.id }
                 val today = LocalDate.now()
                 val expenses = periodTx.filter { it.type == TransactionType.EXPENSE }
-                val periodExpense = expenses.sumOf { it.amount }
+                val periodExpense = expenses.total(TransactionType.EXPENSE)
                 val categoryExpenses = calculateCategoryExpenses(expenses, periodExpense, categoryMap)
                 val dailySpending = if (filter.frequency == AnalyticsFrequency.WEEKLY || filter.frequency == AnalyticsFrequency.MONTHLY) {
                     val byDay = expenses.groupBy { it.date.toLocalDate() }
                     generateSequence(startDate) { it.plusDays(1) }
                         .takeWhile { !it.isAfter(endDate) }
-                        .map { day -> DailySpend(day, byDay[day].orEmpty().sumOf { it.amount }, day.isAfter(today)) }
+                        .map { day -> DailySpend(day, byDay[day].orEmpty().sumOf { it.amount.minor }, day.isAfter(today)) }
                         .toList()
                 } else emptyList()
                 val elapsedDays = (ChronoUnit.DAYS.between(startDate, minOf(endDate, today)) + 1).coerceAtLeast(1)
@@ -252,8 +253,8 @@ class AnalyticsViewModel @Inject constructor(
                     previousExpense = previousTx.total(TransactionType.EXPENSE),
                     transactionCount = periodTx.size,
                     dailySpending = dailySpending,
-                    avgDailyExpense = if (startDate.isAfter(today)) 0.0 else periodExpense / elapsedDays,
-                    topExpenses = expenses.sortedByDescending { it.amount }.take(5),
+                    avgDailyExpense = if (startDate.isAfter(today)) 0L else periodExpense / elapsedDays,
+                    topExpenses = expenses.sortedByDescending { it.amount.minor }.take(5),
                     dayMovements = if (filter.frequency == AnalyticsFrequency.DAILY) periodTx.sortedByDescending { it.date } else emptyList(),
                     categories = categoryMap,
                     installments = installments,
@@ -344,14 +345,14 @@ class AnalyticsViewModel @Inject constructor(
     /** [expenseTransactions] are the period's expenses, summing to [totalExpenses]. */
     private fun calculateCategoryExpenses(
         expenseTransactions: List<Transaction>,
-        totalExpenses: Double,
+        totalExpenses: Long,
         categoriesMap: Map<Long, Category>
     ): List<CategoryExpenseData> {
-        if (totalExpenses == 0.0) return emptyList()
+        if (totalExpenses == 0L) return emptyList()
 
         val categoryTotals = expenseTransactions
             .groupBy { it.categoryId }
-            .mapValues { (_, txs) -> txs.sumOf { it.amount } }
+            .mapValues { (_, txs) -> txs.sumOf { it.amount.minor } }
 
         val ranked = categoryTotals.entries.map { (catId, amount) ->
             val category = categoriesMap[catId]
@@ -359,7 +360,7 @@ class AnalyticsViewModel @Inject constructor(
                 categoryName = category?.name ?: context.getString(R.string.analytics_uncategorized),
                 iconName = category?.icon ?: "Category",
                 amount = amount,
-                percentage = ((amount / totalExpenses) * 100).toFloat(),
+                percentage = ((amount.toDouble() / totalExpenses) * 100).toFloat(),
                 category = category,
             )
         }.sortedByDescending { it.amount }
@@ -372,7 +373,7 @@ class AnalyticsViewModel @Inject constructor(
             categoryName = context.getString(R.string.analytics_other),
             iconName = "MoreHoriz",
             amount = otherAmount,
-            percentage = ((otherAmount / totalExpenses) * 100).toFloat(),
+            percentage = ((otherAmount.toDouble() / totalExpenses) * 100).toFloat(),
             isOther = true,
         )
     }
@@ -384,8 +385,9 @@ class AnalyticsViewModel @Inject constructor(
     ): FinancialMetrics? {
         if (monthlyData.isEmpty()) return null
 
-        val totalIncome = monthlyData.sumOf { it.income }
-        val totalExpense = monthlyData.sumOf { it.expense }
+        // Ratios only; the money inputs are main-currency minor units.
+        val totalIncome = monthlyData.sumOf { it.income }.toDouble()
+        val totalExpense = monthlyData.sumOf { it.expense }.toDouble()
 
         val savingsRate = if (totalIncome > 0) {
             ((totalIncome - totalExpense) / totalIncome) * 100
@@ -401,9 +403,9 @@ class AnalyticsViewModel @Inject constructor(
 
         // Growth compares the second half of the window with the first, in percent.
         val midPoint = monthlyData.size / 2
-        fun halfGrowth(selector: (MonthlyData) -> Double): Double? {
-            val first = monthlyData.take(midPoint).sumOf(selector)
-            val second = monthlyData.drop(midPoint).sumOf(selector)
+        fun halfGrowth(selector: (MonthlyData) -> Long): Double? {
+            val first = monthlyData.take(midPoint).sumOf(selector).toDouble()
+            val second = monthlyData.drop(midPoint).sumOf(selector).toDouble()
             return if (first > 0 && second > 0) ((second - first) / first) * 100 else null
         }
         val incomeGrowth = halfGrowth { it.income }

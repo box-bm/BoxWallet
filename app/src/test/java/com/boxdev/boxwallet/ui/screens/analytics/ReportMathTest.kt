@@ -7,6 +7,9 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.boxdev.boxwallet.domain.money.ExchangeRate
+import com.boxdev.boxwallet.domain.money.Money
+import java.util.Currency
 import java.time.LocalDate
 
 class ReportMathTest {
@@ -77,17 +80,26 @@ class ReportMathTest {
         id: Long,
         loanId: Long,
         day: LocalDate,
-        amount: Double,
+        /** Minor units of the main currency (GTQ). */
+        amount: Long,
         type: TransactionType = TransactionType.EXPENSE,
         paid: Boolean = false,
-    ) = Transaction(
-        id = id,
-        amount = amount,
-        date = day.atTime(9, 0),
-        type = type,
-        isCleared = paid,
-        loanId = loanId,
-    )
+    ): Transaction {
+        val money = Money(amount, Currency.getInstance("GTQ"))
+        return Transaction(
+            id = id,
+            accountId = 1,
+            type = type,
+            date = day.atTime(9, 0),
+            original = money,
+            accountAmount = money,
+            accountRate = ExchangeRate.IDENTITY,
+            amount = money,
+            mainRate = ExchangeRate.IDENTITY,
+            isCleared = paid,
+            loanId = loanId,
+        )
+    }
 
     @Test
     fun `no installments gives no summary`() {
@@ -98,23 +110,23 @@ class ReportMathTest {
     fun `money to pay and to collect are never added together`() {
         val summary = summarizeInstallments(
             listOf(
-                installment(1, loanId = 10, day = novStart, amount = 300.0),
-                installment(2, loanId = 20, day = novStart, amount = 150.0, type = TransactionType.INCOME),
+                installment(1, loanId = 10, day = novStart, amount = 30_000),
+                installment(2, loanId = 20, day = novStart, amount = 15_000, type = TransactionType.INCOME),
             ),
             mapOf(10L to "Moto", 20L to "Carlos"),
             today,
         )!!
-        assertEquals(300.0, summary.toPayDue, 0.001)
-        assertEquals(150.0, summary.toCollectDue, 0.001)
+        assertEquals(30_000L, summary.toPayDue)
+        assertEquals(15_000L, summary.toCollectDue)
     }
 
     @Test
     fun `each installment keeps its own state in due-date order`() {
         val summary = summarizeInstallments(
             listOf(
-                installment(1, loanId = 10, day = LocalDate.of(2026, 10, 1), amount = 100.0, paid = true),
-                installment(2, loanId = 10, day = LocalDate.of(2026, 11, 1), amount = 100.0),
-                installment(3, loanId = 10, day = LocalDate.of(2026, 11, 20), amount = 100.0),
+                installment(1, loanId = 10, day = LocalDate.of(2026, 10, 1), amount = 10_000, paid = true),
+                installment(2, loanId = 10, day = LocalDate.of(2026, 11, 1), amount = 10_000),
+                installment(3, loanId = 10, day = LocalDate.of(2026, 11, 20), amount = 10_000),
             ),
             mapOf(10L to "Moto"),
             today,
@@ -125,17 +137,17 @@ class ReportMathTest {
         )
         assertEquals(1, summary.paidCount)
         assertEquals(1, summary.overdueCount)
-        assertEquals(200.0, summary.toPayOpen, 0.001)
+        assertEquals(20_000L, summary.toPayOpen)
     }
 
     @Test
     fun `unpaid installments are grouped once per loan, overdue loans first`() {
         val summary = summarizeInstallments(
             listOf(
-                installment(1, loanId = 10, day = LocalDate.of(2026, 11, 25), amount = 300.0),
-                installment(2, loanId = 20, day = LocalDate.of(2026, 10, 1), amount = 150.0, type = TransactionType.INCOME),
-                installment(3, loanId = 20, day = LocalDate.of(2026, 11, 1), amount = 150.0, type = TransactionType.INCOME),
-                installment(4, loanId = 20, day = LocalDate.of(2026, 11, 28), amount = 150.0, type = TransactionType.INCOME),
+                installment(1, loanId = 10, day = LocalDate.of(2026, 11, 25), amount = 30_000),
+                installment(2, loanId = 20, day = LocalDate.of(2026, 10, 1), amount = 15_000, type = TransactionType.INCOME),
+                installment(3, loanId = 20, day = LocalDate.of(2026, 11, 1), amount = 15_000, type = TransactionType.INCOME),
+                installment(4, loanId = 20, day = LocalDate.of(2026, 11, 28), amount = 15_000, type = TransactionType.INCOME),
             ),
             mapOf(10L to "Moto", 20L to "Carlos"),
             today,
@@ -144,7 +156,7 @@ class ReportMathTest {
         val carlos = summary.pending.first()
         assertEquals(3, carlos.count)
         assertEquals(2, carlos.overdueCount)
-        assertEquals(450.0, carlos.amount, 0.001)
+        assertEquals(45_000L, carlos.amount)
         assertEquals(LocalDate.of(2026, 10, 1), carlos.firstDue)
     }
 

@@ -13,7 +13,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.lerp
+import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.ui.components.rememberReduceMotion
+import com.boxdev.boxwallet.util.CurrencyFormatter
+import java.math.BigDecimal
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.log10
@@ -99,3 +102,10 @@ internal fun niceCeiling(value: Double): Double {
     val nice = listOf(1.0, 2.0, 2.5, 5.0, 10.0).first { it >= fraction - 1e-9 }
     return ceil(nice * magnitude)
 }
+
+/** Chart geometry only: [minor] units of the main currency as a lossy major-unit Double. */
+internal fun CurrencyFormatter.plotValue(minor: Long): Double = Money(minor, main).toMajorDouble()
+
+/** Compact axis label for a major-unit value of the main currency. */
+internal fun CurrencyFormatter.axisLabel(major: Double): String =
+    formatCompact(Money.of(BigDecimal.valueOf(major), main))

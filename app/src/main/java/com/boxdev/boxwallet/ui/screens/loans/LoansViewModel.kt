@@ -34,7 +34,7 @@ data class LoansFilterState(
 data class LoansUiState(
     val loans: List<Loan> = emptyList(),
     val filteredLoans: List<Loan> = emptyList(),
-    val totals: LoanTotals = LoanTotals(0.0, 0.0),
+    val totals: LoanTotals = LoanTotals(0, 0),
     val categories: List<Category> = emptyList(),
     val isLoading: Boolean = true,
     val filterState: LoansFilterState = LoansFilterState()
@@ -97,8 +97,8 @@ class LoansViewModel @Inject constructor(
         return when (filter.sortBy) {
             LoanSortBy.DATE_DESC -> filtered.sortedByDescending { it.startDate }
             LoanSortBy.DATE_ASC -> filtered.sortedBy { it.startDate }
-            LoanSortBy.AMOUNT_DESC -> filtered.sortedByDescending { it.totalAmount }
-            LoanSortBy.AMOUNT_ASC -> filtered.sortedBy { it.totalAmount }
+            LoanSortBy.AMOUNT_DESC -> filtered.sortedByDescending { it.totalAmount.toMajor() }
+            LoanSortBy.AMOUNT_ASC -> filtered.sortedBy { it.totalAmount.toMajor() }
         }
     }
 }

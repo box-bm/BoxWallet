@@ -3,27 +3,35 @@ package com.boxdev.boxwallet.ui.screens.transaction
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boxdev.boxwallet.analytics.AnalyticsHelper
+import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.data.local.entity.TransactionType
+import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.TransactionRepository
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.domain.model.ReminderDuration
 import com.boxdev.boxwallet.domain.model.Transaction
+import com.boxdev.boxwallet.domain.money.Money
+import com.boxdev.boxwallet.domain.money.parseMajor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
+import java.util.Currency
 import javax.inject.Inject
 
 data class TransactionFormState(
     val id: Long = 0,
+    /** Typed in major units of [currency]. */
     val amount: String = "",
+    val currency: Currency = Currency.getInstance("USD"),
     val description: String = "",
     val categoryId: Long? = null,
     val date: LocalDateTime = LocalDateTime.now(),
@@ -40,8 +48,10 @@ data class TransactionFormState(
     val error: String? = null,
     val wasCleared: Boolean = false
 ) {
+    val money: Money? get() = parseMajor(amount, currency)
+
     val isValid: Boolean
-        get() = amount.toDoubleOrNull()?.let { it > 0 } == true &&
+        get() = money != null &&
                 (!isRecurrent || recurrenceFrequency != null) &&
                 (!isRecurrent || recurrenceFrequency != RecurrenceFrequency.CUSTOM_MONTHS || (recurrenceInterval.toIntOrNull() ?: 0) > 0)
 }
@@ -50,8 +60,13 @@ data class TransactionFormState(
 class TransactionFormViewModel @Inject constructor(
     private val transactionRepository: TransactionRepository,
     categoryRepository: CategoryRepository,
+    private val accountRepository: AccountRepository,
+    private val userPreferences: UserPreferences,
     private val analyticsHelper: AnalyticsHelper
 ) : ViewModel() {
+
+    /** The movement being edited, so fields the form doesn't show (account, recurrence parent) survive the save. */
+    private var editing: Transaction? = null
 
     private val _formState = MutableStateFlow(TransactionFormState())
     val formState: StateFlow<TransactionFormState> = _formState.asStateFlow()
@@ -60,17 +75,24 @@ class TransactionFormViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun loadTransaction(transactionId: Long?) {
+        editing = null
         if (transactionId == null || transactionId == -1L) {
             _formState.value = TransactionFormState()
+            viewModelScope.launch {
+                val main = userPreferences.mainCurrency.first()
+                _formState.update { it.copy(currency = main) }
+            }
             return
         }
         viewModelScope.launch {
             _formState.update { it.copy(isLoading = true) }
             val t = transactionRepository.getTransactionById(transactionId)
+            editing = t
             if (t != null) {
                 _formState.value = TransactionFormState(
                     id = t.id,
-                    amount = t.amount.toString(),
+                    amount = t.original.toMajor().toPlainString(),
+                    currency = t.original.currency,
                     description = t.description,
                     categoryId = t.categoryId,
                     date = t.date,
@@ -136,12 +158,15 @@ class TransactionFormViewModel @Inject constructor(
                     s.recurrenceFrequency.advance(s.date, s.recurrenceInterval.toIntOrNull() ?: 1)
                 } else null
 
-                val transaction = Transaction(
+                val previous = editing
+                val accountId = previous?.accountId ?: accountRepository.defaultAccount().id
+                // Single currency until rates exist (Task 7): movement, account and main share identity rates.
+                val transaction = Transaction.singleCurrency(accountId, s.type, s.date, s.money!!).copy(
                     id = if (s.isEditing) s.id else 0,
-                    amount = s.amount.toDouble(),
                     description = s.description,
-                    date = s.date,
-                    type = s.type,
+                    loanId = previous?.loanId,
+                    installmentNumber = previous?.installmentNumber,
+                    parentRecurrenceId = previous?.parentRecurrenceId,
                     isCleared = s.isCleared,
                     hasReminder = s.hasReminder,
                     reminderSecondsBefore = s.reminderDuration?.secondsBefore,

@@ -79,6 +79,7 @@ import com.boxdev.boxwallet.ui.components.amountKind
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.ui.components.AmountText
+import com.boxdev.boxwallet.ui.components.mainMoney
 import com.boxdev.boxwallet.ui.components.ConnectedChoiceRow
 import com.boxdev.boxwallet.ui.components.EmptyState
 import com.boxdev.boxwallet.ui.components.FilterGroup
@@ -319,7 +320,7 @@ private fun TransactionsByDay(
                                     .semantics { heading() },
                             )
                             AmountText(
-                                amount = kotlin.math.abs(net),
+                                amount = mainMoney(kotlin.math.abs(net)),
                                 kind = amountKind(net >= 0),
                                 style = BoxTheme.moneyType.small,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,

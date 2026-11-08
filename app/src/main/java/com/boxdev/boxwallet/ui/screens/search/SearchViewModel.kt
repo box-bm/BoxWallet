@@ -2,6 +2,8 @@ package com.boxdev.boxwallet.ui.screens.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.boxdev.boxwallet.domain.money.Money
+import com.boxdev.boxwallet.domain.money.minorDigits
 import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.LoanRepository
 import com.boxdev.boxwallet.data.repository.TransactionRepository
@@ -63,7 +65,7 @@ class SearchViewModel @Inject constructor(
     ) { transactions, loans, categories ->
         val categoryNames = categories.associate { it.id to it.name }
         Index(
-            transactions = transactions.map { t -> t to haystack(t.description, categoryNames[t.categoryId], t.amount) },
+            transactions = transactions.map { t -> t to haystack(t.description, categoryNames[t.categoryId], t.original) },
             loans = loans.map { l -> l to haystack(l.name + " " + l.description, categoryNames[l.categoryId], l.totalAmount) },
             categories = categories,
         )
@@ -96,16 +98,18 @@ class SearchViewModel @Inject constructor(
         scope.value = value
     }
 
-    private fun haystack(text: String, categoryName: String?, amount: Double): String =
+    private fun haystack(text: String, categoryName: String?, amount: Money): String =
+        amount.currency.minorDigits().let { digits ->
         buildString {
             append(text.fold())
             append(' ')
             categoryName?.let { append(it.fold()) }
             append(' ')
             // Both "1830.35" and "1,830.35" find the same record.
-            append(String.format(Locale.US, "%.2f", amount))
+            append(String.format(Locale.US, "%.${digits}f", amount.toMajor()))
             append(' ')
-            append(String.format(Locale.US, "%,.2f", amount))
+            append(String.format(Locale.US, "%,.${digits}f", amount.toMajor()))
+        }
         }
 
     /** Lowercase without accents, so "cafe" finds "Café" and "credito" finds "Crédito". */

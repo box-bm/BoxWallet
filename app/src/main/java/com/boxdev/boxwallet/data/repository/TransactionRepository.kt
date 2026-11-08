@@ -2,16 +2,20 @@ package com.boxdev.boxwallet.data.repository
 
 import android.content.Context
 import com.boxdev.boxwallet.R
+import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.data.local.dao.TransactionDao
+import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.domain.model.FinancialSummary
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.domain.model.toDomain
 import com.boxdev.boxwallet.domain.model.toEntity
+import com.boxdev.boxwallet.util.CurrencyFormatter
 import com.boxdev.boxwallet.worker.ReminderWorker
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import java.time.YearMonth
@@ -23,8 +27,19 @@ import javax.inject.Singleton
 @Singleton
 class TransactionRepository @Inject constructor(
     private val transactionDao: TransactionDao,
-    @ApplicationContext private val context: Context
+    private val accountRepository: AccountRepository,
+    private val userPreferences: UserPreferences,
+    @param:ApplicationContext private val context: Context
 ) {
+
+    /** Maps entities to the domain with their account's currency and the current main currency. */
+    private fun Flow<List<TransactionEntity>>.toDomain(): Flow<List<Transaction>> = combine(
+        this,
+        accountRepository.observeCurrencies(),
+        userPreferences.mainCurrency,
+    ) { rows, accounts, main ->
+        rows.map { it.toDomain(accounts[it.accountId] ?: main, main) }
+    }
 
     suspend fun insertTransaction(transaction: Transaction): Long {
         val entity = transaction.toEntity()
@@ -57,7 +72,7 @@ class TransactionRepository @Inject constructor(
                 }
                 val message = buildString {
                     append(transaction.description.ifEmpty { transaction.type.name })
-                    append(": ${"%.2f".format(transaction.amount)}")
+                    append(": ${CurrencyFormatter(transaction.amount.currency).format(transaction.original)}")
                     if (transaction.installmentNumber != null) {
                         append(context.getString(R.string.reminder_installment_suffix, transaction.installmentNumber))
                     }
@@ -69,19 +84,24 @@ class TransactionRepository @Inject constructor(
         }
     }
 
-    suspend fun getTransactionById(id: Long): Transaction? = transactionDao.getById(id)?.toDomain()
+    suspend fun getTransactionById(id: Long): Transaction? {
+        val entity = transactionDao.getById(id) ?: return null
+        val main = userPreferences.mainCurrency.first()
+        val accountCurrency = accountRepository.observeCurrencies().first()[entity.accountId] ?: main
+        return entity.toDomain(accountCurrency, main)
+    }
 
     fun getAllTransactions(): Flow<List<Transaction>> =
-        transactionDao.getAllTransactions().map { it.map { e -> e.toDomain() } }
+        transactionDao.getAllTransactions().toDomain()
 
     fun getLatestTransactions(limit: Int = 3): Flow<List<Transaction>> =
-        transactionDao.getLatestTransactions(limit).map { it.map { e -> e.toDomain() } }
+        transactionDao.getLatestTransactions(limit).toDomain()
 
     fun getTransactionsBetweenDates(startDate: LocalDate, endDate: LocalDate): Flow<List<Transaction>> {
         val startMillis = startDate.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
         val endMillis = endDate.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
         return transactionDao.getTransactionsBetweenDates(startMillis, endMillis)
-            .map { it.map { e -> e.toDomain() } }
+            .toDomain()
     }
 
     /** Loan installments due between [startDate] and [endDate], both inclusive, oldest first. */
@@ -89,7 +109,7 @@ class TransactionRepository @Inject constructor(
         val startMillis = startDate.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
         val endMillis = endDate.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
         return transactionDao.getInstallmentsBetweenDates(startMillis, endMillis)
-            .map { it.map { e -> e.toDomain() } }
+            .toDomain()
     }
 
     fun getFinancialSummary(): Flow<FinancialSummary> {
@@ -104,23 +124,23 @@ class TransactionRepository @Inject constructor(
             transactionDao.getTotalExpenseBetweenDates(startOfMonth, endOfMonth)
         ) { totalIncome, totalExpense, monthlyIncome, monthlyExpense ->
             FinancialSummary(
-                totalIncome = totalIncome ?: 0.0,
-                totalExpense = totalExpense ?: 0.0,
-                monthlyIncome = monthlyIncome ?: 0.0,
-                monthlyExpense = monthlyExpense ?: 0.0
+                totalIncome = totalIncome ?: 0L,
+                totalExpense = totalExpense ?: 0L,
+                monthlyIncome = monthlyIncome ?: 0L,
+                monthlyExpense = monthlyExpense ?: 0L
             )
         }
     }
 
     fun getUpcomingReminders(): Flow<List<Transaction>> =
         transactionDao.getUpcomingReminders(System.currentTimeMillis())
-            .map { it.map { e -> e.toDomain() } }
+            .toDomain()
 
     fun getInstallmentsByLoanId(loanId: Long): Flow<List<Transaction>> =
-        transactionDao.getInstallmentsByLoanIdFlow(loanId).map { it.map { e -> e.toDomain() } }
+        transactionDao.getInstallmentsByLoanIdFlow(loanId).toDomain()
 
     fun getRecurrentTransactions(): Flow<List<Transaction>> =
-        transactionDao.getRecurrentTransactions().map { it.map { e -> e.toDomain() } }
+        transactionDao.getRecurrentTransactions().toDomain()
 
     suspend fun createNextRecurrence(transaction: Transaction) {
         require(transaction.isRecurrent) { "Transaction must be recurrent" }

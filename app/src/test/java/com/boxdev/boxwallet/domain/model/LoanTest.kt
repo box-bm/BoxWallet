@@ -5,18 +5,24 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.boxdev.boxwallet.domain.money.Money
+import java.util.Currency
 import java.time.LocalDate
 import java.time.LocalDateTime
 
 class LoanTest {
 
+    private val gtq = Currency.getInstance("GTQ")
+    private fun q(minor: Long) = Money(minor, gtq)
+
+    /** [totalAmount] in minor units of GTQ. */
     private fun loan(
-        totalAmount: Double = 1200.0,
+        totalAmount: Long = 120_000,
         totalInstallments: Int = 12,
         paidInstallments: Int = 0
     ) = Loan(
         name = "Test Loan",
-        totalAmount = totalAmount,
+        totalAmount = q(totalAmount),
         totalInstallments = totalInstallments,
         startDate = LocalDateTime.of(2026, 1, 1, 3, 4, 5),
         paidInstallments = paidInstallments
@@ -26,18 +32,20 @@ class LoanTest {
 
     @Test
     fun `installmentAmount divides total by installments`() {
-        assertEquals(100.0, loan().installmentAmount, 0.001)
+        assertEquals(q(10_000), loan().installmentAmount(1))
     }
 
     @Test
     fun `installmentAmount returns zero when totalInstallments is zero`() {
-        assertEquals(0.0, loan(totalInstallments = 0).installmentAmount, 0.001)
+        assertEquals(q(0), loan(totalInstallments = 0).installmentAmount(1))
     }
 
     @Test
-    fun `installmentAmount with uneven division`() {
-        val l = loan(totalAmount = 100.0, totalInstallments = 3)
-        assertEquals(33.333, l.installmentAmount, 0.001)
+    fun `installmentAmount with uneven division gives the remainder to the last installment`() {
+        val l = loan(totalAmount = 10_000, totalInstallments = 3)
+        assertEquals(q(3_333), l.installmentAmount(1))
+        assertEquals(q(3_333), l.installmentAmount(2))
+        assertEquals(q(3_334), l.installmentAmount(3))
     }
 
     // remainingInstallments
@@ -100,34 +108,37 @@ class LoanTest {
 
     @Test
     fun `remainingAmount is the unpaid installments`() {
-        assertEquals(900.0, loan(paidInstallments = 3).remainingAmount, 0.001)
+        assertEquals(q(90_000), loan(paidInstallments = 3).remainingAmount)
     }
 
     @Test
     fun `remainingAmount is zero once paid off, even if overpaid`() {
-        assertEquals(0.0, loan(paidInstallments = 13).remainingAmount, 0.001)
+        assertEquals(q(0), loan(paidInstallments = 13).remainingAmount)
     }
 
     @Test
     fun `outstanding totals keep what I owe and what I am owed apart`() {
-        val owe = loan(totalAmount = 3600.0, totalInstallments = 12, paidInstallments = 5)
-        val owed = loan(totalAmount = 900.0, totalInstallments = 6, paidInstallments = 2).copy(loanType = LoanType.INCOME)
+        // remainingMainMinor is the unpaid installments' real main-currency amount, from the DAO.
+        val owe = loan(totalAmount = 360_000, totalInstallments = 12, paidInstallments = 5)
+            .copy(remainingMainMinor = 210_000)
+        val owed = loan(totalAmount = 90_000, totalInstallments = 6, paidInstallments = 2)
+            .copy(loanType = LoanType.INCOME, remainingMainMinor = 60_000)
         val totals = listOf(owe, owed).outstandingTotals()
-        assertEquals(2100.0, totals.toPay, 0.001)
-        assertEquals(600.0, totals.toCollect, 0.001)
+        assertEquals(210_000L, totals.toPay)
+        assertEquals(60_000L, totals.toCollect)
     }
 
     @Test
     fun `outstanding totals ignore paid-off loans`() {
         val done = loan(paidInstallments = 12)
-        assertEquals(LoanTotals(0.0, 0.0), listOf(done).outstandingTotals())
+        assertEquals(LoanTotals(0, 0), listOf(done).outstandingTotals())
     }
 
     // settledAmount / nextDueDate / status
 
     @Test
     fun `settledAmount is the paid installments`() {
-        assertEquals(300.0, loan(paidInstallments = 3).settledAmount, 0.001)
+        assertEquals(q(30_000), loan(paidInstallments = 3).settledAmount)
     }
 
     @Test

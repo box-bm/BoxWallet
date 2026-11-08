@@ -59,6 +59,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.boxdev.boxwallet.R
+import com.boxdev.boxwallet.ui.components.mainMoney
 import com.boxdev.boxwallet.ui.components.AmountText
 import com.boxdev.boxwallet.ui.components.CategoryBadge
 import com.boxdev.boxwallet.ui.screens.analytics.CategoryExpenseData
@@ -111,7 +112,7 @@ fun CategoryDonut(
                             if (angle < 0) angle += 360.0
                             var acc = 0.0
                             val hit = data.indexOfFirst { item ->
-                                acc += item.amount / total * 360.0
+                                acc += item.amount.toDouble() / total * 360.0
                                 angle <= acc
                             }.takeIf { it >= 0 }
                             selected = if (hit == selected) null else hit
@@ -126,7 +127,7 @@ fun CategoryDonut(
                 val gap = if (data.size > 1) 3f else 0f
                 var start = -90f
                 data.forEachIndexed { i, item ->
-                    val sweep = (item.amount / total * 360.0).toFloat() * reveal()
+                    val sweep = (item.amount.toDouble() / total * 360.0).toFloat() * reveal()
                     val isSelected = selected == i
                     val color = when {
                         selected == null || isSelected -> colors[i]
@@ -158,7 +159,7 @@ fun CategoryDonut(
                     textAlign = TextAlign.Center,
                 )
                 AmountText(
-                    amount = focus?.amount ?: total,
+                    amount = mainMoney(focus?.amount ?: total),
                     style = BoxTheme.moneyType.medium,
                     autoSize = true,
                     textAlign = TextAlign.Center,
@@ -195,7 +196,7 @@ fun CategoryDonut(
                 LegendRow(
                     item = item,
                     color = colors[i],
-                    fraction = (item.amount / data.first().amount).toFloat(),
+                    fraction = (item.amount.toDouble() / data.first().amount).toFloat(),
                     selected = selected == i,
                     onClick = { selected = if (selected == i) null else i },
                 )
@@ -222,7 +223,7 @@ private fun LegendRow(
         if (selected) MaterialTheme.colorScheme.surfaceContainerHighest else Color.Transparent,
         label = "legendBg",
     )
-    val label = "${item.categoryName}: ${formatter.format(item.amount)}, ${"%.0f".format(item.percentage)}%"
+    val label = "${item.categoryName}: ${formatter.formatMain(item.amount)}, ${"%.0f".format(item.percentage)}%"
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -253,7 +254,7 @@ private fun LegendRow(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
-                AmountText(amount = item.amount, style = BoxTheme.moneyType.small)
+                AmountText(amount = mainMoney(item.amount), style = BoxTheme.moneyType.small)
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Box(

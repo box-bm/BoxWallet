@@ -7,6 +7,7 @@ import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.data.remote.DriveBackupFile
 import com.boxdev.boxwallet.data.remote.GoogleAuthManager
 import com.boxdev.boxwallet.data.remote.GoogleDriveManager
+import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.data.repository.BackupRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,7 +31,8 @@ class OnboardingViewModel @Inject constructor(
     private val userPreferences: UserPreferences,
     private val googleAuthManager: GoogleAuthManager,
     private val googleDriveManager: GoogleDriveManager,
-    private val backupRepository: BackupRepository
+    private val backupRepository: BackupRepository,
+    private val accountRepository: AccountRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(OnboardingUiState())
@@ -39,6 +41,7 @@ class OnboardingViewModel @Inject constructor(
     fun completeOnboarding(analyticsEnabled: Boolean = false) {
         viewModelScope.launch {
             userPreferences.setAnalyticsEnabled(analyticsEnabled)
+            accountRepository.ensureDefaultAccount()
             userPreferences.completeFirstLaunch()
         }
     }

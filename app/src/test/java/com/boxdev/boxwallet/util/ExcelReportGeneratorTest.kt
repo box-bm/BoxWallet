@@ -7,6 +7,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import com.boxdev.boxwallet.domain.money.ExchangeRate
+import com.boxdev.boxwallet.domain.money.Money
+import java.util.Currency
 import org.junit.rules.TemporaryFolder
 import java.io.ByteArrayInputStream
 import java.time.LocalDate
@@ -19,18 +22,29 @@ class ExcelReportGeneratorTest {
     @get:Rule
     val tmp = TemporaryFolder()
 
+    private val gtq = Currency.getInstance("GTQ")
+
+    private fun movement(minor: Long, date: LocalDateTime, type: TransactionType) = Money(minor, gtq).let {
+        Transaction(
+            accountId = 1, type = type, date = date,
+            original = it, accountAmount = it, accountRate = ExchangeRate.IDENTITY,
+            amount = it, mainRate = ExchangeRate.IDENTITY,
+        )
+    }
+
     private val loan = Loan(
         id = 7,
         name = "Car",
-        totalAmount = 1200.0,
+        totalAmount = Money(120_000, gtq),
         totalInstallments = 12,
         startDate = LocalDateTime.of(2026, 1, 1, 0, 0),
         paidInstallments = 1
     )
 
     private val transactions = listOf(
-        Transaction(amount = 3000.0, date = LocalDateTime.of(2026, 1, 5, 9, 0), type = TransactionType.INCOME, categoryId = 1),
-        Transaction(amount = 100.0, description = "Rent & <bills>", date = LocalDateTime.of(2026, 2, 3, 12, 30), type = TransactionType.EXPENSE, categoryId = 2, loanId = 7, installmentNumber = 1, isCleared = true)
+        movement(300_000, LocalDateTime.of(2026, 1, 5, 9, 0), TransactionType.INCOME).copy(categoryId = 1),
+        movement(10_000, LocalDateTime.of(2026, 2, 3, 12, 30), TransactionType.EXPENSE)
+            .copy(description = "Rent & <bills>", categoryId = 2, loanId = 7, installmentNumber = 1, isCleared = true)
     )
 
     private fun sheetNames(file: java.io.File): List<String> = ZipFile(file).use { zip ->

@@ -69,6 +69,7 @@ import com.boxdev.boxwallet.ui.components.FilterGroup
 import com.boxdev.boxwallet.ui.components.LoanCard
 import com.boxdev.boxwallet.ui.components.LoanRow
 import com.boxdev.boxwallet.ui.components.AmountText
+import com.boxdev.boxwallet.ui.components.mainMoney
 import com.boxdev.boxwallet.ui.components.AmountKind
 import com.boxdev.boxwallet.domain.model.LoanTotals
 import com.boxdev.boxwallet.domain.model.LoanStatus
@@ -353,7 +354,7 @@ private fun LoanTotalsHeader(totals: LoanTotals, modifier: Modifier = Modifier) 
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                AmountText(amount, kind = kind, signed = false, style = BoxTheme.moneyType.medium, autoSize = true)
+                AmountText(mainMoney(amount), kind = kind, signed = false, style = BoxTheme.moneyType.medium, autoSize = true)
             }
         }
     }

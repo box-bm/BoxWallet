@@ -3,6 +3,7 @@ package com.boxdev.boxwallet.ui.screens.transaction
 import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import org.junit.Assert.*
 import org.junit.Test
+import java.util.Currency
 
 class TransactionFormStateTest {
 
@@ -13,6 +14,7 @@ class TransactionFormStateTest {
         recurrenceInterval: String = "1"
     ) = TransactionFormState(
         amount = amount,
+        currency = Currency.getInstance("GTQ"),
         isRecurrent = isRecurrent,
         recurrenceFrequency = recurrenceFrequency,
         recurrenceInterval = recurrenceInterval

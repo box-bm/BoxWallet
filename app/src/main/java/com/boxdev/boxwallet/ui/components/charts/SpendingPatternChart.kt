@@ -32,6 +32,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.boxdev.boxwallet.R
+import com.boxdev.boxwallet.ui.components.mainMoney
 import com.boxdev.boxwallet.ui.components.AmountKind
 import com.boxdev.boxwallet.ui.components.AmountText
 import com.boxdev.boxwallet.ui.screens.analytics.DailySpend
@@ -48,7 +49,8 @@ import java.util.Locale
 @Composable
 fun SpendingPatternChart(
     data: List<DailySpend>,
-    average: Double,
+    /** Minor units of the main currency, like [DailySpend.amount]. */
+    average: Long,
     modifier: Modifier = Modifier,
     plotHeight: Dp = 160.dp,
 ) {
@@ -70,15 +72,15 @@ fun SpendingPatternChart(
     val dayFormatter = remember { DateTimeFormatter.ofPattern("EEEE, MMM d", Locale.getDefault()) }
     val point = data[selected]
     val dayLabel = point.date.format(dayFormatter).replaceFirstChar { it.titlecase() }
-    val avgText = stringResource(R.string.analytics_average_short, formatter.formatCompact(average))
+    val avgText = stringResource(R.string.analytics_average_short, formatter.formatMainCompact(average))
     val weekly = data.size <= 7
 
-    val axisMax = niceCeiling(maxOf(data.maxOf { it.amount }, average))
+    val axisMax = niceCeiling(formatter.plotValue(maxOf(data.maxOf { it.amount }, average)))
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(dayLabel, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-            AmountText(point.amount, kind = AmountKind.Expense, style = BoxTheme.moneyType.small)
+            AmountText(mainMoney(point.amount), kind = AmountKind.Expense, style = BoxTheme.moneyType.small)
         }
 
         Canvas(
@@ -86,7 +88,7 @@ fun SpendingPatternChart(
                 .fillMaxWidth()
                 .height(plotHeight)
                 .semantics {
-                    contentDescription = "$dayLabel: ${formatter.format(point.amount)}. $avgText"
+                    contentDescription = "$dayLabel: ${formatter.formatMain(point.amount)}. $avgText"
                     // TalkBack can't drag; these step the inspected value instead.
                     customActions = listOf(
                         CustomAccessibilityAction(previousLabel) { (selected > 0).also { if (it) selected-- } },
@@ -116,7 +118,7 @@ fun SpendingPatternChart(
             data.forEachIndexed { i, d ->
                 val x = slot * i + (slot - barW) / 2f
                 val isSelected = i == selected
-                if (d.isFuture || d.amount <= 0.0) {
+                if (d.isFuture || d.amount <= 0L) {
                     drawRoundRect(
                         track,
                         topLeft = Offset(x, baseline - stub),
@@ -125,13 +127,13 @@ fun SpendingPatternChart(
                     )
                 } else {
                     val color = if (isSelected) expense else expenseMuted
-                    drawTopRoundedBar(color, x, baseline, barW, (h(d.amount) * reveal()).coerceAtLeast(stub))
+                    drawTopRoundedBar(color, x, baseline, barW, (h(formatter.plotValue(d.amount)) * reveal()).coerceAtLeast(stub))
                 }
             }
 
             // Average line with its value in a pill at the right edge.
             if (average > 0) {
-                val ay = baseline - h(average) * reveal()
+                val ay = baseline - h(formatter.plotValue(average)) * reveal()
                 drawLine(
                     avgColor, Offset(0f, ay), Offset(size.width, ay),
                     strokeWidth = 1.5.dp.toPx(),
