@@ -193,8 +193,8 @@ Siempre recalcula todo; no hay estado intermedio.
 1. **Advertencia:** "Se convertirán N movimientos y M préstamos de USD a GTQ usando la tasa de cada
    fecha. Se creará un respaldo local antes de empezar." Confirmar / Cancelar.
 2. **Fase de red** (`MainCurrencyChangeWorker`, expedited, con progreso): calcula las fechas distintas
-   de los movimientos cuya cuenta no esté en la nueva moneda y descarga las que falten (una petición
-   por fecha, todas las monedas). Si falla la red: reintentar o cancelar; ningún dato cambió.
+   que hagan falta (ver nota al final de esta sección) y descarga las que falten (una petición por
+   fecha, todas las monedas). Si falla la red: reintentar o cancelar; ningún dato cambió.
 3. **Respaldo local** con `BackupRepository` (archivo en almacenamiento interno, se conserva el último).
 4. **Fase de datos:** una sola `@Transaction` de Room. La regla depende de cuántas cuentas haya:
    - **Una sola cuenta (caso actual, sin UI de multicuenta):** la cuenta por defecto cambia de moneda
@@ -213,8 +213,9 @@ Siempre recalcula todo; no hay estado intermedio.
    paso 1) y se completa la escritura.
 6. **Resumen:** movimientos convertidos, tasas aproximadas, tasas manuales reemplazadas.
 
-La fase de red (paso 2) descarga las fechas de todos los movimientos cuya moneda original difiera de
-la nueva moneda.
+Nota sobre el paso 2: con una sola cuenta se necesitan las fechas de los movimientos cuya moneda
+original difiera de la nueva moneda; con varias cuentas, las de los movimientos cuya cuenta no esté
+en la nueva moneda.
 
 ## 5. UI
 
