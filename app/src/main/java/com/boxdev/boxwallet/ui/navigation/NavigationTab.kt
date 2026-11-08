@@ -10,7 +10,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.shrinkHorizontally
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -66,12 +69,12 @@ import com.boxdev.boxwallet.analytics.AnalyticsHelper
 import com.boxdev.boxwallet.ui.components.LoanSheet
 import com.boxdev.boxwallet.ui.components.TransactionSheet
 import com.boxdev.boxwallet.ui.theme.BoxTheme
-import com.boxdev.boxwallet.ui.theme.isWide
+import com.boxdev.boxwallet.ui.theme.NavKind
 
 /**
  * App shell. Compact windows (phones, folded foldables) get a short navigation bar and a FAB menu;
  * wider windows (unfolded foldables, tablets) get a wide navigation rail whose header holds the
- * "New" action, and the rail stays visible on every destination.
+ * "New" action, and the rail hides on secondary destinations (settings, details, search).
  */
 @Composable
 fun NavigationTab(
@@ -91,7 +94,8 @@ fun NavigationTab(
     }
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    val wide = BoxTheme.widthClass.isWide
+    val layout = BoxTheme.layout
+    val surfaceContainer = MaterialTheme.colorScheme.surfaceContainer
 
     val selectedTab = Destination.entries.firstOrNull { d ->
         navBackStackEntry?.destination?.hierarchy?.any { it.route == d.route } == true
@@ -159,16 +163,18 @@ fun NavigationTab(
         ) }
     }
 
-    if (wide) {
-        // M3 shows the expanded rail (labels beside icons) only at large widths (>= 1200dp: tablets in
-        // landscape, desktop windows). On an unfolded phone (~850dp) the collapsed rail leaves the two
-        // panes their room.
-        val railExpanded = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 1200
+    if (layout.nav == NavKind.Rail) {
+        val railExpanded = layout.railExpanded
         val railState = rememberWideNavigationRailState(
             if (railExpanded) WideNavigationRailValue.Expanded else WideNavigationRailValue.Collapsed
         )
         LaunchedEffect(railExpanded) { if (railExpanded) railState.expand() else railState.collapse() }
-        Row(modifier = modifier) {
+        Row(modifier = modifier.background(surfaceContainer)) {
+            AnimatedVisibility(
+                visible = !isSecondary(currentRoute),
+                enter = fadeIn() + expandHorizontally(),
+                exit = fadeOut() + shrinkHorizontally(),
+            ) {
             WideNavigationRail(
                 state = railState,
                 header = {
@@ -199,7 +205,7 @@ fun NavigationTab(
                         }
                     }
                 },
-                colors = WideNavigationRailDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                colors = WideNavigationRailDefaults.colors(containerColor = surfaceContainer),
                 windowInsets = WideNavigationRailDefaults.windowInsets,
                 modifier = Modifier.fillMaxHeight(),
             ) {
@@ -219,18 +225,21 @@ fun NavigationTab(
                     )
                 }
             }
+            }
             Scaffold(
+                containerColor = surfaceContainer,
                 contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 modifier = Modifier.weight(1f),
             ) { padding -> content(Modifier.padding(padding)) }
         }
     } else {
         Scaffold(
+            containerColor = surfaceContainer,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             modifier = modifier,
             bottomBar = {
                 AnimatedVisibility(visible = onTabRoute, enter = fadeIn(), exit = fadeOut()) {
-                    ShortNavigationBar {
+                    ShortNavigationBar(containerColor = surfaceContainer) {
                         Destination.entries.forEach { destination ->
                             val selected = selectedTab == destination
                             ShortNavigationBarItem(
