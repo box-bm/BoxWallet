@@ -150,7 +150,6 @@ fun NavGraph(
         tabComposable(NavRoutes.TransactionsList.route) {
             TransactionsListScreen(
                 onEditTransaction = onEditTransaction,
-                onNavigateToSettings = onNavigateToSettings,
                 onNavigateToSearch = onNavigateToSearch,
             )
         }
