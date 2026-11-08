@@ -68,6 +68,8 @@ class XlsxWorkbook {
 
         fun setCellValue(value: String) { this.value = value }
         fun setCellValue(value: Double) { this.value = value }
+        /** Numeric cell that keeps the scale of [value] (20.00 stays `20.00`). */
+        fun setCellValue(value: java.math.BigDecimal) { this.value = value }
     }
 
     fun write(out: OutputStream) {
@@ -153,6 +155,7 @@ class XlsxWorkbook {
             is Double ->
                 if (v.isFinite()) write("<c r=\"$ref\"$style><v>$v</v></c>")
                 else writeInlineString(ref, style, v.toString())
+            is java.math.BigDecimal -> write("<c r=\"$ref\"$style><v>${v.toPlainString()}</v></c>")
             else -> writeInlineString(ref, style, v.toString())
         }
     }

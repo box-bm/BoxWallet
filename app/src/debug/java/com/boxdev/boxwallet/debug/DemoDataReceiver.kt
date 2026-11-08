@@ -10,12 +10,17 @@ import com.boxdev.boxwallet.data.local.dao.TransactionDao
 import com.boxdev.boxwallet.data.local.entity.CategoryEntity
 import com.boxdev.boxwallet.data.local.entity.LoanEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
+import com.boxdev.boxwallet.data.repository.AccountRepository
+import com.boxdev.boxwallet.domain.money.Money
+import com.boxdev.boxwallet.domain.money.RateSource
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.time.ZoneOffset
+import java.math.BigDecimal
+import java.util.Currency
 import javax.inject.Inject
 
 /**
@@ -29,6 +34,7 @@ class DemoDataReceiver : BroadcastReceiver() {
     @Inject lateinit var categoryDao: CategoryDao
     @Inject lateinit var loanDao: LoanDao
     @Inject lateinit var transactionDao: TransactionDao
+    @Inject lateinit var accountRepository: AccountRepository
 
     override fun onReceive(context: Context, intent: Intent) {
         val pending = goAsync()
@@ -48,7 +54,28 @@ class DemoDataReceiver : BroadcastReceiver() {
 
     private fun LocalDateTime.ms() = toInstant(ZoneOffset.UTC).toEpochMilli()
 
+    /** A single-currency movement in the default account's currency. */
+    private fun movement(
+        accountId: Long, currency: Currency, major: Double, description: String, date: Long,
+        income: Boolean, isCleared: Boolean, categoryId: Long?, recurrent: Boolean = false,
+        loanId: Long? = null, installmentNumber: Int? = null,
+    ): TransactionEntity {
+        val minor = Money.of(BigDecimal.valueOf(major), currency).minor
+        return TransactionEntity(
+            accountId = accountId, type = if (income) "INCOME" else "EXPENSE", date = date,
+            description = description, categoryId = categoryId, loanId = loanId, installmentNumber = installmentNumber,
+            originalAmountMinor = minor, currencyCode = currency.currencyCode,
+            accountAmountMinor = minor, accountRate = BigDecimal.ONE, accountRateSource = RateSource.AUTO,
+            amountMinor = minor, mainRate = BigDecimal.ONE, mainRateSource = RateSource.AUTO,
+            isCleared = isCleared, isRecurrent = recurrent,
+            recurrenceFrequency = if (recurrent) "MONTHLY" else null,
+            recurrenceInterval = if (recurrent) 1 else null,
+        )
+    }
+
     private suspend fun seed() {
+        val account = accountRepository.defaultAccount()
+        val currency = account.currency
         val cats = listOf(
             "Groceries" to "LocalGroceryStore", "Restaurants" to "Restaurant", "Transport" to "DirectionsBus",
             "Salary" to "Work", "Home" to "Home", "Utilities" to "Bolt", "Health" to "LocalHospital",
@@ -78,13 +105,9 @@ class DemoDataReceiver : BroadcastReceiver() {
             T(95.0, "Gasolina", "Transport", false, 40, 18),
         ).forEach { t ->
             transactionDao.insert(
-                TransactionEntity(
-                    amount = t.amount, description = t.desc,
-                    date = now.minusDays(t.daysAgo).withHour(t.hour).ms(),
-                    type = if (t.income) "INCOME" else "EXPENSE", isCleared = true,
-                    categoryId = ids[t.cat], isRecurrent = t.recurrent,
-                    recurrenceFrequency = if (t.recurrent) "MONTHLY" else null,
-                    recurrenceInterval = if (t.recurrent) 1 else null,
+                movement(
+                    account.id, currency, t.amount, t.desc, now.minusDays(t.daysAgo).withHour(t.hour).ms(),
+                    income = t.income, isCleared = true, categoryId = ids[t.cat], recurrent = t.recurrent,
                 )
             )
         }
@@ -97,18 +120,18 @@ class DemoDataReceiver : BroadcastReceiver() {
             val start = now.minusMonths(l.monthsAgo).withDayOfMonth(1).withHour(9)
             val loanId = loanDao.insert(
                 LoanEntity(
-                    name = l.name, description = l.desc, totalAmount = l.total, totalInstallments = l.n,
+                    name = l.name, description = l.desc, totalAmountMinor = Money.of(BigDecimal.valueOf(l.total), currency).minor,
+                    currencyCode = currency.currencyCode, totalInstallments = l.n,
                     categoryId = l.cat?.let { ids[it] }, startDate = start.ms(),
                     loanType = if (l.income) "INCOME" else "EXPENSE", frequency = "MONTHLY", frequencyInterval = 1,
                 )
             )
             (1..l.n).forEach { k ->
                 transactionDao.insert(
-                    TransactionEntity(
-                        amount = l.total / l.n, description = l.name,
-                        date = start.plusMonths(k.toLong() - 1).ms(),
-                        type = if (l.income) "INCOME" else "EXPENSE", isCleared = k <= l.paid,
-                        categoryId = l.cat?.let { ids[it] }, loanId = loanId, installmentNumber = k,
+                    movement(
+                        account.id, currency, l.total / l.n, l.name, start.plusMonths(k.toLong() - 1).ms(),
+                        income = l.income, isCleared = k <= l.paid, categoryId = l.cat?.let { ids[it] },
+                        loanId = loanId, installmentNumber = k,
                     )
                 )
             }

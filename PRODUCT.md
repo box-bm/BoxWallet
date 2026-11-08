@@ -13,19 +13,19 @@ Individuals in Central America who manage their own money on their own phone: th
 BoxWallet makes a personal budget legible: how much came in, how much went out, what is still owed, and where the money goes by category. Success is a user who logs a movement in seconds, always knows the month's balance and outstanding loan installments, and trusts that the numbers are theirs and correct.
 
 ## Positioning
-Private by construction: no account, no server, all data stays on the device (optional Google Drive backup the user controls). Built for Central American currencies and the loan-in-installments reality common in the region, not a generic US budgeting clone.
+Private by construction: no account, no server, all data stays on the device (optional Google Drive backup the user controls). Multi-currency by design: every ISO currency in circulation, foreign purchases converted with the rate of their day, any main currency. Built first for Central America (its currencies, everyday USD use and the loan-in-installments reality common in the region), not a generic US budgeting clone.
 
 ## Operating Context
 - Quick capture moments: logging a transaction from a bottom sheet, often one-handed.
 - Review moments: month summary on Home, trends and category breakdown in Reports (Analytics), installment schedule in Loan detail.
-- Maintenance: categories, currency (one selected currency), theme, biometric lock, reminders/notifications, Excel report export, Drive backup/restore, data deletion, analytics opt-out.
+- Maintenance: categories, main currency, theme, biometric lock, reminders/notifications, Excel report export, Drive backup/restore, data deletion, analytics opt-out.
 - First run goes through onboarding; biometric lock screen guards the app when enabled.
 
 ## Capabilities and Constraints
 - Kotlin + Jetpack Compose, Material3 1.5.0-alpha (Expressive APIs available), minSdk 31, targetSdk 36. Hilt, Room, DataStore, WorkManager.
 - Destinations: Home, Movements (list of every income and expense), Loans (+ Loan detail), Reports (analytics), Settings (General, Categories, Theme, Backup, Data management), Onboarding, Lock screen.
 - Localized: English (default) and Spanish (`values-es`).
-- Single currency selected from Central American currencies (USD default).
+- Multi-currency: the main currency is chosen by country in onboarding; each movement can use any ISO currency, with the exchange rate for its date frozen at save time. Rates sync daily from a public API (fawazahmed0/exchange-api) and no user data is sent.
 - Must run well folded and unfolded on foldables and on tablets (adaptive layouts confirmed as a requirement).
 
 ## Brand Commitments

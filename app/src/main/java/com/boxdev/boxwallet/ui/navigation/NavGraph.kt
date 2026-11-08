@@ -39,6 +39,9 @@ import com.boxdev.boxwallet.ui.screens.loans.LoansScreen
 import com.boxdev.boxwallet.ui.screens.search.SearchScreen
 import com.boxdev.boxwallet.ui.screens.settings.BackupScreen
 import com.boxdev.boxwallet.ui.screens.settings.CategoriesScreen
+import com.boxdev.boxwallet.ui.screens.settings.CurrenciesScreen
+import com.boxdev.boxwallet.ui.screens.settings.CurrencyDetailScreen
+import com.boxdev.boxwallet.ui.screens.settings.MainCurrencyChangeScreen
 import com.boxdev.boxwallet.ui.screens.settings.DataManagementScreen
 import com.boxdev.boxwallet.ui.screens.settings.GeneralSettingsScreen
 import com.boxdev.boxwallet.ui.screens.settings.SettingsScreen
@@ -190,11 +193,34 @@ fun NavGraph(
             SettingsScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToGeneral = { navController.navigate(NavRoutes.GeneralSettings.route) },
+                onNavigateToCurrencies = { navController.navigate(NavRoutes.Currencies.route) },
                 onNavigateToCategories = { navController.navigate(NavRoutes.Categories.route) },
                 onNavigateToTheme = { navController.navigate(NavRoutes.ThemeCustomization.route) },
                 onNavigateToBackup = { navController.navigate(NavRoutes.Backup.route) },
                 onNavigateToDataManagement = { navController.navigate(NavRoutes.DataManagement.route) },
             )
+        }
+
+        composable(NavRoutes.Currencies.route) {
+            CurrenciesScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onOpenCurrency = { navController.navigate(NavRoutes.CurrencyDetail.createRoute(it)) },
+                onChangeMainCurrency = { navController.navigate(NavRoutes.MainCurrencyChange.createRoute(it)) },
+            )
+        }
+
+        composable(
+            NavRoutes.MainCurrencyChange.route,
+            arguments = listOf(androidx.navigation.navArgument("code") { type = androidx.navigation.NavType.StringType }),
+        ) {
+            MainCurrencyChangeScreen(onNavigateBack = { navController.popBackStack() })
+        }
+
+        composable(
+            NavRoutes.CurrencyDetail.route,
+            arguments = listOf(androidx.navigation.navArgument("code") { type = androidx.navigation.NavType.StringType }),
+        ) {
+            CurrencyDetailScreen(onNavigateBack = { navController.popBackStack() })
         }
 
         composable(NavRoutes.GeneralSettings.route) {
@@ -210,7 +236,10 @@ fun NavGraph(
         }
 
         composable(NavRoutes.Backup.route) {
-            BackupScreen(onNavigateBack = { navController.popBackStack() })
+            BackupScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onChangeMainCurrency = { navController.navigate(NavRoutes.MainCurrencyChange.createRoute(it)) },
+            )
         }
 
         composable(NavRoutes.DataManagement.route) {

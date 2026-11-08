@@ -1,11 +1,12 @@
 package com.boxdev.boxwallet.domain.model
 
+/** All values are minor units of the main currency. */
 data class FinancialSummary(
-    val totalIncome: Double = 0.0,
-    val totalExpense: Double = 0.0,
-    val monthlyIncome: Double = 0.0,
-    val monthlyExpense: Double = 0.0
+    val totalIncome: Long = 0,
+    val totalExpense: Long = 0,
+    val monthlyIncome: Long = 0,
+    val monthlyExpense: Long = 0
 ) {
-    val balance: Double get() = totalIncome - totalExpense
-    val monthlyBalance: Double get() = monthlyIncome - monthlyExpense
+    val balance: Long get() = totalIncome - totalExpense
+    val monthlyBalance: Long get() = monthlyIncome - monthlyExpense
 }

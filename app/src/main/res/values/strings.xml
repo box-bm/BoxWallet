@@ -240,13 +240,9 @@
 
     <!-- General Settings Screen -->
     <string name="general_settings_title">General Settings</string>
-    <string name="general_settings_regional">Regional</string>
-    <string name="general_settings_currency">Currency</string>
     <string name="general_settings_transactions">Movements</string>
     <string name="general_settings_default_category">Default Category</string>
     <string name="general_settings_current_currency">Current Currency</string>
-    <string name="general_settings_currency_description">This currency will be displayed across all screens including movements, summaries, and reports.</string>
-    <string name="general_settings_select_currency">Select Currency</string>
     <string name="general_settings_select_default_category">Select Default Category</string>
     <string name="general_settings_no_default_category">No default category</string>
 
@@ -286,6 +282,10 @@
     <string name="backup_drive_description">Sign in with your Google account to back up your movements, categories, and loans to Google Drive.</string>
     <string name="backup_sign_in">Sign in with Google</string>
     <string name="backup_sign_out">Sign out</string>
+    <string name="backup_currency_mismatch_title">Different main currency</string>
+    <string name="backup_currency_mismatch_message">This backup uses %1$s as its main currency and this device uses %2$s. Which one do you want to keep? Keeping %2$s converts every restored movement with exchange rates.</string>
+    <string name="backup_currency_keep_backup">Keep %1$s (backup)</string>
+    <string name="backup_currency_keep_device">Keep %1$s (this device)</string>
 
     <!-- Data Management Screen -->
     <string name="data_management_title">Data Management</string>
@@ -482,4 +482,113 @@
     <string name="loan_installment_overdue_since">Overdue since %1$s</string>
     <string name="transaction_settled_expense">Already paid</string>
     <string name="transaction_settled_income">Already received</string>
+    <string name="account_default_name">Main</string>
+    <string name="currency_picker_title">Currency</string>
+    <string name="currency_picker_search">Search currency</string>
+    <string name="currency_picker_recent">Recently used</string>
+    <string name="currency_picker_all">All currencies</string>
+    <string name="currency_picker_empty">No currencies found</string>
+    <string name="currency_chip_description">Currency: %1$s. Tap to change</string>
+    <string name="conversion_rate_summary">1 %1$s = %2$s %3$s · %4$s</string>
+    <string name="conversion_rate_label">Exchange rate</string>
+    <string name="conversion_equivalent_label">Equivalent in %1$s</string>
+    <string name="conversion_approximate">Approximate rate</string>
+    <string name="conversion_approximate_explanation">No rate was published for this day, so a nearby one is used. Edit it if you know the exact rate.</string>
+    <string name="conversion_manual">Manual rate</string>
+    <string name="conversion_use_automatic">Use automatic rate</string>
+    <string name="conversion_needs_rate">Enter the exchange rate</string>
+    <string name="conversion_needs_rate_explanation">There is no rate available for this currency and date.</string>
+    <string name="loan_currency_locked">Currency cannot change once an installment is paid.</string>
+    <string name="loan_currency_locked_description">Currency: %1$s. Locked because an installment is already paid.</string>
+    <string name="loan_missing_rate">No exchange rate available for %1$s. Connect to the internet and try again.</string>
+    <string name="transaction_error_invalid_amount">Enter a valid amount</string>
+    <string name="transaction_error_account_loading">Still loading the account. Try again in a moment.</string>
+    <string name="transaction_error_not_found">This movement no longer exists.</string>
+    <string name="transaction_error_missing_rate">No exchange rate available for %1$s. Connect to the internet and try again.</string>
+    <string name="transaction_error_save">Couldn\'t save the movement. Try again.</string>
+    <string name="transaction_error_delete">Couldn\'t delete the movement. Try again.</string>
+    <string name="onboarding_country_title">Where do you live?</string>
+    <string name="onboarding_country_description">We use your country to pick your main currency.</string>
+    <string name="onboarding_country_search">Search country</string>
+    <string name="onboarding_country_currency">Your currency: %1$s</string>
+    <string name="onboarding_country_change">Change</string>
+    <string name="onboarding_country_empty">No countries found</string>
+    <string name="onboarding_country_change_description">Change currency</string>
+    <string name="settings_currencies_title">Currencies</string>
+    <string name="settings_currencies_subtitle">Main currency, exchange rates and history</string>
+    <string name="currencies_main_currency">Main currency</string>
+    <string name="currencies_updated_at">Updated %1$s</string>
+    <string name="currencies_never_updated">Rates not downloaded yet</string>
+    <string name="currencies_refresh">Update now</string>
+    <string name="currencies_refreshing">Updating…</string>
+    <string name="currencies_refresh_failed">Couldn\'t update the rates. Check your connection and try again.</string>
+    <string name="currencies_recent_section">Recently used</string>
+    <string name="currencies_recent_empty">Currencies you use in movements and loans will appear here.</string>
+    <string name="currencies_search">Look up a currency</string>
+    <string name="currencies_search_subtitle">See the rate history of any currency</string>
+    <string name="currencies_privacy_note">Rates are downloaded from a public source. None of your data is sent.</string>
+    <string name="currencies_rate_line">1 %1$s = %2$s</string>
+    <string name="currencies_change_up">▲ %1$s%%</string>
+    <string name="currencies_change_down">▼ %1$s%%</string>
+    <string name="currencies_change_flat">%1$s%%</string>
+    <string name="currencies_change_up_a11y">Up %1$s percent since the previous day</string>
+    <string name="currencies_change_down_a11y">Down %1$s percent since the previous day</string>
+    <string name="currencies_change_flat_a11y">No change since the previous day</string>
+    <string name="currencies_change_unknown">No daily change available</string>
+    <string name="currency_detail_title">%1$s rate</string>
+    <string name="currency_detail_current">Current</string>
+    <string name="currency_detail_min">Minimum</string>
+    <string name="currency_detail_max">Maximum</string>
+    <string name="currency_detail_empty">No rate history for this currency yet.</string>
+    <string name="currency_detail_same">This is your main currency, so there is no rate to show.</string>
+    <string name="currency_range_1m">1M</string>
+    <string name="currency_range_3m">3M</string>
+    <string name="currency_range_1y">1Y</string>
+    <string name="currency_range_all">All</string>
+    <string name="currency_range_a11y">Range: %1$s</string>
+    <string name="rate_chart_summary">%1$s rate history, %2$s to %3$s. Current %4$s, minimum %5$s, maximum %6$s.</string>
+    <string name="rate_chart_point">%1$s: %2$s</string>
+    <string name="main_currency_change_title">Change main currency</string>
+    <plurals name="main_currency_change_movements">
+        <item quantity="one">%d movement</item>
+        <item quantity="other">%d movements</item>
+    </plurals>
+    <plurals name="main_currency_change_loans">
+        <item quantity="one">%d loan</item>
+        <item quantity="other">%d loans</item>
+    </plurals>
+    <string name="main_currency_change_warning">%1$s and %2$s will be converted from %3$s to %4$s using the rate of each date. A local backup will be created before starting.</string>
+    <string name="main_currency_change_warning_detail">Original amounts never change. Rates you typed by hand were set against %1$s, so they will be replaced by the rate of each date.</string>
+    <string name="main_currency_change_confirm">Convert to %1$s</string>
+    <string name="main_currency_change_cancel">Cancel</string>
+    <string name="main_currency_change_phase_download">Step 1 of 2: Downloading exchange rates</string>
+    <string name="main_currency_change_phase_download_progress">%1$d of %2$d days</string>
+    <string name="main_currency_change_phase_download_preparing">Checking which rates are needed…</string>
+    <string name="main_currency_change_phase_download_note">Nothing has changed yet. You can cancel at any time during this step.</string>
+    <string name="main_currency_change_phase_apply">Step 2 of 2: Converting movements</string>
+    <string name="main_currency_change_phase_apply_progress">%1$d of %2$d movements</string>
+    <string name="main_currency_change_phase_apply_preparing">Creating the local backup…</string>
+    <string name="main_currency_change_phase_apply_note">This step can\'t be cancelled. If it is interrupted, nothing changes.</string>
+    <string name="main_currency_change_failed_network">Couldn\'t download the exchange rates. Nothing was changed. Check your connection and try again.</string>
+    <string name="main_currency_change_failed_missing_rate">There is no exchange rate for some dates yet. Nothing was changed. Connect to the internet and try again.</string>
+    <string name="main_currency_change_failed_unknown">The change couldn\'t be completed. Nothing was changed.</string>
+    <string name="main_currency_change_retry">Try again</string>
+    <string name="main_currency_change_done_title">Your main currency is now %1$s</string>
+    <string name="main_currency_change_done_converted">Movements converted</string>
+    <string name="main_currency_change_done_approximate">Approximate rates</string>
+    <string name="main_currency_change_done_approximate_note">Approximate rates are corrected automatically once the exact rate of their date is downloaded.</string>
+    <string name="main_currency_change_done_manual">Manual rates replaced</string>
+    <string name="main_currency_change_done">Done</string>
+    <string name="report_col_original_amount">Original amount</string>
+    <string name="report_col_currency">Currency</string>
+    <string name="report_col_rate">Rate</string>
+    <string name="report_col_main_amount">Amount in main currency</string>
+    <string name="report_loan_remaining_in">Remaining (%1$s)</string>
+    <string name="report_loan_total_borrowed">Total Borrowed (%1$s)</string>
+    <string name="report_loan_total_paid">Total Paid (%1$s)</string>
+    <string name="report_loan_total_remaining">Total Remaining (%1$s)</string>
+    <plurals name="report_loans_excluded_other_currencies">
+        <item quantity="one">Excludes %1$d loan in another currency</item>
+        <item quantity="other">Excludes %1$d loans in other currencies</item>
+    </plurals>
 </resources>

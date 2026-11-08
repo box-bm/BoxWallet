@@ -2,6 +2,7 @@
 
 package com.boxdev.boxwallet.ui.components
 
+import com.boxdev.boxwallet.domain.money.Money
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -61,7 +62,7 @@ fun BalancePanel(
     }
     val totalFlow = summary.monthlyIncome + summary.monthlyExpense
     val incomeShare by animateFloatAsState(
-        targetValue = if (totalFlow > 0) (summary.monthlyIncome / totalFlow).toFloat() else 0.5f,
+        targetValue = if (totalFlow > 0) (summary.monthlyIncome.toDouble() / totalFlow).toFloat() else 0.5f,
         animationSpec = MaterialTheme.motionScheme.slowSpatialSpec(),
         label = "incomeShare",
     )
@@ -80,12 +81,12 @@ fun BalancePanel(
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = formatter.format(summary.balance),
+                text = formatter.formatMain(summary.balance),
                 style = BoxTheme.moneyType.hero,
                 maxLines = 1,
                 autoSize = TextAutoSize.StepBased(minFontSize = 28.sp, maxFontSize = BoxTheme.moneyType.hero.fontSize),
                 modifier = Modifier.semantics {
-                    contentDescription = formatter.format(summary.balance)
+                    contentDescription = formatter.formatMain(summary.balance)
                 },
             )
 
@@ -106,7 +107,7 @@ fun BalancePanel(
                 Spacer(Modifier.width(8.dp))
                 // Signed so the month reads as gain or loss; on the indigo slab the sign carries it, not hue.
                 AmountText(
-                    amount = kotlin.math.abs(summary.monthlyBalance),
+                    amount = mainMoney(kotlin.math.abs(summary.monthlyBalance)),
                     kind = amountKind(summary.monthlyBalance >= 0),
                     signed = true,
                     style = BoxTheme.moneyType.small,
@@ -145,14 +146,14 @@ fun BalancePanel(
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 FlowTile(
                     label = stringResource(R.string.summary_income),
-                    amount = summary.monthlyIncome,
+                    amount = mainMoney(summary.monthlyIncome),
                     kind = AmountKind.Income,
                     dot = money.incomeContainer,
                     modifier = Modifier.weight(1f),
                 )
                 FlowTile(
                     label = stringResource(R.string.summary_expense),
-                    amount = summary.monthlyExpense,
+                    amount = mainMoney(summary.monthlyExpense),
                     kind = AmountKind.Expense,
                     dot = money.expenseContainer,
                     modifier = Modifier.weight(1f),
@@ -165,7 +166,7 @@ fun BalancePanel(
 @Composable
 private fun FlowTile(
     label: String,
-    amount: Double,
+    amount: Money,
     kind: AmountKind,
     dot: Color,
     modifier: Modifier = Modifier,

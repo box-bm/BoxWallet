@@ -3,8 +3,12 @@ package com.boxdev.boxwallet.ui.screens.loans
 import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import org.junit.Assert.*
 import org.junit.Test
+import com.boxdev.boxwallet.domain.money.Money
+import java.util.Currency
 
 class LoanFormStateTest {
+
+    private val gtq = Currency.getInstance("GTQ")
 
     private fun state(
         name: String = "Test",
@@ -15,6 +19,7 @@ class LoanFormStateTest {
     ) = LoanFormState(
         name = name,
         totalAmount = totalAmount,
+        currency = gtq,
         installments = installments,
         frequency = frequency,
         frequencyInterval = frequencyInterval
@@ -24,7 +29,7 @@ class LoanFormStateTest {
 
     @Test
     fun `installmentAmount calculates correctly`() {
-        assertEquals(100.0, state().installmentAmount!!, 0.001)
+        assertEquals(Money(10_000, gtq), state().installmentAmount)
     }
 
     @Test

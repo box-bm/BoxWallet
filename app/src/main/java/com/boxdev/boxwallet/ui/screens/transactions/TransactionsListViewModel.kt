@@ -101,8 +101,8 @@ class TransactionsListViewModel @Inject constructor(
         return when (f.sortBy) {
             SortBy.DATE_ASC -> filtered.sortedBy { it.date }
             SortBy.DATE_DESC -> filtered.sortedByDescending { it.date }
-            SortBy.AMOUNT_ASC -> filtered.sortedBy { it.amount }
-            SortBy.AMOUNT_DESC -> filtered.sortedByDescending { it.amount }
+            SortBy.AMOUNT_ASC -> filtered.sortedBy { it.amount.minor }
+            SortBy.AMOUNT_DESC -> filtered.sortedByDescending { it.amount.minor }
         }
     }
 }

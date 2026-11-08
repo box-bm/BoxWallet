@@ -44,8 +44,11 @@ import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.domain.model.ReminderDuration
 import com.boxdev.boxwallet.data.local.entity.TransactionType
+import com.boxdev.boxwallet.ui.screens.transaction.TransactionFormError
 import com.boxdev.boxwallet.ui.screens.transaction.TransactionFormViewModel
-import com.boxdev.boxwallet.util.rememberCurrencyFormatter
+import com.boxdev.boxwallet.domain.money.CurrencyCatalog
+import com.boxdev.boxwallet.domain.money.pickerSections
+import java.util.Locale
 
 @Composable
 fun TransactionSheet(
@@ -58,7 +61,9 @@ fun TransactionSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showDeleteDialog by remember { mutableStateOf(false) }
     val pickers = rememberDateTimePickerState()
-    val formatter = rememberCurrencyFormatter()
+    val recentCurrencies by viewModel.recentCurrencies.collectAsState()
+    var showCurrencyPicker by remember { mutableStateOf(false) }
+    val locale = remember { Locale.getDefault() }
     val availableReminders = remember { ReminderDuration.entries.filter { !it.debugOnly || BuildConfig.DEBUG } }
 
     LaunchedEffect(transactionId) { viewModel.loadTransaction(transactionId) }
@@ -96,11 +101,29 @@ fun TransactionSheet(
                 AmountField(
                     value = formState.amount,
                     onValueChange = viewModel::updateAmount,
-                    symbol = formatter.symbol,
+                    symbol = CurrencyCatalog.symbol(formState.currency, locale),
                     kind = amountKind(formState.type == TransactionType.INCOME),
                     isError = formState.error != null && formState.amount.isEmpty(),
                     autoFocus = !formState.isEditing,
+                    currencyCode = formState.currency.currencyCode,
+                    onCurrencyClick = { showCurrencyPicker = true },
                 )
+
+                val accountCurrency = formState.accountCurrency
+                if (formState.isForeign && accountCurrency != null) {
+                    ConversionRow(
+                        rate = formState.rate,
+                        from = formState.currency,
+                        to = accountCurrency,
+                        day = formState.date.toLocalDate(),
+                        equivalent = formState.equivalent.orEmpty(),
+                        onRateChange = viewModel::updateManualRate,
+                        onEquivalentChange = viewModel::updateEquivalent,
+                        onUseAutomatic = viewModel::useAutomaticRate,
+                        manualRate = formState.manualRate,
+                        needsManualRate = formState.needsManualRate,
+                    )
+                }
 
                 OutlinedTextField(
                     value = formState.description,
@@ -187,12 +210,37 @@ fun TransactionSheet(
                 }
             }
 
+            // Outside the scrolling fields so it's visible right above the button that failed.
+            formState.error?.let { error ->
+                Text(
+                    text = transactionFormErrorText(error),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp),
+                )
+            }
+
             SheetPrimaryButton(
                 text = stringResource(if (formState.isEditing) R.string.transaction_update else R.string.transaction_save),
-                enabled = formState.isValid,
+                enabled = formState.canSave,
                 onClick = viewModel::save,
             )
         }
+    }
+
+    if (showCurrencyPicker) {
+        var query by remember { mutableStateOf("") }
+        val allCurrencies = remember(locale) { CurrencyCatalog.all(locale) }
+        val sections = remember(query, recentCurrencies, allCurrencies) {
+            pickerSections(allCurrencies, recentCurrencies, query, locale)
+        }
+        CurrencyPickerSheet(
+            selected = formState.currency,
+            sections = sections,
+            onQuery = { query = it },
+            onPick = { viewModel.updateCurrency(it); showCurrencyPicker = false },
+            onDismiss = { showCurrencyPicker = false },
+        )
     }
 
     DateTimePickerDialogs(pickers, formState.date, viewModel::updateDate, viewModel::updateTime)
@@ -205,4 +253,15 @@ fun TransactionSheet(
             onDismiss = { showDeleteDialog = false }
         )
     }
+}
+
+@Composable
+private fun transactionFormErrorText(error: TransactionFormError): String = when (error) {
+    TransactionFormError.InvalidAmount -> stringResource(R.string.transaction_error_invalid_amount)
+    TransactionFormError.NeedsRate -> stringResource(R.string.conversion_needs_rate)
+    TransactionFormError.AccountLoading -> stringResource(R.string.transaction_error_account_loading)
+    TransactionFormError.NotFound -> stringResource(R.string.transaction_error_not_found)
+    is TransactionFormError.MissingRate -> stringResource(R.string.transaction_error_missing_rate, error.from.currencyCode)
+    TransactionFormError.SaveFailed -> stringResource(R.string.transaction_error_save)
+    TransactionFormError.DeleteFailed -> stringResource(R.string.transaction_error_delete)
 }

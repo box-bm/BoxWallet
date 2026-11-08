@@ -14,11 +14,12 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.data.local.dao.TransactionDao
+import com.boxdev.boxwallet.domain.money.Money
+import com.boxdev.boxwallet.util.CurrencyFormatter
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first
-import java.text.NumberFormat
-import java.util.Locale
+import java.util.Currency
 import java.util.concurrent.TimeUnit
 
 @HiltWorker
@@ -42,7 +43,7 @@ class ReminderWorker @AssistedInject constructor(
         val oneDayFromNow = currentTime + TimeUnit.DAYS.toMillis(1)
 
         val upcomingReminders = transactionDao.getUpcomingReminders(currentTime).first()
-        val currencyFormat = NumberFormat.getCurrencyInstance(Locale.getDefault())
+        val formatter = CurrencyFormatter()
 
         upcomingReminders
             .filter { it.reminderDate != null && it.reminderDate <= oneDayFromNow }
@@ -56,7 +57,7 @@ class ReminderWorker @AssistedInject constructor(
                 val message = buildString {
                     append(transaction.description.ifEmpty { transaction.type })
                     append(": ")
-                    append(currencyFormat.format(transaction.amount))
+                    append(formatter.format(Money(transaction.originalAmountMinor, Currency.getInstance(transaction.currencyCode))))
                     if (transaction.installmentNumber != null) {
                         append(context.getString(R.string.reminder_installment_suffix, transaction.installmentNumber))
                     }

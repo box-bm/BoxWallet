@@ -11,6 +11,13 @@ sealed class NavRoutes(val route: String) {
     data object Search : NavRoutes("search")
     data object Settings : NavRoutes("settings")
     data object GeneralSettings : NavRoutes("general_settings")
+    data object Currencies : NavRoutes("currencies")
+    data object CurrencyDetail : NavRoutes("currency_detail/{code}") {
+        fun createRoute(code: String) = "currency_detail/$code"
+    }
+    data object MainCurrencyChange : NavRoutes("main_currency_change/{code}") {
+        fun createRoute(code: String) = "main_currency_change/$code"
+    }
     data object Categories : NavRoutes("categories")
     data object ThemeCustomization : NavRoutes("theme_customization")
     data object Backup : NavRoutes("backup")

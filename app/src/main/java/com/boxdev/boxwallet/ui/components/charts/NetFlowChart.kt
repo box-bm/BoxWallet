@@ -35,6 +35,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.boxdev.boxwallet.R
+import com.boxdev.boxwallet.ui.components.mainMoney
 import com.boxdev.boxwallet.ui.components.AmountText
 import com.boxdev.boxwallet.ui.screens.analytics.MonthlyData
 import com.boxdev.boxwallet.ui.theme.BoxTheme
@@ -81,7 +82,7 @@ fun NetFlowChart(
         .replaceFirstChar { it.titlecase() } + " " + point.month.year
     val status = if (net >= 0) stringResource(R.string.analytics_saved) else stringResource(R.string.analytics_overspent)
     // No gridlines here, so the tallest month fills its half instead of a rounded axis maximum.
-    val maxAbs = nets.maxOf { abs(it) }.coerceAtLeast(1.0)
+    val maxAbs = nets.maxOf { abs(it) }.coerceAtLeast(1L)
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -90,7 +91,7 @@ fun NetFlowChart(
                 Text(status, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             AmountText(
-                amount = abs(net),
+                amount = mainMoney(abs(net)),
                 kind = amountKind(net >= 0),
                 style = BoxTheme.moneyType.small,
             )
@@ -101,7 +102,7 @@ fun NetFlowChart(
                 .fillMaxWidth()
                 .height(plotHeight)
                 .semantics {
-                    contentDescription = "$monthName: $status ${formatter.format(abs(net))}"
+                    contentDescription = "$monthName: $status ${formatter.formatMain(abs(net))}"
                     customActions = listOf(
                         CustomAccessibilityAction(previousLabel) { (selected > 0).also { if (it) selected-- } },
                         CustomAccessibilityAction(nextLabel) { (selected < data.lastIndex).also { if (it) selected++ } },
@@ -132,8 +133,8 @@ fun NetFlowChart(
             )
 
             nets.forEachIndexed { i, v ->
-                if (data[i].month.isAfter(now) || v == 0.0) return@forEachIndexed
-                val h = (abs(v) / maxAbs * half).toFloat().coerceAtLeast(3.dp.toPx()) * reveal()
+                if (data[i].month.isAfter(now) || v == 0L) return@forEachIndexed
+                val h = (abs(v).toDouble() / maxAbs * half).toFloat().coerceAtLeast(3.dp.toPx()) * reveal()
                 val left = slot * i + (slot - barW) / 2f
                 // Rounded on the end away from the zero line, flat where it meets it.
                 val rect = if (v > 0) Rect(left, zeroY - h, left + barW, zeroY) else Rect(left, zeroY, left + barW, zeroY + h)

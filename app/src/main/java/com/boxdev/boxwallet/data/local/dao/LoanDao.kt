@@ -7,18 +7,23 @@ import kotlinx.coroutines.flow.Flow
 private const val PAID_COUNT =
     "(SELECT COUNT(*) FROM transactions WHERE transactions.loanId = loans.id AND transactions.isCleared = 1)"
 
+/** Sum of the unpaid installments' `amountMinor` (main currency). */
+private const val REMAINING_MAIN =
+    "(SELECT COALESCE(SUM(amountMinor), 0) FROM transactions WHERE transactions.loanId = loans.id AND transactions.isCleared = 0)"
+
 data class LoanWithPaidCount(
     @Embedded val loan: LoanEntity,
-    val paidCount: Int
+    val paidCount: Int,
+    val remainingMainMinor: Long,
 )
 
 @Dao
 interface LoanDao {
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(loan: LoanEntity): Long
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertAll(loans: List<LoanEntity>)
 
     @Update
@@ -33,10 +38,10 @@ interface LoanDao {
     @Query("SELECT * FROM loans WHERE id = :id")
     suspend fun getById(id: Long): LoanEntity?
 
-    @Query("SELECT loans.*, $PAID_COUNT AS paidCount FROM loans ORDER BY loans.startDate DESC")
+    @Query("SELECT loans.*, $PAID_COUNT AS paidCount, $REMAINING_MAIN AS remainingMainMinor FROM loans ORDER BY loans.startDate DESC")
     fun getAllLoansWithPaidCount(): Flow<List<LoanWithPaidCount>>
 
-    @Query("SELECT loans.*, $PAID_COUNT AS paidCount FROM loans WHERE loans.id = :id")
+    @Query("SELECT loans.*, $PAID_COUNT AS paidCount, $REMAINING_MAIN AS remainingMainMinor FROM loans WHERE loans.id = :id")
     fun getLoanWithPaidCount(id: Long): Flow<LoanWithPaidCount?>
 
     @Query("SELECT * FROM loans")
@@ -44,4 +49,7 @@ interface LoanDao {
 
     @Query("DELETE FROM loans")
     suspend fun deleteAll()
+
+    @Query("SELECT COUNT(*) FROM loans")
+    suspend fun countAll(): Int
 }

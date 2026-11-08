@@ -57,7 +57,7 @@ fun summarizeInstallments(
                 type = first.type,
                 count = txs.size,
                 overdueCount = txs.count(::overdue),
-                amount = txs.sumOf { it.amount },
+                amount = txs.sumOf { it.amount.minor },
                 firstDue = first.date.toLocalDate(),
             )
         }
@@ -66,10 +66,10 @@ fun summarizeInstallments(
         dueCount = installments.size,
         paidCount = paid.size,
         overdueCount = installments.count(::overdue),
-        toPayDue = installments.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount },
-        toPayOpen = installments.filter { it.type == TransactionType.EXPENSE && !it.isCleared }.sumOf { it.amount },
-        toCollectDue = installments.filter { it.type == TransactionType.INCOME }.sumOf { it.amount },
-        toCollectOpen = installments.filter { it.type == TransactionType.INCOME && !it.isCleared }.sumOf { it.amount },
+        toPayDue = installments.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount.minor },
+        toPayOpen = installments.filter { it.type == TransactionType.EXPENSE && !it.isCleared }.sumOf { it.amount.minor },
+        toCollectDue = installments.filter { it.type == TransactionType.INCOME }.sumOf { it.amount.minor },
+        toCollectOpen = installments.filter { it.type == TransactionType.INCOME && !it.isCleared }.sumOf { it.amount.minor },
         states = installments.sortedBy { it.date }.map { installmentState(it.isCleared, it.date.toLocalDate(), today) },
         pending = pending,
     )

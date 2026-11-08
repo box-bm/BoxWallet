@@ -64,6 +64,8 @@ fun SettingsScaffold(
     snackbarHostState: SnackbarHostState? = null,
     floatingActionButton: @Composable () -> Unit = {},
     scrollable: Boolean = true,
+    /** False hides the back arrow, for steps the user must not leave. */
+    showBack: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
@@ -74,7 +76,7 @@ fun SettingsScaffold(
             LargeFlexibleTopAppBar(
                 title = { Text(title) },
                 subtitle = subtitle?.let { { Text(it) } },
-                navigationIcon = { BackButton(onNavigateBack) },
+                navigationIcon = { if (showBack) BackButton(onNavigateBack) },
                 actions = actions,
                 scrollBehavior = scrollBehavior,
             )

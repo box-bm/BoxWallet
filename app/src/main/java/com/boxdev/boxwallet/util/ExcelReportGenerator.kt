@@ -4,17 +4,39 @@ import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.domain.model.Loan
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.domain.model.monthsBetween
-import com.boxdev.boxwallet.domain.model.total
+import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.util.XlsxWorkbook.Sheet
 import com.boxdev.boxwallet.util.XlsxWorkbook.Style
 import java.io.File
 import java.io.FileOutputStream
+import java.math.BigDecimal
+import java.math.MathContext
+import java.math.RoundingMode
+import java.util.Currency
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 
 object ExcelReportGenerator {
+
+    /** Localized labels added to the Loans sheet; [code] arguments are the main currency code. */
+    data class LoanTitles(
+        val currency: String = "Currency",
+        val remaining: (code: String) -> String = { "Remaining ($it)" },
+        val totalBorrowed: (code: String) -> String = { "Total Borrowed ($it)" },
+        val totalPaid: (code: String) -> String = { "Total Paid ($it)" },
+        val totalRemaining: (code: String) -> String = { "Total Remaining ($it)" },
+        val excludedNote: (count: Int) -> String = { "Excludes $it loans in other currencies" },
+    )
+
+    /** Localized titles of the currency columns; the caller resolves them from string resources. */
+    data class CurrencyTitles(
+        val originalAmount: String = "Original amount",
+        val currency: String = "Currency",
+        val rate: String = "Rate",
+        val mainAmount: String = "Amount in main currency",
+    )
 
     /**
      * Generates a multi-sheet Excel report and writes it to [file].
@@ -32,7 +54,10 @@ object ExcelReportGenerator {
         categories: Map<Long, String>,
         loans: Map<Long, Loan>,
         startDate: LocalDate,
-        endDate: LocalDate
+        endDate: LocalDate,
+        mainCurrency: Currency,
+        titles: CurrencyTitles = CurrencyTitles(),
+        loanTitles: LoanTitles = LoanTitles()
     ): File {
         val dateFmt = DateTimeFormatter.ofPattern("yyyy-MM-dd")
         val timeFmt = DateTimeFormatter.ofPattern("HH:mm")
@@ -43,12 +68,12 @@ object ExcelReportGenerator {
         val headerStyle = Style.HEADER
         val titleStyle = Style.TITLE
 
-        buildTransactionsSheet(wb, transactions, categories, loans, dateFmt, timeFmt, headerStyle)
+        buildTransactionsSheet(wb, transactions, categories, loans, dateFmt, timeFmt, headerStyle, titles)
         buildSummarySheet(wb, transactions, categories, startDate, endDate, dateFmt, boldStyle, titleStyle)
         buildCategorySheet(wb, transactions, categories, headerStyle, boldStyle)
         buildMonthlySheet(wb, transactions, startDate, endDate, monthFmt, headerStyle, boldStyle)
         if (loans.isNotEmpty()) {
-            buildLoanOverviewSheet(wb, loans, dateFmt, headerStyle, boldStyle, titleStyle)
+            buildLoanOverviewSheet(wb, loans, mainCurrency, loanTitles, dateFmt, headerStyle, boldStyle, titleStyle)
         }
         if (transactions.any { it.loanId != null }) {
             buildLoansSheet(wb, transactions, loans, dateFmt, headerStyle, boldStyle)
@@ -69,11 +94,13 @@ object ExcelReportGenerator {
         loans: Map<Long, Loan>,
         dateFmt: DateTimeFormatter,
         timeFmt: DateTimeFormatter,
-        headerStyle: Style
+        headerStyle: Style,
+        titles: CurrencyTitles
     ) {
         val sheet = wb.createSheet("Movements")
 
-        val headers = listOf("#", "Date", "Time", "Type", "Category", "Description", "Amount", "Status", "Loan", "Installment")
+        val headers = listOf("#", "Date", "Time", "Type", "Category", "Description", "Amount", "Status", "Loan", "Installment") +
+            listOf(titles.originalAmount, titles.currency, titles.rate, titles.mainAmount)
         sheet.header(headers, headerStyle)
 
         transactions.forEachIndexed { idx, tx ->
@@ -89,13 +116,17 @@ object ExcelReportGenerator {
             row.createCell(3).setCellValue(if (tx.type == TransactionType.INCOME) "Income" else "Expense")
             row.createCell(4).setCellValue(tx.categoryId?.let { categories[it] } ?: "Uncategorized")
             row.createCell(5).setCellValue(tx.description)
-            row.createCell(6).setCellValue(tx.amount)
+            row.createCell(6).setCellValue(tx.amount.cell())
             row.createCell(7).setCellValue(if (tx.isCleared) "Cleared" else "Pending")
             row.createCell(8).setCellValue(loan?.name ?: "")
             row.createCell(9).setCellValue(installmentLabel)
+            row.createCell(10).setCellValue(tx.original.toMajor())
+            row.createCell(11).setCellValue(tx.original.currency.currencyCode)
+            effectiveRate(tx)?.let { row.createCell(12).setCellValue(it) }
+            row.createCell(13).setCellValue(tx.amount.toMajor())
         }
 
-        sheet.widths(4, 12, 7, 10, 20, 32, 14, 10, 24, 13)
+        sheet.widths(4, 12, 7, 10, 20, 32, 14, 10, 24, 13, 16, 10, 12, 24)
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -116,8 +147,8 @@ object ExcelReportGenerator {
 
         val income = transactions.filter { it.type == TransactionType.INCOME }
         val expense = transactions.filter { it.type == TransactionType.EXPENSE }
-        val totalIncome = income.sumOf { it.amount }
-        val totalExpense = expense.sumOf { it.amount }
+        val totalIncome = income.sumMajor()
+        val totalExpense = expense.sumMajor()
         val netBalance = totalIncome - totalExpense
         val totalDays = ChronoUnit.DAYS.between(startDate, endDate) + 1
         val savingsRate = if (totalIncome > 0) ((totalIncome - totalExpense) / totalIncome) * 100 else 0.0
@@ -152,8 +183,8 @@ object ExcelReportGenerator {
         rowNum("Total Income", totalIncome, bold = true)
         rowNum("Movements", income.size.toDouble())
         rowNum("Average per Movement", if (income.isNotEmpty()) totalIncome / income.size else 0.0)
-        rowNum("Cleared", income.filter { it.isCleared }.sumOf { it.amount })
-        rowNum("Pending", income.filter { !it.isCleared }.sumOf { it.amount })
+        rowNum("Cleared", income.filter { it.isCleared }.sumMajor())
+        rowNum("Pending", income.filter { !it.isCleared }.sumMajor())
         r++
 
         // Expenses
@@ -161,8 +192,8 @@ object ExcelReportGenerator {
         rowNum("Total Expenses", totalExpense, bold = true)
         rowNum("Movements", expense.size.toDouble())
         rowNum("Average per Movement", if (expense.isNotEmpty()) totalExpense / expense.size else 0.0)
-        rowNum("Cleared", expense.filter { it.isCleared }.sumOf { it.amount })
-        rowNum("Pending", expense.filter { !it.isCleared }.sumOf { it.amount })
+        rowNum("Cleared", expense.filter { it.isCleared }.sumMajor())
+        rowNum("Pending", expense.filter { !it.isCleared }.sumMajor())
         r++
 
         // Balance
@@ -174,7 +205,7 @@ object ExcelReportGenerator {
         // Top 5 expense categories
         val topCategories = expense
             .groupBy { it.categoryId?.let { id -> categories[id] } ?: "Uncategorized" }
-            .mapValues { (_, txs) -> txs.sumOf { it.amount } }
+            .mapValues { (_, txs) -> txs.sumMajor() }
             .entries
             .sortedByDescending { it.value }
             .take(5)
@@ -203,7 +234,7 @@ object ExcelReportGenerator {
         val headers = listOf("Category", "Income", "Income Txns", "Expenses", "Expense Txns", "Net", "% of Expenses")
         sheet.header(headers, headerStyle)
 
-        val totalExpense = transactions.total(TransactionType.EXPENSE)
+        val totalExpense = transactions.totalMajor(TransactionType.EXPENSE)
 
         // groupBy keeps first-seen order, matching the previous distinct() ordering
         val byCategory = transactions.groupBy { it.categoryId }
@@ -211,8 +242,8 @@ object ExcelReportGenerator {
             val catName = catId?.let { categories[it] } ?: "Uncategorized"
             val incTxs = catTxs.filter { it.type == TransactionType.INCOME }
             val expTxs = catTxs.filter { it.type == TransactionType.EXPENSE }
-            val incTotal = incTxs.sumOf { it.amount }
-            val expTotal = expTxs.sumOf { it.amount }
+            val incTotal = incTxs.sumMajor()
+            val expTotal = expTxs.sumMajor()
             val pct = if (totalExpense > 0) (expTotal / totalExpense) * 100 else 0.0
 
             val row = sheet.createRow(idx + 1)
@@ -226,7 +257,7 @@ object ExcelReportGenerator {
         }
 
         // Totals row
-        val totalIncome = transactions.total(TransactionType.INCOME)
+        val totalIncome = transactions.totalMajor(TransactionType.INCOME)
         val totalsRow = sheet.createRow(byCategory.size + 2)
         totalsRow.createCell(0).also { it.setCellValue("TOTAL"); it.cellStyle = boldStyle }
         totalsRow.createCell(1).also { it.setCellValue(totalIncome); it.cellStyle = boldStyle }
@@ -263,8 +294,8 @@ object ExcelReportGenerator {
 
         months.forEachIndexed { idx, ym ->
             val monthTxs = byMonth[ym].orEmpty()
-            val inc = monthTxs.total(TransactionType.INCOME)
-            val exp = monthTxs.total(TransactionType.EXPENSE)
+            val inc = monthTxs.totalMajor(TransactionType.INCOME)
+            val exp = monthTxs.totalMajor(TransactionType.EXPENSE)
             val row = sheet.createRow(idx + 1)
             row.createCell(0).setCellValue(ym.atDay(1).format(monthFmt))
             row.createCell(1).setCellValue(inc)
@@ -273,8 +304,8 @@ object ExcelReportGenerator {
             row.createCell(4).setCellValue(monthTxs.size.toDouble())
         }
 
-        val totalIncome = transactions.total(TransactionType.INCOME)
-        val totalExpense = transactions.total(TransactionType.EXPENSE)
+        val totalIncome = transactions.totalMajor(TransactionType.INCOME)
+        val totalExpense = transactions.totalMajor(TransactionType.EXPENSE)
         val totalsRow = sheet.createRow(months.size + 2)
         totalsRow.createCell(0).also { it.setCellValue("TOTAL"); it.cellStyle = boldStyle }
         totalsRow.createCell(1).also { it.setCellValue(totalIncome); it.cellStyle = boldStyle }
@@ -292,6 +323,8 @@ object ExcelReportGenerator {
     private fun buildLoanOverviewSheet(
         wb: XlsxWorkbook,
         loans: Map<Long, Loan>,
+        mainCurrency: Currency,
+        loanTitles: LoanTitles,
         dateFmt: DateTimeFormatter,
         headerStyle: Style,
         boldStyle: Style,
@@ -302,7 +335,8 @@ object ExcelReportGenerator {
         val headers = listOf(
             "Loan", "Description", "Type", "Total Amount",
             "Installments", "Paid Amount", "Remaining Amount", "Progress",
-            "Installment Amount", "Start Date", "Next Due Date", "Status"
+            "Installment Amount", "Start Date", "Next Due Date", "Status",
+            loanTitles.currency, loanTitles.remaining(mainCurrency.currencyCode)
         )
         sheet.header(headers, headerStyle)
 
@@ -313,15 +347,17 @@ object ExcelReportGenerator {
             row.createCell(0).setCellValue(loan.name)
             row.createCell(1).setCellValue(loan.description)
             row.createCell(2).setCellValue(loan.loanType.name.lowercase().replaceFirstChar { it.uppercase() })
-            row.createCell(3).setCellValue(loan.totalAmount)
+            row.createCell(3).setCellValue(loan.totalAmount.cell())
             row.createCell(4).setCellValue("${loan.paidInstallments}/${loan.totalInstallments}")
-            row.createCell(5).setCellValue(loan.settledAmount)
-            row.createCell(6).setCellValue(loan.remainingAmount)
+            row.createCell(5).setCellValue(loan.settledAmount.cell())
+            row.createCell(6).setCellValue(loan.remainingAmount.cell())
             row.createCell(7).setCellValue(String.format("%.1f%%", loan.progressFraction * 100))
-            row.createCell(8).setCellValue(loan.installmentAmount)
+            row.createCell(8).setCellValue(loan.installmentAmount(1).cell())
             row.createCell(9).setCellValue(loan.startDate.format(dateFmt))
             row.createCell(10).setCellValue(loan.nextDueDate?.format(dateFmt) ?: "—")
             row.createCell(11).setCellValue(if (loan.isComplete) "Complete" else "In Progress")
+            row.createCell(12).setCellValue(loan.totalAmount.currency.currencyCode)
+            row.createCell(13).setCellValue(Money(if (loan.isComplete) 0 else loan.remainingMainMinor, mainCurrency).cell())
         }
 
         // Portfolio summary section
@@ -330,22 +366,29 @@ object ExcelReportGenerator {
 
         sheet.createRow(r++).createCell(0).also { it.setCellValue("PORTFOLIO SUMMARY"); it.cellStyle = titleStyle }
 
-        val totalBorrowed = sortedLoans.sumOf { it.totalAmount }
-        val totalPaid = sortedLoans.sumOf { it.settledAmount }
-        val totalRemaining = sortedLoans.sumOf { it.remainingAmount }
+        // Loan amounts are in each loan's own currency, so Borrowed/Paid only add up loans already in the
+        // main currency; Remaining uses the main-currency figure carried by every loan.
+        val inMain = sortedLoans.filter { it.totalAmount.currency == mainCurrency }
+        val totalBorrowed = inMain.sumOf { it.totalAmount.toMajor() }.toDouble()
+        val totalPaid = inMain.sumOf { it.settledAmount.toMajor() }.toDouble()
+        val totalRemaining = Money(sortedLoans.sumOf { if (it.isComplete) 0L else it.remainingMainMinor }, mainCurrency).cell()
         val activeCount = sortedLoans.count { !it.isComplete }
         val completedCount = sortedLoans.count { it.isComplete }
 
         sheet.createRow(r++).apply {
-            createCell(0).setCellValue("Total Borrowed")
+            createCell(0).setCellValue(loanTitles.totalBorrowed(mainCurrency.currencyCode))
             createCell(1).also { it.setCellValue(totalBorrowed); it.cellStyle = boldStyle }
         }
         sheet.createRow(r++).apply {
-            createCell(0).setCellValue("Total Paid")
+            createCell(0).setCellValue(loanTitles.totalPaid(mainCurrency.currencyCode))
             createCell(1).also { it.setCellValue(totalPaid); it.cellStyle = boldStyle }
         }
+        val excluded = sortedLoans.size - inMain.size
+        if (excluded > 0) {
+            sheet.createRow(r++).createCell(0).setCellValue(loanTitles.excludedNote(excluded))
+        }
         sheet.createRow(r++).apply {
-            createCell(0).setCellValue("Total Remaining")
+            createCell(0).setCellValue(loanTitles.totalRemaining(mainCurrency.currencyCode))
             createCell(1).also { it.setCellValue(totalRemaining); it.cellStyle = boldStyle }
         }
         sheet.createRow(r++).apply {
@@ -357,7 +400,7 @@ object ExcelReportGenerator {
             createCell(1).setCellValue(completedCount.toDouble())
         }
 
-        sheet.widths(24, 28, 10, 14, 10, 14, 16, 18, 11, 18, 12, 14, 13)
+        sheet.widths(24, 28, 10, 14, 10, 14, 16, 18, 11, 18, 12, 14, 10, 18)
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -387,7 +430,7 @@ object ExcelReportGenerator {
             row.createCell(0).setCellValue(loan?.name ?: "Unknown")
             row.createCell(1).setCellValue((tx.installmentNumber ?: 0).toDouble())
             row.createCell(2).setCellValue((loan?.totalInstallments ?: 0).toDouble())
-            row.createCell(3).setCellValue(tx.amount)
+            row.createCell(3).setCellValue(tx.amount.cell())
             row.createCell(4).setCellValue(tx.date.format(dateFmt))
             row.createCell(5).setCellValue(if (tx.isCleared) "Paid" else "Pending")
         }
@@ -398,8 +441,8 @@ object ExcelReportGenerator {
             loanTxs.groupBy { it.loanId }
                 .forEach { (loanId, txs) ->
                     val loan = loanId?.let { loans[it] } ?: return@forEach
-                    val paid = txs.filter { it.isCleared }.sumOf { it.amount }
-                    val pending = txs.filter { !it.isCleared }.sumOf { it.amount }
+                    val paid = txs.filter { it.isCleared }.sumMajor()
+                    val pending = txs.filter { !it.isCleared }.sumMajor()
                     val row = sheet.createRow(subtotalRow++)
                     row.createCell(0).also { it.setCellValue("${loan.name} — Subtotal"); it.cellStyle = boldStyle }
                     row.createCell(3).also { it.setCellValue(paid + pending); it.cellStyle = boldStyle }
@@ -417,4 +460,18 @@ object ExcelReportGenerator {
     /** Column widths in characters, from the first column on. */
     private fun Sheet.widths(vararg chars: Int) =
         chars.forEachIndexed { i, c -> setColumnWidth(i, c) }
+
+    /** Effective original -> main rate: main amount / original amount, 6 decimals; null if original is zero. */
+    private fun effectiveRate(tx: Transaction): BigDecimal? {
+        val original = tx.original.toMajor()
+        if (original.signum() == 0) return null
+        return tx.amount.toMajor().divide(original, MathContext.DECIMAL64).setScale(6, RoundingMode.HALF_EVEN)
+    }
+
+    // Amounts are exact until the cell: sums run on BigDecimal major units, then become a cell number.
+    private fun Money.cell(): Double = toMajor().toDouble()
+
+    private fun List<Transaction>.sumMajor(): Double = sumOf { it.amount.toMajor() }.toDouble()
+
+    private fun List<Transaction>.totalMajor(type: TransactionType): Double = filter { it.type == type }.sumMajor()
 }

@@ -38,6 +38,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.boxdev.boxwallet.R
+import com.boxdev.boxwallet.ui.components.mainMoney
 import com.boxdev.boxwallet.ui.components.AmountKind
 import com.boxdev.boxwallet.ui.components.AmountText
 import com.boxdev.boxwallet.ui.screens.analytics.MonthlyData
@@ -78,8 +79,8 @@ fun CashFlowChart(
     val monthName = point.month.month.getDisplayName(TextStyle.FULL_STANDALONE, Locale.getDefault())
         .replaceFirstChar { it.titlecase() } + " " + point.month.year
 
-    val axisMax = niceCeiling(data.maxOf { maxOf(it.income, it.expense) })
-    val axisLabels = listOf(0.0, axisMax / 2, axisMax).map { measurer.measure(formatter.formatCompact(it), axisStyle) }
+    val axisMax = niceCeiling(formatter.plotValue(data.maxOf { maxOf(it.income, it.expense) }))
+    val axisLabels = listOf(0.0, axisMax / 2, axisMax).map { measurer.measure(formatter.axisLabel(it), axisStyle) }
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(verticalAlignment = Alignment.Top) {
@@ -92,7 +93,7 @@ fun CashFlowChart(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     AmountText(
-                        amount = kotlin.math.abs(net),
+                        amount = mainMoney(kotlin.math.abs(net)),
                         kind = amountKind(net >= 0),
                         style = BoxTheme.moneyType.small,
                     )
@@ -109,7 +110,7 @@ fun CashFlowChart(
                 .fillMaxWidth()
                 .height(plotHeight)
                 .semantics {
-                    contentDescription = "$monthName: +${formatter.format(point.income)}, −${formatter.format(point.expense)}"
+                    contentDescription = "$monthName: +${formatter.formatMain(point.income)}, −${formatter.formatMain(point.expense)}"
                     // TalkBack can't drag; these step the inspected value instead.
                     customActions = listOf(
                         CustomAccessibilityAction(previousLabel) { (selected > 0).also { if (it) selected-- } },
@@ -166,8 +167,8 @@ fun CashFlowChart(
             data.forEachIndexed { i, d ->
                 val isSelected = i == selected
                 val groupLeft = left + slot * i + (slot - (barW * 2 + gap)) / 2f
-                drawTopRoundedBar(if (isSelected) income else incomeMuted, groupLeft, baseline, barW, y(d.income) * reveal())
-                drawTopRoundedBar(if (isSelected) expense else expenseMuted, groupLeft + barW + gap, baseline, barW, y(d.expense) * reveal())
+                drawTopRoundedBar(if (isSelected) income else incomeMuted, groupLeft, baseline, barW, y(formatter.plotValue(d.income)) * reveal())
+                drawTopRoundedBar(if (isSelected) expense else expenseMuted, groupLeft + barW + gap, baseline, barW, y(formatter.plotValue(d.expense)) * reveal())
             }
 
             // Month initials, thinned when they would collide; the latest month always keeps its label.
@@ -190,9 +191,9 @@ fun CashFlowChart(
 }
 
 @Composable
-private fun SeriesValue(color: Color, amount: Double, kind: AmountKind) {
+private fun SeriesValue(color: Color, amount: Long, kind: AmountKind) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         Box(Modifier.size(8.dp).background(color, CircleShape))
-        AmountText(amount, kind = kind, style = BoxTheme.moneyType.small)
+        AmountText(mainMoney(amount), kind = kind, style = BoxTheme.moneyType.small)
     }
 }

@@ -5,6 +5,7 @@ package com.boxdev.boxwallet.ui.screens.analytics
 import com.boxdev.boxwallet.ui.components.LocalDateDialog
 import com.boxdev.boxwallet.ui.components.selectableDates
 import com.boxdev.boxwallet.ui.components.amountKind
+import com.boxdev.boxwallet.ui.components.mainMoney
 import com.boxdev.boxwallet.ui.components.Panel
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.layout.Spacer
@@ -424,8 +425,8 @@ private fun PeriodSummary(state: AnalyticsUiState) {
     val verdict = when {
         state.transactionCount == 0 || daily -> null
         state.periodIncome <= 0 -> stringResource(R.string.analytics_verdict_no_income)
-        net >= 0 -> stringResource(R.string.analytics_verdict_kept, "%.0f".format(net / state.periodIncome * 100))
-        else -> stringResource(R.string.analytics_verdict_over, formatter.format(-net))
+        net >= 0 -> stringResource(R.string.analytics_verdict_kept, "%.0f".format(net.toDouble() / state.periodIncome * 100))
+        else -> stringResource(R.string.analytics_verdict_over, formatter.formatMain(-net))
     }
     Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = MaterialTheme.shapes.extraLarge) {
         Column(Modifier.fillMaxWidth().padding(24.dp)) {
@@ -436,7 +437,7 @@ private fun PeriodSummary(state: AnalyticsUiState) {
                 color = onContainer,
             )
             AmountText(
-                amount = kotlin.math.abs(net),
+                amount = mainMoney(kotlin.math.abs(net)),
                 kind = amountKind(net >= 0),
                 style = BoxTheme.moneyType.hero.copy(fontSize = 44.sp, lineHeight = 48.sp),
                 color = onContainer,
@@ -470,7 +471,7 @@ private fun PeriodSummary(state: AnalyticsUiState) {
             Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                 SummaryStat(stringResource(R.string.analytics_movements), state.transactionCount.toString())
                 if (state.frequency != AnalyticsFrequency.DAILY) {
-                    SummaryStat(stringResource(R.string.analytics_avg_per_day), formatter.format(state.avgDailyExpense))
+                    SummaryStat(stringResource(R.string.analytics_avg_per_day), formatter.formatMain(state.avgDailyExpense))
                 }
             }
         }
@@ -488,7 +489,7 @@ private fun SummaryStat(label: String, value: String) {
 @Composable
 private fun FlowAmount(
     label: String,
-    amount: Double,
+    amount: Long,
     kind: AmountKind,
     container: Color,
     content: Color,
@@ -503,7 +504,7 @@ private fun FlowAmount(
                 Icon(trendIcon(kind == AmountKind.Income), contentDescription = null, modifier = Modifier.size(16.dp))
                 Text(label, style = MaterialTheme.typography.labelLarge)
             }
-            AmountText(amount, kind = kind, style = BoxTheme.moneyType.medium, color = content, autoSize = true)
+            AmountText(mainMoney(amount), kind = kind, style = BoxTheme.moneyType.medium, color = content, autoSize = true)
             if (!showComparison) return@Column
             Spacer(Modifier.height(4.dp))
             if (change == null) {
@@ -533,8 +534,8 @@ private fun FlowAmount(
 }
 
 /** Percent change from [previous] to [current]; null when there is nothing to compare against. */
-private fun percentChange(current: Double, previous: Double): Double? =
-    if (previous > 0) (current - previous) / previous * 100 else null
+private fun percentChange(current: Long, previous: Long): Double? =
+    if (previous > 0) (current - previous).toDouble() / previous * 100 else null
 
 /**
  * Two equal columns for [sections]. Every way of splitting them between the columns (order kept
@@ -722,13 +723,13 @@ private fun InstallmentCountBar(states: List<InstallmentState>) {
 
 /** Still-open amount in one direction (to pay or to collect), with the period's total beneath. */
 @Composable
-private fun DirectionAmount(label: String, open: Double, due: Double, kind: AmountKind, modifier: Modifier = Modifier) {
+private fun DirectionAmount(label: String, open: Long, due: Long, kind: AmountKind, modifier: Modifier = Modifier) {
     val formatter = rememberCurrencyFormatter()
     Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        AmountText(open, kind = kind, style = BoxTheme.moneyType.medium, autoSize = true)
+        AmountText(mainMoney(open), kind = kind, style = BoxTheme.moneyType.medium, autoSize = true)
         Text(
-            stringResource(R.string.analytics_installments_of_due, formatter.format(due)),
+            stringResource(R.string.analytics_installments_of_due, formatter.formatMain(due)),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -775,7 +776,7 @@ private fun InstallmentRow(
         },
         trailingContent = {
             AmountText(
-                due.amount,
+                mainMoney(due.amount),
                 kind = amountKind(isIncome),
                 style = BoxTheme.moneyType.small,
             )

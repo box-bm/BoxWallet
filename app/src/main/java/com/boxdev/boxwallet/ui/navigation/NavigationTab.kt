@@ -46,6 +46,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.first
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -73,8 +74,21 @@ import com.boxdev.boxwallet.ui.theme.isWide
  * "New" action, and the rail stays visible on every destination.
  */
 @Composable
-fun NavigationTab(analyticsHelper: AnalyticsHelper, modifier: Modifier = Modifier) {
+fun NavigationTab(
+    analyticsHelper: AnalyticsHelper,
+    modifier: Modifier = Modifier,
+    /** Main currency to open the change screen for right away (after an onboarding restore). */
+    pendingCurrencyChange: String? = null,
+    onPendingCurrencyChangeOpened: () -> Unit = {},
+) {
     val navController = rememberNavController()
+    LaunchedEffect(pendingCurrencyChange) {
+        pendingCurrencyChange?.let {
+            navController.currentBackStackEntryFlow.first() // The graph is set.
+            navController.navigate(NavRoutes.MainCurrencyChange.createRoute(it))
+            onPendingCurrencyChangeOpened()
+        }
+    }
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val wide = BoxTheme.widthClass.isWide

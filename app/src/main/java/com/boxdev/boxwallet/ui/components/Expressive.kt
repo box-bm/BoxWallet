@@ -3,6 +3,8 @@
 package com.boxdev.boxwallet.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.runtime.ReadOnlyComposable
+import com.boxdev.boxwallet.domain.money.Money
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -189,10 +191,15 @@ fun AmountKind.color(): Color = when (this) {
     AmountKind.Neutral -> MaterialTheme.colorScheme.onSurface
 }
 
+/** [minor] units of the main currency as [Money]. */
+@Composable
+@ReadOnlyComposable
+fun mainMoney(minor: Long): Money = Money(minor, rememberCurrencyFormatter().main)
+
 /** Formatted amount. Signed amounts carry +/− so color is never the only signal. */
 @Composable
 fun AmountText(
-    amount: Double,
+    amount: Money,
     modifier: Modifier = Modifier,
     kind: AmountKind = AmountKind.Neutral,
     style: TextStyle = BoxTheme.moneyType.medium,
@@ -218,6 +225,30 @@ fun AmountText(
         autoSize = if (autoSize) TextAutoSize.StepBased(minFontSize = style.fontSize * 0.55f, maxFontSize = style.fontSize) else null,
         modifier = modifier,
     )
+}
+
+/** The "≈ Q165.79" line under a foreign-currency amount; the symbol keeps it readable without color. */
+@Composable
+fun EquivalentText(text: String, modifier: Modifier = Modifier, textAlign: TextAlign? = null) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        textAlign = textAlign,
+        modifier = modifier,
+    )
+}
+
+/** [EquivalentText] for an open loan's [Loan.remainingMainMinor], or nothing for a main-currency loan. */
+@Composable
+fun LoanEquivalentText(loan: com.boxdev.boxwallet.domain.model.Loan, modifier: Modifier = Modifier, textAlign: TextAlign? = null) {
+    val formatter = rememberCurrencyFormatter()
+    val remaining = Money(loan.remainingMainMinor, formatter.main)
+    formatter.withEquivalent(loan.remainingAmount, remaining).second?.let {
+        EquivalentText(it, modifier, textAlign)
+    }
 }
 
 // ---------------------------------------------------------------------------------------------
