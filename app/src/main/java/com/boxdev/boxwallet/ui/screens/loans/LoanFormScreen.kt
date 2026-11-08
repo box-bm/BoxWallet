@@ -27,6 +27,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,28 +64,34 @@ import java.util.Locale
 
 /**
  * Full-screen create/edit form for a loan. The view model loads the loan from the navigation `id`
- * argument; [onDone] runs once, after ✕, a save or a confirmed delete (a system back without edits
- * is popped by the NavHost itself).
+ * argument. Exactly one exit runs, once: [onDone] after ✕ or a save, [onDeleted] after a confirmed
+ * delete (a system back without edits is popped by the NavHost itself).
  */
 @Composable
 fun LoanFormScreen(
     onDone: () -> Unit,
+    onDeleted: () -> Unit,
     viewModel: LoanFormViewModel = hiltViewModel(),
 ) {
     val formState by viewModel.formState.collectAsState()
     val hasUnsavedChanges by viewModel.hasUnsavedChanges.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
     val currentOnDone by rememberUpdatedState(onDone)
+    val currentOnDeleted by rememberUpdatedState(onDeleted)
+    val scrollState = rememberScrollState()
     var finished by rememberSaveable { mutableStateOf(false) }
-    val finish: () -> Unit = {
+    val exit: (() -> Unit) -> Unit = { callback ->
         if (!finished) {
             finished = true
-            currentOnDone()
+            callback()
         }
     }
+    val finish: () -> Unit = { exit(currentOnDone) }
 
-    // Delete also flags isSaved, so this covers both exits.
     LaunchedEffect(formState.isSaved) { if (formState.isSaved) finish() }
+    LaunchedEffect(formState.deleted) { if (formState.deleted) exit(currentOnDeleted) }
+    // A failed save is reported above the fields: bring it into view.
+    LaunchedEffect(formState.error) { if (formState.error != null) scrollState.animateScrollTo(0) }
 
     FullScreenForm(
         title = stringResource(if (formState.isEditing) R.string.loan_edit_title else R.string.loan_new_title),
@@ -90,11 +100,14 @@ fun LoanFormScreen(
         saveEnabled = formState.isValid,
         onDelete = if (formState.isEditing) ({ showDeleteDialog = true }) else null,
         hasUnsavedChanges = hasUnsavedChanges,
+        scrollState = scrollState,
     ) {
         if (formState.isLoading) {
             Box(Modifier.fillMaxWidth().height(240.dp), contentAlignment = Alignment.Center) { LoadingIndicator() }
             return@FullScreenForm
         }
+        // Above the fields so a failed save from the top bar is reported where the eye already is.
+        formState.error?.let { LoanFormErrorText(it) }
         LoanFormFields(viewModel)
     }
 
@@ -106,6 +119,19 @@ fun LoanFormScreen(
             onDismiss = { showDeleteDialog = false }
         )
     }
+}
+
+@Composable
+private fun LoanFormErrorText(message: String) {
+    Text(
+        text = message,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.error,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp, vertical = 8.dp)
+            .semantics { liveRegion = LiveRegionMode.Polite },
+    )
 }
 
 /** The loan form's fields plus the pickers they open (currency sheet, date/time dialogs). */

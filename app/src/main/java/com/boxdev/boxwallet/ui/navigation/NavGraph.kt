@@ -33,6 +33,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
@@ -114,12 +116,17 @@ private fun fadeThrough() = fadeIn(animationSpec = tween(TRANSITION_DURATION - 9
 private fun fadeThroughExit() = fadeOut(animationSpec = tween(90))
 
 /** A create/edit form: rises slightly and fades in over its origin, and leaves the same way. */
-private fun NavGraphBuilder.formComposable(route: String, content: @Composable () -> Unit) = composable(
+private fun NavGraphBuilder.formComposable(route: String, content: @Composable (NavBackStackEntry) -> Unit) = composable(
     route,
     arguments = listOf(navArgument("id") { type = NavType.LongType; defaultValue = -1L }),
     enterTransition = { slideInVertically { it / 8 } + fadeIn() },
     popExitTransition = { slideOutVertically { it / 8 } + fadeOut() },
-) { content() }
+) { content(it) }
+
+/** Runs [action] only while this entry is on top and settled, so a second exit during the pop animation is ignored. */
+private inline fun NavBackStackEntry.ifResumed(action: () -> Unit) {
+    if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) action()
+}
 
 /** A bottom-nav tab destination: lateral switches use fade-through. */
 private fun NavGraphBuilder.tabComposable(route: String, content: @Composable () -> Unit) = composable(
@@ -243,12 +250,24 @@ fun NavGraph(
             )
         }
 
-        formComposable(NavRoutes.TransactionForm.route) {
-            TransactionFormScreen(onDone = { navController.popBackStack() })
+        formComposable(NavRoutes.TransactionForm.route) { entry ->
+            TransactionFormScreen(onDone = { entry.ifResumed { navController.popBackStack() } })
         }
 
-        formComposable(NavRoutes.LoanForm.route) {
-            LoanFormScreen(onDone = { navController.popBackStack() })
+        formComposable(NavRoutes.LoanForm.route) { entry ->
+            LoanFormScreen(
+                onDone = { entry.ifResumed { navController.popBackStack() } },
+                // A deleted loan's standalone detail would only say "not found": leave it too. The
+                // Loans pane clears its own selection.
+                onDeleted = {
+                    entry.ifResumed {
+                        navController.popBackStack()
+                        if (navController.currentDestination?.route == NavRoutes.LoanDetail.route) {
+                            navController.popBackStack()
+                        }
+                    }
+                },
+            )
         }
 
         composable(NavRoutes.Settings.route) { entry ->

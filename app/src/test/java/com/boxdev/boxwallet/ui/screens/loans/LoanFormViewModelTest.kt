@@ -78,6 +78,17 @@ class LoanFormViewModelTest {
     }
 
     @Test
+    fun deleteFlagsDeletedNotSaved() = runTest {
+        val vm = vm(mapOf("id" to 7L))
+        advanceUntilIdle()
+        vm.delete()
+        advanceUntilIdle()
+        verify(loanRepository).deleteLoan(7L)
+        assertTrue(vm.formState.value.deleted)
+        assertFalse(vm.formState.value.isSaved)
+    }
+
+    @Test
     fun hasUnsavedChangesOnlyAfterAnEditOnceLoaded() = runTest {
         val vm = vm(mapOf("id" to 7L))
         backgroundScope.launch { vm.hasUnsavedChanges.collect {} }

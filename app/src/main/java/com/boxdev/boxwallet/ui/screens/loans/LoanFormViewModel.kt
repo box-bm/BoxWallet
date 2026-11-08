@@ -46,6 +46,8 @@ data class LoanFormState(
     val isEditing: Boolean = false,
     val isLoading: Boolean = false,
     val isSaved: Boolean = false,
+    /** Set once a confirmed delete went through; the form then leaves the loan's screens too. */
+    val deleted: Boolean = false,
     val error: String? = null,
     /** Set when a foreign-currency loan had no rate at all; the sheet shows a localized message. */
     val missingRateCurrency: Currency? = null,
@@ -224,7 +226,7 @@ class LoanFormViewModel @Inject constructor(
             try {
                 loanRepository.deleteLoan(s.id)
                 analyticsHelper.logEvent("loan_deleted")
-                _formState.update { it.copy(isLoading = false, isSaved = true) }
+                _formState.update { it.copy(isLoading = false, deleted = true) }
             } catch (e: Exception) {
                 _formState.update { it.copy(isLoading = false, error = e.message ?: "Error deleting loan") }
             }
