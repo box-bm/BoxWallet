@@ -46,7 +46,7 @@ import java.util.Locale
 
 @Composable
 fun CurrenciesScreen(
-    onNavigateBack: () -> Unit,
+    onNavigateBack: (() -> Unit)?,
     onOpenCurrency: (String) -> Unit,
     onChangeMainCurrency: (String) -> Unit,
     viewModel: CurrenciesViewModel = hiltViewModel(),

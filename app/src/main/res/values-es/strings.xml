@@ -192,6 +192,7 @@
 
     <!-- Settings Screen -->
     <string name="settings_title">Ajustes</string>
+    <string name="settings_select_hint">Elige una sección</string>
     <string name="settings_preferences_section">Preferencias</string>
     <string name="settings_general_section">General</string>
     <string name="settings_general_title">Ajustes Generales</string>

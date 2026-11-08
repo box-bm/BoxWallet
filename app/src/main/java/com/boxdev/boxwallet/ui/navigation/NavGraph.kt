@@ -210,14 +210,13 @@ fun NavGraph(
         }
 
         composable(NavRoutes.Settings.route) {
+            // Wide windows show sections in a detail pane; their outgoing links stay full routes.
             SettingsScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToGeneral = { navController.navigate(NavRoutes.GeneralSettings.route) },
-                onNavigateToCurrencies = { navController.navigate(NavRoutes.Currencies.route) },
-                onNavigateToCategories = { navController.navigate(NavRoutes.Categories.route) },
-                onNavigateToTheme = { navController.navigate(NavRoutes.ThemeCustomization.route) },
-                onNavigateToBackup = { navController.navigate(NavRoutes.Backup.route) },
-                onNavigateToDataManagement = { navController.navigate(NavRoutes.DataManagement.route) },
+                onOpenSection = { navController.navigate(it.route) },
+                onOpenCurrency = { navController.navigate(NavRoutes.CurrencyDetail.createRoute(it)) },
+                onChangeMainCurrency = { navController.navigate(NavRoutes.MainCurrencyChange.createRoute(it)) },
+                onOpenBackup = { navController.navigate(NavRoutes.Backup.route) },
             )
         }
 

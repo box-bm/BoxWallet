@@ -203,6 +203,7 @@
 
     <!-- Settings Screen -->
     <string name="settings_title">Settings</string>
+    <string name="settings_select_hint">Choose a section</string>
     <string name="settings_preferences_section">Preferences</string>
     <string name="settings_general_section">General</string>
     <string name="settings_general_title">General Settings</string>
