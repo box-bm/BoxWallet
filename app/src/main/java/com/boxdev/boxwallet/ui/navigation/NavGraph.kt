@@ -187,7 +187,6 @@ fun NavGraph(
 
         tabComposable(NavRoutes.Analytics.route) {
             AnalyticsScreen(
-                onNavigateToSettings = onNavigateToSettings,
                 onNavigateToSearch = onNavigateToSearch,
                 onEditTransaction = onEditTransaction,
                 onOpenLoan = openLoan,
@@ -196,7 +195,13 @@ fun NavGraph(
             )
         }
 
-        composable(NavRoutes.Search.route) {
+        composable(
+            NavRoutes.Search.route,
+            enterTransition = { fadeThrough() },
+            exitTransition = { fadeThroughExit() },
+            popEnterTransition = { fadeThrough() },
+            popExitTransition = { fadeThroughExit() },
+        ) {
             SearchScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onOpenTransaction = onEditTransaction,

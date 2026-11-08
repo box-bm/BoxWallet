@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.only
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.KeyboardOptions
@@ -63,7 +65,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.boxdev.boxwallet.R
+import com.boxdev.boxwallet.ui.components.AppPane
 import com.boxdev.boxwallet.ui.components.BackButton
+import com.boxdev.boxwallet.ui.theme.BoxTheme
 import com.boxdev.boxwallet.ui.components.CategoryBadge
 import com.boxdev.boxwallet.ui.components.EmptyState
 import com.boxdev.boxwallet.ui.components.LoanCard
@@ -89,9 +93,10 @@ fun SearchScreen(
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
         contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),
         topBar = {
-            Surface(color = MaterialTheme.colorScheme.surface) {
+            Surface(color = Color.Transparent) {
                 Column(
                     Modifier
                         .fillMaxWidth()
@@ -121,13 +126,16 @@ fun SearchScreen(
             }
         },
     ) { padding ->
+        val margin = BoxTheme.layout.margin
         Box(
             Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .padding(start = margin, end = margin, bottom = margin)
                 .imePadding(),
             contentAlignment = Alignment.TopCenter,
         ) {
+            AppPane(Modifier.widthIn(max = 720.dp).fillMaxHeight()) {
             when {
                 uiState.isLoading -> LoadingIndicator(Modifier.padding(top = 64.dp))
 
@@ -198,6 +206,7 @@ fun SearchScreen(
                         }
                     }
                 }
+            }
             }
         }
     }

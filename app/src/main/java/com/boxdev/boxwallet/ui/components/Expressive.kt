@@ -391,14 +391,6 @@ fun <T> ConnectedChoiceRow(
     }
 }
 
-/** Top-bar action that opens the global search. */
-@Composable
-fun SearchAction(onClick: () -> Unit) {
-    IconButton(onClick = onClick) {
-        Icon(Icons.Default.Search, contentDescription = stringResource(R.string.action_search))
-    }
-}
-
 /** Top-bar toggle for a screen's filter panel; the badge counts the filters that are active. */
 @Composable
 fun FilterToggleAction(

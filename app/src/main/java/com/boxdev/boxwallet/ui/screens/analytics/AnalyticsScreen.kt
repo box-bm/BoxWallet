@@ -7,11 +7,12 @@ import com.boxdev.boxwallet.ui.components.selectableDates
 import com.boxdev.boxwallet.ui.components.amountKind
 import com.boxdev.boxwallet.ui.components.mainMoney
 import com.boxdev.boxwallet.ui.components.Panel
+import com.boxdev.boxwallet.ui.components.AppSearchBar
+import com.boxdev.boxwallet.ui.components.PaneRow
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Today
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material.icons.outlined.Info
@@ -21,12 +22,8 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.LargeFlexibleTopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.material3.Surface
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import com.boxdev.boxwallet.ui.components.AmountKind
@@ -40,7 +37,6 @@ import com.boxdev.boxwallet.ui.components.charts.NetFlowChart
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import com.boxdev.boxwallet.ui.components.charts.SpendingPatternChart
 import com.boxdev.boxwallet.ui.components.EmptyState
-import com.boxdev.boxwallet.ui.components.SearchAction
 import com.boxdev.boxwallet.ui.components.TransactionItem
 import androidx.compose.material.icons.outlined.InsertChart
 import androidx.compose.material3.CircularWavyProgressIndicator
@@ -64,7 +60,6 @@ import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.ui.components.segmentShapes
 import com.boxdev.boxwallet.ui.navigation.NavRoutes
 import com.boxdev.boxwallet.ui.navigation.TabReselectEffect
-import com.boxdev.boxwallet.ui.navigation.expand
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -144,7 +139,6 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AnalyticsScreen(
-    onNavigateToSettings: () -> Unit = {},
     onNavigateToSearch: () -> Unit = {},
     onEditTransaction: (Long) -> Unit = {},
     onOpenLoan: (Long) -> Unit = {},
@@ -158,11 +152,9 @@ fun AnalyticsScreen(
     var showExportSheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val wide = BoxTheme.widthClass.isWide
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
     val scrollState = rememberScrollState()
 
     TabReselectEffect(NavRoutes.Analytics.route) {
-        scrollBehavior.expand()
         scrollState.animateScrollTo(0)
     }
 
@@ -188,22 +180,16 @@ fun AnalyticsScreen(
     }
 
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),
         topBar = {
-            // The period lives in the navigator right below, so the bar carries no subtitle.
-            LargeFlexibleTopAppBar(
-                title = { Text(stringResource(R.string.analytics_title)) },
-                actions = {
-                    SearchAction(onClick = onNavigateToSearch)
+            AppSearchBar(
+                onClick = onNavigateToSearch,
+                trailing = {
                     IconButton(onClick = { showExportSheet = true }) {
                         Icon(Icons.Outlined.Share, contentDescription = stringResource(R.string.analytics_export_report))
                     }
-                    IconButton(onClick = onNavigateToSettings) {
-                        Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.nav_settings))
-                    }
                 },
-                scrollBehavior = scrollBehavior,
             )
         },
         snackbarHost = { SnackbarHost(snackBarHostState) }
@@ -346,32 +332,36 @@ fun AnalyticsScreen(
 
         val scroll = Modifier
             .fillMaxSize()
-            .padding(paddingValues)
             .verticalScroll(scrollState)
         val gap = Arrangement.spacedBy(16.dp)
-        if (wide) {
-            Column(scroll.padding(horizontal = 24.dp, vertical = 8.dp), verticalArrangement = gap) {
-                // Sections fill whichever column is shorter, so neither ends in a dead block.
-                BalancedColumns(
-                    listOf(
-                        { controls(); summary(); emptyPeriod() },
-                        pattern, categories, installments, topExpenses,
+        PaneRow(
+            modifier = Modifier.padding(paddingValues),
+            first = {
+            if (wide) {
+                Column(scroll.padding(horizontal = 24.dp, vertical = 8.dp), verticalArrangement = gap) {
+                    // Sections fill whichever column is shorter, so neither ends in a dead block.
+                    BalancedColumns(
+                        listOf(
+                            { controls(); summary(); emptyPeriod() },
+                            pattern, categories, installments, topExpenses,
+                        )
                     )
-                )
-                yearHeader()
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Column(Modifier.weight(1f), verticalArrangement = gap) { cashFlow() }
-                    Column(Modifier.weight(1f), verticalArrangement = gap) { health() }
+                    yearHeader()
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Column(Modifier.weight(1f), verticalArrangement = gap) { cashFlow() }
+                        Column(Modifier.weight(1f), verticalArrangement = gap) { health() }
+                    }
+                    Spacer(Modifier.height(24.dp))
                 }
-                Spacer(Modifier.height(24.dp))
+            } else {
+                Column(scroll.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = gap) {
+                    controls(); summary(); emptyPeriod(); categories(); pattern(); topExpenses(); installments()
+                    yearHeader(); cashFlow(); health()
+                    Spacer(Modifier.height(24.dp))
+                }
             }
-        } else {
-            Column(scroll.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = gap) {
-                controls(); summary(); emptyPeriod(); categories(); pattern(); topExpenses(); installments()
-                yearHeader(); cashFlow(); health()
-                Spacer(Modifier.height(24.dp))
-            }
-        }
+            },
+        )
     }
 
     if (showPicker) {
