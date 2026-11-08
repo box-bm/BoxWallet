@@ -251,7 +251,11 @@ fun NavGraph(
     }
 }
 
-/** Switches bottom-nav tabs, keeping one copy of each tab and restoring its saved state. */
+/**
+ * Switches tabs, keeping one copy of each tab and restoring its saved state. Callers leaving a
+ * secondary destination (settings, detail...) pop it first (see [performTabAction]) so it is never
+ * saved as a tab's state.
+ */
 fun NavController.navigateToTab(route: String) {
     navigate(route) {
         popUpTo(graph.startDestinationId) {
