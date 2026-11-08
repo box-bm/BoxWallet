@@ -282,6 +282,10 @@
     <string name="backup_drive_description">Sign in with your Google account to back up your movements, categories, and loans to Google Drive.</string>
     <string name="backup_sign_in">Sign in with Google</string>
     <string name="backup_sign_out">Sign out</string>
+    <string name="backup_currency_mismatch_title">Different main currency</string>
+    <string name="backup_currency_mismatch_message">This backup uses %1$s as its main currency and this device uses %2$s. Which one do you want to keep? Keeping %2$s converts every restored movement with exchange rates.</string>
+    <string name="backup_currency_keep_backup">Keep %1$s (backup)</string>
+    <string name="backup_currency_keep_device">Keep %1$s (this device)</string>
 
     <!-- Data Management Screen -->
     <string name="data_management_title">Data Management</string>

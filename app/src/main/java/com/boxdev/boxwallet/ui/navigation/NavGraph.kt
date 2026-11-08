@@ -236,7 +236,10 @@ fun NavGraph(
         }
 
         composable(NavRoutes.Backup.route) {
-            BackupScreen(onNavigateBack = { navController.popBackStack() })
+            BackupScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onChangeMainCurrency = { navController.navigate(NavRoutes.MainCurrencyChange.createRoute(it)) },
+            )
         }
 
         composable(NavRoutes.DataManagement.route) {

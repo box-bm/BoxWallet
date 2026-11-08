@@ -266,6 +266,10 @@
     <string name="backup_drive_description">Inicia sesi\u00f3n con tu cuenta de Google para respaldar tus movimientos, categor\u00edas y pr\u00e9stamos en Google Drive.</string>
     <string name="backup_sign_in">Iniciar sesi\u00f3n con Google</string>
     <string name="backup_sign_out">Cerrar sesi\u00f3n</string>
+    <string name="backup_currency_mismatch_title">Moneda principal distinta</string>
+    <string name="backup_currency_mismatch_message">Este respaldo usa %1$s como moneda principal y este dispositivo usa %2$s. ¿Cuál quieres conservar? Conservar %2$s convierte todos los movimientos restaurados con tipos de cambio.</string>
+    <string name="backup_currency_keep_backup">Conservar %1$s (respaldo)</string>
+    <string name="backup_currency_keep_device">Conservar %1$s (este dispositivo)</string>
 
     <!-- Data Management Screen -->
     <string name="data_management_title">Gesti\u00f3n de Datos</string>

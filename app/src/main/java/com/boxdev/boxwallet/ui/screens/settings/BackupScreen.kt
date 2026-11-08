@@ -17,6 +17,7 @@ import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -49,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.boxdev.boxwallet.R
 import java.text.SimpleDateFormat
+import java.util.Currency
 import java.util.Date
 import java.util.Locale
 
@@ -56,6 +58,7 @@ import java.util.Locale
 @Composable
 fun BackupScreen(
     onNavigateBack: () -> Unit,
+    onChangeMainCurrency: (String) -> Unit = {},
     viewModel: BackupViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -76,6 +79,23 @@ fun BackupScreen(
             snackBarHostState.showSnackbar(it)
             viewModel.clearMessage()
         }
+    }
+
+    LaunchedEffect(uiState.currencyChangeTo) {
+        uiState.currencyChangeTo?.let {
+            viewModel.onCurrencyChangeOpened()
+            onChangeMainCurrency(it)
+        }
+    }
+
+    uiState.currencyMismatch?.let { mismatch ->
+        CurrencyMismatchDialog(
+            backup = mismatch.backup,
+            device = mismatch.device,
+            onKeepBackup = viewModel::keepBackupCurrency,
+            onKeepDevice = viewModel::keepDeviceCurrency,
+            onDismiss = viewModel::dismissCurrencyMismatch,
+        )
     }
 
     showRestoreDialog?.let { fileId ->
@@ -186,4 +206,35 @@ fun BackupScreen(
             }
         }
     }
+}
+
+/** Asks which main currency to keep when a backup was made with another one (spec 6.3). */
+@Composable
+fun CurrencyMismatchDialog(
+    backup: Currency,
+    device: Currency,
+    onKeepBackup: () -> Unit,
+    onKeepDevice: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.backup_currency_mismatch_title)) },
+        text = {
+            Text(stringResource(R.string.backup_currency_mismatch_message, backup.currencyCode, device.currencyCode))
+        },
+        confirmButton = {
+            Column(horizontalAlignment = Alignment.End) {
+                TextButton(onClick = onKeepBackup) {
+                    Text(stringResource(R.string.backup_currency_keep_backup, backup.currencyCode))
+                }
+                TextButton(onClick = onKeepDevice) {
+                    Text(stringResource(R.string.backup_currency_keep_device, device.currencyCode))
+                }
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        },
+    )
 }

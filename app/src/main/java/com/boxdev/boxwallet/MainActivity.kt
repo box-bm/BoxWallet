@@ -18,6 +18,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
@@ -66,6 +67,8 @@ class MainActivity : FragmentActivity() {
             val isAnalyticsEnabled by userPreferences.isAnalyticsEnabled.collectAsState(initial = true)
             val mainCurrency by userPreferences.mainCurrency.collectAsState(initial = Currency.getInstance("USD"))
             val currencyFormatter = remember(mainCurrency) { CurrencyFormatter(main = mainCurrency) }
+            // A restore during onboarding that kept the device currency opens the change next.
+            var pendingCurrencyChange by rememberSaveable { mutableStateOf<String?>(null) }
 
             LaunchedEffect(isBiometricEnabled) { biometricEnabledCache = isBiometricEnabled }
             LaunchedEffect(isAnalyticsEnabled) { analyticsHelper.setCollectionEnabled(isAnalyticsEnabled) }
@@ -73,14 +76,18 @@ class MainActivity : FragmentActivity() {
             CompositionLocalProvider(LocalCurrencyFormatter provides currencyFormatter) {
                 BoxWalletTheme(themeSettings = themeSettings) {
                     when {
-                        isFirstLaunch -> OnboardingScreen(
-                            onComplete = { /* State updates automatically via DataStore flow */ }
-                        )
+                        // The screen switch itself follows the DataStore flow.
+                        isFirstLaunch -> OnboardingScreen(onComplete = { pendingCurrencyChange = it })
                         isBiometricEnabled && !isAuthenticated -> LockScreen(
                             onUnlockClick = { showBiometricPrompt() },
                             errorMessage = authError
                         )
-                        else -> NavigationTab(analyticsHelper = analyticsHelper, modifier = Modifier.fillMaxSize())
+                        else -> NavigationTab(
+                            analyticsHelper = analyticsHelper,
+                            modifier = Modifier.fillMaxSize(),
+                            pendingCurrencyChange = pendingCurrencyChange,
+                            onPendingCurrencyChangeOpened = { pendingCurrencyChange = null },
+                        )
                     }
                 }
             }

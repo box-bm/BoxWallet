@@ -8,6 +8,8 @@ import com.boxdev.boxwallet.data.remote.DriveBackupFile
 import com.boxdev.boxwallet.data.remote.GoogleAuthManager
 import com.boxdev.boxwallet.data.remote.GoogleDriveManager
 import com.boxdev.boxwallet.data.repository.BackupRepository
+import com.boxdev.boxwallet.data.repository.RestoreResult
+import com.boxdev.boxwallet.domain.model.BackupData
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,7 +26,11 @@ data class BackupUiState(
     val accountDisplayName: String? = null,
     val backupFiles: List<DriveBackupFile> = emptyList(),
     val message: String? = null,
-    val isSuccess: Boolean = false
+    val isSuccess: Boolean = false,
+    /** A backup with another main currency, waiting for the user to choose which one to keep. */
+    val currencyMismatch: RestoreResult.CurrencyMismatch? = null,
+    /** Main currency change to open after restoring (the device's currency was kept). */
+    val currencyChangeTo: String? = null
 )
 
 @HiltViewModel
@@ -104,9 +110,47 @@ class BackupViewModel @Inject constructor(
     }
 
     fun restoreBackup(fileId: String) = runOp("Error restoring backup") {
-        val backupData = backupRepository.restoreBackup(fileId)
+        when (val result = backupRepository.restoreBackup(fileId)) {
+            is RestoreResult.Restored -> restored(result.data)
+            is RestoreResult.CurrencyMismatch -> {
+                _uiState.update { it.copy(currencyMismatch = result) }
+                null
+            }
+        }
+    }
+
+    /** Restores the pending backup and keeps its main currency. */
+    fun keepBackupCurrency() {
+        val mismatch = _uiState.value.currencyMismatch ?: return
+        _uiState.update { it.copy(currencyMismatch = null) }
+        runOp("Error restoring backup") { restored(backupRepository.restore(mismatch.data)) }
+    }
+
+    /**
+     * Restores the pending backup (in its own currency, so its amounts stay consistent) and then
+     * opens the main currency change to the device's currency, which converts every movement.
+     */
+    fun keepDeviceCurrency() {
+        val mismatch = _uiState.value.currencyMismatch ?: return
+        _uiState.update { it.copy(currencyMismatch = null) }
+        runOp("Error restoring backup") {
+            val message = restored(backupRepository.restore(mismatch.data))
+            _uiState.update { it.copy(currencyChangeTo = mismatch.device.currencyCode) }
+            message
+        }
+    }
+
+    fun dismissCurrencyMismatch() {
+        _uiState.update { it.copy(currencyMismatch = null) }
+    }
+
+    fun onCurrencyChangeOpened() {
+        _uiState.update { it.copy(currencyChangeTo = null) }
+    }
+
+    private fun restored(data: BackupData): String {
         analyticsHelper.logEvent("backup_restored")
-        "Backup restored (${backupData.transactions.size} movements, ${backupData.categories.size} categories, ${backupData.loans.size} loans)"
+        return "Backup restored (${data.transactions.size} movements, ${data.categories.size} categories, ${data.loans.size} loans)"
     }
 
     fun deleteBackup(fileId: String) = runOp("Error deleting backup") {

@@ -2,6 +2,7 @@
 
 package com.boxdev.boxwallet.ui.screens.onboarding
 
+import com.boxdev.boxwallet.ui.screens.settings.CurrencyMismatchDialog
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -138,7 +139,8 @@ private val COUNTRY_PAGE_INDEX = onboardingPages.indexOfFirst { it.titleRes == R
 
 @Composable
 fun OnboardingScreen(
-    onComplete: () -> Unit,
+    /** Called once onboarding ends; the code, when set, is a main currency change to open next. */
+    onComplete: (currencyChangeTo: String?) -> Unit,
     viewModel: OnboardingViewModel = hiltViewModel()
 ) {
     val totalPages = onboardingPages.size + 1
@@ -158,11 +160,20 @@ fun OnboardingScreen(
 
     LaunchedEffect(uiState.restoreSuccess) {
         if (uiState.restoreSuccess) {
-            onComplete()
+            onComplete(uiState.currencyChangeTo)
         }
     }
 
-    if (showRestoreDialog) {
+    val mismatch = uiState.currencyMismatch
+    if (mismatch != null) {
+        CurrencyMismatchDialog(
+            backup = mismatch.backup,
+            device = mismatch.device,
+            onKeepBackup = viewModel::keepBackupCurrency,
+            onKeepDevice = viewModel::keepDeviceCurrency,
+            onDismiss = viewModel::dismissCurrencyMismatch,
+        )
+    } else if (showRestoreDialog) {
         RestoreFromBackupDialog(
             uiState = uiState,
             onSignIn = { signInLauncher.launch(viewModel.getSignInIntent()) },
@@ -271,7 +282,7 @@ fun OnboardingScreen(
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (isLastPage) {
                     Button(
-                        onClick = { viewModel.completeOnboarding(analyticsEnabled); onComplete() },
+                        onClick = { viewModel.completeOnboarding(analyticsEnabled); onComplete(null) },
                         shapes = ButtonDefaults.shapes(),
                         contentPadding = ButtonDefaults.MediumContentPadding,
                         modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),

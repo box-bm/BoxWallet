@@ -21,6 +21,10 @@ interface AccountDao {
     @Update
     suspend fun update(account: AccountEntity)
 
+    /** Only once no movement references an account (RESTRICT key). */
+    @Query("DELETE FROM accounts")
+    suspend fun deleteAll()
+
     @Query("DELETE FROM accounts WHERE id = :id")
     suspend fun deleteById(id: Long)
 
