@@ -9,7 +9,16 @@ import com.boxdev.boxwallet.data.local.entity.AccountEntity
 import com.boxdev.boxwallet.data.local.entity.LoanEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 import com.boxdev.boxwallet.data.remote.GoogleDriveManager
+import com.boxdev.boxwallet.data.local.entity.TransactionType
+import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.data.repository.BackupRepository
+import com.boxdev.boxwallet.data.repository.TransactionRepository
+import com.boxdev.boxwallet.domain.model.Transaction
+import com.boxdev.boxwallet.domain.money.ExchangeRate
+import com.boxdev.boxwallet.domain.money.ExchangeRateResolver
+import com.boxdev.boxwallet.domain.money.Money
+import com.boxdev.boxwallet.domain.money.TransactionAmounts
+import kotlinx.coroutines.async
 import com.boxdev.boxwallet.domain.money.MissingRateException
 import com.boxdev.boxwallet.domain.money.RateLookup
 import com.boxdev.boxwallet.domain.money.RateSource
@@ -42,6 +51,7 @@ class MainCurrencyChangerTest {
         var allExact = true
         var online = true
         var throwOn: LocalDate? = null
+        var latestReachable = true
         val downloads = mutableListOf<LocalDate>()
 
         override suspend fun exact(day: LocalDate, code: String): BigDecimal? {
@@ -67,9 +77,11 @@ class MainCurrencyChangerTest {
     private lateinit var prefs: UserPreferences
     private lateinit var lookup: FakeLookup
     private lateinit var changer: MainCurrencyChanger
+    private lateinit var transactions: TransactionRepository
     private val usd = Currency.getInstance("USD")
     private val gtq = Currency.getInstance("GTQ")
     private val day = LocalDate.of(2025, 5, 10)
+    private val today = LocalDate.of(2026, 11, 7)
 
     @Before
     fun setUp() = runTest {
@@ -81,9 +93,20 @@ class MainCurrencyChangerTest {
         prefs.setPendingMainCurrency(null)
         lookup = FakeLookup()
         val backup = BackupRepository(context, db, db.transactionDao(), db.categoryDao(), db.loanDao(), GoogleDriveManager(context))
+        val lock = CurrencyChangeLock()
         changer = MainCurrencyChanger(
-            db, db.transactionDao(), db.accountDao(), db.loanDao(), lookup, prefs, backup, CurrencyChangeLock(),
-            today = { LocalDate.of(2026, 11, 7) },
+            db, db.transactionDao(), db.accountDao(), db.loanDao(), lookup, prefs, backup, lock,
+            today = { today },
+            sourceReachable = { lookup.online && lookup.latestReachable },
+        )
+        val amounts = TransactionAmounts(ExchangeRateResolver(lookup) { today })
+        transactions = TransactionRepository(
+            db.transactionDao(),
+            AccountRepository(db.accountDao(), prefs, context),
+            prefs,
+            context,
+            amounts,
+            MovementWriteGuard(lock, prefs, db.accountDao(), amounts),
         )
     }
 
@@ -352,5 +375,90 @@ class MainCurrencyChangerTest {
         assertEquals(expected, after.sumOf { it.amountMinor })
         assertTrue(after.all { it.amountMinor == it.accountAmountMinor })
         assertEquals("GTQ", db.accountDao().getById(acc)!!.currencyCode)
+    }
+
+    @Test
+    fun `prefetch offline with only recent movements fails`() = runTest {
+        val acc = account("USD")
+        lookup.allExact = false
+        lookup.online = false
+        db.transactionDao().insert(tx(acc, 1000, "USD", 1000, "1", 1000, "1", date = today))
+        db.transactionDao().insert(tx(acc, 1000, "EUR", 2000, "2", 2000, "1", date = today.minusDays(1)))
+        val before = db.transactionDao().getAllTransactionsSync()
+
+        assertFalse(changer.prefetch(gtq) { _, _ -> })
+
+        assertEquals(before, db.transactionDao().getAllTransactionsSync())
+        assertEquals("USD", db.accountDao().getById(acc)!!.currencyCode)
+        assertEquals(usd, prefs.mainCurrency.first())
+        assertNull(prefs.pendingMainCurrency.first())
+    }
+
+    @Test
+    fun `prefetch tolerates an unpublished recent day when the source answers`() = runTest {
+        val acc = account("USD")
+        lookup.allExact = false
+        lookup.online = true
+        val unpublished = object : RateLookup by lookup {
+            override suspend fun download(day: LocalDate) = false
+        }
+        val reachable = MainCurrencyChanger(
+            db, db.transactionDao(), db.accountDao(), db.loanDao(), unpublished, prefs,
+            BackupRepository(context, db, db.transactionDao(), db.categoryDao(), db.loanDao(), GoogleDriveManager(context)),
+            CurrencyChangeLock(), today = { today }, sourceReachable = { true },
+        )
+        db.transactionDao().insert(tx(acc, 1000, "USD", 1000, "1", 1000, "1", date = today))
+
+        assertTrue(reachable.prefetch(gtq) { _, _ -> })
+    }
+
+    /** A movement computed for USD (e.g. a form opened before the change) saved after the change. */
+    private fun staleUsdMovement(accountId: Long) = Transaction(
+        accountId = accountId,
+        type = TransactionType.EXPENSE,
+        date = day.atTime(9, 0),
+        original = Money(1000, Currency.getInstance("EUR")),
+        accountAmount = Money(2000, usd),
+        accountRate = ExchangeRate(BigDecimal("3"), RateSource.MANUAL),
+        amount = Money(2000, usd),
+        mainRate = ExchangeRate.IDENTITY,
+    )
+
+    private fun assertInvariantsForGtq(t: TransactionEntity) {
+        // §2.3 with account = main = GTQ: 10 EUR × 16 = 160 GTQ, main rate 1.
+        assertEquals(1000L, t.originalAmountMinor)
+        assertEquals("EUR", t.currencyCode)
+        assertEquals(16000L, t.accountAmountMinor)
+        assertEquals(0, BigDecimal("16").compareTo(t.accountRate))
+        assertEquals(RateSource.AUTO, t.accountRateSource)
+        assertEquals(t.accountAmountMinor, t.amountMinor)
+        assertEquals(0, BigDecimal.ONE.compareTo(t.mainRate))
+        assertEquals(RateSource.AUTO, t.mainRateSource)
+    }
+
+    @Test
+    fun `stale movement saved after the change is recomputed for the new currency`() = runTest {
+        val acc = account("USD")
+        changer.apply(gtq)
+
+        val id = transactions.insertTransaction(staleUsdMovement(acc))
+
+        assertInvariantsForGtq(db.transactionDao().getById(id)!!)
+    }
+
+    @Test
+    fun `save racing the change ends consistent either way`() = runTest {
+        val acc = account("USD")
+        db.transactionDao().insertAll(
+            (1..200).map { tx(acc, 1000, "USD", 1000, "1", 1000, "1", date = day.minusDays(it.toLong())) }
+        )
+
+        val change = async { changer.apply(gtq) }
+        val save = async { transactions.insertTransaction(staleUsdMovement(acc)) }
+        change.await()
+        val id = save.await()
+
+        assertInvariantsForGtq(db.transactionDao().getById(id)!!)
+        assertTrue(db.transactionDao().getAllTransactionsSync().all { it.amountMinor == it.accountAmountMinor })
     }
 }

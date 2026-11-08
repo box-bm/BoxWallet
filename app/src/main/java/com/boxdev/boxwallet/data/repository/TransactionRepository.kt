@@ -7,6 +7,7 @@ import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.data.local.dao.TransactionDao
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionType
+import com.boxdev.boxwallet.data.rates.MovementWriteGuard
 import com.boxdev.boxwallet.domain.model.FinancialSummary
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.domain.model.toDomain
@@ -34,6 +35,7 @@ class TransactionRepository @Inject constructor(
     private val userPreferences: UserPreferences,
     @param:ApplicationContext private val context: Context,
     private val transactionAmounts: TransactionAmounts,
+    private val guard: MovementWriteGuard,
 ) {
 
     /** Maps entities to the domain with their account's currency and the current main currency. */
@@ -45,16 +47,21 @@ class TransactionRepository @Inject constructor(
         rows.map { it.toDomain(accounts[it.accountId] ?: main, main) }
     }
 
+    /** Every write goes through [guard], so a row computed before a currency change is recomputed. */
     suspend fun insertTransaction(transaction: Transaction): Long {
-        val entity = transaction.toEntity()
-        val id = transactionDao.insert(entity)
-        scheduleOrCancelReminder(transaction.copy(id = id))
-        return id
+        val saved = guard.write { current ->
+            val checked = current.revalidate(transaction)
+            checked.copy(id = transactionDao.insert(checked.toEntity()))
+        }
+        scheduleOrCancelReminder(saved)
+        return saved.id
     }
 
     suspend fun updateTransaction(transaction: Transaction) {
-        transactionDao.update(transaction.toEntity())
-        scheduleOrCancelReminder(transaction)
+        val saved = guard.write { current ->
+            current.revalidate(transaction).also { transactionDao.update(it.toEntity()) }
+        }
+        scheduleOrCancelReminder(saved)
     }
 
     /**
@@ -62,11 +69,14 @@ class TransactionRepository @Inject constructor(
      * date (the payment date), replacing the estimate made when it was generated; MANUAL is kept.
      */
     suspend fun setInstallmentCleared(installment: Transaction, cleared: Boolean) {
-        val updated = installment.copy(isCleared = cleared)
-        val manual = installment.accountRate.source == RateSource.MANUAL ||
-            installment.mainRate.source == RateSource.MANUAL
-        val converted = if (cleared && !manual) transactionAmounts.refresh(updated) ?: updated else updated
-        updateTransaction(converted)
+        val saved = guard.write { current ->
+            val updated = current.revalidate(installment).copy(isCleared = cleared)
+            val manual = updated.accountRate.source == RateSource.MANUAL ||
+                updated.mainRate.source == RateSource.MANUAL
+            val converted = if (cleared && !manual) transactionAmounts.refresh(updated) ?: updated else updated
+            converted.also { transactionDao.update(it.toEntity()) }
+        }
+        scheduleOrCancelReminder(saved)
     }
 
     suspend fun deleteTransaction(id: Long) {
@@ -178,8 +188,11 @@ class TransactionRepository @Inject constructor(
         )
         // Each occurrence converts at the rates of its own date; MANUAL legs are copied from the template.
         // Without any rate at all, keep the template's conversion rather than lose the occurrence.
-        val converted = transactionAmounts.refresh(nextTransaction) ?: nextTransaction
-
-        transactionDao.insert(converted.toEntity())
+        guard.write { current ->
+            // A template saved before a currency change is first brought to the current currencies.
+            val checked = current.revalidate(nextTransaction)
+            val converted = transactionAmounts.refresh(checked) ?: checked
+            transactionDao.insert(converted.toEntity())
+        }
     }
 }

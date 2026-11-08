@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.boxdev.boxwallet.data.datastore.UserPreferences
+import com.boxdev.boxwallet.data.rates.CurrencyChangeLock
+import com.boxdev.boxwallet.data.rates.MovementWriteGuard
 import com.boxdev.boxwallet.data.local.database.BoxWalletDatabase
 import com.boxdev.boxwallet.data.local.entity.AccountEntity
 import com.boxdev.boxwallet.domain.model.Loan
@@ -54,14 +56,16 @@ class LoanRepositoryTest {
         accountId = db.accountDao().insert(
             AccountEntity(name = "Main", type = "CHECKING", currencyCode = "USD", createdAt = 0L)
         )
-        val prefs = UserPreferences(context) // main currency defaults to USD
+        val prefs = UserPreferences(context)
+        prefs.setMainCurrency("USD")
+        val amounts = TransactionAmounts(ExchangeRateResolver(lookup) { LocalDate.of(2026, 11, 7) })
         repository = LoanRepository(
             db,
             db.loanDao(),
             db.transactionDao(),
             AccountRepository(db.accountDao(), prefs, context),
-            prefs,
-            TransactionAmounts(ExchangeRateResolver(lookup) { LocalDate.of(2026, 11, 7) }),
+            amounts,
+            MovementWriteGuard(CurrencyChangeLock(), prefs, db.accountDao(), amounts),
         )
     }
 

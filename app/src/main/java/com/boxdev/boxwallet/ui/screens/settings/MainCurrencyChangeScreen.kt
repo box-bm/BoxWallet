@@ -1,5 +1,6 @@
 package com.boxdev.boxwallet.ui.screens.settings
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -35,9 +36,13 @@ fun MainCurrencyChangeScreen(
     viewModel: MainCurrencyChangeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+    // Leaving mid-transaction would let a stale form save race the change; stay until it ends.
+    val converting = state is MainCurrencyChangeState.Converting
+    BackHandler(enabled = converting) {}
     SettingsScaffold(
         title = stringResource(R.string.main_currency_change_title),
         onNavigateBack = onNavigateBack,
+        showBack = !converting,
     ) {
         when (val s = state) {
             MainCurrencyChangeState.Loading -> LinearProgressIndicator(Modifier.fillMaxWidth())

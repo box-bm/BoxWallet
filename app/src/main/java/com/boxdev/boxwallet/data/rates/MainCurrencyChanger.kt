@@ -53,6 +53,8 @@ class MainCurrencyChanger internal constructor(
     private val backup: BackupRepository,
     private val lock: CurrencyChangeLock,
     private val today: () -> LocalDate,
+    /** Whether the rate source answers at all (the `latest` file); tells "not published" from offline. */
+    private val sourceReachable: suspend () -> Boolean,
 ) {
 
     @Inject
@@ -61,11 +63,15 @@ class MainCurrencyChanger internal constructor(
         transactionDao: TransactionDao,
         accountDao: AccountDao,
         loanDao: LoanDao,
-        lookup: RateLookup,
+        rates: ExchangeRateRepository,
         prefs: UserPreferences,
         backup: BackupRepository,
         lock: CurrencyChangeLock,
-    ) : this(database, transactionDao, accountDao, loanDao, lookup, prefs, backup, lock, { LocalDate.now() })
+    ) : this(
+        database, transactionDao, accountDao, loanDao, rates, prefs, backup, lock,
+        today = { LocalDate.now() },
+        sourceReachable = { rates.syncLatest() },
+    )
 
     suspend fun preview(to: Currency): ChangePreview =
         ChangePreview(transactionDao.countAll(), loanDao.countAll(), prefs.mainCurrency.first(), to)
@@ -73,8 +79,9 @@ class MainCurrencyChanger internal constructor(
     /**
      * Downloads the rates of every day the change needs and doesn't have locally (one request per
      * day, all currencies). False when a download fails; nothing is written to the movements.
-     * Days outside the published history are skipped (they resolve as APPROXIMATE), and so are
-     * failures for the last two days, which may not be published yet.
+     * Days outside the published history are skipped (they resolve as APPROXIMATE). A failure for
+     * the last two days, which may not be published yet, is tolerated only when the source is
+     * reachable: another download of this run succeeded or the `latest` file answers.
      */
     suspend fun prefetch(to: Currency, onProgress: (done: Int, total: Int) -> Unit): Boolean {
         val code = to.currencyCode
@@ -89,12 +96,18 @@ class MainCurrencyChanger internal constructor(
             .sorted()
 
         onProgress(0, missing.size)
+        var anySucceeded = false
+        var recentFailed = false
         missing.forEachIndexed { i, day ->
             currentCoroutineContext().ensureActive()
-            if (!lookup.download(day) && day.isBefore(now.minusDays(1))) return false
+            when {
+                lookup.download(day) -> anySucceeded = true
+                day.isBefore(now.minusDays(1)) -> return false
+                else -> recentFailed = true
+            }
             onProgress(i + 1, missing.size)
         }
-        return true
+        return !recentFailed || anySucceeded || sourceReachable()
     }
 
     /**

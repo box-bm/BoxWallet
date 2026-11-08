@@ -7,6 +7,8 @@ import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.data.local.database.BoxWalletDatabase
 import com.boxdev.boxwallet.data.local.entity.AccountEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionType
+import com.boxdev.boxwallet.data.rates.CurrencyChangeLock
+import com.boxdev.boxwallet.data.rates.MovementWriteGuard
 import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.domain.model.toEntity
@@ -57,6 +59,7 @@ class TransactionRepositoryTest {
 
     private lateinit var db: BoxWalletDatabase
     private lateinit var repository: TransactionRepository
+    private lateinit var prefs: UserPreferences
     private var accountId = 0L
 
     @Before
@@ -66,18 +69,26 @@ class TransactionRepositoryTest {
         accountId = db.accountDao().insert(
             AccountEntity(name = "Main", type = "CHECKING", currencyCode = "USD", createdAt = 0L)
         )
-        val prefs = UserPreferences(context)
+        prefs = UserPreferences(context)
+        // The templates below are in a USD account with GTQ as the main currency.
+        prefs.setMainCurrency("GTQ")
+        val amounts = TransactionAmounts(ExchangeRateResolver(lookup) { LocalDate.of(2026, 11, 7) })
         repository = TransactionRepository(
             db.transactionDao(),
             AccountRepository(db.accountDao(), prefs, context),
             prefs,
             context,
-            TransactionAmounts(ExchangeRateResolver(lookup) { LocalDate.of(2026, 11, 7) }),
+            amounts,
+            MovementWriteGuard(CurrencyChangeLock(), prefs, db.accountDao(), amounts),
         )
     }
 
+    /** DataStore outlives the test; restore the default main currency. */
     @After
-    fun tearDown() = db.close()
+    fun tearDown() = runTest {
+        prefs.setMainCurrency("USD")
+        db.close()
+    }
 
     private suspend fun saved(t: Transaction): Transaction = t.copy(id = db.transactionDao().insert(t.toEntity()))
 
