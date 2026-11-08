@@ -163,13 +163,17 @@ fun NavigationTab(
         ) }
     }
 
-    if (layout.nav == NavKind.Rail) {
-        val railExpanded = layout.railExpanded
-        val railState = rememberWideNavigationRailState(
-            if (railExpanded) WideNavigationRailValue.Expanded else WideNavigationRailValue.Collapsed
-        )
-        LaunchedEffect(railExpanded) { if (railExpanded) railState.expand() else railState.collapse() }
-        Row(modifier = modifier.background(surfaceContainer)) {
+    val rail = layout.nav == NavKind.Rail
+    // The NavHost keeps one position in the composition whatever the navigation kind: its screens'
+    // rememberSaveable state is keyed by that position, so moving it between a rail and a bar layout
+    // (a fold or rotation recreates the activity) would silently drop that state.
+    Row(modifier = modifier.background(surfaceContainer)) {
+        if (rail) {
+            val railExpanded = layout.railExpanded
+            val railState = rememberWideNavigationRailState(
+                if (railExpanded) WideNavigationRailValue.Expanded else WideNavigationRailValue.Collapsed
+            )
+            LaunchedEffect(railExpanded) { if (railExpanded) railState.expand() else railState.collapse() }
             AnimatedVisibility(
                 visible = !isSecondary(currentRoute),
                 enter = fadeIn() + expandHorizontally(),
@@ -226,81 +230,79 @@ fun NavigationTab(
                 }
             }
             }
-            Scaffold(
-                containerColor = surfaceContainer,
-                contentWindowInsets = WindowInsets(0, 0, 0, 0),
-                modifier = Modifier.weight(1f),
-            ) { padding -> content(Modifier.padding(padding)) }
         }
-    } else {
         Scaffold(
             containerColor = surfaceContainer,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
-            modifier = modifier,
+            modifier = Modifier.weight(1f),
             bottomBar = {
-                AnimatedVisibility(visible = onTabRoute, enter = fadeIn(), exit = fadeOut()) {
-                    ShortNavigationBar(containerColor = surfaceContainer) {
-                        Destination.entries.forEach { destination ->
-                            val selected = selectedTab == destination
-                            ShortNavigationBarItem(
-                                selected = selected,
-                                onClick = { onTabClick(destination) },
-                                icon = {
-                                    Icon(
-                                        imageVector = if (selected) destination.activeIcon else destination.icon,
-                                        contentDescription = null,
-                                    )
-                                },
-                                label = { Text(stringResource(destination.labelRes)) },
-                            )
+                if (!rail) {
+                    AnimatedVisibility(visible = onTabRoute, enter = fadeIn(), exit = fadeOut()) {
+                        ShortNavigationBar(containerColor = surfaceContainer) {
+                            Destination.entries.forEach { destination ->
+                                val selected = selectedTab == destination
+                                ShortNavigationBarItem(
+                                    selected = selected,
+                                    onClick = { onTabClick(destination) },
+                                    icon = {
+                                        Icon(
+                                            imageVector = if (selected) destination.activeIcon else destination.icon,
+                                            contentDescription = null,
+                                        )
+                                    },
+                                    label = { Text(stringResource(destination.labelRes)) },
+                                )
+                            }
                         }
                     }
                 }
             },
             floatingActionButton = {
-                AnimatedVisibility(
-                    visible = showFab,
-                    enter = scaleIn() + fadeIn(),
-                    exit = scaleOut() + fadeOut(),
-                ) {
-                    FloatingActionButtonMenu(
-                        expanded = fabExpanded,
-                        modifier = Modifier.semantics { traversalIndex = -1f },
-                        button = {
-                            ToggleFloatingActionButton(
-                                modifier = Modifier.animateFloatingActionButton(
-                                    visible = showFab,
-                                    alignment = Alignment.BottomEnd,
-                                ),
-                                checked = fabExpanded,
-                                onCheckedChange = primaryAction,
-                            ) {
-                                val icon = if (checkedProgress > 0.5f) Icons.Filled.Close else Icons.Filled.Add
-                                Icon(
-                                    imageVector = icon,
-                                    contentDescription = stringResource(R.string.fab_new),
-                                    modifier = Modifier.animateIcon({ checkedProgress }),
-                                )
-                            }
-                        },
+                if (!rail) {
+                    AnimatedVisibility(
+                        visible = showFab,
+                        enter = scaleIn() + fadeIn(),
+                        exit = scaleOut() + fadeOut(),
                     ) {
-                        FloatingActionButtonMenuItem(
-                            onClick = openTransactionSheet,
-                            text = { Text(stringResource(R.string.fab_add_transaction)) },
-                            icon = { Icon(Icons.AutoMirrored.Outlined.ReceiptLong, contentDescription = null) },
-                        )
-                        FloatingActionButtonMenuItem(
-                            onClick = openLoanSheet,
-                            text = { Text(stringResource(R.string.fab_add_loan)) },
-                            icon = { Icon(Icons.Outlined.Handshake, contentDescription = null) },
-                        )
+                        FloatingActionButtonMenu(
+                            expanded = fabExpanded,
+                            modifier = Modifier.semantics { traversalIndex = -1f },
+                            button = {
+                                ToggleFloatingActionButton(
+                                    modifier = Modifier.animateFloatingActionButton(
+                                        visible = showFab,
+                                        alignment = Alignment.BottomEnd,
+                                    ),
+                                    checked = fabExpanded,
+                                    onCheckedChange = primaryAction,
+                                ) {
+                                    val icon = if (checkedProgress > 0.5f) Icons.Filled.Close else Icons.Filled.Add
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = stringResource(R.string.fab_new),
+                                        modifier = Modifier.animateIcon({ checkedProgress }),
+                                    )
+                                }
+                            },
+                        ) {
+                            FloatingActionButtonMenuItem(
+                                onClick = openTransactionSheet,
+                                text = { Text(stringResource(R.string.fab_add_transaction)) },
+                                icon = { Icon(Icons.AutoMirrored.Outlined.ReceiptLong, contentDescription = null) },
+                            )
+                            FloatingActionButtonMenuItem(
+                                onClick = openLoanSheet,
+                                text = { Text(stringResource(R.string.fab_add_loan)) },
+                                icon = { Icon(Icons.Outlined.Handshake, contentDescription = null) },
+                            )
+                        }
                     }
                 }
             },
         ) { padding ->
             Box(Modifier.padding(padding)) {
                 content(Modifier)
-                if (fabExpanded) {
+                if (fabExpanded && !rail) {
                     // Tap outside the open FAB menu to close it.
                     Box(
                         Modifier
