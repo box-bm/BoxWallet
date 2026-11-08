@@ -95,4 +95,22 @@ class FormRateCacheTest {
         assertEquals("10.00", FormRateCache.equivalent("9", eur, usd, ready))
         assertEquals(null, FormRateCache.equivalent("", eur, usd, ready))
     }
+
+    @Test
+    fun `a missing rate is retried after the retry window, not on every keystroke`() = runTest {
+        val lookup = CountingLookup()
+        var now = 0L
+        val cache = FormRateCache(amounts(lookup), backgroundScope) { now }
+        // An unknown currency: no exact and no nearest rate, so the form needs a manual rate.
+        val key = FormRateCache.Key(Currency.getInstance("JPY"), usd, usd, day)
+
+        assertTrue(cache.rates(key) !is AmountResult.Ready)
+        val first = lookup.downloads
+        repeat(3) { cache.rates(key) }
+        assertEquals(first, lookup.downloads)
+
+        now += FormRateCache.RETRY_MS
+        cache.rates(key)
+        assertTrue(lookup.downloads > first)
+    }
 }

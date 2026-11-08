@@ -258,7 +258,7 @@ class TransactionFormViewModel @Inject constructor(
     fun updateDescription(value: String) = _formState.update { it.copy(description = value) }
     fun updateCategory(id: Long?) = _formState.update { it.copy(categoryId = id) }
     fun updateDate(value: LocalDateTime) {
-        _formState.update { it.copy(date = value) }
+        _formState.update { it.copy(date = value, error = null) }
         refreshRate()
     }
     fun updateTime(hour: Int, minute: Int) = _formState.update { it.copy(date = it.date.withHour(hour).withMinute(minute)) }
@@ -300,7 +300,7 @@ class TransactionFormViewModel @Inject constructor(
         }
         val accountCurrency = s.accountCurrency!!
         viewModelScope.launch {
-            _formState.update { it.copy(isLoading = true) }
+            _formState.update { it.copy(isLoading = true, error = null) }
             try {
                 val nextOccurrenceDate = if (s.isRecurrent && s.recurrenceFrequency != null) {
                     s.recurrenceFrequency.advance(s.date, s.recurrenceInterval.toIntOrNull() ?: 1)
@@ -366,7 +366,7 @@ class TransactionFormViewModel @Inject constructor(
         val s = _formState.value
         if (!s.isEditing) return
         viewModelScope.launch {
-            _formState.update { it.copy(isLoading = true) }
+            _formState.update { it.copy(isLoading = true, error = null) }
             try {
                 transactionRepository.deleteTransaction(s.id)
                 analyticsHelper.logEvent("transaction_deleted", mapOf("type" to s.type.name))
