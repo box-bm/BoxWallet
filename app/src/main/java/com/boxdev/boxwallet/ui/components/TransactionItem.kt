@@ -2,6 +2,7 @@ package com.boxdev.boxwallet.ui.components
 
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -24,6 +25,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.util.DateFormats
+import com.boxdev.boxwallet.util.rememberCurrencyFormatter
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Transaction
@@ -111,7 +113,12 @@ fun TransactionItem(
             }
         },
         trailingContent = {
-            AmountText(amount = transaction.amount, kind = kind)
+            val formatter = rememberCurrencyFormatter()
+            val equivalent = formatter.withEquivalent(transaction.original, transaction.amount).second
+            Column(horizontalAlignment = Alignment.End) {
+                AmountText(amount = transaction.original, kind = kind)
+                if (equivalent != null) EquivalentText(equivalent)
+            }
         },
     ) {
         Text(text = title, maxLines = 1, overflow = TextOverflow.Ellipsis)

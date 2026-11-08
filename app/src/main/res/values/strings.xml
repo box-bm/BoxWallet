@@ -494,4 +494,7 @@
     <string name="conversion_use_automatic">Use automatic rate</string>
     <string name="conversion_needs_rate">Enter the exchange rate</string>
     <string name="conversion_needs_rate_explanation">There is no rate available for this currency and date.</string>
+    <string name="loan_currency_locked">Currency cannot change once an installment is paid.</string>
+    <string name="loan_currency_locked_description">Currency: %1$s. Locked because an installment is already paid.</string>
+    <string name="loan_missing_rate">No exchange rate available for %1$s. Connect to the internet and try again.</string>
 </resources>

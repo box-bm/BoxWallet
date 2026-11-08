@@ -27,4 +27,15 @@ class CurrencyFormatterTest {
     @Test fun formatCompact_small() = assertEquals("Q950", f.formatCompact(Money(950_00, gtq)))
     @Test fun formatCompact_negativeMillions() =
         assertEquals("−Q3.4M", f.formatCompact(Money(-3_400_000_00, gtq)))
+
+    private val eur = Currency.getInstance("EUR")
+    @Test fun withEquivalent_foreign() =
+        assertEquals("€20.00" to "≈ Q165.79", f.withEquivalent(Money(2000, eur), Money(16579, gtq)))
+    @Test fun withEquivalent_sameCurrencyHasNoEquivalent() =
+        assertEquals("Q10.00" to null, f.withEquivalent(Money(1000, gtq), Money(1000, gtq)))
+    @Test fun withEquivalent_jpyNoDecimals() {
+        val (original, eq) = f.withEquivalent(Money(1500, Currency.getInstance("JPY")), Money(8000, gtq))
+        assertTrue(original, original.endsWith("1,500"))
+        assertEquals("≈ Q80.00", eq)
+    }
 }

@@ -115,6 +115,7 @@ fun LoanCard(
                         style = BoxTheme.moneyType.large,
                         autoSize = true,
                     )
+                    if (!loan.isComplete) LoanEquivalentText(loan)
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
@@ -215,11 +216,14 @@ fun LoanRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
-                AmountText(
-                    amount = loan.remainingAmount,
-                    kind = amountKind(isIncome),
-                    style = BoxTheme.moneyType.small,
-                )
+                Column(horizontalAlignment = Alignment.End) {
+                    AmountText(
+                        amount = loan.remainingAmount,
+                        kind = amountKind(isIncome),
+                        style = BoxTheme.moneyType.small,
+                    )
+                    LoanEquivalentText(loan, textAlign = androidx.compose.ui.text.style.TextAlign.End)
+                }
             }
         },
     ) {

@@ -140,6 +140,9 @@ fun AmountField(
     autoFocus: Boolean = false,
     currencyCode: String? = null,
     onCurrencyClick: (() -> Unit)? = null,
+    currencyEnabled: Boolean = true,
+    /** Spoken instead of the default chip description, e.g. why the currency is locked. */
+    currencyDisabledDescription: String? = null,
 ) {
     val color by animateColorAsState(
         if (value.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant else kind.color(),
@@ -204,9 +207,14 @@ fun AmountField(
                 }
             }
             if (currencyCode != null && onCurrencyClick != null) {
-                val chipDescription = stringResource(R.string.currency_chip_description, currencyCode)
+                val chipDescription = if (!currencyEnabled && currencyDisabledDescription != null) {
+                    currencyDisabledDescription
+                } else {
+                    stringResource(R.string.currency_chip_description, currencyCode)
+                }
                 androidx.compose.material3.AssistChip(
                     onClick = onCurrencyClick,
+                    enabled = currencyEnabled,
                     label = { Text(currencyCode) },
                     trailingIcon = { Icon(Icons.Outlined.UnfoldMore, contentDescription = null, modifier = Modifier.size(18.dp)) },
                     modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = chipDescription },

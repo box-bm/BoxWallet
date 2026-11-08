@@ -227,6 +227,30 @@ fun AmountText(
     )
 }
 
+/** The "≈ Q165.79" line under a foreign-currency amount; the symbol keeps it readable without color. */
+@Composable
+fun EquivalentText(text: String, modifier: Modifier = Modifier, textAlign: TextAlign? = null) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        textAlign = textAlign,
+        modifier = modifier,
+    )
+}
+
+/** [EquivalentText] for an open loan's [Loan.remainingMainMinor], or nothing for a main-currency loan. */
+@Composable
+fun LoanEquivalentText(loan: com.boxdev.boxwallet.domain.model.Loan, modifier: Modifier = Modifier, textAlign: TextAlign? = null) {
+    val formatter = rememberCurrencyFormatter()
+    val remaining = Money(loan.remainingMainMinor, formatter.main)
+    formatter.withEquivalent(loan.remainingAmount, remaining).second?.let {
+        EquivalentText(it, modifier, textAlign)
+    }
+}
+
 // ---------------------------------------------------------------------------------------------
 // Structure
 // ---------------------------------------------------------------------------------------------

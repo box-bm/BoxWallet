@@ -70,6 +70,9 @@ import com.boxdev.boxwallet.ui.components.CategoryBadge
 import com.boxdev.boxwallet.ui.components.EmptyState
 import com.boxdev.boxwallet.ui.components.InfoChip
 import com.boxdev.boxwallet.ui.components.LoanSheet
+import com.boxdev.boxwallet.ui.components.EquivalentText
+import com.boxdev.boxwallet.ui.components.LoanEquivalentText
+import com.boxdev.boxwallet.util.rememberCurrencyFormatter
 import com.boxdev.boxwallet.domain.model.LoanStatus
 import com.boxdev.boxwallet.ui.components.LoanStatusChip
 import com.boxdev.boxwallet.ui.components.SectionHeader
@@ -241,6 +244,7 @@ private fun LoanHero(
                         style = BoxTheme.moneyType.large,
                         autoSize = true,
                     )
+                    if (!loan.isComplete) LoanEquivalentText(loan)
                     Text(
                         stringResource(R.string.loan_paid_progress, loan.paidInstallments, loan.totalInstallments),
                         style = MaterialTheme.typography.titleSmall,
@@ -342,11 +346,15 @@ private fun InstallmentRow(
             )
         },
         trailingContent = {
-            AmountText(
-                amount = installment.amount,
-                style = BoxTheme.moneyType.medium,
-                color = if (installment.isCleared) money.income else MaterialTheme.colorScheme.onSurface,
-            )
+            val equivalent = rememberCurrencyFormatter().withEquivalent(installment.original, installment.amount).second
+            Column(horizontalAlignment = Alignment.End) {
+                AmountText(
+                    amount = installment.original,
+                    style = BoxTheme.moneyType.medium,
+                    color = if (installment.isCleared) money.income else MaterialTheme.colorScheme.onSurface,
+                )
+                if (equivalent != null) EquivalentText(equivalent)
+            }
         },
         modifier = Modifier.padding(bottom = ListItemDefaults.SegmentedGap),
     ) {

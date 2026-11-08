@@ -42,6 +42,9 @@ import com.boxdev.boxwallet.domain.model.LoanType
 import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.ui.screens.loans.LoanFormViewModel
 import com.boxdev.boxwallet.util.rememberCurrencyFormatter
+import com.boxdev.boxwallet.domain.money.CurrencyCatalog
+import com.boxdev.boxwallet.domain.money.pickerSections
+import java.util.Locale
 
 @Composable
 fun LoanSheet(
@@ -55,6 +58,9 @@ fun LoanSheet(
     var showDeleteDialog by remember { mutableStateOf(false) }
     val pickers = rememberDateTimePickerState()
     val formatter = rememberCurrencyFormatter()
+    val recentCurrencies by viewModel.recentCurrencies.collectAsState()
+    var showCurrencyPicker by remember { mutableStateOf(false) }
+    val locale = remember { Locale.getDefault() }
 
     LaunchedEffect(loanId) { viewModel.loadLoan(loanId) }
     LaunchedEffect(formState.isSaved) { if (formState.isSaved) onDismiss() }
@@ -87,12 +93,35 @@ fun LoanSheet(
                 AmountField(
                     value = formState.totalAmount,
                     onValueChange = viewModel::updateTotalAmount,
-                    symbol = formatter.symbol,
+                    symbol = CurrencyCatalog.symbol(formState.currency, locale),
                     kind = amountKind(formState.loanType == LoanType.INCOME),
                     label = stringResource(R.string.loan_total_amount_label),
                     isError = formState.error != null && formState.totalAmount.isEmpty(),
                     autoFocus = !formState.isEditing,
+                    currencyCode = formState.currency.currencyCode,
+                    onCurrencyClick = { showCurrencyPicker = true },
+                    currencyEnabled = !formState.currencyLocked,
+                    currencyDisabledDescription = stringResource(
+                        R.string.loan_currency_locked_description,
+                        formState.currency.currencyCode,
+                    ),
                 )
+                if (formState.currencyLocked) {
+                    Text(
+                        stringResource(R.string.loan_currency_locked),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                    )
+                }
+                formState.missingRateCurrency?.let { missing ->
+                    Text(
+                        stringResource(R.string.loan_missing_rate, missing.currencyCode),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                    )
+                }
 
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(
@@ -192,6 +221,21 @@ fun LoanSheet(
                 onClick = viewModel::save,
             )
         }
+    }
+
+    if (showCurrencyPicker) {
+        var query by remember { mutableStateOf("") }
+        val allCurrencies = remember(locale) { CurrencyCatalog.all(locale) }
+        val sections = remember(query, recentCurrencies, allCurrencies) {
+            pickerSections(allCurrencies, recentCurrencies, query, locale)
+        }
+        CurrencyPickerSheet(
+            selected = formState.currency,
+            sections = sections,
+            onQuery = { query = it },
+            onPick = { viewModel.updateCurrency(it); showCurrencyPicker = false },
+            onDismiss = { showCurrencyPicker = false },
+        )
     }
 
     DateTimePickerDialogs(pickers, formState.startDate, viewModel::updateStartDate, viewModel::updateTime)

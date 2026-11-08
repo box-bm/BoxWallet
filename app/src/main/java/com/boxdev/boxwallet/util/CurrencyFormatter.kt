@@ -40,6 +40,13 @@ class CurrencyFormatter(
         return if (money.minor < 0) "−$body" else body
     }
 
+    /**
+     * The original amount plus, when it is in a foreign currency, its estimated equivalent in [main]
+     * (`"≈ Q165.79"`); the second value is null when [original] is already in [main].
+     */
+    fun withEquivalent(original: Money, inMain: Money): Pair<String, String?> =
+        format(original) to if (original.currency == main) null else "≈ " + format(inMain)
+
     fun formatMain(minor: Long): String = format(Money(minor, main))
 
     /** Short form for chart axes: `Q950`, `Q1.2k`, `Q12k`, `Q3.4M`. */

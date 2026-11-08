@@ -481,4 +481,7 @@
     <string name="conversion_use_automatic">Usar tasa automática</string>
     <string name="conversion_needs_rate">Ingresa la tasa de cambio</string>
     <string name="conversion_needs_rate_explanation">No hay una tasa disponible para esta moneda y fecha.</string>
+    <string name="loan_currency_locked">La moneda no se puede cambiar una vez pagada una cuota.</string>
+    <string name="loan_currency_locked_description">Moneda: %1$s. Bloqueada porque ya hay una cuota pagada.</string>
+    <string name="loan_missing_rate">No hay tasa de cambio para %1$s. Conéctate a internet e inténtalo de nuevo.</string>
 </resources>

@@ -6,6 +6,8 @@ import com.boxdev.boxwallet.analytics.AnalyticsHelper
 import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.LoanRepository
+import com.boxdev.boxwallet.data.repository.TransactionRepository
+import com.boxdev.boxwallet.data.local.dao.CurrencyUsage
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Loan
 import com.boxdev.boxwallet.domain.model.LoanType
@@ -41,8 +43,14 @@ data class LoanFormState(
     val isEditing: Boolean = false,
     val isLoading: Boolean = false,
     val isSaved: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    /** Set when a foreign-currency loan had no rate at all; the sheet shows a localized message. */
+    val missingRateCurrency: Currency? = null,
+    /** Installments already paid; the currency can't change once there is any. */
+    val paidInstallments: Int = 0,
 ) {
+    val currencyLocked: Boolean get() = isEditing && paidInstallments > 0
+
     val total: Money? get() = parseMajor(totalAmount, currency)
 
     /** The regular installment; the last one also absorbs the division remainder. */
@@ -65,6 +73,7 @@ class LoanFormViewModel @Inject constructor(
     private val loanRepository: LoanRepository,
     categoryRepository: CategoryRepository,
     private val accountRepository: AccountRepository,
+    transactionRepository: TransactionRepository,
     private val analyticsHelper: AnalyticsHelper
 ) : ViewModel() {
 
@@ -75,6 +84,9 @@ class LoanFormViewModel @Inject constructor(
     val formState: StateFlow<LoanFormState> = _formState.asStateFlow()
 
     val categories: StateFlow<List<Category>> = categoryRepository.getAllCategories()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val recentCurrencies: StateFlow<List<CurrencyUsage>> = transactionRepository.recentCurrencies()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun loadLoan(loanId: Long?) {
@@ -106,7 +118,8 @@ class LoanFormViewModel @Inject constructor(
                     frequency = loan.frequency,
                     frequencyInterval = loan.frequencyInterval.toString(),
                     isEditing = true,
-                    isLoading = false
+                    isLoading = false,
+                    paidInstallments = loan.paidInstallments,
                 )
             } else {
                 _formState.update { it.copy(isLoading = false, error = "Loan not found") }
@@ -114,6 +127,10 @@ class LoanFormViewModel @Inject constructor(
         }
     }
 
+    fun updateCurrency(currency: Currency) {
+        if (_formState.value.currencyLocked) return
+        _formState.update { it.copy(currency = currency, error = null, missingRateCurrency = null) }
+    }
     fun updateName(value: String) = _formState.update { it.copy(name = value, error = null) }
     fun updateDescription(value: String) = _formState.update { it.copy(description = value) }
     fun updateTotalAmount(value: String) {
@@ -145,7 +162,7 @@ class LoanFormViewModel @Inject constructor(
         }
         if (s.isLoading) return
         viewModelScope.launch {
-            _formState.update { it.copy(isLoading = true) }
+            _formState.update { it.copy(isLoading = true, missingRateCurrency = null) }
             try {
                 val loan = Loan(
                     id = if (s.isEditing) s.id else 0,
@@ -173,7 +190,7 @@ class LoanFormViewModel @Inject constructor(
 
                 _formState.update { it.copy(isLoading = false, isSaved = true) }
             } catch (e: MissingRateException) {
-                _formState.update { it.copy(isLoading = false, error = "No exchange rate available for ${e.from.currencyCode}") }
+                _formState.update { it.copy(isLoading = false, missingRateCurrency = e.from) }
             } catch (e: Exception) {
                 _formState.update { it.copy(isLoading = false, error = e.message ?: "Error saving loan") }
             }
