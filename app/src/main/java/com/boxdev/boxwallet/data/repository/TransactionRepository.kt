@@ -10,6 +10,8 @@ import com.boxdev.boxwallet.domain.model.FinancialSummary
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.domain.model.toDomain
 import com.boxdev.boxwallet.domain.model.toEntity
+import com.boxdev.boxwallet.domain.money.RateSource
+import com.boxdev.boxwallet.domain.money.TransactionAmounts
 import com.boxdev.boxwallet.util.CurrencyFormatter
 import com.boxdev.boxwallet.worker.ReminderWorker
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -29,7 +31,8 @@ class TransactionRepository @Inject constructor(
     private val transactionDao: TransactionDao,
     private val accountRepository: AccountRepository,
     private val userPreferences: UserPreferences,
-    @param:ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context,
+    private val transactionAmounts: TransactionAmounts,
 ) {
 
     /** Maps entities to the domain with their account's currency and the current main currency. */
@@ -51,6 +54,18 @@ class TransactionRepository @Inject constructor(
     suspend fun updateTransaction(transaction: Transaction) {
         transactionDao.update(transaction.toEntity())
         scheduleOrCancelReminder(transaction)
+    }
+
+    /**
+     * Marks a loan installment paid or unpaid. On payment its conversion is re-resolved for its
+     * date (the payment date), replacing the estimate made when it was generated; MANUAL is kept.
+     */
+    suspend fun setInstallmentCleared(installment: Transaction, cleared: Boolean) {
+        val updated = installment.copy(isCleared = cleared)
+        val manual = installment.accountRate.source == RateSource.MANUAL ||
+            installment.mainRate.source == RateSource.MANUAL
+        val converted = if (cleared && !manual) transactionAmounts.refresh(updated) ?: updated else updated
+        updateTransaction(converted)
     }
 
     suspend fun deleteTransaction(id: Long) {
@@ -157,7 +172,10 @@ class TransactionRepository @Inject constructor(
             nextOccurrenceDate = frequency.advance(nextDate, interval),
             parentRecurrenceId = if (transaction.parentRecurrenceId != null) transaction.parentRecurrenceId else transaction.id
         )
+        // Each occurrence converts at the rates of its own date; MANUAL legs are copied from the template.
+        // Without any rate at all, keep the template's conversion rather than lose the occurrence.
+        val converted = transactionAmounts.refresh(nextTransaction) ?: nextTransaction
 
-        transactionDao.insert(nextTransaction.toEntity())
+        transactionDao.insert(converted.toEntity())
     }
 }

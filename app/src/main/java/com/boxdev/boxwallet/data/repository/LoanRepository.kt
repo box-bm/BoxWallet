@@ -2,9 +2,15 @@ package com.boxdev.boxwallet.data.repository
 
 import com.boxdev.boxwallet.data.local.dao.LoanDao
 import com.boxdev.boxwallet.data.local.dao.TransactionDao
-import com.boxdev.boxwallet.data.local.entity.TransactionEntity
+import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.domain.model.Loan
+import com.boxdev.boxwallet.domain.model.Transaction
+import com.boxdev.boxwallet.domain.money.AmountInput
+import com.boxdev.boxwallet.domain.money.AmountResult
 import com.boxdev.boxwallet.domain.money.ExchangeRate
+import com.boxdev.boxwallet.domain.money.MissingRateException
+import com.boxdev.boxwallet.domain.money.TransactionAmounts
+import com.boxdev.boxwallet.domain.money.withAmounts
 import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.domain.model.toDomain
 import com.boxdev.boxwallet.domain.model.toEntity
@@ -23,6 +29,8 @@ class LoanRepository @Inject constructor(
     private val loanDao: LoanDao,
     private val transactionDao: TransactionDao,
     private val accountRepository: AccountRepository,
+    private val userPreferences: UserPreferences,
+    private val transactionAmounts: TransactionAmounts,
 ) {
 
     fun getAllLoans(): Flow<List<Loan>> =
@@ -35,30 +43,32 @@ class LoanRepository @Inject constructor(
 
     suspend fun insertLoanWithInstallments(loan: Loan): Long {
         val accountId = loan.accountId ?: accountRepository.defaultAccount().id
-        val loanId = loanDao.insert(loan.toEntity())
+        val main = userPreferences.mainCurrency.first()
+        val accountCurrency = accountRepository.observeCurrencies().first()[accountId] ?: main
+        // Installments are in the loan's currency; each carries an estimate at the rate of its due date,
+        // re-resolved when it is marked paid. Computed before any write so a missing rate saves nothing.
         val installments = (1..loan.totalInstallments).map { number ->
-            val installmentDate = loan.installmentDate(number)
-            // Single currency until rates exist: loan, account and main currency share identity rates.
-            val amount = loan.installmentAmount(number)
-            TransactionEntity(
+            val date = loan.installmentDate(number).atStartOfDay()
+            val original = loan.installmentAmount(number)
+            val input = AmountInput(original, date.toLocalDate(), accountCurrency, main)
+            val ready = transactionAmounts.compute(input) as? AmountResult.Ready
+                ?: throw MissingRateException(original.currency, accountCurrency)
+            Transaction(
                 accountId = accountId,
-                originalAmountMinor = amount.minor,
-                currencyCode = amount.currency.currencyCode,
-                accountAmountMinor = amount.minor,
-                accountRate = ExchangeRate.IDENTITY.value,
-                accountRateSource = ExchangeRate.IDENTITY.source,
-                amountMinor = amount.minor,
-                mainRate = ExchangeRate.IDENTITY.value,
-                mainRateSource = ExchangeRate.IDENTITY.source,
+                type = loan.loanType.toTransactionType(),
+                date = date,
                 description = "${loan.name} - Installment $number/${loan.totalInstallments}",
-                date = installmentDate.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli(),
-                type = loan.loanType.toTransactionType().name,
                 categoryId = loan.categoryId,
-                loanId = loanId,
-                installmentNumber = number
-            )
+                installmentNumber = number,
+                original = original,
+                accountAmount = original,
+                accountRate = ExchangeRate.IDENTITY,
+                amount = original,
+                mainRate = ExchangeRate.IDENTITY,
+            ).withAmounts(ready)
         }
-        transactionDao.insertAll(installments)
+        val loanId = loanDao.insert(loan.toEntity())
+        transactionDao.insertAll(installments.map { it.copy(loanId = loanId).toEntity() })
         return loanId
     }
 
@@ -80,10 +90,15 @@ class LoanRepository @Inject constructor(
         frequency: RecurrenceFrequency,
         interval: Int
     ) {
+        val main = userPreferences.mainCurrency.first()
+        val currencies = accountRepository.observeCurrencies().first()
         val updated = transactionDao.getInstallmentsByLoanId(loanId).mapNotNull { installment ->
             val installmentNumber = installment.installmentNumber ?: return@mapNotNull null
             val newDate = frequency.advance(newStartDate, interval, (installmentNumber - 1).toLong())
-            installment.copy(date = newDate.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli())
+            val moved = installment.copy(date = newDate.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli())
+            // A new due date means a new rate day; MANUAL legs are kept by refresh.
+            val domain = moved.toDomain(currencies[moved.accountId] ?: main, main)
+            transactionAmounts.refresh(domain)?.toEntity() ?: moved
         }
         transactionDao.updateAll(updated)
     }

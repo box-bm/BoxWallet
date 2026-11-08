@@ -3,13 +3,14 @@ package com.boxdev.boxwallet.ui.screens.loans
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boxdev.boxwallet.analytics.AnalyticsHelper
-import com.boxdev.boxwallet.data.datastore.UserPreferences
+import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.LoanRepository
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Loan
 import com.boxdev.boxwallet.domain.model.LoanType
 import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
+import com.boxdev.boxwallet.domain.money.MissingRateException
 import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.domain.money.parseMajor
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -18,7 +19,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
@@ -64,7 +64,7 @@ data class LoanFormState(
 class LoanFormViewModel @Inject constructor(
     private val loanRepository: LoanRepository,
     categoryRepository: CategoryRepository,
-    private val userPreferences: UserPreferences,
+    private val accountRepository: AccountRepository,
     private val analyticsHelper: AnalyticsHelper
 ) : ViewModel() {
 
@@ -80,10 +80,11 @@ class LoanFormViewModel @Inject constructor(
     fun loadLoan(loanId: Long?) {
         editing = null
         if (loanId == null || loanId == -1L) {
-            _formState.value = LoanFormState()
+            // A new loan defaults to its account's currency; loading until known so a save can't use a placeholder.
+            _formState.value = LoanFormState(isLoading = true)
             viewModelScope.launch {
-                val main = userPreferences.mainCurrency.first()
-                _formState.update { it.copy(currency = main) }
+                val account = accountRepository.defaultAccount()
+                _formState.update { it.copy(currency = account.currency, isLoading = false) }
             }
             return
         }
@@ -142,6 +143,7 @@ class LoanFormViewModel @Inject constructor(
             _formState.update { it.copy(error = "Please fill in all required fields") }
             return
         }
+        if (s.isLoading) return
         viewModelScope.launch {
             _formState.update { it.copy(isLoading = true) }
             try {
@@ -170,6 +172,8 @@ class LoanFormViewModel @Inject constructor(
                 )
 
                 _formState.update { it.copy(isLoading = false, isSaved = true) }
+            } catch (e: MissingRateException) {
+                _formState.update { it.copy(isLoading = false, error = "No exchange rate available for ${e.from.currencyCode}") }
             } catch (e: Exception) {
                 _formState.update { it.copy(isLoading = false, error = e.message ?: "Error saving loan") }
             }

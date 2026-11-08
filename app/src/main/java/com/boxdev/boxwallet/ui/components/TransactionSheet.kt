@@ -189,7 +189,7 @@ fun TransactionSheet(
 
             SheetPrimaryButton(
                 text = stringResource(if (formState.isEditing) R.string.transaction_update else R.string.transaction_save),
-                enabled = formState.isValid,
+                enabled = formState.canSave,
                 onClick = viewModel::save,
             )
         }

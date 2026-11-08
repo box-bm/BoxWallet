@@ -12,9 +12,17 @@ import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.domain.model.ReminderDuration
 import com.boxdev.boxwallet.domain.model.Transaction
+import com.boxdev.boxwallet.domain.money.AmountInput
+import com.boxdev.boxwallet.domain.money.AmountResult
+import com.boxdev.boxwallet.domain.money.ExchangeRate
 import com.boxdev.boxwallet.domain.money.Money
+import com.boxdev.boxwallet.domain.money.RateSource
+import com.boxdev.boxwallet.domain.money.TransactionAmounts
+import com.boxdev.boxwallet.domain.money.needsRateRefresh
+import com.boxdev.boxwallet.domain.money.withAmounts
 import com.boxdev.boxwallet.domain.money.parseMajor
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -23,6 +31,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.math.BigDecimal
+import java.math.MathContext
 import java.time.LocalDateTime
 import java.util.Currency
 import javax.inject.Inject
@@ -31,7 +41,18 @@ data class TransactionFormState(
     val id: Long = 0,
     /** Typed in major units of [currency]. */
     val amount: String = "",
+    /** The movement's currency; starts as the account's once [accountCurrency] is known. */
     val currency: Currency = Currency.getInstance("USD"),
+    /** Currency of the account the movement goes to; null until loaded, and saving waits for it. */
+    val accountCurrency: Currency? = null,
+    /** Original → account rate typed by the user (overrides the automatic one), or null. */
+    val manualRate: String? = null,
+    /** The amount in [accountCurrency], in major units; typing it derives [manualRate]. */
+    val equivalent: String? = null,
+    /** The rate currently applied original → account, for display; null when none is known. */
+    val rate: ExchangeRate? = null,
+    /** No rate exists for this currency and date: saving requires [manualRate] or [equivalent]. */
+    val needsManualRate: Boolean = false,
     val description: String = "",
     val categoryId: Long? = null,
     val date: LocalDateTime = LocalDateTime.now(),
@@ -50,10 +71,42 @@ data class TransactionFormState(
 ) {
     val money: Money? get() = parseMajor(amount, currency)
 
+    val isForeign: Boolean get() = accountCurrency != null && currency != accountCurrency
+
+    /** The typed rate when it is a positive number and the movement is foreign to its account. */
+    val manualRateValue: BigDecimal?
+        get() = manualRate?.takeIf { isForeign }?.trim()?.toBigDecimalOrNull()?.takeIf { it.signum() > 0 }
+
     val isValid: Boolean
         get() = money != null &&
                 (!isRecurrent || recurrenceFrequency != null) &&
                 (!isRecurrent || recurrenceFrequency != RecurrenceFrequency.CUSTOM_MONTHS || (recurrenceInterval.toIntOrNull() ?: 0) > 0)
+
+    /** Valid, the account currency is known, and a missing automatic rate has been replaced by a manual one. */
+    val canSave: Boolean
+        get() = isValid && accountCurrency != null && (!needsManualRate || manualRateValue != null)
+
+    /** Sets the manual rate and recomputes [equivalent] from it. */
+    fun withManualRate(value: String): TransactionFormState {
+        val rate = value.trim().toBigDecimalOrNull()?.takeIf { it.signum() > 0 }
+        val target = accountCurrency
+        val original = money
+        val equivalent = if (rate != null && target != null && original != null) {
+            original.convert(target, rate).toMajor().toPlainString()
+        } else equivalent
+        return copy(manualRate = value, equivalent = equivalent, error = null)
+    }
+
+    /** Sets the equivalent in the account currency and derives the manual rate = equivalent / original. */
+    fun withEquivalent(value: String): TransactionFormState {
+        val target = accountCurrency ?: return copy(equivalent = value)
+        val converted = parseMajor(value, target)
+        val original = money
+        val rate = if (converted != null && original != null) {
+            converted.toMajor().divide(original.toMajor(), MathContext.DECIMAL64).toPlainString()
+        } else manualRate
+        return copy(equivalent = value, manualRate = rate, error = null)
+    }
 }
 
 @HiltViewModel
@@ -62,6 +115,7 @@ class TransactionFormViewModel @Inject constructor(
     categoryRepository: CategoryRepository,
     private val accountRepository: AccountRepository,
     private val userPreferences: UserPreferences,
+    private val transactionAmounts: TransactionAmounts,
     private val analyticsHelper: AnalyticsHelper
 ) : ViewModel() {
 
@@ -77,10 +131,13 @@ class TransactionFormViewModel @Inject constructor(
     fun loadTransaction(transactionId: Long?) {
         editing = null
         if (transactionId == null || transactionId == -1L) {
-            _formState.value = TransactionFormState()
+            // Loading until the account is known, so a quick save can't store a placeholder currency.
+            _formState.value = TransactionFormState(isLoading = true)
             viewModelScope.launch {
-                val main = userPreferences.mainCurrency.first()
-                _formState.update { it.copy(currency = main) }
+                val account = accountRepository.defaultAccount()
+                _formState.update {
+                    it.copy(currency = account.currency, accountCurrency = account.currency, isLoading = false)
+                }
             }
             return
         }
@@ -93,6 +150,11 @@ class TransactionFormViewModel @Inject constructor(
                     id = t.id,
                     amount = t.original.toMajor().toPlainString(),
                     currency = t.original.currency,
+                    accountCurrency = t.accountAmount.currency,
+                    manualRate = t.accountRate.takeIf { it.source == RateSource.MANUAL }?.value?.toPlainString(),
+                    equivalent = t.accountAmount.toMajor().toPlainString()
+                        .takeIf { t.original.currency != t.accountAmount.currency },
+                    rate = t.accountRate,
                     description = t.description,
                     categoryId = t.categoryId,
                     date = t.date,
@@ -115,13 +177,66 @@ class TransactionFormViewModel @Inject constructor(
 
     fun updateAmount(value: String) {
         if (value.isEmpty() || value.matches(Regex("^\\d*\\.?\\d*$"))) {
-            _formState.update { it.copy(amount = value, error = null) }
+            _formState.update { s ->
+                val updated = s.copy(amount = value, error = null)
+                updated.manualRate?.let { updated.withManualRate(it) } ?: updated
+            }
+            refreshRate()
+        }
+    }
+
+    /** Changes the movement's currency; any typed rate belonged to the old one and is dropped. */
+    fun updateCurrency(value: Currency) {
+        _formState.update { it.copy(currency = value, manualRate = null, equivalent = null, error = null) }
+        refreshRate()
+    }
+
+    fun updateManualRate(value: String) = _formState.update { it.withManualRate(value) }
+
+    fun updateEquivalent(value: String) = _formState.update { it.withEquivalent(value) }
+
+    /** Drops the typed rate and goes back to the rate of the movement's date. */
+    fun useAutomaticRate() {
+        _formState.update { it.copy(manualRate = null, equivalent = null) }
+        refreshRate()
+    }
+
+    private var rateJob: Job? = null
+
+    /** Previews the automatic rate for the current currency and date (unless the user typed one). */
+    private fun refreshRate() {
+        rateJob?.cancel()
+        val s = _formState.value
+        val accountCurrency = s.accountCurrency ?: return
+        if (!s.isForeign) {
+            _formState.update { it.copy(rate = ExchangeRate.IDENTITY, needsManualRate = false, equivalent = null) }
+            return
+        }
+        if (s.manualRate != null) return
+        rateJob = viewModelScope.launch {
+            val main = userPreferences.mainCurrency.first()
+            val original = s.money ?: Money.of(BigDecimal.ONE, s.currency)
+            val result = transactionAmounts.compute(AmountInput(original, s.date.toLocalDate(), accountCurrency, main))
+            _formState.update {
+                if (it.manualRate != null || it.currency != s.currency) return@update it
+                when (result) {
+                    is AmountResult.Ready -> it.copy(
+                        rate = result.accountRate,
+                        needsManualRate = false,
+                        equivalent = result.accountAmount.toMajor().toPlainString().takeIf { _ -> it.money != null },
+                    )
+                    AmountResult.NeedsManualRate -> it.copy(rate = null, needsManualRate = true, equivalent = null)
+                }
+            }
         }
     }
 
     fun updateDescription(value: String) = _formState.update { it.copy(description = value) }
     fun updateCategory(id: Long?) = _formState.update { it.copy(categoryId = id) }
-    fun updateDate(value: LocalDateTime) = _formState.update { it.copy(date = value) }
+    fun updateDate(value: LocalDateTime) {
+        _formState.update { it.copy(date = value) }
+        refreshRate()
+    }
     fun updateTime(hour: Int, minute: Int) = _formState.update { it.copy(date = it.date.withHour(hour).withMinute(minute)) }
     fun updateType(value: TransactionType) = _formState.update { it.copy(type = value) }
     fun updateIsCleared(value: Boolean) = _formState.update { it.copy(isCleared = value) }
@@ -151,6 +266,13 @@ class TransactionFormViewModel @Inject constructor(
             _formState.update { it.copy(error = "Please enter a valid amount") }
             return
         }
+        if (!s.canSave) {
+            _formState.update {
+                it.copy(error = if (s.needsManualRate) "Enter the exchange rate" else "Still loading the account")
+            }
+            return
+        }
+        val accountCurrency = s.accountCurrency!!
         viewModelScope.launch {
             _formState.update { it.copy(isLoading = true) }
             try {
@@ -160,8 +282,7 @@ class TransactionFormViewModel @Inject constructor(
 
                 val previous = editing
                 val accountId = previous?.accountId ?: accountRepository.defaultAccount().id
-                // Single currency until rates exist (Task 7): movement, account and main share identity rates.
-                val transaction = Transaction.singleCurrency(accountId, s.type, s.date, s.money!!).copy(
+                val draft = Transaction.singleCurrency(accountId, s.type, s.date, s.money!!).copy(
                     id = if (s.isEditing) s.id else 0,
                     description = s.description,
                     loanId = previous?.loanId,
@@ -176,6 +297,13 @@ class TransactionFormViewModel @Inject constructor(
                     recurrenceInterval = s.recurrenceInterval.toIntOrNull(),
                     nextOccurrenceDate = nextOccurrenceDate
                 )
+                val transaction = convert(draft, previous, accountCurrency, s.manualRateValue)
+                if (transaction == null) {
+                    _formState.update {
+                        it.copy(isLoading = false, needsManualRate = true, rate = null, error = "Enter the exchange rate")
+                    }
+                    return@launch
+                }
 
                 if (s.isEditing) {
                     transactionRepository.updateTransaction(transaction)
@@ -200,6 +328,48 @@ class TransactionFormViewModel @Inject constructor(
                 _formState.update { it.copy(isLoading = false, error = e.message ?: "Error saving") }
             }
         }
+    }
+
+    /**
+     * Freezes [draft]'s conversions. An edit that doesn't invalidate the stored rates keeps them
+     * (re-applied to a changed amount when the rate is MANUAL); otherwise the rates of the movement's
+     * date are resolved. Null when no rate exists and the user hasn't typed one.
+     */
+    private suspend fun convert(
+        draft: Transaction,
+        previous: Transaction?,
+        accountCurrency: Currency,
+        manualRate: BigDecimal?,
+    ): Transaction? {
+        if (previous != null && sameRateChoice(previous, manualRate)) {
+            val frozen = draft.withAmounts(
+                AmountResult.Ready(previous.accountAmount, previous.accountRate, previous.amount, previous.mainRate)
+            )
+            if (!frozen.needsRateRefresh(previous)) {
+                if (draft.original == previous.original) return frozen
+                val accountAmount = draft.original.convert(previous.accountAmount.currency, previous.accountRate.value)
+                return frozen.withAmounts(
+                    AmountResult.Ready(
+                        accountAmount,
+                        previous.accountRate,
+                        accountAmount.convert(previous.amount.currency, previous.mainRate.value),
+                        previous.mainRate,
+                    )
+                )
+            }
+        }
+        val main = userPreferences.mainCurrency.first()
+        val input = AmountInput(draft.original, draft.date.toLocalDate(), accountCurrency, main, manualRate)
+        return when (val result = transactionAmounts.compute(input)) {
+            is AmountResult.Ready -> draft.withAmounts(result)
+            AmountResult.NeedsManualRate -> null
+        }
+    }
+
+    /** The user kept the stored rate choice: still automatic, or still the same manual rate. */
+    private fun sameRateChoice(previous: Transaction, manualRate: BigDecimal?): Boolean {
+        val wasManual = previous.accountRate.source == RateSource.MANUAL
+        return if (manualRate == null) !wasManual else wasManual && manualRate.compareTo(previous.accountRate.value) == 0
     }
 
     fun delete() {

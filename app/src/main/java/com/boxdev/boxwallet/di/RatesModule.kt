@@ -7,6 +7,7 @@ import com.boxdev.boxwallet.data.rates.UrlConnectionTransport
 import com.boxdev.boxwallet.domain.money.ExchangeRateResolver
 import com.boxdev.boxwallet.data.rates.ExchangeRateRepository
 import com.boxdev.boxwallet.domain.money.RateLookup
+import com.boxdev.boxwallet.domain.money.TransactionAmounts
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -33,4 +34,8 @@ object RatesModule {
     @Provides
     @Singleton
     fun provideExchangeRateResolver(lookup: RateLookup): ExchangeRateResolver = ExchangeRateResolver(lookup)
+
+    @Provides
+    @Singleton
+    fun provideTransactionAmounts(resolver: ExchangeRateResolver): TransactionAmounts = TransactionAmounts(resolver)
 }

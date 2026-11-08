@@ -68,7 +68,7 @@ class LoanDetailViewModel @Inject constructor(
     fun toggleInstallmentCleared(transaction: Transaction) {
         viewModelScope.launch {
             val newCleared = !transaction.isCleared
-            transactionRepository.updateTransaction(transaction.copy(isCleared = newCleared))
+            transactionRepository.setInstallmentCleared(transaction, newCleared)
             analyticsHelper.logEvent("installment_toggled", mapOf("cleared" to newCleared))
         }
     }
