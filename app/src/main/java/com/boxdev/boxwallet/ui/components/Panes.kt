@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.boxdev.boxwallet.ui.components
 
 import android.content.res.Configuration
@@ -19,28 +21,43 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.boxdev.boxwallet.ui.theme.BoxTheme
 import com.boxdev.boxwallet.ui.theme.BoxWalletTheme
 import com.boxdev.boxwallet.ui.theme.LocalAppLayout
+import com.boxdev.boxwallet.ui.theme.LocalCardColor
 import com.boxdev.boxwallet.ui.theme.appLayout
 
-/** A white pane that sits on the window background: lowest surface container, extra-large corners. */
+/**
+ * A pane. [contained] makes it the supporting pane of a two-pane layout (detail, filters): one step
+ * above the surface body, with cards inside stepping up too through [LocalCardColor] so they keep
+ * their contrast. Uncontained, it paints nothing and blends into the body.
+ *
+ * Both cases emit the same tree, so content keeps its saved state (scroll, collapsed app bar) when a
+ * fold or rotation switches a screen between one pane and two.
+ */
 @Composable
-fun AppPane(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
+fun AppPane(modifier: Modifier = Modifier, contained: Boolean = true, content: @Composable BoxScope.() -> Unit) {
     Surface(
         modifier = modifier,
-        shape = MaterialTheme.shapes.extraLarge,
-        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        shape = if (contained) MaterialTheme.shapes.extraLargeIncreased else RectangleShape,
+        color = if (contained) MaterialTheme.colorScheme.surfaceContainerLow else Color.Transparent,
     ) {
-        Box(content = content)
+        val cardColor = if (contained) MaterialTheme.colorScheme.surfaceContainerHigh else LocalCardColor.current
+        CompositionLocalProvider(LocalCardColor provides cardColor) {
+            Box(content = content)
+        }
     }
 }
 
 /**
- * Lays out one or two panes with [BoxTheme.layout] margin at start, end and bottom and a 24dp gap.
+ * Lays out one or two panes with [BoxTheme.layout] margin at start and end and a 24dp gap.
+ * Panes blend into the surface body unless [containFirst] / [containSecond] puts one in an [AppPane];
+ * contain only the supporting pane of a two-pane layout.
  * A fixed [firstWidth] is meant for two-pane (expanded) layouts only.
  * `second == null` gives a single pane. [firstWidth] null splits 50/50, otherwise the first pane is fixed.
  */
@@ -50,24 +67,33 @@ fun PaneRow(
     second: (@Composable () -> Unit)? = null,
     firstWidth: Dp? = null,
     modifier: Modifier = Modifier,
+    containFirst: Boolean = false,
+    containSecond: Boolean = false,
 ) {
     val margin = BoxTheme.layout.margin
     Row(
         modifier = modifier
             .fillMaxSize()
-            .padding(start = margin, end = margin, bottom = margin),
+            .padding(start = margin, end = margin),
     ) {
         val firstModifier = if (second != null && firstWidth != null) {
             Modifier.width(firstWidth).fillMaxHeight()
         } else {
             Modifier.weight(1f).fillMaxHeight()
         }
-        AppPane(firstModifier) { first() }
+        Pane(firstModifier, containFirst, first)
         if (second != null) {
             Spacer(Modifier.width(24.dp))
-            AppPane(Modifier.weight(1f).fillMaxHeight()) { second() }
+            Pane(Modifier.weight(1f).fillMaxHeight(), containSecond, second)
         }
     }
+}
+
+@Composable
+private fun Pane(modifier: Modifier, contained: Boolean, content: @Composable () -> Unit) {
+    // Only a contained pane stops short of the window's bottom edge; content on the body scrolls to it.
+    val bottom = if (contained) BoxTheme.layout.margin else 0.dp
+    AppPane(modifier.padding(bottom = bottom), contained) { content() }
 }
 
 /**
@@ -89,11 +115,12 @@ fun PanePlaceholder(icon: ImageVector, title: String, modifier: Modifier = Modif
 private fun PanesPreviewContent(width: Int, firstWidth: Dp?, two: Boolean) {
     BoxWalletTheme {
         CompositionLocalProvider(LocalAppLayout provides appLayout(width, 800)) {
-            Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
+            Surface(color = MaterialTheme.colorScheme.surface) {
                 PaneRow(
                     first = { Text("First pane", Modifier.padding(16.dp)) },
                     second = if (two) ({ Text("Second pane", Modifier.padding(16.dp)) }) else null,
                     firstWidth = firstWidth,
+                    containSecond = two,
                 )
             }
         }

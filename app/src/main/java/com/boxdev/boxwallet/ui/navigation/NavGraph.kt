@@ -45,7 +45,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
 import com.boxdev.boxwallet.analytics.AnalyticsHelper
 import com.boxdev.boxwallet.R
-import com.boxdev.boxwallet.ui.components.AppPane
+import androidx.compose.foundation.layout.Box
 import com.boxdev.boxwallet.ui.screens.analytics.AnalyticsScreen
 import com.boxdev.boxwallet.ui.screens.home.HomeScreen
 import com.boxdev.boxwallet.ui.screens.loans.LoanDetailScreen
@@ -220,14 +220,15 @@ fun NavGraph(
             route = NavRoutes.LoanDetail.route,
             arguments = listOf(navArgument("loanId") { type = NavType.LongType })
         ) {
-            // Opened from Home, Search or Reports: one pane on the window background.
+            // Opened from Home, Search or Reports: on its own, straight on the surface body.
             val margin = BoxTheme.layout.margin
-            AppPane(
+            Box(
                 Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .background(MaterialTheme.colorScheme.surface)
                     .windowInsetsPadding(WindowInsets.safeDrawing)
-                    .padding(start = margin, top = 8.dp, end = margin, bottom = margin)
+                    // The detail brings its own 16dp content padding.
+                    .padding(start = margin - 16.dp, top = 8.dp, end = margin - 16.dp)
             ) {
                 LoanDetailScreen(onNavigateBack = { navController.popBackStack() }, onEditLoan = onEditLoan)
             }

@@ -146,7 +146,7 @@ private fun AddEditCategoryDialog(
                     label = { Text(stringResource(R.string.categories_name_label)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium
+                    shape = MaterialTheme.shapes.largeIncreased
                 )
 
                 // Description field
@@ -156,7 +156,7 @@ private fun AddEditCategoryDialog(
                     label = { Text(stringResource(R.string.description_optional)) },
                     maxLines = 3,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium
+                    shape = MaterialTheme.shapes.largeIncreased
                 )
 
                 // Icon selection section

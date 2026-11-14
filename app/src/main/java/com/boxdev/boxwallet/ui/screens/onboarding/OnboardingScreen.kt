@@ -240,7 +240,7 @@ fun OnboardingScreen(
                     Spacer(Modifier.height(28.dp))
                     Surface(
                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        shape = MaterialTheme.shapes.large,
+                        shape = MaterialTheme.shapes.extraLarge,
                         modifier = Modifier
                             .fillMaxWidth()
                             .toggleable(analyticsEnabled, role = Role.Switch, onValueChange = { analyticsEnabled = it }),
@@ -539,14 +539,14 @@ private fun CountryStep(
             onValueChange = { query = it },
             placeholder = { Text(stringResource(R.string.onboarding_country_search)) },
             leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
-            shape = MaterialTheme.shapes.large,
+            shape = MaterialTheme.shapes.extraLarge,
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             modifier = Modifier.fillMaxWidth(),
         )
         Surface(
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            shape = MaterialTheme.shapes.large,
+            shape = MaterialTheme.shapes.extraLarge,
             modifier = Modifier.fillMaxWidth().weight(1f),
         ) {
             if (visible.isEmpty()) {

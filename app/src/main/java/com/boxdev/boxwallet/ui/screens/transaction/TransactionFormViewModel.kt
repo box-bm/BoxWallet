@@ -159,13 +159,29 @@ class TransactionFormViewModel @Inject constructor(
         loadTransaction(savedStateHandle.get<Long>("id"))
     }
 
+    /**
+     * Shows another movement in this same form: the editor pane beside the Movements list reuses one
+     * view model as the selection changes. Opening the movement already on screen keeps its edits.
+     */
+    fun open(transactionId: Long) {
+        val current = _formState.value
+        if (current.id == transactionId && !current.isSaved && (current.isLoading || initial.value != null)) return
+        // Reset at once, so the last movement's saved flag can't close the form for this one.
+        _formState.value = TransactionFormState(id = transactionId, isLoading = true)
+        loadTransaction(transactionId)
+    }
+
+    private var loadJob: Job? = null
+
     private fun loadTransaction(transactionId: Long?) {
+        // A newer load wins: an earlier one still in flight must not write over it.
+        loadJob?.cancel()
         editing = null
         initial.value = null
         if (transactionId == null || transactionId == -1L) {
             // Loading until the account is known, so a quick save can't store a placeholder currency.
             _formState.value = TransactionFormState(isLoading = true)
-            viewModelScope.launch {
+            loadJob = viewModelScope.launch {
                 val account = accountRepository.defaultAccount()
                 _formState.update {
                     it.copy(currency = account.currency, accountCurrency = account.currency, isLoading = false)
@@ -174,7 +190,7 @@ class TransactionFormViewModel @Inject constructor(
             }
             return
         }
-        viewModelScope.launch {
+        loadJob = viewModelScope.launch {
             _formState.update { it.copy(isLoading = true) }
             val t = transactionRepository.getTransactionById(transactionId)
             editing = t

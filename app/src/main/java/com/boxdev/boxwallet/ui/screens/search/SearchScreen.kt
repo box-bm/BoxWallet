@@ -68,7 +68,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.boxdev.boxwallet.R
-import com.boxdev.boxwallet.ui.components.AppPane
 import com.boxdev.boxwallet.ui.components.BackButton
 import com.boxdev.boxwallet.ui.theme.BoxTheme
 import com.boxdev.boxwallet.ui.components.CategoryBadge
@@ -96,7 +95,7 @@ fun SearchScreen(
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        containerColor = MaterialTheme.colorScheme.surface,
         contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),
         topBar = {
             Surface(color = Color.Transparent) {
@@ -136,17 +135,17 @@ fun SearchScreen(
                 .padding(padding)
                 // The pane ends above the keyboard when it shows, else above the navigation bar.
                 .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars).only(WindowInsetsSides.Bottom))
-                .padding(start = margin, end = margin, bottom = margin),
+                .padding(start = margin, end = margin),
             contentAlignment = Alignment.TopCenter,
         ) {
-            AppPane(Modifier.fillMaxWidth().widthIn(max = 720.dp).fillMaxHeight()) {
+            Box(Modifier.fillMaxWidth().widthIn(max = 720.dp).fillMaxHeight()) {
             when {
                 uiState.isLoading -> LoadingIndicator(Modifier.padding(top = 64.dp))
 
                 !uiState.hasQuery -> Column(
                     Modifier
                         .readableWidth()
-                        .padding(horizontal = 16.dp),
+                        .padding(horizontal = 4.dp),
                 ) {
                     EmptyState(
                         icon = Icons.Default.Search,
@@ -173,7 +172,7 @@ fun SearchScreen(
                     modifier = Modifier
                         .readableWidth()
                         .fillMaxSize(),
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 32.dp),
+                    contentPadding = PaddingValues(top = 8.dp, bottom = 32.dp),
                 ) {
                     if (uiState.loans.isNotEmpty()) {
                         item(key = "h_loans") {
@@ -240,7 +239,7 @@ private fun SearchField(
         },
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         keyboardActions = KeyboardActions(onSearch = { onSearch() }),
-        shape = MaterialTheme.shapes.extraLarge,
+        shape = MaterialTheme.shapes.extraLargeIncreased,
         colors = TextFieldDefaults.colors(
             focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,

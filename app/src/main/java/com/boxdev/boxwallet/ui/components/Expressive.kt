@@ -457,8 +457,8 @@ fun CollapsibleFilterPanel(visible: Boolean, content: @Composable () -> Unit) {
     ) {
         Surface(
             color = MaterialTheme.colorScheme.surfaceContainerLow,
-            shape = MaterialTheme.shapes.large,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            shape = MaterialTheme.shapes.extraLarge,
+            modifier = Modifier.padding(vertical = 8.dp),
             content = content,
         )
     }
@@ -494,8 +494,8 @@ fun directionColors(isIncome: Boolean): Pair<Color, Color> {
 @Composable
 fun Panel(
     modifier: Modifier = Modifier,
-    color: Color = MaterialTheme.colorScheme.surfaceContainer,
-    shape: Shape = MaterialTheme.shapes.large,
+    color: Color = BoxTheme.cardColor,
+    shape: Shape = MaterialTheme.shapes.extraLarge,
     content: @Composable () -> Unit,
 ) {
     Surface(modifier = modifier, color = color, shape = shape, content = content)
@@ -521,9 +521,9 @@ fun rememberReduceMotion(): Boolean {
 fun segmentShapes(index: Int, count: Int): androidx.compose.material3.ListItemShapes =
     if (count <= 1) {
         androidx.compose.material3.ListItemDefaults.shapes(
-            shape = MaterialTheme.shapes.large,
-            selectedShape = MaterialTheme.shapes.large,
-            pressedShape = MaterialTheme.shapes.medium,
+            shape = MaterialTheme.shapes.extraLarge,
+            selectedShape = MaterialTheme.shapes.extraLarge,
+            pressedShape = MaterialTheme.shapes.largeIncreased,
         )
     } else {
         androidx.compose.material3.ListItemDefaults.segmentedShapes(index = index, count = count)

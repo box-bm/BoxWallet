@@ -3,6 +3,7 @@
 package com.boxdev.boxwallet.ui.screens.settings
 
 import com.boxdev.boxwallet.ui.components.segmentShapes
+import com.boxdev.boxwallet.ui.theme.BoxTheme
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -225,7 +226,7 @@ fun SettingsSwitchRow(
 /** Rows sit on one tonal container; a switch row's state lives in the switch, not the row tint. */
 @Composable
 fun settingsRowColors(): androidx.compose.material3.ListItemColors {
-    val container = MaterialTheme.colorScheme.surfaceContainer
+    val container = BoxTheme.cardColor
     return ListItemDefaults.segmentedColors(
         containerColor = container,
         selectedContainerColor = container,

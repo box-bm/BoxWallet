@@ -80,6 +80,8 @@ import java.util.Locale
 fun TransactionFormScreen(
     onDone: () -> Boolean,
     viewModel: TransactionFormViewModel = hiltViewModel(),
+    /** True when the form is the editor pane beside the Movements list instead of its own screen. */
+    embedded: Boolean = false,
 ) {
     val formState by viewModel.formState.collectAsState()
     val hasUnsavedChanges by viewModel.hasUnsavedChanges.collectAsState()
@@ -102,9 +104,10 @@ fun TransactionFormScreen(
         title = stringResource(if (formState.isEditing) R.string.transaction_edit_title else R.string.transaction_new_title),
         onClose = finish,
         onSave = viewModel::save,
-        saveEnabled = formState.canSave,
         onDelete = if (formState.isEditing) ({ showDeleteDialog = true }) else null,
         hasUnsavedChanges = hasUnsavedChanges,
+        deleteLabel = stringResource(R.string.transaction_delete_title),
+        embedded = embedded,
         scrollState = scrollState,
     ) {
         if (formState.isLoading) {
@@ -189,7 +192,7 @@ private fun TransactionFormFields(
             onValueChange = viewModel::updateDescription,
             label = { Text(stringResource(R.string.transaction_description_label)) },
             placeholder = { Text(stringResource(R.string.transaction_description_placeholder)) },
-            shape = MaterialTheme.shapes.large,
+            shape = MaterialTheme.shapes.extraLarge,
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
         )
@@ -262,7 +265,7 @@ private fun TransactionFormFields(
                 onValueChange = viewModel::updateRecurrenceInterval,
                 label = { Text(stringResource(R.string.transaction_every_n_months)) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                shape = MaterialTheme.shapes.large,
+                shape = MaterialTheme.shapes.extraLarge,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )

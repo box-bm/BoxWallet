@@ -33,6 +33,7 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Currency
 import java.util.Locale
+import com.boxdev.boxwallet.ui.theme.BoxTheme
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -83,7 +84,7 @@ fun CurrencyDetailScreen(
                     }
                 }
                 RangeChips(state.range, viewModel::selectRange)
-                Surface(color = MaterialTheme.colorScheme.surfaceContainer, shape = MaterialTheme.shapes.extraLarge) {
+                Surface(color = BoxTheme.cardColor, shape = MaterialTheme.shapes.extraLargeIncreased) {
                     RateLineChart(
                         series = state.series,
                         summary = summary,
@@ -141,7 +142,7 @@ private fun RangeChips(selected: RateRange, onSelect: (RateRange) -> Unit) {
 
 @Composable
 private fun StatTile(label: String, value: String) {
-    Surface(color = MaterialTheme.colorScheme.surfaceContainer, shape = MaterialTheme.shapes.large) {
+    Surface(color = BoxTheme.cardColor, shape = MaterialTheme.shapes.extraLarge) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
             Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(value, style = MaterialTheme.typography.titleMedium)

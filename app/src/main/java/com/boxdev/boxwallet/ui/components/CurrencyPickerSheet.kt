@@ -66,7 +66,7 @@ fun CurrencyPickerSheet(
                 onValueChange = { query = it; onQuery(it) },
                 placeholder = { Text(stringResource(R.string.currency_picker_search)) },
                 leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
-                shape = MaterialTheme.shapes.large,
+                shape = MaterialTheme.shapes.extraLarge,
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 modifier = Modifier.fillMaxWidth(),

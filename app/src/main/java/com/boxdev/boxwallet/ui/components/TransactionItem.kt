@@ -29,6 +29,7 @@ import com.boxdev.boxwallet.util.rememberCurrencyFormatter
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Transaction
+import com.boxdev.boxwallet.ui.theme.BoxTheme
 
 /**
  * One movement in a connected list group. [index] / [count] give the group position so the
@@ -43,7 +44,7 @@ fun TransactionItem(
     index: Int = 0,
     count: Int = 1,
     showDate: Boolean = true,
-    containerColor: Color = MaterialTheme.colorScheme.surfaceContainer,
+    containerColor: Color = BoxTheme.cardColor,
     onClick: () -> Unit = {},
     onLongClick: (() -> Unit)? = null,
 ) {

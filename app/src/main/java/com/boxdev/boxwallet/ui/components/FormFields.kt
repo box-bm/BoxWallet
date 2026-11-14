@@ -29,6 +29,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DeleteOutline
@@ -130,16 +131,44 @@ fun AmountField(
     LaunchedEffect(autoFocus) { if (autoFocus) runCatching { focus.requestFocus() } }
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = MaterialTheme.shapes.extraLarge,
+        shape = MaterialTheme.shapes.extraLargeIncreased,
         border = if (isError) BorderStroke(2.dp, MaterialTheme.colorScheme.error) else null,
         modifier = modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                label,
-                style = MaterialTheme.typography.labelLarge,
-                color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            val labelText: @Composable () -> Unit = {
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (currencyCode != null && onCurrencyClick != null) {
+                // The currency is a quiet menu button in the field's header, so the amount stands alone below.
+                val chipDescription = if (!currencyEnabled && currencyDisabledDescription != null) {
+                    currencyDisabledDescription
+                } else {
+                    stringResource(R.string.currency_chip_description, currencyCode)
+                }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.weight(1f).padding(start = 4.dp)) { labelText() }
+                    androidx.compose.material3.FilledTonalButton(
+                        onClick = onCurrencyClick,
+                        enabled = currencyEnabled,
+                        colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            contentColor = MaterialTheme.colorScheme.onSurface,
+                        ),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 8.dp),
+                        modifier = Modifier.semantics { contentDescription = chipDescription },
+                    ) {
+                        Text(currencyCode)
+                        Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
+                    }
+                }
+            } else {
+                labelText()
+            }
             val measurer = androidx.compose.ui.text.rememberTextMeasurer()
             val density = androidx.compose.ui.platform.LocalDensity.current
             androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth()) {
@@ -181,20 +210,6 @@ fun AmountField(
                         },
                     )
                 }
-            }
-            if (currencyCode != null && onCurrencyClick != null) {
-                val chipDescription = if (!currencyEnabled && currencyDisabledDescription != null) {
-                    currencyDisabledDescription
-                } else {
-                    stringResource(R.string.currency_chip_description, currencyCode)
-                }
-                androidx.compose.material3.AssistChip(
-                    onClick = onCurrencyClick,
-                    enabled = currencyEnabled,
-                    label = { Text(currencyCode) },
-                    trailingIcon = { Icon(Icons.Outlined.UnfoldMore, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                    modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = chipDescription },
-                )
             }
         }
     }
@@ -385,7 +400,7 @@ fun <T> MenuRow(
     var open by remember { mutableStateOf(false) }
     Box {
         ValueRow(shape, icon, label, value, onClick = { open = true }, trailingIcon = Icons.Outlined.UnfoldMore)
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }, shape = MaterialTheme.shapes.large) {
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }, shape = MaterialTheme.shapes.extraLarge) {
             options.forEach { option ->
                 val text = optionLabel(option)
                 DropdownMenuItem(

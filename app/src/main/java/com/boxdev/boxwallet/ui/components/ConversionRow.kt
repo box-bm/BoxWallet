@@ -58,7 +58,7 @@ fun ConversionRow(
 
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = MaterialTheme.shapes.large,
+        shape = MaterialTheme.shapes.extraLarge,
         modifier = modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -102,7 +102,7 @@ fun ConversionRow(
                     label = { Text(stringResource(R.string.conversion_rate_label)) },
                     isError = missing,
                     singleLine = true,
-                    shape = MaterialTheme.shapes.large,
+                    shape = MaterialTheme.shapes.extraLarge,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.weight(1f),
                 )
@@ -112,7 +112,7 @@ fun ConversionRow(
                     label = { Text(stringResource(R.string.conversion_equivalent_label, to.currencyCode)) },
                     prefix = { Text("≈ " + CurrencyCatalog.symbol(to, locale)) },
                     singleLine = true,
-                    shape = MaterialTheme.shapes.large,
+                    shape = MaterialTheme.shapes.extraLarge,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.weight(1f),
                 )

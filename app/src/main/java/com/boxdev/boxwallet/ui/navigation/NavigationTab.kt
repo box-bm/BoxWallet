@@ -190,7 +190,7 @@ fun NavigationTab(
     // The NavHost keeps one position in the composition whatever the navigation kind: its screens'
     // rememberSaveable state is keyed by that position, so moving it between a rail and a bar layout
     // (a fold or rotation recreates the activity) would silently drop that state.
-    Row(modifier = modifier.background(surfaceContainer)) {
+    Row(modifier = modifier.background(MaterialTheme.colorScheme.surface)) {
         if (rail) {
             val railExpanded = layout.railExpanded
             val showRailLabels = railExpanded || !layout.compactHeight
@@ -297,7 +297,7 @@ fun NavigationTab(
             }
         }
         Scaffold(
-            containerColor = surfaceContainer,
+            containerColor = MaterialTheme.colorScheme.surface,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             modifier = Modifier.weight(1f),
             bottomBar = {

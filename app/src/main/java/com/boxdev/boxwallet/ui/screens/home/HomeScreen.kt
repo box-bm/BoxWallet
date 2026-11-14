@@ -40,7 +40,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.ui.components.AppSearchBar
-import com.boxdev.boxwallet.ui.components.SearchBarSpan
 import com.boxdev.boxwallet.ui.components.BalancePanel
 import com.boxdev.boxwallet.ui.components.EmptyState
 import com.boxdev.boxwallet.ui.components.LoanRow
@@ -81,7 +80,6 @@ fun HomeScreen(
         topBar = {
             AppSearchBar(
                 onClick = onNavigateToSearch,
-                span = if (twoPane) SearchBarSpan.HalfPane else SearchBarSpan.Full,
                 trailing = {
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.nav_settings))
@@ -161,7 +159,7 @@ fun HomeScreen(
                     LazyColumn(
                         state = startList,
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+                        contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp),
                     ) {
                         balance()
                         loans()
@@ -170,7 +168,7 @@ fun HomeScreen(
                     LazyColumn(
                         state = startList,
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp),
+                        contentPadding = PaddingValues(top = 8.dp),
                     ) {
                         balance()
                         recent()
@@ -184,7 +182,7 @@ fun HomeScreen(
                     LazyColumn(
                         state = endList,
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+                        contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp),
                     ) {
                         recent()
                     }

@@ -102,7 +102,7 @@ fun LoanFormScreen(
         title = stringResource(if (formState.isEditing) R.string.loan_edit_title else R.string.loan_new_title),
         onClose = finish,
         onSave = viewModel::save,
-        saveEnabled = formState.isValid,
+        deleteLabel = stringResource(R.string.loan_delete_button),
         onDelete = if (formState.isEditing) ({ showDeleteDialog = true }) else null,
         hasUnsavedChanges = hasUnsavedChanges,
         scrollState = scrollState,
@@ -205,7 +205,7 @@ private fun LoanFormFields(
                 onValueChange = viewModel::updateName,
                 label = { Text(stringResource(R.string.loan_name_label)) },
                 placeholder = { Text(stringResource(R.string.loan_name_placeholder)) },
-                shape = MaterialTheme.shapes.large,
+                shape = MaterialTheme.shapes.extraLarge,
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
@@ -213,7 +213,7 @@ private fun LoanFormFields(
                 value = formState.description,
                 onValueChange = viewModel::updateDescription,
                 label = { Text(stringResource(R.string.description_optional)) },
-                shape = MaterialTheme.shapes.large,
+                shape = MaterialTheme.shapes.extraLarge,
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
@@ -239,7 +239,7 @@ private fun LoanFormFields(
                     onValueChange = viewModel::updateInstallments,
                     label = { Text(stringResource(R.string.loan_installments_label)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    shape = MaterialTheme.shapes.large,
+                    shape = MaterialTheme.shapes.extraLarge,
                     singleLine = true,
                     modifier = Modifier.weight(1f),
                 )
@@ -252,7 +252,7 @@ private fun LoanFormFields(
                         onValueChange = viewModel::updateFrequencyInterval,
                         label = { Text(stringResource(R.string.transaction_every_n_months)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        shape = MaterialTheme.shapes.large,
+                        shape = MaterialTheme.shapes.extraLarge,
                         singleLine = true,
                     )
                 }
@@ -274,7 +274,7 @@ private fun LoanFormFields(
                 Surface(
                     color = MaterialTheme.colorScheme.tertiaryContainer,
                     contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                    shape = MaterialTheme.shapes.large,
+                    shape = MaterialTheme.shapes.extraLarge,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(

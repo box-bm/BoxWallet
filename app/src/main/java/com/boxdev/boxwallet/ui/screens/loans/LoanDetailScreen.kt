@@ -197,8 +197,8 @@ private fun LoanHero(
     val stroke = remember(density) { with(density) { Stroke(width = 6.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round) } }
 
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        shape = MaterialTheme.shapes.extraLarge,
+        color = BoxTheme.cardColor,
+        shape = MaterialTheme.shapes.extraLargeIncreased,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
@@ -330,7 +330,7 @@ private fun InstallmentRow(
             containerColor = when {
                 isOverdue -> MaterialTheme.colorScheme.errorContainer
                 isNext -> MaterialTheme.colorScheme.tertiaryContainer
-                else -> MaterialTheme.colorScheme.surfaceContainer
+                else -> BoxTheme.cardColor
             },
         ),
         leadingContent = { Checkbox(checked = installment.isCleared, onCheckedChange = null) },
