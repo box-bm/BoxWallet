@@ -198,7 +198,7 @@ private fun LoanHero(
 
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainer,
-        shape = MaterialTheme.shapes.extraLarge,
+        shape = MaterialTheme.shapes.extraLargeIncreased,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {

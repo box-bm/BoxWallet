@@ -64,7 +64,7 @@ fun LoanCard(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
         color = if (selected) MaterialTheme.colorScheme.secondaryContainer else containerColor,
-        shape = MaterialTheme.shapes.large,
+        shape = MaterialTheme.shapes.extraLarge,
         interactionSource = interaction,
     ) {
         Column(

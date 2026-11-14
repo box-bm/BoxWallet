@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.boxdev.boxwallet.ui.components
 
 import android.content.res.Configuration
@@ -32,7 +34,7 @@ import com.boxdev.boxwallet.ui.theme.appLayout
 fun AppPane(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
     Surface(
         modifier = modifier,
-        shape = MaterialTheme.shapes.extraLarge,
+        shape = MaterialTheme.shapes.extraLargeIncreased,
         color = MaterialTheme.colorScheme.surfaceContainerLowest,
     ) {
         Box(content = content)

@@ -227,7 +227,7 @@ private fun LegendRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(MaterialTheme.shapes.medium)
+            .clip(MaterialTheme.shapes.largeIncreased)
             .background(background)
             .clickable(onClick = onClick)
             .semantics(mergeDescendants = true) {

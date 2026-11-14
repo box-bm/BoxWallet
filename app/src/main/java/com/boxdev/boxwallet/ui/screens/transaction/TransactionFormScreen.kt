@@ -189,7 +189,7 @@ private fun TransactionFormFields(
             onValueChange = viewModel::updateDescription,
             label = { Text(stringResource(R.string.transaction_description_label)) },
             placeholder = { Text(stringResource(R.string.transaction_description_placeholder)) },
-            shape = MaterialTheme.shapes.large,
+            shape = MaterialTheme.shapes.extraLarge,
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
         )
@@ -262,7 +262,7 @@ private fun TransactionFormFields(
                 onValueChange = viewModel::updateRecurrenceInterval,
                 label = { Text(stringResource(R.string.transaction_every_n_months)) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                shape = MaterialTheme.shapes.large,
+                shape = MaterialTheme.shapes.extraLarge,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )

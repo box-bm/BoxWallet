@@ -71,7 +71,7 @@ fun BalancePanel(
         modifier = modifier.fillMaxWidth(),
         color = colors.primary,
         contentColor = colors.onPrimary,
-        shape = MaterialTheme.shapes.extraLarge,
+        shape = MaterialTheme.shapes.extraLargeIncreased,
     ) {
         Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 24.dp)) {
             Text(

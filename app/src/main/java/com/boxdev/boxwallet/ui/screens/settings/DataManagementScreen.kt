@@ -45,7 +45,7 @@ fun DataManagementScreen(
         Surface(
             color = MaterialTheme.colorScheme.errorContainer,
             contentColor = MaterialTheme.colorScheme.onErrorContainer,
-            shape = MaterialTheme.shapes.large,
+            shape = MaterialTheme.shapes.extraLarge,
         ) {
             Row(Modifier.fillMaxWidth().padding(20.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 Icon(Icons.Outlined.WarningAmber, contentDescription = null)

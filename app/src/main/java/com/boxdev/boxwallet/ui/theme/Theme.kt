@@ -7,13 +7,16 @@ import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialExpressiveTheme
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
@@ -101,12 +104,20 @@ fun BoxWalletTheme(
     }
 }
 
+/**
+ * Container tone for cards, rows and groups. Null means the default (surfaceContainer on the surface
+ * body); a contained pane provides one step up so its cards keep their contrast.
+ */
+val LocalCardColor = compositionLocalOf<Color?> { null }
+
 /** Shorthand accessors that read like MaterialTheme. */
 object BoxTheme {
     val money: MoneyColors
         @Composable get() = LocalMoneyColors.current
     val moneyType: MoneyType
         @Composable get() = LocalMoneyType.current
+    val cardColor: Color
+        @Composable get() = LocalCardColor.current ?: MaterialTheme.colorScheme.surfaceContainer
     val layout: AppLayout
         @Composable get() = LocalAppLayout.current
     val widthClass: WidthClass

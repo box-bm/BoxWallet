@@ -130,7 +130,7 @@ fun AmountField(
     LaunchedEffect(autoFocus) { if (autoFocus) runCatching { focus.requestFocus() } }
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = MaterialTheme.shapes.extraLarge,
+        shape = MaterialTheme.shapes.extraLargeIncreased,
         border = if (isError) BorderStroke(2.dp, MaterialTheme.colorScheme.error) else null,
         modifier = modifier.fillMaxWidth(),
     ) {
@@ -385,7 +385,7 @@ fun <T> MenuRow(
     var open by remember { mutableStateOf(false) }
     Box {
         ValueRow(shape, icon, label, value, onClick = { open = true }, trailingIcon = Icons.Outlined.UnfoldMore)
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }, shape = MaterialTheme.shapes.large) {
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }, shape = MaterialTheme.shapes.extraLarge) {
             options.forEach { option ->
                 val text = optionLabel(option)
                 DropdownMenuItem(
