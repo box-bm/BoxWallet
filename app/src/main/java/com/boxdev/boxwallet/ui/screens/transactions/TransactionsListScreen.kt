@@ -62,6 +62,14 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.boxdev.boxwallet.R
+import com.boxdev.boxwallet.ui.screens.transaction.TransactionFormViewModel
+import com.boxdev.boxwallet.ui.screens.transaction.TransactionFormScreen
+import com.boxdev.boxwallet.ui.components.PanePlaceholder
+import androidx.compose.ui.semantics.selected
+import androidx.compose.runtime.key
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.AlertDialog
 import com.boxdev.boxwallet.domain.model.net
 import com.boxdev.boxwallet.ui.components.CategoryFilterChips
 import com.boxdev.boxwallet.ui.components.CheckFilterChip
@@ -71,7 +79,6 @@ import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.ui.components.AmountText
 import com.boxdev.boxwallet.ui.components.AppSearchBar
-import com.boxdev.boxwallet.ui.components.SearchBarSpan
 import com.boxdev.boxwallet.ui.components.PaneRow
 import com.boxdev.boxwallet.ui.components.mainMoney
 import com.boxdev.boxwallet.ui.components.ConnectedChoiceRow
@@ -107,7 +114,36 @@ fun TransactionsListScreen(
         filter.showOnlyRecurrent,
     ).count { it }
 
-    BackHandler(enabled = showFilters && !twoPane) { showFilters = false }
+    // Two panes: the list beside an editor for the selected movement, the way Loans shows a loan.
+    // One view model serves the pane and is pointed at each selection in turn.
+    val editor: TransactionFormViewModel = hiltViewModel(key = "movement_editor_pane")
+    val editorHasChanges by editor.hasUnsavedChanges.collectAsState()
+    var selectedId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var pendingId by remember { mutableStateOf<Long?>(null) }
+    val openMovement: (Long) -> Unit = { id ->
+        when {
+            !twoPane -> onEditTransaction(id)
+            id == selectedId -> Unit
+            // Edits in the pane are not dropped silently for another row.
+            editorHasChanges -> pendingId = id
+            else -> { editor.open(id); selectedId = id }
+        }
+    }
+    // After the process was restored, the selection is back but the editor is not.
+    LaunchedEffect(selectedId) { selectedId?.let(editor::open) }
+    // Folded with a movement open: it carries on in the full-screen form.
+    LaunchedEffect(twoPane) {
+        val id = selectedId
+        if (!twoPane && id != null) { selectedId = null; onEditTransaction(id) }
+    }
+    // A movement deleted elsewhere leaves the pane.
+    LaunchedEffect(selectedId, uiState.transactions, uiState.isLoading) {
+        val id = selectedId
+        if (id != null && !uiState.isLoading && uiState.transactions.none { it.id == id }) selectedId = null
+    }
+
+    BackHandler(enabled = showFilters) { showFilters = false }
+    BackHandler(enabled = twoPane && selectedId != null && !showFilters) { selectedId = null }
 
     val filterPanel: @Composable (Modifier) -> Unit = { modifier ->
         Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(20.dp)) {
@@ -161,10 +197,8 @@ fun TransactionsListScreen(
 
     val content: @Composable () -> Unit = {
         Column(Modifier.fillMaxSize()) {
-            if (!twoPane) {
-                CollapsibleFilterPanel(visible = showFilters) {
-                    filterPanel(Modifier.padding(16.dp))
-                }
+            CollapsibleFilterPanel(visible = showFilters) {
+                filterPanel(Modifier.padding(16.dp))
             }
 
             when {
@@ -194,7 +228,8 @@ fun TransactionsListScreen(
                     uiState = uiState,
                     listState = listState,
                     categoryMap = categoryMap,
-                    onEditTransaction = onEditTransaction,
+                    selectedId = if (twoPane) selectedId else null,
+                    onEditTransaction = openMovement,
                 )
             }
         }
@@ -206,38 +241,59 @@ fun TransactionsListScreen(
         topBar = {
             AppSearchBar(
                 onClick = onNavigateToSearch,
-                span = if (twoPane) SearchBarSpan.Fixed(FILTERS_PANE_WIDTH) else SearchBarSpan.Full,
-                trailing = if (!twoPane) {
-                    {
-                        FilterToggleAction(
-                            filtersOpen = showFilters,
-                            onToggleFilters = { showFilters = it },
-                            activeFilterCount = activeFilters,
-                        )
-                    }
-                } else null,
+                trailing = {
+                    FilterToggleAction(
+                        filtersOpen = showFilters,
+                        onToggleFilters = { showFilters = it },
+                        activeFilterCount = activeFilters,
+                    )
+                },
             )
         },
     ) { padding ->
         if (twoPane) {
-            // Expanded: filters stay open as a side pane.
             PaneRow(
                 modifier = Modifier.padding(padding),
-                firstWidth = FILTERS_PANE_WIDTH,
-                containFirst = true,
-                first = {
-                    filterPanel(
-                        Modifier
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
-                            .padding(20.dp)
-                    )
+                firstWidth = LIST_PANE_WIDTH,
+                containSecond = true,
+                first = content,
+                second = {
+                    val id = selectedId
+                    if (id == null) {
+                        PanePlaceholder(
+                            icon = Icons.AutoMirrored.Outlined.ReceiptLong,
+                            title = stringResource(R.string.transactions_select_hint),
+                        )
+                    } else {
+                        // Keyed, so the form's own exit latch starts fresh for each movement.
+                        key(id) {
+                            TransactionFormScreen(
+                                onDone = { selectedId = null; true },
+                                viewModel = editor,
+                                embedded = true,
+                            )
+                        }
+                    }
                 },
-                second = content,
             )
         } else {
             PaneRow(modifier = Modifier.padding(padding), first = content)
         }
+    }
+
+    pendingId?.let { next ->
+        AlertDialog(
+            onDismissRequest = { pendingId = null },
+            title = { Text(stringResource(R.string.form_discard_title)) },
+            confirmButton = {
+                TextButton(onClick = { pendingId = null; editor.open(next); selectedId = next }) {
+                    Text(stringResource(R.string.form_discard))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingId = null }) { Text(stringResource(R.string.form_keep_editing)) }
+            },
+        )
     }
 }
 
@@ -246,6 +302,7 @@ private fun TransactionsByDay(
     uiState: TransactionsListUiState,
     listState: androidx.compose.foundation.lazy.LazyListState,
     categoryMap: Map<Long, Category>,
+    selectedId: Long?,
     onEditTransaction: (Long) -> Unit,
 ) {
     val sortedByDate = uiState.filterState.sortBy == SortBy.DATE_DESC || uiState.filterState.sortBy == SortBy.DATE_ASC
@@ -324,8 +381,12 @@ private fun TransactionsByDay(
                     index = index,
                     count = transactions.size,
                     showDate = date == null,
+                    containerColor = if (transaction.id == selectedId) {
+                        MaterialTheme.colorScheme.secondaryContainer
+                    } else BoxTheme.cardColor,
                     onClick = { onEditTransaction(transaction.id) },
                     modifier = Modifier
+                        .semantics { selected = transaction.id == selectedId }
                         .padding(bottom = ListItemDefaults.SegmentedGap)
                         .animateItem(),
                 )
@@ -335,5 +396,5 @@ private fun TransactionsByDay(
     }
 }
 
-/** Width of the filters pane beside the list on two-pane windows. */
-private val FILTERS_PANE_WIDTH = 360.dp
+/** Width of the list beside the editor pane on two-pane windows, the same as the Loans list. */
+private val LIST_PANE_WIDTH = 360.dp

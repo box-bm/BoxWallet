@@ -369,6 +369,7 @@
         <item quantity="many">%1$d movimientos</item>
         <item quantity="other">%1$d movimientos</item>
     </plurals>
+    <string name="transactions_select_hint">Selecciona un movimiento para editarlo</string>
     <string name="loans_select_hint">Selecciona un préstamo para ver sus cuotas</string>
     <plurals name="loan_days_overdue">
         <item quantity="one">%1$d día de atraso</item>

@@ -102,7 +102,7 @@ fun LoanFormScreen(
         title = stringResource(if (formState.isEditing) R.string.loan_edit_title else R.string.loan_new_title),
         onClose = finish,
         onSave = viewModel::save,
-        saveEnabled = formState.isValid,
+        deleteLabel = stringResource(R.string.loan_delete_button),
         onDelete = if (formState.isEditing) ({ showDeleteDialog = true }) else null,
         hasUnsavedChanges = hasUnsavedChanges,
         scrollState = scrollState,

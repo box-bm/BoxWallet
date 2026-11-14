@@ -22,6 +22,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -102,5 +103,37 @@ class TransactionFormViewModelTest {
         vm.updateAmount("12")
         advanceUntilIdle()
         assertTrue(vm.hasUnsavedChanges.value)
+    }
+
+    @Test
+    fun openLoadsAnotherMovementIntoTheSameForm() = runTest {
+        val vm = vm(emptyMap())
+        vm.open(3L)
+        advanceUntilIdle()
+        assertTrue(vm.formState.value.isEditing)
+        assertEquals(3L, vm.formState.value.id)
+        assertFalse(vm.formState.value.isLoading)
+    }
+
+    @Test
+    fun openingTheMovementAlreadyShownKeepsItsEdits() = runTest {
+        val vm = vm(emptyMap())
+        vm.open(3L)
+        advanceUntilIdle()
+        vm.updateAmount("12")
+        vm.open(3L)
+        advanceUntilIdle()
+        assertEquals("12", vm.formState.value.amount)
+    }
+
+    @Test
+    fun openDropsTheSavedFlagOfThePreviousMovementAtOnce() = runTest {
+        val vm = vm(mapOf("id" to 3L))
+        advanceUntilIdle()
+        vm.delete()
+        advanceUntilIdle()
+        assertTrue(vm.formState.value.isSaved)
+        vm.open(3L)
+        assertFalse(vm.formState.value.isSaved)
     }
 }

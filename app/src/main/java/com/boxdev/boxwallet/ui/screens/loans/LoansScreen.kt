@@ -85,7 +85,6 @@ import com.boxdev.boxwallet.ui.components.AmountText
 import com.boxdev.boxwallet.ui.components.AppPane
 import com.boxdev.boxwallet.ui.components.PanePlaceholder
 import com.boxdev.boxwallet.ui.components.AppSearchBar
-import com.boxdev.boxwallet.ui.components.SearchBarSpan
 import com.boxdev.boxwallet.ui.components.CategoryFilterChips
 import com.boxdev.boxwallet.ui.components.CollapsibleFilterPanel
 import com.boxdev.boxwallet.ui.components.ConnectedChoiceRow
@@ -171,8 +170,6 @@ fun LoansScreen(
             if (listShown) {
                 AppSearchBar(
                     onClick = onNavigateToSearch,
-                    // The list pane is 360dp including its start margin.
-                    span = if (bothShown) SearchBarSpan.Fixed(LIST_PANE_WIDTH - margin) else SearchBarSpan.Full,
                     trailing = {
                         FilterToggleAction(
                             filtersOpen = showFilters,

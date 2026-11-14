@@ -39,20 +39,9 @@ import com.boxdev.boxwallet.ui.theme.BoxWalletTheme
 import com.boxdev.boxwallet.ui.theme.LocalAppLayout
 import com.boxdev.boxwallet.ui.theme.appLayout
 
-/** How wide the search bar runs: the whole row, or only over the first of two panes below it. */
-sealed interface SearchBarSpan {
-    /** Single pane: the bar spans the content width. */
-    data object Full : SearchBarSpan
-
-    /** Two 50/50 panes: the bar spans the first one. */
-    data object HalfPane : SearchBarSpan
-
-    /** A fixed first pane: the bar is exactly [width] wide, like the pane under it. */
-    data class Fixed(val width: Dp) : SearchBarSpan
-}
-
 /**
- * Search entry point that sits on the window background above the panes. It holds no query text:
+ * Search entry point that sits on the surface body above the content, across every pane: search is
+ * global, so the bar belongs to the window, not to the first pane. It holds no query text:
  * the search icon and placeholder form one button that opens search; [trailing] is a separate
  * control beside it, focusable on its own.
  */
@@ -60,7 +49,6 @@ sealed interface SearchBarSpan {
 fun AppSearchBar(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    span: SearchBarSpan = SearchBarSpan.Full,
     trailing: @Composable (() -> Unit)? = null,
 ) {
     val placeholder = stringResource(R.string.search_in_app)
@@ -72,15 +60,7 @@ fun AppSearchBar(
             .padding(start = margin, end = margin, top = 8.dp, bottom = 8.dp)
             .fillMaxWidth(),
     ) {
-        val barModifier = when (span) {
-            SearchBarSpan.Full, SearchBarSpan.HalfPane -> Modifier.weight(1f)
-            is SearchBarSpan.Fixed -> Modifier.width(span.width)
-        }
-        SearchBarPill(onClick, placeholder, trailing, barModifier.height(56.dp))
-        if (span == SearchBarSpan.HalfPane) {
-            Spacer(Modifier.width(24.dp))
-            Spacer(Modifier.weight(1f))
-        }
+        SearchBarPill(onClick, placeholder, trailing, Modifier.weight(1f).height(56.dp))
     }
 }
 
@@ -132,8 +112,8 @@ private fun SearchBarPill(
 private fun SearchBarPreviewContent(width: Int) {
     BoxWalletTheme {
         CompositionLocalProvider(LocalAppLayout provides appLayout(width, 800)) {
-            Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
-                AppSearchBar(onClick = {}, span = if (width >= 840) SearchBarSpan.HalfPane else SearchBarSpan.Full)
+            Surface(color = MaterialTheme.colorScheme.surface) {
+                AppSearchBar(onClick = {})
             }
         }
     }
