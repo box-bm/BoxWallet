@@ -10,6 +10,12 @@ package com.boxdev.boxwallet.ui.screens.loans
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
@@ -183,10 +189,10 @@ fun LoansScreen(
             modifier = Modifier.padding(padding).consumeWindowInsets(padding),
             listPane = {
                 AnimatedPane {
-                    AppPane(
+                    Box(
                         Modifier
                             .fillMaxSize()
-                            .padding(start = margin, end = if (bothShown) 0.dp else margin, bottom = margin)
+                            .padding(start = margin, end = if (bothShown) 0.dp else margin)
                     ) {
                         LoansList(
                             viewModel = viewModel,
@@ -209,12 +215,16 @@ fun LoansScreen(
                     val top = if (listShown) Modifier else {
                         Modifier.windowInsetsPadding(WindowInsets.statusBars).padding(top = 8.dp)
                     }
-                    AppPane(
-                        Modifier
-                            .fillMaxSize()
-                            .then(top)
-                            .padding(start = if (bothShown) 0.dp else margin, end = margin, bottom = margin)
-                    ) {
+                    val paneModifier = Modifier
+                        .fillMaxSize()
+                        .then(top)
+                        // On its own the detail brings its 16dp content padding, so only the rest of the margin is added.
+                        .padding(
+                            start = if (bothShown) 0.dp else margin - 16.dp,
+                            end = if (bothShown) margin else margin - 16.dp,
+                            bottom = if (bothShown) margin else 0.dp,
+                        )
+                    val detail: @Composable () -> Unit = {
                         val id = selectedLoanId
                         if (id == null) {
                             PanePlaceholder(icon = Icons.Outlined.TouchApp, title = stringResource(R.string.loans_select_hint))
@@ -228,6 +238,8 @@ fun LoansScreen(
                             )
                         }
                     }
+                    // Beside the list the detail is the contained pane; on its own it sits on the surface body.
+                    if (bothShown) AppPane(paneModifier) { detail() } else Box(paneModifier) { detail() }
                 }
             },
         )
@@ -330,7 +342,7 @@ private fun LoansList(
             else -> LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 112.dp),
+                contentPadding = PaddingValues(top = 8.dp, bottom = 112.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 val totals = uiState.totals
@@ -380,21 +392,39 @@ private fun LoansList(
     }
 }
 
-/** What is still outstanding across all loans, by direction: never netted into one number. */
+/**
+ * What is still outstanding across all loans, by direction: never netted into one number.
+ * Two connected tiles, so the pair reads as one contained group.
+ */
 @Composable
 private fun LoanTotalsHeader(totals: LoanTotals, modifier: Modifier = Modifier) {
-    Row(modifier.fillMaxWidth().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+    val outer = 28.dp
+    val inner = 4.dp
+    Row(
+        modifier.fillMaxWidth().height(IntrinsicSize.Min),
+        horizontalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
+    ) {
         listOf(
             Triple(R.string.loans_summary_to_pay, totals.toPay, AmountKind.Expense),
             Triple(R.string.loans_summary_to_collect, totals.toCollect, AmountKind.Income),
-        ).forEach { (label, amount, kind) ->
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    stringResource(label),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                AmountText(mainMoney(amount), kind = kind, signed = false, style = BoxTheme.moneyType.medium, autoSize = true)
+        ).forEachIndexed { index, (label, amount, kind) ->
+            val shape = if (index == 0) {
+                RoundedCornerShape(topStart = outer, bottomStart = outer, topEnd = inner, bottomEnd = inner)
+            } else {
+                RoundedCornerShape(topStart = inner, bottomStart = inner, topEnd = outer, bottomEnd = outer)
+            }
+            Surface(color = BoxTheme.cardColor, shape = shape, modifier = Modifier.weight(1f).fillMaxHeight()) {
+                Column(
+                    Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        stringResource(label),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    AmountText(mainMoney(amount), kind = kind, signed = false, style = BoxTheme.moneyType.large, autoSize = true)
+                }
             }
         }
     }

@@ -227,7 +227,8 @@ fun NavGraph(
                     .fillMaxSize()
                     .background(MaterialTheme.colorScheme.surface)
                     .windowInsetsPadding(WindowInsets.safeDrawing)
-                    .padding(start = margin, top = 8.dp, end = margin, bottom = margin)
+                    // The detail brings its own 16dp content padding.
+                    .padding(start = margin - 16.dp, top = 8.dp, end = margin - 16.dp)
             ) {
                 LoanDetailScreen(onNavigateBack = { navController.popBackStack() }, onEditLoan = onEditLoan)
             }

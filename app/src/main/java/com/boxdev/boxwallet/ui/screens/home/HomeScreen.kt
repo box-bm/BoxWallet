@@ -161,7 +161,7 @@ fun HomeScreen(
                     LazyColumn(
                         state = startList,
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+                        contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp),
                     ) {
                         balance()
                         loans()
@@ -170,7 +170,7 @@ fun HomeScreen(
                     LazyColumn(
                         state = startList,
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp),
+                        contentPadding = PaddingValues(top = 8.dp),
                     ) {
                         balance()
                         recent()
@@ -184,7 +184,7 @@ fun HomeScreen(
                     LazyColumn(
                         state = endList,
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+                        contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp),
                     ) {
                         recent()
                     }

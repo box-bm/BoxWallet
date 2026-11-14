@@ -458,7 +458,7 @@ fun CollapsibleFilterPanel(visible: Boolean, content: @Composable () -> Unit) {
         Surface(
             color = MaterialTheme.colorScheme.surfaceContainerLow,
             shape = MaterialTheme.shapes.extraLarge,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier = Modifier.padding(vertical = 8.dp),
             content = content,
         )
     }

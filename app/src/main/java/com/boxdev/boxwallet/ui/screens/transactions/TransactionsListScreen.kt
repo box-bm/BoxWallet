@@ -224,6 +224,7 @@ fun TransactionsListScreen(
             PaneRow(
                 modifier = Modifier.padding(padding),
                 firstWidth = FILTERS_PANE_WIDTH,
+                containFirst = true,
                 first = {
                     filterPanel(
                         Modifier
@@ -264,7 +265,7 @@ private fun TransactionsByDay(
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 112.dp),
+        contentPadding = PaddingValues(top = 8.dp, bottom = 112.dp),
     ) {
         item(key = "records_count") {
             Text(
@@ -282,7 +283,7 @@ private fun TransactionsByDay(
             if (date != null) {
                 stickyHeader(key = "h_$date") {
                     val net = transactions.net()
-                    Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest, modifier = Modifier.fillMaxWidth()) {
+                    Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
                         Row(
                             modifier = Modifier.padding(start = 4.dp, top = 16.dp, bottom = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,

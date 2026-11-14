@@ -48,7 +48,7 @@ fun AppPane(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> U
 }
 
 /**
- * Lays out one or two panes with [BoxTheme.layout] margin at start, end and bottom and a 24dp gap.
+ * Lays out one or two panes with [BoxTheme.layout] margin at start and end and a 24dp gap.
  * Panes blend into the surface body unless [containFirst] / [containSecond] puts one in an [AppPane];
  * contain only the supporting pane of a two-pane layout.
  * A fixed [firstWidth] is meant for two-pane (expanded) layouts only.
@@ -67,7 +67,7 @@ fun PaneRow(
     Row(
         modifier = modifier
             .fillMaxSize()
-            .padding(start = margin, end = margin, bottom = margin),
+            .padding(start = margin, end = margin),
     ) {
         val firstModifier = if (second != null && firstWidth != null) {
             Modifier.width(firstWidth).fillMaxHeight()
@@ -84,7 +84,8 @@ fun PaneRow(
 
 @Composable
 private fun Pane(modifier: Modifier, contained: Boolean, content: @Composable () -> Unit) {
-    if (contained) AppPane(modifier) { content() } else Box(modifier) { content() }
+    // Only a contained pane stops short of the window's bottom edge; content on the body scrolls to it.
+    if (contained) AppPane(modifier.padding(bottom = BoxTheme.layout.margin)) { content() } else Box(modifier) { content() }
 }
 
 /**

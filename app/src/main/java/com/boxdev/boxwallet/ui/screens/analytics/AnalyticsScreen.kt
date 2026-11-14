@@ -99,6 +99,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -338,7 +339,7 @@ fun AnalyticsScreen(
             modifier = Modifier.padding(paddingValues),
             first = {
             if (wide) {
-                Column(scroll.padding(horizontal = 24.dp, vertical = 8.dp), verticalArrangement = gap) {
+                Column(scroll.padding(vertical = 8.dp), verticalArrangement = gap) {
                     // Sections fill whichever column is shorter, so neither ends in a dead block.
                     BalancedColumns(
                         listOf(
@@ -354,7 +355,7 @@ fun AnalyticsScreen(
                     Spacer(Modifier.height(24.dp))
                 }
             } else {
-                Column(scroll.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = gap) {
+                Column(scroll.padding(vertical = 8.dp), verticalArrangement = gap) {
                     controls(); summary(); emptyPeriod(); categories(); pattern(); topExpenses(); installments()
                     yearHeader(); cashFlow(); health()
                     Spacer(Modifier.height(24.dp))
@@ -1147,15 +1148,16 @@ private fun PeriodNavigator(
         horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        FilledTonalIconButton(
-            onClick = onBack,
-            shapes = IconButtonDefaults.shapes(),
-            modifier = Modifier.size(56.dp),
-        ) {
+        // Quiet controls: only the selected period above carries a primary fill.
+        IconButton(onClick = onBack, modifier = Modifier.size(56.dp)) {
             Icon(Icons.Default.ChevronLeft, contentDescription = stringResource(R.string.analytics_previous_period))
         }
         FilledTonalButton(
             onClick = onLabelClick,
+            colors = ButtonDefaults.filledTonalButtonColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+            ),
             modifier = Modifier.weight(1f).height(56.dp),
         ) {
             Icon(Icons.Outlined.CalendarMonth, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -1163,16 +1165,11 @@ private fun PeriodNavigator(
             Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         if (showToday) {
-            FilledTonalIconButton(onClick = onToday, modifier = Modifier.size(56.dp)) {
+            IconButton(onClick = onToday, modifier = Modifier.size(56.dp)) {
                 Icon(Icons.Outlined.Today, contentDescription = stringResource(R.string.analytics_today))
             }
         }
-        FilledTonalIconButton(
-            onClick = onForward,
-            enabled = canGoForward,
-            shapes = IconButtonDefaults.shapes(),
-            modifier = Modifier.size(56.dp),
-        ) {
+        IconButton(onClick = onForward, enabled = canGoForward, modifier = Modifier.size(56.dp)) {
             Icon(Icons.Default.ChevronRight, contentDescription = stringResource(R.string.analytics_next_period))
         }
     }
