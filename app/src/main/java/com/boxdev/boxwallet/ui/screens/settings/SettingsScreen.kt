@@ -10,6 +10,7 @@ import android.provider.Settings
 import androidx.annotation.StringRes
 import androidx.biometric.BiometricManager
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
@@ -162,7 +163,7 @@ private fun SettingsListDetail(
     }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        containerColor = MaterialTheme.colorScheme.surface,
         contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),
         topBar = {
             TopAppBar(
@@ -184,15 +185,13 @@ private fun SettingsListDetail(
                 .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)),
             listPane = {
                 AnimatedPane {
-                    AppPane(
+                    Box(
                         Modifier
                             .fillMaxSize()
-                            .padding(start = margin, end = if (bothShown) 0.dp else margin, bottom = margin)
+                            .padding(start = margin, end = if (bothShown) 0.dp else margin)
                     ) {
                         Column(
-                            modifier = Modifier
-                                .verticalScroll(rememberScrollState())
-                                .padding(horizontal = 16.dp),
+                            modifier = Modifier.verticalScroll(rememberScrollState()),
                             verticalArrangement = Arrangement.spacedBy(24.dp),
                         ) {
                             Spacer(Modifier.height(0.dp))
@@ -212,10 +211,12 @@ private fun SettingsListDetail(
             },
             detailPane = {
                 AnimatedPane {
-                    AppPane(
-                        Modifier
+                    // Beside the list the page is the contained pane; on its own it sits on the surface body.
+                    DetailPane(
+                        contained = bothShown,
+                        modifier = Modifier
                             .fillMaxSize()
-                            .padding(start = if (bothShown) 0.dp else margin, end = margin, bottom = margin)
+                            .padding(start = if (bothShown) 0.dp else margin, end = margin, bottom = if (bothShown) margin else 0.dp),
                     ) {
                         when (selected) {
                             null -> PanePlaceholder(
@@ -392,4 +393,9 @@ private fun SectionRow(
         onClick = { onOpenSection(section) },
         selected = section == selected,
     )
+}
+
+@Composable
+private fun DetailPane(contained: Boolean, modifier: Modifier, content: @Composable () -> Unit) {
+    if (contained) AppPane(modifier) { content() } else Box(modifier) { content() }
 }
