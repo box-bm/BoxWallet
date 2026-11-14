@@ -21,6 +21,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -31,17 +33,22 @@ import com.boxdev.boxwallet.ui.theme.LocalCardColor
 import com.boxdev.boxwallet.ui.theme.appLayout
 
 /**
- * A contained pane: the supporting pane of a two-pane layout (detail, filters), one step above the
- * surface body. Cards inside it step up too, through [LocalCardColor], so they keep their contrast.
+ * A pane. [contained] makes it the supporting pane of a two-pane layout (detail, filters): one step
+ * above the surface body, with cards inside stepping up too through [LocalCardColor] so they keep
+ * their contrast. Uncontained, it paints nothing and blends into the body.
+ *
+ * Both cases emit the same tree, so content keeps its saved state (scroll, collapsed app bar) when a
+ * fold or rotation switches a screen between one pane and two.
  */
 @Composable
-fun AppPane(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
+fun AppPane(modifier: Modifier = Modifier, contained: Boolean = true, content: @Composable BoxScope.() -> Unit) {
     Surface(
         modifier = modifier,
-        shape = MaterialTheme.shapes.extraLargeIncreased,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = if (contained) MaterialTheme.shapes.extraLargeIncreased else RectangleShape,
+        color = if (contained) MaterialTheme.colorScheme.surfaceContainerLow else Color.Transparent,
     ) {
-        CompositionLocalProvider(LocalCardColor provides MaterialTheme.colorScheme.surfaceContainerHigh) {
+        val cardColor = if (contained) MaterialTheme.colorScheme.surfaceContainerHigh else LocalCardColor.current
+        CompositionLocalProvider(LocalCardColor provides cardColor) {
             Box(content = content)
         }
     }
@@ -85,7 +92,8 @@ fun PaneRow(
 @Composable
 private fun Pane(modifier: Modifier, contained: Boolean, content: @Composable () -> Unit) {
     // Only a contained pane stops short of the window's bottom edge; content on the body scrolls to it.
-    if (contained) AppPane(modifier.padding(bottom = BoxTheme.layout.margin)) { content() } else Box(modifier) { content() }
+    val bottom = if (contained) BoxTheme.layout.margin else 0.dp
+    AppPane(modifier.padding(bottom = bottom), contained) { content() }
 }
 
 /**

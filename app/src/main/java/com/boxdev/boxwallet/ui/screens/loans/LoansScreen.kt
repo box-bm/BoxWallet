@@ -239,7 +239,7 @@ fun LoansScreen(
                         }
                     }
                     // Beside the list the detail is the contained pane; on its own it sits on the surface body.
-                    if (bothShown) AppPane(paneModifier) { detail() } else Box(paneModifier) { detail() }
+                    AppPane(paneModifier, contained = bothShown) { detail() }
                 }
             },
         )

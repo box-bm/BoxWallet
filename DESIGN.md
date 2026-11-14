@@ -331,7 +331,7 @@ A 44px polygon (40px in charts) clipped from the category's MaterialShapes silho
 ### Lists and Rows
 - **Transaction row:** a SegmentedListItem on surface-container; category badge leading; title one line; supporting line "Category · date" plus 14px icons for recurring, reminder and scheduled; signed Money Medium amount trailing in jade or cochineal.
 - **Settings row:** SegmentedListItem on surface-container with a 40px tonal circle icon (secondary-container), chevron for navigation, switch for toggles; the whole row toggles and the row tint never changes with state.
-- **Form rows:** 64px minimum rows on surface-container-high using the 24/6 group shape.
+- **Form rows:** 64px minimum rows on surface-container-high using the 28/4 group shape.
 
 ### Cards
 - **Loan card:** the card tone (surface-container), 28px corners, 20px padding, 14px internal rhythm. Badge, title and status chip; remaining amount in Money Large; a LinearWavyProgressIndicator colored by status (primary active, jade paid, error overdue) on a surface-container-highest track, whose wave flattens when paid; next due date (error when overdue) and "n/m paid". Selected cards turn secondary-container.

@@ -397,5 +397,5 @@ private fun SectionRow(
 
 @Composable
 private fun DetailPane(contained: Boolean, modifier: Modifier, content: @Composable () -> Unit) {
-    if (contained) AppPane(modifier) { content() } else Box(modifier) { content() }
+    AppPane(modifier, contained) { content() }
 }
