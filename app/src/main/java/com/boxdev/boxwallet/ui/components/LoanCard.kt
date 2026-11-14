@@ -46,7 +46,7 @@ fun LoanCard(
     modifier: Modifier = Modifier,
     category: Category? = null,
     selected: Boolean = false,
-    containerColor: Color = MaterialTheme.colorScheme.surfaceContainer,
+    containerColor: Color = BoxTheme.cardColor,
     onClick: () -> Unit = {},
 ) {
     val dateFormatter = DateFormats.mediumDate
@@ -194,7 +194,7 @@ fun LoanRow(
                 selectedContainerColor = container,
             )
         } else {
-            ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+            ListItemDefaults.colors(containerColor = BoxTheme.cardColor)
         },
         modifier = modifier.padding(bottom = ListItemDefaults.SegmentedGap),
         leadingContent = {

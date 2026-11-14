@@ -494,7 +494,7 @@ fun directionColors(isIncome: Boolean): Pair<Color, Color> {
 @Composable
 fun Panel(
     modifier: Modifier = Modifier,
-    color: Color = MaterialTheme.colorScheme.surfaceContainer,
+    color: Color = BoxTheme.cardColor,
     shape: Shape = MaterialTheme.shapes.extraLarge,
     content: @Composable () -> Unit,
 ) {

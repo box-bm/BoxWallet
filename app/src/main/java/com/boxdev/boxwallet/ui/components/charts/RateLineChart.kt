@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import java.math.BigDecimal
 import java.time.LocalDate
+import com.boxdev.boxwallet.ui.theme.BoxTheme
 
 /**
  * Line of a rate over time on the same visual language as the other charts: a single primary
@@ -46,7 +47,7 @@ fun RateLineChart(
     val line = MaterialTheme.colorScheme.primary
     val baseline = MaterialTheme.colorScheme.outlineVariant
     val marker = MaterialTheme.colorScheme.onSurface
-    val surface = MaterialTheme.colorScheme.surfaceContainer
+    val surface = BoxTheme.cardColor
     val reveal = rememberChartReveal(series)
     val values = remember(series) { series.map { it.second.toDouble() } }
     val lo = values.min()

@@ -21,6 +21,7 @@ import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.log10
 import kotlin.math.pow
+import com.boxdev.boxwallet.ui.theme.BoxTheme
 
 /**
  * Entry animation for a chart: 0 → 1 on the slow spatial spring each time [key] changes, or 1
@@ -51,7 +52,7 @@ internal fun rememberChartReveal(key: Any?): () -> Float {
 @Composable
 internal fun rankedSliceColors(count: Int, otherIndex: Int? = null): List<Color> {
     val primary = MaterialTheme.colorScheme.primary
-    val surface = MaterialTheme.colorScheme.surfaceContainer
+    val surface = BoxTheme.cardColor
     val neutral = MaterialTheme.colorScheme.outline
     val ranked = (count - if (otherIndex != null) 1 else 0).coerceAtLeast(1)
     return List(count) { i ->
@@ -67,7 +68,7 @@ internal fun rankedSliceColors(count: Int, otherIndex: Int? = null): List<Color>
  * brown and olive.
  */
 @Composable
-internal fun mutedOnCard(color: Color): Color = lerp(color, MaterialTheme.colorScheme.surfaceContainer, 0.45f)
+internal fun mutedOnCard(color: Color): Color = lerp(color, BoxTheme.cardColor, 0.45f)
 
 /** A bar with rounded top corners and a flat base sitting on [bottom]. */
 internal fun DrawScope.drawTopRoundedBar(
