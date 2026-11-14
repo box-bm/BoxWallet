@@ -1,0 +1,10 @@
+• Edit movements beside the list, span search across panes and tidy the form bar
+• Search and settings follow the surface model
+• Redraw the tabs on the surface background
+• Put the app body on surface and drop the white panes
+• Open movement and loan forms as full screens
+• Full-screen movement and loan forms
+• Detect unsaved changes in movement and loan forms
+• Settings list-detail on wide windows
+• Reports and search on panes
+• …
