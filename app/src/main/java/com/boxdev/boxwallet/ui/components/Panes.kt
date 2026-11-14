@@ -27,22 +27,30 @@ import androidx.compose.ui.unit.dp
 import com.boxdev.boxwallet.ui.theme.BoxTheme
 import com.boxdev.boxwallet.ui.theme.BoxWalletTheme
 import com.boxdev.boxwallet.ui.theme.LocalAppLayout
+import com.boxdev.boxwallet.ui.theme.LocalCardColor
 import com.boxdev.boxwallet.ui.theme.appLayout
 
-/** A white pane that sits on the window background: lowest surface container, extra-large corners. */
+/**
+ * A contained pane: the supporting pane of a two-pane layout (detail, filters), one step above the
+ * surface body. Cards inside it step up too, through [LocalCardColor], so they keep their contrast.
+ */
 @Composable
 fun AppPane(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
     Surface(
         modifier = modifier,
         shape = MaterialTheme.shapes.extraLargeIncreased,
-        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
-        Box(content = content)
+        CompositionLocalProvider(LocalCardColor provides MaterialTheme.colorScheme.surfaceContainerHigh) {
+            Box(content = content)
+        }
     }
 }
 
 /**
  * Lays out one or two panes with [BoxTheme.layout] margin at start, end and bottom and a 24dp gap.
+ * Panes blend into the surface body unless [containFirst] / [containSecond] puts one in an [AppPane];
+ * contain only the supporting pane of a two-pane layout.
  * A fixed [firstWidth] is meant for two-pane (expanded) layouts only.
  * `second == null` gives a single pane. [firstWidth] null splits 50/50, otherwise the first pane is fixed.
  */
@@ -52,6 +60,8 @@ fun PaneRow(
     second: (@Composable () -> Unit)? = null,
     firstWidth: Dp? = null,
     modifier: Modifier = Modifier,
+    containFirst: Boolean = false,
+    containSecond: Boolean = false,
 ) {
     val margin = BoxTheme.layout.margin
     Row(
@@ -64,12 +74,17 @@ fun PaneRow(
         } else {
             Modifier.weight(1f).fillMaxHeight()
         }
-        AppPane(firstModifier) { first() }
+        Pane(firstModifier, containFirst, first)
         if (second != null) {
             Spacer(Modifier.width(24.dp))
-            AppPane(Modifier.weight(1f).fillMaxHeight()) { second() }
+            Pane(Modifier.weight(1f).fillMaxHeight(), containSecond, second)
         }
     }
+}
+
+@Composable
+private fun Pane(modifier: Modifier, contained: Boolean, content: @Composable () -> Unit) {
+    if (contained) AppPane(modifier) { content() } else Box(modifier) { content() }
 }
 
 /**
@@ -91,11 +106,12 @@ fun PanePlaceholder(icon: ImageVector, title: String, modifier: Modifier = Modif
 private fun PanesPreviewContent(width: Int, firstWidth: Dp?, two: Boolean) {
     BoxWalletTheme {
         CompositionLocalProvider(LocalAppLayout provides appLayout(width, 800)) {
-            Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
+            Surface(color = MaterialTheme.colorScheme.surface) {
                 PaneRow(
                     first = { Text("First pane", Modifier.padding(16.dp)) },
                     second = if (two) ({ Text("Second pane", Modifier.padding(16.dp)) }) else null,
                     firstWidth = firstWidth,
+                    containSecond = two,
                 )
             }
         }
