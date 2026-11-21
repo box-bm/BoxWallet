@@ -24,6 +24,13 @@ sealed class NavRoutes(val route: String) {
     data object MainCurrencyChange : NavRoutes("main_currency_change/{code}") {
         fun createRoute(code: String) = "main_currency_change/$code"
     }
+    data object Accounts : NavRoutes("accounts")
+    data object AccountDetail : NavRoutes("account_detail/{accountId}") {
+        fun createRoute(accountId: Long) = "account_detail/$accountId"
+    }
+    data object AccountForm : NavRoutes("account_form?id={id}") {
+        fun createRoute(id: Long? = null) = if (id == null) "account_form" else "account_form?id=$id"
+    }
     data object Categories : NavRoutes("categories")
     data object ThemeCustomization : NavRoutes("theme_customization")
     data object Backup : NavRoutes("backup")

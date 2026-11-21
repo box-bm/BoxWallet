@@ -594,4 +594,50 @@
         <item quantity="other">Excludes %1$d loans in other currencies</item>
     </plurals>
     <string name="search_in_app">Search BoxWallet</string>
+
+    <!-- Accounts -->
+    <string name="settings_accounts_title">Accounts</string>
+    <string name="settings_accounts_subtitle">Balances, currencies and default account</string>
+    <string name="accounts_title">Accounts</string>
+    <string name="accounts_total_balance">Total balance</string>
+    <string name="accounts_new">New account</string>
+    <string name="accounts_archived">Archived (%1$d)</string>
+    <string name="accounts_default_badge">Default</string>
+    <string name="accounts_archived_badge">Archived</string>
+    <string name="accounts_not_in_total">Not in total</string>
+    <string name="accounts_select_hint">Choose an account to see its details</string>
+    <string name="account_edit_title">Edit account</string>
+    <string name="account_name_label">Name</string>
+    <string name="account_name_placeholder">e.g. Bank, Cash</string>
+    <string name="account_name_required">Give the account a name</string>
+    <string name="account_name_too_long">Use at most %1$d characters</string>
+    <string name="account_currency_label">Currency</string>
+    <string name="account_currency_locked">The currency can\'t change because this account already has movements.</string>
+    <string name="account_balance_label">Current balance</string>
+    <string name="account_balance_help">How much is in this account today. Leave it empty to start at 0.</string>
+    <string name="account_balance_invalid">Enter a valid amount for this currency</string>
+    <string name="account_icon_label">Icon</string>
+    <string name="account_color_label">Color</string>
+    <string name="account_color_option">Color %1$d</string>
+    <string name="account_include_in_total">Add to total balance</string>
+    <string name="account_include_in_total_help">Counts toward the total balance on Home</string>
+    <string name="account_adjust_balance">Adjust balance</string>
+    <string name="account_adjust_help">Enter the real balance. An adjustment for the difference is added; it doesn\'t count as income or expense.</string>
+    <string name="account_edit">Edit</string>
+    <string name="account_set_default">Use as default</string>
+    <string name="account_set_default_help">New movements start in this account</string>
+    <string name="account_archive">Archive</string>
+    <string name="account_archive_help">Hides it from lists; its history stays</string>
+    <string name="account_unarchive">Unarchive</string>
+    <string name="account_unarchive_help">Shows it in lists again</string>
+    <string name="account_delete">Delete account</string>
+    <string name="account_delete_title">Delete %1$s?</string>
+    <string name="account_delete_message">Its balance adjustments are deleted too. This can\'t be undone.</string>
+    <string name="account_movements">Movements</string>
+    <string name="account_no_movements">No movements in this account yet</string>
+    <string name="account_not_found">Account not found</string>
+    <string name="account_error_is_default">You can\'t delete or archive the default account</string>
+    <string name="account_error_last">You need at least one account</string>
+    <string name="account_error_has_movements">This account has movements; archive it instead</string>
+    <string name="account_error_missing_rate">There\'s no exchange rate for this currency yet</string>
 </resources>

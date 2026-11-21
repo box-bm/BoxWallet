@@ -123,6 +123,10 @@ class TransactionRepository @Inject constructor(
     fun getAllTransactions(): Flow<List<Transaction>> =
         transactionDao.getAllTransactions().toDomain()
 
+    /** [accountId]'s movements, newest first, without loan installments. */
+    fun observeByAccount(accountId: Long): Flow<List<Transaction>> =
+        transactionDao.observeByAccount(accountId).toDomain()
+
     fun getLatestTransactions(limit: Int = 3): Flow<List<Transaction>> =
         transactionDao.getLatestTransactions(limit).toDomain()
 

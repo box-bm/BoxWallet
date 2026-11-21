@@ -26,6 +26,7 @@ enum class SortBy { DATE_ASC, DATE_DESC, AMOUNT_ASC, AMOUNT_DESC }
 data class TransactionsFilterState(
     val transactionType: TransactionTypeFilter = TransactionTypeFilter.ALL,
     val categoryId: Long? = null,
+    val accountId: Long? = null,
     val startDate: LocalDate? = null,
     val endDate: LocalDate? = null,
     val sortBy: SortBy = SortBy.DATE_DESC,
@@ -64,10 +65,15 @@ class TransactionsListViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TransactionsListUiState())
 
     init {
-        // Reports can open this tab filtered to a category within the period it was showing.
+        // Reports can open this tab filtered to a category within the period it was showing, an account's detail to it.
         viewModelScope.launch {
             filterRequest.filter.filterNotNull().collect { f ->
-                filterState.value = TransactionsFilterState(categoryId = f.categoryId, startDate = f.start, endDate = f.end)
+                filterState.value = TransactionsFilterState(
+                    categoryId = f.categoryId,
+                    accountId = f.accountId,
+                    startDate = f.start,
+                    endDate = f.end,
+                )
                 filterRequest.consume()
             }
         }
@@ -94,6 +100,7 @@ class TransactionsListViewModel @Inject constructor(
                 TransactionTypeFilter.ALL -> true
             } &&
                 (f.categoryId == null || tx.categoryId == f.categoryId) &&
+                (f.accountId == null || tx.accountId == f.accountId) &&
                 (f.startDate == null || !date.isBefore(f.startDate)) &&
                 (f.endDate == null || !date.isAfter(f.endDate)) &&
                 (!f.showOnlyRecurrent || tx.isRecurrent)

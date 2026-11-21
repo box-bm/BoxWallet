@@ -134,4 +134,20 @@ class TransactionRepositoryTest {
         assertEquals(18336L, manual.amountMinor) // 24.00 USD × 7.64
         assertEquals(0, BigDecimal("7.64").compareTo(manual.mainRate))
     }
+
+    @Test
+    fun `observeByAccount lists only that account's movements without loan installments`() = runTest {
+        val other = db.accountDao().insert(AccountEntity(name = "Other", type = "CHECKING", currencyCode = "USD", createdAt = 0L))
+        val mine = saved(template(ExchangeRate(BigDecimal.ONE, RateSource.AUTO), 2000).copy(isRecurrent = false))
+        saved(mine.copy(id = 0, accountId = other))
+        val loanId = db.loanDao().insert(
+            com.boxdev.boxwallet.data.local.entity.LoanEntity(
+                name = "Loan", totalAmountMinor = 1000, currencyCode = "USD", totalInstallments = 1,
+                startDate = 0L, loanType = "EXPENSE", frequency = "MONTHLY",
+            )
+        )
+        saved(mine.copy(id = 0, loanId = loanId, installmentNumber = 1))
+
+        assertEquals(listOf(mine.id), repository.observeByAccount(accountId).first().map { it.id })
+    }
 }

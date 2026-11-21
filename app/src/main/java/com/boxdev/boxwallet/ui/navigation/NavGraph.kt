@@ -46,6 +46,9 @@ import androidx.navigation.navArgument
 import com.boxdev.boxwallet.analytics.AnalyticsHelper
 import com.boxdev.boxwallet.R
 import androidx.compose.foundation.layout.Box
+import com.boxdev.boxwallet.ui.screens.accounts.AccountDetailScreen
+import com.boxdev.boxwallet.ui.screens.accounts.AccountFormScreen
+import com.boxdev.boxwallet.ui.screens.accounts.AccountsScreen
 import com.boxdev.boxwallet.ui.screens.analytics.AnalyticsScreen
 import com.boxdev.boxwallet.ui.screens.home.HomeScreen
 import com.boxdev.boxwallet.ui.screens.loans.LoanDetailScreen
@@ -157,6 +160,7 @@ fun NavGraph(
         navController.navigate(NavRoutes.LoanDetail.createRoute(loanId)) { launchSingleTop = true }
     }
     val onEditTransaction: (Long) -> Unit = { navController.navigate(NavRoutes.TransactionForm.createRoute(it)) { launchSingleTop = true } }
+    val onEditAccount: (Long) -> Unit = { navController.navigate(NavRoutes.AccountForm.createRoute(it)) { launchSingleTop = true } }
     val onEditLoan: (Long) -> Unit = { navController.navigate(NavRoutes.LoanForm.createRoute(it)) { launchSingleTop = true } }
     LaunchedEffect(navBackStackEntry) {
         navBackStackEntry?.destination?.route?.let { route ->
@@ -288,9 +292,46 @@ fun NavGraph(
                 onOpenSection = { navController.navigate(it.route) },
                 onOpenCurrency = { navController.navigate(NavRoutes.CurrencyDetail.createRoute(it)) },
                 onChangeMainCurrency = { navController.navigate(NavRoutes.MainCurrencyChange.createRoute(it)) },
+                onOpenAccounts = { navController.navigate(NavRoutes.Accounts.route) { launchSingleTop = true } },
                 preselected = preselected?.let(SettingsSection::valueOf),
                 onPreselectedConsumed = { entry.savedStateHandle.set<String?>(SettingsSection.PRESELECT_KEY, null) },
             )
+        }
+
+        composable(NavRoutes.Accounts.route) {
+            AccountsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onOpenAccount = { navController.navigate(NavRoutes.AccountDetail.createRoute(it)) { launchSingleTop = true } },
+                onNewAccount = { navController.navigate(NavRoutes.AccountForm.createRoute()) { launchSingleTop = true } },
+                onEditAccount = onEditAccount,
+                onEditTransaction = onEditTransaction,
+            )
+        }
+
+        composable(
+            route = NavRoutes.AccountDetail.route,
+            arguments = listOf(navArgument("accountId") { type = NavType.LongType }),
+        ) { entry ->
+            // On its own, straight on the surface body like a standalone loan.
+            val margin = BoxTheme.layout.margin
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surface)
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
+                    .padding(start = margin - 16.dp, top = 8.dp, end = margin - 16.dp)
+            ) {
+                AccountDetailScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onEditAccount = onEditAccount,
+                    onEditTransaction = onEditTransaction,
+                    onDeleted = { entry.ifResumed { navController.popBackStack() } },
+                )
+            }
+        }
+
+        formComposable(NavRoutes.AccountForm.route) { entry ->
+            AccountFormScreen(onDone = { entry.ifResumed { navController.popBackStack() } })
         }
 
         composable(NavRoutes.Currencies.route) {

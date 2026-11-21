@@ -46,6 +46,10 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE loanId IS NULL ORDER BY date DESC")
     fun getAllTransactions(): Flow<List<TransactionEntity>>
 
+    /** One account's movements, newest first; loan installments are left out like in the global list. */
+    @Query("SELECT * FROM transactions WHERE accountId = :accountId AND loanId IS NULL ORDER BY date DESC")
+    fun observeByAccount(accountId: Long): Flow<List<TransactionEntity>>
+
     @Query("SELECT * FROM transactions WHERE loanId IS NULL ORDER BY date DESC LIMIT :limit")
     fun getLatestTransactions(limit: Int): Flow<List<TransactionEntity>>
 

@@ -581,4 +581,50 @@
         <item quantity="other">No incluye %1$d préstamos en otras monedas</item>
     </plurals>
     <string name="search_in_app">Buscar en BoxWallet</string>
+
+    <!-- Accounts -->
+    <string name="settings_accounts_title">Cuentas</string>
+    <string name="settings_accounts_subtitle">Saldos, monedas y cuenta por defecto</string>
+    <string name="accounts_title">Cuentas</string>
+    <string name="accounts_total_balance">Saldo total</string>
+    <string name="accounts_new">Nueva cuenta</string>
+    <string name="accounts_archived">Archivadas (%1$d)</string>
+    <string name="accounts_default_badge">Por defecto</string>
+    <string name="accounts_archived_badge">Archivada</string>
+    <string name="accounts_not_in_total">No suma al total</string>
+    <string name="accounts_select_hint">Elige una cuenta para ver su detalle</string>
+    <string name="account_edit_title">Editar cuenta</string>
+    <string name="account_name_label">Nombre</string>
+    <string name="account_name_placeholder">p. ej. Banco, Efectivo</string>
+    <string name="account_name_required">Ponle un nombre a la cuenta</string>
+    <string name="account_name_too_long">Usa como máximo %1$d caracteres</string>
+    <string name="account_currency_label">Moneda</string>
+    <string name="account_currency_locked">La moneda no se puede cambiar porque la cuenta ya tiene movimientos.</string>
+    <string name="account_balance_label">Saldo actual</string>
+    <string name="account_balance_help">Cuánto hay hoy en la cuenta. Déjalo vacío para empezar en 0.</string>
+    <string name="account_balance_invalid">Escribe un monto válido para esta moneda</string>
+    <string name="account_icon_label">Ícono</string>
+    <string name="account_color_label">Color</string>
+    <string name="account_color_option">Color %1$d</string>
+    <string name="account_include_in_total">Sumar al saldo total</string>
+    <string name="account_include_in_total_help">Cuenta en el saldo total de Inicio</string>
+    <string name="account_adjust_balance">Ajustar saldo</string>
+    <string name="account_adjust_help">Escribe el saldo real. Se agrega un ajuste por la diferencia, que no cuenta como ingreso ni gasto.</string>
+    <string name="account_edit">Editar</string>
+    <string name="account_set_default">Usar por defecto</string>
+    <string name="account_set_default_help">Los movimientos nuevos empiezan en esta cuenta</string>
+    <string name="account_archive">Archivar</string>
+    <string name="account_archive_help">Deja de aparecer en las listas; su historial queda</string>
+    <string name="account_unarchive">Desarchivar</string>
+    <string name="account_unarchive_help">Vuelve a aparecer en las listas</string>
+    <string name="account_delete">Borrar cuenta</string>
+    <string name="account_delete_title">¿Borrar %1$s?</string>
+    <string name="account_delete_message">También se borran sus ajustes de saldo. No se puede deshacer.</string>
+    <string name="account_movements">Movimientos</string>
+    <string name="account_no_movements">Esta cuenta aún no tiene movimientos</string>
+    <string name="account_not_found">No se encontró la cuenta</string>
+    <string name="account_error_is_default">No puedes borrar ni archivar la cuenta por defecto</string>
+    <string name="account_error_last">Necesitas al menos una cuenta</string>
+    <string name="account_error_has_movements">Esta cuenta tiene movimientos; archívala en su lugar</string>
+    <string name="account_error_missing_rate">No hay tasa de cambio para esta moneda todavía</string>
 </resources>
