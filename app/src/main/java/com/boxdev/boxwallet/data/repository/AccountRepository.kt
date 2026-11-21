@@ -257,19 +257,22 @@ class AccountRepository @Inject constructor(
         }
 
     /**
+     * Saves [account], a top-level one: a card's second currency only changes through its card.
+     *
      * The currency is frozen once the account has movements besides adjustments. While it only has
      * adjustments, changing it rewrites them into the new currency keeping their typed major amount;
      * a missing main rate ([MissingRateException]) rolls the whole update back.
-     */
-    /**
-     * A card's second currency follows [second]; a kept one gets the card's name, icon, color,
-     * `includeInTotal` and order. Removing it ([AccountRuleError.SecondCurrencyHasMovements] while it has
-     * movements besides adjustments) takes its adjustments along.
+     *
+     * A card's second currency follows [second]; a kept one gets the card's name, icon, color and
+     * `includeInTotal` (it keeps its own creation date and order). Removing it
+     * ([AccountRuleError.SecondCurrencyHasMovements] while it has movements besides adjustments) takes its
+     * adjustments along.
      */
     suspend fun update(account: Account, second: SecondCurrencyChange = SecondCurrencyChange.Keep) = guard.write { current ->
         database.withTransaction {
             val stored = accountDao.getById(account.id)
                 ?: throw IllegalStateException("Account ${account.id} does not exist")
+            require(stored.parentAccountId == null) { "Account ${account.id} is a second currency; update its card" }
             require(stored.isArchived == account.isArchived) { "use archive()" }
             validateCardFields(account)
             val child = accountDao.getChildOf(account.id)
@@ -293,7 +296,10 @@ class AccountRepository @Inject constructor(
             }
             accountDao.update(account.toEntity())
             if (currencyChanged) rewriteAdjustments(account.id, account.currency, current.main)
-            kept?.let { accountDao.update(childEntity(account, Currency.getInstance(it.currencyCode)).copy(id = it.id)) }
+            kept?.let {
+                val synced = childEntity(account, Currency.getInstance(it.currencyCode))
+                accountDao.update(synced.copy(id = it.id, createdAt = it.createdAt, sortOrder = it.sortOrder))
+            }
             if (second is SecondCurrencyChange.Add) insertChild(account, second.input, current.main, openingDate(account))
         }
     }
@@ -350,7 +356,10 @@ class AccountRepository @Inject constructor(
         }
     }
 
-    /** Adds the adjustment that makes the cleared balance equal [realBalance]; nothing when already equal. */
+    /**
+     * Adds the adjustment that makes the balance equal [realBalance] (cleared movements, or for a card and its
+     * second currency every movement dated through today); nothing when already equal.
+     */
     suspend fun adjustBalance(accountId: Long, realBalance: Money) {
         guard.write { current ->
             database.withTransaction {
@@ -362,11 +371,12 @@ class AccountRepository @Inject constructor(
         }
     }
 
-    /** A card's second currency is archived and unarchived with it. */
+    /** A card's second currency is archived and unarchived with it, never on its own. */
     suspend fun archive(accountId: Long, archived: Boolean) {
         if (archived && userPreferences.defaultAccountId.first() == accountId) throw AccountRuleError.IsDefault
         database.withTransaction {
             val stored = accountDao.getById(accountId) ?: return@withTransaction
+            require(stored.parentAccountId == null) { "Account $accountId is a second currency; archive its card" }
             accountDao.update(stored.copy(isArchived = archived))
             accountDao.getChildOf(accountId)?.let { accountDao.update(it.copy(isArchived = archived)) }
         }

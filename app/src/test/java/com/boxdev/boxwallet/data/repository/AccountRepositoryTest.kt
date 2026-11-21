@@ -620,6 +620,33 @@ class AccountRepositoryTest {
     }
 
     @Test
+    fun secondCurrencyIsOnlyUpdatedOrArchivedThroughItsCard() = runTest {
+        val repo = repositoryWith(withGtq)
+        val id = repo.create(card(), null, SecondCurrencyInput(usd, null))
+        val child = childOf(id)
+
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repo.update(child.toDomain().copy(name = "Renamed")) }
+        }
+        assertThrows(IllegalArgumentException::class.java) { runBlocking { repo.archive(child.id, true) } }
+        assertEquals(child, childOf(id))
+    }
+
+    @Test
+    fun syncingTheSecondCurrencyKeepsItsCreationAndOrder() = runTest {
+        val repo = repositoryWith(withGtq)
+        val id = repo.create(card().copy(createdAt = 100L, sortOrder = 2), null, SecondCurrencyInput(usd, null))
+        val child = childOf(id)
+        db.accountDao().update(child.copy(createdAt = 555L, sortOrder = 9))
+
+        repo.update(db.accountDao().getById(id)!!.toDomain().copy(name = "Visa Oro", createdAt = 100L, sortOrder = 3))
+
+        assertEquals("Visa Oro", childOf(id).name)
+        assertEquals(555L, childOf(id).createdAt)
+        assertEquals(9, childOf(id).sortOrder)
+    }
+
+    @Test
     fun removeSecondCurrencyRefusedWithMovements() = runTest {
         val repo = repositoryWith(withGtq)
         val used = repo.create(card(), null, SecondCurrencyInput(usd, Money(-5000, usd)))
