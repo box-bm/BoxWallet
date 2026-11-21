@@ -159,8 +159,8 @@ fun AccountFormScreen(
         val all = remember(locale, form.currency) { CurrencyCatalog.all(locale).filter { it != form.currency } }
         val sections = remember(query, recentCurrencies, all) { pickerSections(all, recentCurrencies, query, locale) }
         CurrencyPickerSheet(
-            // Nothing is checked until one is picked: the card's own currency isn't listed.
-            selected = form.secondCurrency ?: form.currency,
+            // Nothing is checked until one is picked.
+            selected = form.secondCurrency,
             sections = sections,
             onQuery = { query = it },
             onPick = { viewModel.updateSecondCurrency(it); showSecondCurrencyPicker = false },
@@ -380,7 +380,7 @@ private fun CardFields(form: AccountFormState, showErrors: Boolean, card: CardFi
                 value = second?.let { "${it.currencyCode} · ${CurrencyCatalog.displayName(it, locale)}" }
                     ?: stringResource(R.string.account_second_currency_none),
                 // A stored second currency is removed and saved before another one can be picked.
-                onClick = { if (!form.hasSecondCurrency) card.onSecondCurrencyClick() },
+                onClick = card.onSecondCurrencyClick.takeIf { !form.hasSecondCurrency },
             )
         }
         if (second != null) {
