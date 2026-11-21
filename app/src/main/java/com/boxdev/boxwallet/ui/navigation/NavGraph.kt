@@ -307,7 +307,7 @@ fun NavGraph(
                 onNewAccount = { navController.navigate(NavRoutes.AccountForm.createRoute()) { launchSingleTop = true } },
                 onEditAccount = onEditAccount,
                 onEditTransaction = onEditTransaction,
-                onSeeInMovements = { navController.navigateToTab(NavRoutes.TransactionsList.route) },
+                onSeeInMovements = { navController.switchToTab(NavRoutes.TransactionsList.route) },
             )
         }
 
@@ -328,7 +328,7 @@ fun NavGraph(
                     onNavigateBack = { navController.popBackStack() },
                     onEditAccount = onEditAccount,
                     onEditTransaction = onEditTransaction,
-                    onSeeInMovements = { navController.navigateToTab(NavRoutes.TransactionsList.route) },
+                    onSeeInMovements = { navController.switchToTab(NavRoutes.TransactionsList.route) },
                     onDeleted = { entry.ifResumed { navController.popBackStack() } },
                 )
             }

@@ -135,11 +135,8 @@ fun NavigationTab(
      * example from Loan detail back to Loans) and, once at the root, scrolls that screen to the top.
      */
     val onTabClick: (Destination) -> Unit = { destination ->
-        val tabsInBackStack = Destination.entries.map { it.route }
-            .filter { runCatching { navController.getBackStackEntry(it) }.isSuccess }
-            .toSet()
         navController.performTabAction(
-            action = resolveTabClick(destination.route, currentRoute, tabsInBackStack),
+            action = resolveTabClick(destination.route, currentRoute, navController.tabsInBackStack()),
             onScrollToTop = { tabReselect.tryEmit(it) },
         )
     }
