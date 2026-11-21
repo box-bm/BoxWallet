@@ -51,6 +51,13 @@ private val CardHeight = 132.dp
 private val TallCardHeight = 156.dp
 
 /**
+ * The row uses tall tiles while any card in it has a second currency, owed or not, so it doesn't change
+ * height as that debt comes and goes.
+ */
+fun tallAccountTiles(accounts: List<AccountWithBalance>, cards: Map<Long, CardSummary>): Boolean =
+    accounts.any { cards[it.account.id]?.second != null }
+
+/**
  * A horizontal row of account cards (badge, name, balance in the account's currency) ending in
  * "See accounts". A credit card (in [cards]) shows what is used instead (its second currency on a line
  * below when in use), with a thin bar of its limit. A card opens that account's detail.
@@ -63,7 +70,7 @@ fun HomeAccountsRow(
     modifier: Modifier = Modifier,
     cards: Map<Long, CardSummary> = emptyMap(),
 ) {
-    val height = if (accounts.any { cards[it.account.id]?.secondUsed != null }) TallCardHeight else CardHeight
+    val height = if (tallAccountTiles(accounts, cards)) TallCardHeight else CardHeight
     LazyRow(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
