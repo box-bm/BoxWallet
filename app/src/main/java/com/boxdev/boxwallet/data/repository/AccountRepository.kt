@@ -137,10 +137,11 @@ class AccountRepository @Inject constructor(
     }
 
     /** The currency is frozen once the account has movements besides adjustments. */
-    suspend fun update(account: Account) {
-        val stored = accountDao.getById(account.id)?.toDomain()
+    suspend fun update(account: Account) = database.withTransaction {
+        val stored = accountDao.getById(account.id)
             ?: throw IllegalStateException("Account ${account.id} does not exist")
-        check(stored.currency == account.currency || !hasNonAdjustmentMovements(account.id)) {
+        require(stored.isArchived == account.isArchived) { "use archive()" }
+        check(stored.currencyCode == account.currency.currencyCode || !hasNonAdjustmentMovements(account.id)) {
             "Currency of account ${account.id} can't change once it has movements"
         }
         accountDao.update(account.toEntity())

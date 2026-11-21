@@ -14,6 +14,7 @@ import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.AccountType
 import com.boxdev.boxwallet.domain.model.toDomain
 import com.boxdev.boxwallet.domain.money.ExchangeRateResolver
+import com.boxdev.boxwallet.domain.money.MissingRateException
 import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.domain.money.TransactionAmounts
 import kotlinx.coroutines.runBlocking
@@ -55,13 +56,18 @@ class AccountRepositoryTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         db = Room.inMemoryDatabaseBuilder(context, BoxWalletDatabase::class.java).allowMainThreadQueries().build()
         prefs = UserPreferences(context)
-        val amounts = TransactionAmounts(ExchangeRateResolver(noRates) { LocalDate.of(2026, 11, 7) })
-        repository = AccountRepository(
-            db.accountDao(), prefs, noRates, context,
+        repository = repositoryWith(noRates)
+        runBlocking { prefs.setMainCurrency("USD") }
+    }
+
+    private fun repositoryWith(lookup: RateLookup): AccountRepository {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val amounts = TransactionAmounts(ExchangeRateResolver(lookup) { LocalDate.of(2026, 11, 7) })
+        return AccountRepository(
+            db.accountDao(), prefs, lookup, context,
             db.transactionDao(), db, amounts,
             MovementWriteGuard(CurrencyChangeLock(), prefs, db.accountDao(), amounts),
         )
-        runBlocking { prefs.setMainCurrency("USD") }
     }
 
     @After
@@ -243,5 +249,43 @@ class AccountRepositoryTest {
         repository.setDefault(id)
 
         assertEquals(id, repository.observeDefaultAccountId().first())
+    }
+
+    @Test
+    fun foreignCurrencyAccountGetsApproximateMainLeg() = runTest {
+        val nearestOnly = object : RateLookup {
+            override suspend fun exact(day: LocalDate, code: String): BigDecimal? = null
+            override suspend fun nearest(day: LocalDate, code: String): BigDecimal? =
+                if (code == "EUR") BigDecimal("0.50") else null
+            override suspend fun download(day: LocalDate) = false
+        }
+        val id = repositoryWith(nearestOnly).create(account("Euros", "EUR"), Money(1000, Currency.getInstance("EUR")))
+
+        val row = rows(id).single()
+        assertEquals("EUR", row.currencyCode)
+        assertEquals(1000L, row.accountAmountMinor)
+        assertEquals(2000L, row.amountMinor)
+        assertEquals(RateSource.APPROXIMATE, row.mainRateSource)
+    }
+
+    @Test
+    fun createRollsBackWhenNoRateExists() = runTest {
+        val error = runCatching {
+            repository.create(account("Euros", "EUR"), Money(1000, Currency.getInstance("EUR")))
+        }.exceptionOrNull()
+
+        assertTrue(error is MissingRateException)
+        assertEquals(0, db.accountDao().count())
+    }
+
+    @Test
+    fun updateCannotChangeArchivedFlag() = runTest {
+        val id = repository.create(account("Side"), null)
+        val stored = db.accountDao().getById(id)!!.toDomain()
+
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repository.update(stored.copy(isArchived = true)) }
+        }
+        assertFalse(db.accountDao().getById(id)!!.isArchived)
     }
 }
