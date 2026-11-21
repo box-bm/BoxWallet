@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.data.local.entity.TransactionType
+import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.LoanRepository
 import com.boxdev.boxwallet.data.repository.TransactionRepository
@@ -174,6 +175,7 @@ private const val MAX_CATEGORY_SLICES = 5
 class AnalyticsViewModel @Inject constructor(
     private val transactionRepository: TransactionRepository,
     private val categoryRepository: CategoryRepository,
+    private val accountRepository: AccountRepository,
     private val loanRepository: LoanRepository,
     private val userPreferences: UserPreferences,
     @ApplicationContext private val context: Context,
@@ -484,6 +486,7 @@ class AnalyticsViewModel @Inject constructor(
                     val loanMap = async { loanRepository.getAllLoans().first().associateBy { it.id } }
                     Triple(tx.await(), cats.await(), loanMap.await())
                 }
+                val accounts = accountRepository.observeAccountsWithBalance().first()
 
                 val mainCurrency = userPreferences.mainCurrency.first()
                 val titles = ExcelReportGenerator.CurrencyTitles(
@@ -504,7 +507,7 @@ class AnalyticsViewModel @Inject constructor(
                     val reportsDir = File(context.cacheDir, "reports").also { if (!it.exists()) it.mkdirs() }
                     val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
                     val f = File(reportsDir, "BoxWallet_Report_$timestamp.xlsx")
-                    ExcelReportGenerator.create(f, transactionList, categories, loans, startDate, endDate, mainCurrency, titles, loanTitles)
+                    ExcelReportGenerator.create(f, transactionList, categories, accounts, loans, startDate, endDate, mainCurrency, titles, loanTitles)
                 }
 
                 _exportState.value = ExportState(file = file)
