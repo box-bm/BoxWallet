@@ -247,8 +247,8 @@ private fun TransferFormErrorText(error: TransferFormError) {
         TransferFormError.AccountLoading -> stringResource(R.string.transaction_error_account_loading)
         TransferFormError.NotFound -> stringResource(R.string.transfer_error_not_found)
         is TransferFormError.MissingRate -> stringResource(R.string.transaction_error_missing_rate, error.from.currencyCode)
-        TransferFormError.SaveFailed -> stringResource(R.string.transaction_error_save)
-        TransferFormError.DeleteFailed -> stringResource(R.string.transaction_error_delete)
+        TransferFormError.SaveFailed -> stringResource(R.string.transfer_error_save)
+        TransferFormError.DeleteFailed -> stringResource(R.string.transfer_error_delete)
     }
     Text(
         text = text,

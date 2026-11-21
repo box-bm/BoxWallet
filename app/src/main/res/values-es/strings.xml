@@ -509,6 +509,8 @@
     <string name="transfer_delete_body">Se actualizarán las dos cuentas.</string>
     <string name="transfer_error_same_account">Elige dos cuentas distintas.</string>
     <string name="transfer_error_not_found">Esta transferencia ya no existe.</string>
+    <string name="transfer_error_save">No se pudo guardar la transferencia.</string>
+    <string name="transfer_error_delete">No se pudo borrar la transferencia.</string>
     <string name="onboarding_country_title">¿Dónde vives?</string>
     <string name="onboarding_country_description">Usamos tu país para elegir tu moneda principal.</string>
     <string name="onboarding_country_search">Buscar país</string>

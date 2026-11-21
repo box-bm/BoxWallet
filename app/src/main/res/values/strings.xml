@@ -522,6 +522,8 @@
     <string name="transfer_delete_body">Both accounts will be updated.</string>
     <string name="transfer_error_same_account">Choose two different accounts.</string>
     <string name="transfer_error_not_found">This transfer no longer exists.</string>
+    <string name="transfer_error_save">Couldn\'t save the transfer.</string>
+    <string name="transfer_error_delete">Couldn\'t delete the transfer.</string>
     <string name="onboarding_country_title">Where do you live?</string>
     <string name="onboarding_country_description">We use your country to pick your main currency.</string>
     <string name="onboarding_country_search">Search country</string>
