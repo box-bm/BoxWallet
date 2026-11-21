@@ -2,13 +2,13 @@ package com.boxdev.boxwallet.domain.model
 
 import com.boxdev.boxwallet.data.local.entity.AccountEntity
 import com.boxdev.boxwallet.data.local.entity.CategoryEntity
+import com.boxdev.boxwallet.data.local.entity.InstallmentPlanEntity
 import com.boxdev.boxwallet.data.local.entity.LoanEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 
 /**
- * Backup file contents (spec 6.3). Version 3: accounts, minor-unit amounts, currencies and rates.
- * Version 4: account customization (description, icon, color, total inclusion, cards) and the
- * default account. Exchange rates are not backed up; they are downloaded again.
+ * Backup file contents (spec 6.3). There is one format, [CURRENT_VERSION]: a file in any other
+ * version is refused on restore. Exchange rates are not backed up; they are downloaded again.
  */
 data class BackupData(
     val version: Int = CURRENT_VERSION,
@@ -19,10 +19,11 @@ data class BackupData(
     val transactions: List<TransactionEntity> = emptyList(),
     val categories: List<CategoryEntity> = emptyList(),
     val loans: List<LoanEntity> = emptyList(),
-    /** Version 4: the account new movements default to; null in older backups. */
+    val installmentPlans: List<InstallmentPlanEntity> = emptyList(),
+    /** The account new movements default to. */
     val defaultAccountId: Long? = null,
 ) {
     companion object {
-        const val CURRENT_VERSION = 4
+        const val CURRENT_VERSION = 5
     }
 }

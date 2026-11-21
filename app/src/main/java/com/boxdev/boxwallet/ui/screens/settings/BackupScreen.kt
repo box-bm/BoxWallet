@@ -81,6 +81,14 @@ fun BackupScreen(
         }
     }
 
+    uiState.messageRes?.let { res ->
+        val text = stringResource(res)
+        LaunchedEffect(res) {
+            snackBarHostState.showSnackbar(text)
+            viewModel.clearMessage()
+        }
+    }
+
     LaunchedEffect(uiState.currencyChangeTo) {
         uiState.currencyChangeTo?.let {
             viewModel.onCurrencyChangeOpened()

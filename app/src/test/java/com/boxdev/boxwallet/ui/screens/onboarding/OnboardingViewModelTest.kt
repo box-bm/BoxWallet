@@ -47,7 +47,7 @@ class OnboardingViewModelTest {
         prefs = UserPreferences(context)
         prefs.setMainCurrency("USD")
         val backup = BackupRepository(
-            context, db, db.transactionDao(), db.categoryDao(), db.loanDao(), db.accountDao(), db.appMetaDao(),
+            context, db, db.transactionDao(), db.categoryDao(), db.loanDao(), db.installmentPlanDao(), db.accountDao(), db.appMetaDao(),
             prefs, CurrencyChangeLock(), GoogleDriveManager(context),
         )
         val lookup = object : RateLookup {

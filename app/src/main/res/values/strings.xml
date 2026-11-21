@@ -692,4 +692,5 @@
     <string name="card_credit_balance">Credit balance</string>
     <string name="card_pay_amount">Pay %1$s</string>
     <string name="card_pay">Pay card</string>
+    <string name="backup_error_incompatible">This backup is from an older version of BoxWallet and can\'t be restored</string>
 </resources>

@@ -1,8 +1,10 @@
 package com.boxdev.boxwallet.ui.screens.onboarding
 
 import android.content.Intent
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.data.remote.DriveBackupFile
 import com.boxdev.boxwallet.data.remote.GoogleAuthManager
@@ -29,6 +31,8 @@ data class OnboardingUiState(
     val isRestoring: Boolean = false,
     val backupFiles: List<DriveBackupFile> = emptyList(),
     val error: String? = null,
+    /** An error from string resources, for outcomes the view model has no context to word. */
+    @StringRes val errorRes: Int? = null,
     val restoreSuccess: Boolean = false,
     val country: Country? = null,
     /** Main currency to save: the country's, unless the user overrode it. */
@@ -129,6 +133,7 @@ class OnboardingViewModel @Inject constructor(
         when (val result = backupRepository.restoreBackup(fileId, _uiState.value.currency)) {
             is RestoreResult.Restored -> finishRestore(currencyChangeTo = null)
             is RestoreResult.CurrencyMismatch -> _uiState.value = _uiState.value.copy(currencyMismatch = result)
+            RestoreResult.Incompatible -> _uiState.value = _uiState.value.copy(errorRes = R.string.backup_error_incompatible)
         }
     }
 
@@ -169,7 +174,7 @@ class OnboardingViewModel @Inject constructor(
 
     private fun restoring(block: suspend () -> Unit) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isRestoring = true, currencyMismatch = null, error = null)
+            _uiState.value = _uiState.value.copy(isRestoring = true, currencyMismatch = null, error = null, errorRes = null)
             try {
                 block()
                 _uiState.value = _uiState.value.copy(isRestoring = false)
@@ -183,6 +188,6 @@ class OnboardingViewModel @Inject constructor(
     }
 
     fun clearError() {
-        _uiState.value = _uiState.value.copy(error = null)
+        _uiState.value = _uiState.value.copy(error = null, errorRes = null)
     }
 }

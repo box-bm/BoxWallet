@@ -8,6 +8,7 @@ import com.boxdev.boxwallet.data.local.database.BoxWalletDatabase
 import com.boxdev.boxwallet.data.local.entity.AccountEntity
 import com.boxdev.boxwallet.data.local.entity.AppMetaEntity
 import com.boxdev.boxwallet.data.local.entity.CategoryEntity
+import com.boxdev.boxwallet.data.local.entity.InstallmentPlanEntity
 import com.boxdev.boxwallet.data.local.entity.LoanEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 import com.boxdev.boxwallet.data.rates.CurrencyChangeLock
@@ -55,7 +56,7 @@ class BackupRepositoryTest {
         prefs.setMainCurrency("USD")
         lock = CurrencyChangeLock()
         repo = BackupRepository(
-            context, db, db.transactionDao(), db.categoryDao(), db.loanDao(), db.accountDao(), db.appMetaDao(), prefs, lock,
+            context, db, db.transactionDao(), db.categoryDao(), db.loanDao(), db.installmentPlanDao(), db.accountDao(), db.appMetaDao(), prefs, lock,
             GoogleDriveManager(context),
         )
     }
@@ -66,8 +67,6 @@ class BackupRepositoryTest {
         prefs.setMainCurrency("USD")
         db.close()
     }
-
-    private fun fixture(): String = checkNotNull(javaClass.classLoader?.getResource("backup-v2.json")).readText()
 
     private suspend fun seedLocalData() {
         val acc = db.accountDao().insert(AccountEntity(name = "Old", type = "CASH", currencyCode = "USD", createdAt = 0L))
@@ -86,37 +85,7 @@ class BackupRepositoryTest {
         )
 
     @Test
-    fun `v2 backup replaces local data in the device currency with references intact`() = runTest {
-        seedLocalData()
-
-        val result = repo.restoreJson(fixture(), gtq)
-
-        assertTrue(result is RestoreResult.Restored)
-        val account = db.accountDao().getAll().single()
-        assertEquals("GTQ", account.currencyCode)
-        assertEquals(account.id, prefs.defaultAccountId.first())
-        assertEquals(gtq, prefs.mainCurrency.first())
-        val rows = db.transactionDao().getAllTransactionsSync().associateBy { it.id }
-        assertEquals(setOf(1L, 2L, 3L, 4L, 5L, 6L, 7L), rows.keys)
-        assertEquals(1250L, rows.getValue(1).amountMinor)
-        assertEquals(30L, rows.getValue(2).amountMinor)
-        assertEquals(3L, rows.getValue(4).parentRecurrenceId)
-        assertEquals(1L, rows.getValue(6).loanId)
-        assertEquals(1L, rows.getValue(1).categoryId)
-        rows.values.forEach { assertEquals(account.id, it.accountId) }
-        assertEquals(100000L, db.loanDao().getAllLoansSync().single().totalAmountMinor)
-        assertEquals(listOf(1L, 2L), db.categoryDao().getAllCategoriesSync().map { it.id }.sorted())
-    }
-
-    @Test
-    fun `v2 backup defaults to the stored main currency`() = runTest {
-        repo.restoreJson(fixture())
-        assertEquals("USD", db.accountDao().getAll().single().currencyCode)
-        assertTrue(db.transactionDao().getAllTransactionsSync().all { it.currencyCode == "USD" })
-    }
-
-    @Test
-    fun `v3 snapshot round-trips, accounts and currencies included`() = runTest {
+    fun `snapshot round-trips, accounts and currencies included`() = runTest {
         prefs.setMainCurrency("GTQ")
         val main = db.accountDao().insert(AccountEntity(name = "Main", type = "CHECKING", currencyCode = "GTQ", createdAt = 1L))
         val savings = db.accountDao().insert(AccountEntity(name = "USD savings", type = "SAVINGS", currencyCode = "USD", createdAt = 2L, sortOrder = 1))
@@ -126,7 +95,7 @@ class BackupRepositoryTest {
             )
         )
         val json = Gson().toJson(repo.snapshot())
-        assertEquals(4, JsonParser.parseString(json).asJsonObject.get("version").asInt)
+        assertEquals(5, JsonParser.parseString(json).asJsonObject.get("version").asInt)
         db.transactionDao().deleteAll()
         db.accountDao().deleteAll()
 
@@ -200,7 +169,7 @@ class BackupRepositoryTest {
     }
 
     @Test
-    fun `v3 with another main currency asks and writes nothing`() = runTest {
+    fun `a backup with another main currency asks and writes nothing`() = runTest {
         seedLocalData()
         val backup = BackupData(
             mainCurrencyCode = "GTQ",
@@ -295,7 +264,7 @@ class BackupRepositoryTest {
 
         val result = repo.restoreJson(json, gtq)
 
-        assertTrue(result is RestoreResult.Restored)
+        result as RestoreResult.Restored
         assertEquals(before, db.accountDao().getAll())
         assertEquals(second, result.data.defaultAccountId)
         assertEquals(second, prefs.defaultAccountId.first())
@@ -415,27 +384,6 @@ class BackupRepositoryTest {
     }
 
     @Test
-    fun `a v3 backup from v1 restores with default account customization`() = runTest {
-        val json = """
-            {"version":3,"mainCurrencyCode":"USD",
-             "accounts":[{"id":1,"name":"Main","type":"CHECKING","currencyCode":"USD","isArchived":false,"sortOrder":0,"createdAt":0}],
-             "transactions":[{"id":1,"accountId":1,"type":"EXPENSE","date":0,"description":"","originalAmountMinor":5,"currencyCode":"USD",
-               "accountAmountMinor":5,"accountRate":1,"accountRateSource":"AUTO","amountMinor":5,"mainRate":1,"mainRateSource":"AUTO",
-               "isCleared":false,"hasReminder":false,"isRecurrent":false}],
-             "categories":[],"loans":[]}
-        """.trimIndent()
-
-        val result = repo.restoreJson(json, usd)
-
-        assertTrue(result is RestoreResult.Restored)
-        val account = db.accountDao().getAll().single()
-        assertEquals(listOf("", "AccountBalance", "DEFAULT"), listOf(account.description, account.icon, account.color))
-        assertTrue(account.includeInTotal)
-        assertEquals(1L, db.transactionDao().getAllTransactionsSync().single().accountId)
-        assertEquals(1L, prefs.defaultAccountId.first())
-    }
-
-    @Test
     fun `a failing restore rolls back and keeps local data`() = runTest {
         seedLocalData()
         val broken = BackupData(
@@ -453,18 +401,22 @@ class BackupRepositoryTest {
     }
 
     @Test
-    fun `local snapshot is written in the v4 shape with accounts`() = runTest {
+    fun `local snapshot is written in the v5 shape with accounts`() = runTest {
         seedLocalData()
         val file: File = repo.writeLocalSnapshot()
         val root = JsonParser.parseString(file.readText()).asJsonObject
-        assertEquals(4, root.get("version").asInt)
+        assertEquals(5, root.get("version").asInt)
         assertEquals("USD", root.get("mainCurrencyCode").asString)
         assertEquals("Old", root.getAsJsonArray("accounts")[0].asJsonObject.get("name").asString)
     }
 
     @Test
     fun `restore applies its main currency and default account and clears the marks`() = runTest {
-        repo.restoreJson(fixture(), gtq)
+        val backup = BackupData(
+            mainCurrencyCode = "GTQ", defaultAccountId = 1,
+            accounts = listOf(AccountEntity(id = 1, name = "Main", type = "CHECKING", currencyCode = "GTQ", createdAt = 0L)),
+        )
+        repo.restoreJson(Gson().toJson(backup), gtq)
 
         assertNull(db.appMetaDao().get(BackupRepository.META_MAIN_CURRENCY))
         assertNull(db.appMetaDao().get(BackupRepository.META_DEFAULT_ACCOUNT_ID))
@@ -511,5 +463,111 @@ class BackupRepositoryTest {
         assertEquals("USD", data.mainCurrencyCode)
         assertEquals(1, data.accounts.size)
         assertFalse(lock.mutex.isLocked)
+    }
+
+    private fun plan(id: Long, accountId: Long, categoryId: Long? = null) = InstallmentPlanEntity(
+        id = id, accountId = accountId, description = "TV", categoryId = categoryId, currencyCode = "USD",
+        originalMinor = 3000, accountTotalMinor = 3000, accountRate = BigDecimal.ONE, accountRateSource = RateSource.AUTO,
+        installments = 3, purchaseDate = 0L,
+    )
+
+    private fun cardAccount(id: Long = 1) =
+        AccountEntity(id = id, name = "Visa", type = "CREDIT_CARD", currencyCode = "USD", createdAt = 0L, statementClosingDay = 10)
+
+    @Test
+    fun `a backup round-trips installment plans`() = runTest {
+        val card = db.accountDao().insert(cardAccount(1))
+        db.categoryDao().insert(CategoryEntity(id = 5, name = "Home"))
+        db.installmentPlanDao().insert(plan(7, card, categoryId = 5))
+        (1..3).forEach { k ->
+            db.transactionDao().insert(tx(id = 100L + k, accountId = card, amount = 1000, code = "USD").copy(installmentPlanId = 7, installmentNumber = k))
+        }
+        val before = db.installmentPlanDao().getAllSync()
+        val json = Gson().toJson(repo.snapshot())
+        db.transactionDao().deleteAll()
+        db.installmentPlanDao().deleteAll()
+        db.categoryDao().deleteAll()
+        db.accountDao().deleteAll()
+
+        assertTrue(repo.restoreJson(json, usd) is RestoreResult.Restored)
+
+        assertEquals(before, db.installmentPlanDao().getAllSync())
+        val rows = db.transactionDao().getAllTransactionsSync().sortedBy { it.id }
+        assertEquals(listOf(7L, 7L, 7L), rows.map { it.installmentPlanId })
+        assertEquals(listOf(1, 2, 3), rows.map { it.installmentNumber })
+    }
+
+    @Test
+    fun `an older backup version is refused and nothing changes`() = runTest {
+        seedLocalData()
+        val json = Gson().toJson(BackupData(version = 4, mainCurrencyCode = "USD"))
+
+        assertEquals(RestoreResult.Incompatible, repo.restoreJson(json, usd))
+
+        assertEquals(99L, db.transactionDao().getAllTransactionsSync().single().id)
+        assertEquals("Old", db.accountDao().getAll().single().name)
+    }
+
+    @Test
+    fun `a file that isn't a backup is refused`() = runTest {
+        seedLocalData()
+        listOf("{}", "not json", """{"version":5}""", "[]", "").forEach {
+            assertEquals(it, RestoreResult.Incompatible, repo.restoreJson(it, usd))
+        }
+        assertEquals(99L, db.transactionDao().getAllTransactionsSync().single().id)
+    }
+
+    @Test
+    fun `an installment whose plan is missing becomes a plain expense`() = runTest {
+        val backup = BackupData(
+            mainCurrencyCode = "USD",
+            accounts = listOf(cardAccount(1)),
+            transactions = listOf(tx(id = 1, accountId = 1, amount = 10, code = "USD").copy(installmentPlanId = 404, installmentNumber = 2)),
+        )
+
+        repo.restore(backup)
+
+        val row = db.transactionDao().getAllTransactionsSync().single()
+        assertNull(row.installmentPlanId)
+        assertNull(row.installmentNumber)
+    }
+
+    @Test
+    fun `a plan whose category is missing loses it and one whose account is missing is dropped with its installments`() = runTest {
+        val backup = BackupData(
+            mainCurrencyCode = "USD",
+            accounts = listOf(cardAccount(1)),
+            installmentPlans = listOf(plan(1, accountId = 1, categoryId = 77), plan(2, accountId = 404)),
+            transactions = listOf(
+                tx(id = 1, accountId = 1, amount = 10, code = "USD").copy(installmentPlanId = 1, installmentNumber = 1),
+                tx(id = 2, accountId = 404, amount = 10, code = "USD").copy(installmentPlanId = 2, installmentNumber = 1),
+                tx(id = 3, accountId = 1, amount = 10, code = "USD"),
+            ),
+        )
+
+        repo.restore(backup)
+
+        val plan = db.installmentPlanDao().getAllSync().single()
+        assertEquals(1L, plan.id)
+        assertNull(plan.categoryId)
+        assertEquals(listOf(1L, 3L), db.transactionDao().getAllTransactionsSync().map { it.id }.sorted())
+    }
+
+    @Test
+    fun `a plan whose account is missing is dropped with its installments`() = runTest {
+        val backup = BackupData(
+            mainCurrencyCode = "USD",
+            accounts = listOf(cardAccount(1)),
+            installmentPlans = listOf(plan(2, accountId = 404)),
+            transactions = listOf(
+                tx(id = 2, accountId = 1, amount = 10, code = "USD").copy(installmentPlanId = 2, installmentNumber = 1),
+                tx(id = 3, accountId = 1, amount = 10, code = "USD"),
+            ),
+        )
+
+        repo.restore(backup)
+
+        assertTrue(db.installmentPlanDao().getAllSync().isEmpty())
+        assertEquals(listOf(3L), db.transactionDao().getAllTransactionsSync().map { it.id })
     }
 }

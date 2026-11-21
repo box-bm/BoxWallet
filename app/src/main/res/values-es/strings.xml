@@ -679,4 +679,5 @@
     <string name="card_credit_balance">Saldo a favor</string>
     <string name="card_pay_amount">Pagar %1$s</string>
     <string name="card_pay">Pagar tarjeta</string>
+    <string name="backup_error_incompatible">Este respaldo es de una versión anterior de BoxWallet y no se puede restaurar</string>
 </resources>
