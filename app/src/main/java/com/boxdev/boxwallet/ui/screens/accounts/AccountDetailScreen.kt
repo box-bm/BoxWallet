@@ -169,6 +169,7 @@ fun AccountDetailScreen(
                 categories = uiState.categories,
                 card = uiState.card,
                 transferTitleOf = { tx -> tx.transferId?.let { transferTitle(uiState.transferPairs[it], uiState.accountsById) } },
+                internalTransfers = uiState.internalTransfers,
                 onAdjust = { adjusting = item },
                 onAdjustCard = { adjusting = AccountWithBalance(it.account, it.balance) },
                 // An archived card takes no payments, like it takes no transfers.
@@ -239,6 +240,7 @@ private fun AccountDetailContent(
     onOpenMovement: (Transaction) -> Unit,
     onSeeInMovements: () -> Unit,
     modifier: Modifier = Modifier,
+    internalTransfers: Set<String> = emptySet(),
 ) {
     val account = item.account
     LazyColumn(
@@ -322,8 +324,9 @@ private fun AccountDetailContent(
                 index = index,
                 count = movements.size,
                 transferTitle = transferTitleOf(tx),
-                // Only this account's movements: a transfer reads as money in or out of it.
-                signedTransfer = true,
+                // Only this account's movements: a transfer reads as money in or out of it, except one between a
+                // card's two currencies, which stays inside the card.
+                signedTransfer = tx.transferId !in internalTransfers,
                 onClick = { onOpenMovement(tx) },
             )
         }

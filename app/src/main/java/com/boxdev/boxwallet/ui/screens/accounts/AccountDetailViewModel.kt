@@ -52,6 +52,11 @@ data class AccountDetailUiState(
     val canTransfer: Boolean = false,
     /** The account's card summary (both currencies) when it is a credit card. */
     val card: CardSummary? = null,
+    /**
+     * Transfers between a card and its own second currency: money moved inside the card, listed once and
+     * unsigned.
+     */
+    val internalTransfers: Set<String> = emptySet(),
     /** Where a card payment comes from: the last account that paid it, else the default account. */
     val cardPayer: Long? = null,
     val isLoading: Boolean = true,
@@ -104,7 +109,7 @@ class AccountDetailViewModel @Inject constructor(
 
     /**
      * [id]'s movements, newest first, with those of its card's second currency when it has one. A transfer
-     * between the two currencies has a leg on each side, so it lists once.
+     * between the two currencies has a leg on each side; it lists once, as its outgoing leg.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun movementsOf(id: Long): Flow<List<Transaction>> =
@@ -113,8 +118,9 @@ class AccountDetailViewModel @Inject constructor(
                 transactionRepository.observeByAccount(id)
             } else {
                 combine(transactionRepository.observeByAccount(id), transactionRepository.observeByAccount(childId)) { own, child ->
-                    (own + child).sortedWith(compareByDescending<Transaction> { it.date }.thenByDescending { it.id })
-                        .distinctBy { it.transferId ?: it.id }
+                    val merged = (own + child).sortedWith(compareByDescending<Transaction> { it.date }.thenByDescending { it.id })
+                    val outgoing = merged.filter { it.type == TransactionType.TRANSFER_OUT }.mapNotNullTo(HashSet()) { it.transferId }
+                    merged.filter { it.type != TransactionType.TRANSFER_IN || it.transferId !in outgoing }
                 }
             }
         }
@@ -147,6 +153,10 @@ class AccountDetailViewModel @Inject constructor(
                 canTransfer = accounts.count { !it.account.isArchived } >= 2,
                 card = card,
                 cardPayer = card?.let { lastPayer ?: defaultId },
+                internalTransfers = card?.second?.account?.id?.let { childId ->
+                    val family = setOf(id, childId)
+                    pairs.values.filter { it.fromAccountId in family && it.toAccountId in family }.mapTo(HashSet()) { it.transferId }
+                }.orEmpty(),
                 isLoading = false,
             )
         }

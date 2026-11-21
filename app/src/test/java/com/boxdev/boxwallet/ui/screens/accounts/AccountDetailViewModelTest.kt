@@ -179,6 +179,21 @@ class AccountDetailViewModelTest {
         assertEquals(1, state.movements.count { it.transferId == exchange })
         assertEquals(2, state.movements.size)
         assertTrue(state.movements.any { it.id == own })
+        // The outgoing leg, in the card's own currency, read as a move inside the card.
+        val row = state.movements.single { it.transferId == exchange }
+        assertEquals(TransactionType.TRANSFER_OUT, row.type)
+        assertEquals(card, row.accountId)
+        assertEquals(setOf(exchange), state.internalTransfers)
+    }
+
+    @Test
+    fun aPaymentIntoTheCardIsNotInternal() = runTest {
+        val payment = transfers.create(TransferDraft(banco, card, Money(5_00, gtq), LocalDate.now().atTime(9, 0)))
+
+        val state = vm(card).uiState.first { !it.isLoading && it.card != null && it.movements.isNotEmpty() }
+
+        assertEquals(TransactionType.TRANSFER_IN, state.movements.single { it.transferId == payment }.type)
+        assertTrue(state.internalTransfers.isEmpty())
     }
 
     @Test
