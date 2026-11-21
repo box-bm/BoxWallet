@@ -35,6 +35,9 @@ interface InstallmentPlanDao {
     @Query("SELECT * FROM installment_plans")
     suspend fun getAllSync(): List<InstallmentPlanEntity>
 
+    @Query("SELECT * FROM installment_plans WHERE accountRateSource = 'APPROXIMATE'")
+    suspend fun getWithApproximateRate(): List<InstallmentPlanEntity>
+
     @Query("DELETE FROM installment_plans WHERE id = :id")
     suspend fun deleteById(id: Long)
 

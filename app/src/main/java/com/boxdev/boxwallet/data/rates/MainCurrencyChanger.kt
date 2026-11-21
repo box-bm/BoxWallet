@@ -4,12 +4,14 @@ import androidx.room.withTransaction
 import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.data.local.dao.AccountDao
 import com.boxdev.boxwallet.data.local.dao.AppMetaDao
+import com.boxdev.boxwallet.data.local.dao.DayCurrency
 import com.boxdev.boxwallet.data.local.dao.LoanDao
 import com.boxdev.boxwallet.data.local.dao.TransactionDao
 import com.boxdev.boxwallet.data.local.database.BoxWalletDatabase
 import com.boxdev.boxwallet.data.local.entity.AccountEntity
 import com.boxdev.boxwallet.data.local.entity.AppMetaEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
+import com.boxdev.boxwallet.data.rates.InstallmentPlanRates.Companion.purchaseDay
 import com.boxdev.boxwallet.data.repository.BackupRepository
 import com.boxdev.boxwallet.domain.money.AmountInput
 import com.boxdev.boxwallet.domain.money.AmountResult
@@ -41,7 +43,8 @@ data class ChangeSummary(val converted: Int, val approximate: Int, val manualRep
  *
  * - One account in the main currency: the account follows the new main currency. Each movement
  *   re-resolves its account rate (original → new), recomputes the account amount from the
- *   original, and takes main rate 1.
+ *   original, and takes main rate 1. An installment plan re-converts once, at its purchase day, and
+ *   its installments share that rate ([InstallmentPlanRates.reconvert]).
  * - Otherwise (several accounts, or one in another currency): accounts and their amounts stay;
  *   only the main leg (account → new) changes.
  *
@@ -58,6 +61,7 @@ class MainCurrencyChanger internal constructor(
     private val prefs: UserPreferences,
     private val backup: BackupRepository,
     private val lock: CurrencyChangeLock,
+    private val plans: InstallmentPlanRates,
     private val today: () -> LocalDate,
     /** Whether the rate source answers at all (the `latest` file); tells "not published" from offline. */
     private val sourceReachable: suspend () -> Boolean,
@@ -74,8 +78,9 @@ class MainCurrencyChanger internal constructor(
         prefs: UserPreferences,
         backup: BackupRepository,
         lock: CurrencyChangeLock,
+        plans: InstallmentPlanRates,
     ) : this(
-        database, transactionDao, accountDao, loanDao, appMetaDao, rates, prefs, backup, lock,
+        database, transactionDao, accountDao, loanDao, appMetaDao, rates, prefs, backup, lock, plans,
         today = { LocalDate.now() },
         sourceReachable = { rates.syncLatest() },
     )
@@ -92,8 +97,10 @@ class MainCurrencyChanger internal constructor(
      */
     suspend fun prefetch(to: Currency, onProgress: (done: Int, total: Int) -> Unit): Boolean {
         val code = to.currencyCode
-        val needed = if (accountFollowsMain(accountDao.getAll())) transactionDao.distinctDayCurrenciesWhereCurrencyNot(code)
-        else transactionDao.distinctDayAccountCurrenciesWhereAccountNot(code)
+        val needed = if (accountFollowsMain(accountDao.getAll())) {
+            transactionDao.distinctDayCurrenciesWhereCurrencyNot(code) +
+                plans.all().filter { it.currencyCode != code }.map { DayCurrency(it.purchaseDay().toEpochDay(), it.currencyCode) }
+        } else transactionDao.distinctDayAccountCurrenciesWhereAccountNot(code)
         val now = today()
         val missing = needed.groupBy({ it.day }, { it.code })
             .map { (day, codes) -> LocalDate.ofEpochDay(day) to codes + code }
@@ -170,16 +177,35 @@ class MainCurrencyChanger internal constructor(
     }
 
     private suspend fun recalculate(to: Currency, onProgress: (Int, Int) -> Unit): ChangeSummary {
-        val amounts = TransactionAmounts(ExchangeRateResolver(LocalRates(lookup), today))
+        val resolver = ExchangeRateResolver(LocalRates(lookup), today)
+        val amounts = TransactionAmounts(resolver)
         val accounts = accountDao.getAll()
         val single = accountFollowsMain(accounts)
         val accountCurrency = accounts.associate { it.id to Currency.getInstance(it.currencyCode) }
         if (single) accounts.firstOrNull()?.let { accountDao.update(it.copy(currencyCode = to.currencyCode)) }
 
-        val rows = transactionDao.getAllTransactionsSync()
         var approximate = 0
         var manualReplaced = 0
+        // The lone account changes currency: each plan re-converts once, at its purchase day.
+        val planRows = HashSet<Long>()
+        if (single) for (plan in plans.all()) {
+            val original = Money(plan.originalMinor, Currency.getInstance(plan.currencyCode))
+            val purchase = amounts.compute(AmountInput(original, plan.purchaseDay(), to, to)) as? AmountResult.Ready
+                ?: throw MissingRateException(original.currency, to)
+            val rows = plans.reconvert(plan, to, purchase.accountRate, to) { row, day ->
+                if (plan.accountRateSource == RateSource.MANUAL || row.mainRateSource == RateSource.MANUAL) manualReplaced++
+                resolver.resolve(day, to, to) ?: throw MissingRateException(to, to)
+            }
+            if (purchase.accountRate.source == RateSource.APPROXIMATE) approximate += rows.size
+            rows.forEach { planRows += it.id }
+        }
+
+        val rows = transactionDao.getAllTransactionsSync()
         rows.forEachIndexed { i, tx ->
+            if (tx.id in planRows) {
+                onProgress(i + 1, rows.size)
+                return@forEachIndexed
+            }
             val day = LocalDate.ofEpochDay(Math.floorDiv(tx.date, MILLIS_PER_DAY))
             val updated = if (single) {
                 val original = Money(tx.originalAmountMinor, Currency.getInstance(tx.currencyCode))

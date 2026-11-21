@@ -816,13 +816,19 @@ class AccountRepositoryTest {
 
     private val purchase = LocalDateTime.of(2026, 11, 15, 10, 30)
 
-    private suspend fun planOn(accountId: Long, today: LocalDate, original: Money, count: Int = 3) {
+    private suspend fun planOn(
+        accountId: Long,
+        today: LocalDate,
+        original: Money,
+        count: Int = 3,
+        purchasedAt: LocalDateTime = purchase,
+    ) {
         val amounts = TransactionAmounts(ExchangeRateResolver(withGtq) { today })
         val resolver = ExchangeRateResolver(withGtq) { today }
         InstallmentPlanRepository(
             db, db.installmentPlanDao(), db.transactionDao(), db.accountDao(), amounts, resolver,
             MovementWriteGuard(CurrencyChangeLock(), prefs, db.accountDao(), amounts), prefs, CurrentDay(flowOf(today)),
-        ).create(NewInstallmentPlan(accountId, "TV", null, original, count, purchase))
+        ).create(NewInstallmentPlan(accountId, "TV", null, original, count, purchasedAt))
     }
 
     private suspend fun installmentDates(accountId: Long) =
@@ -861,6 +867,68 @@ class AccountRepositoryTest {
         assertEquals(
             listOf(LocalDate.of(2026, 11, 15), LocalDate.of(2026, 11, 25), LocalDate.of(2026, 12, 25)),
             installmentDates(childId).map { it.toLocalDate() },
+        )
+    }
+
+    @Test
+    fun `re-dated installments resolve their main rate again for the new date`() = runTest {
+        prefs.setMainCurrency("GTQ")
+        val today = LocalDate.of(2026, 11, 20)
+        // Exact Q7.80 through November; later days only have the nearest Q8.00.
+        val byDay = object : RateLookup {
+            override suspend fun exact(day: LocalDate, code: String): BigDecimal? =
+                if (code == "GTQ" && day.isBefore(LocalDate.of(2026, 12, 1))) BigDecimal("7.80") else null
+            override suspend fun nearest(day: LocalDate, code: String): BigDecimal? =
+                if (code == "GTQ") BigDecimal("8.00") else null
+            override suspend fun download(day: LocalDate) = false
+        }
+        val repo = repositoryWith(byDay, flowOf(today))
+        val cardId = repo.create(card(closingDay = 15), null, SecondCurrencyInput(usd, null))
+        val childId = childOf(cardId).id
+        planOn(childId, today, Money(30000, usd)) // US$100.00 × 3, all at an exact Q7.80.
+
+        repo.update(repo.observeAll().first().single { it.id == cardId }.copy(statementClosingDay = 25))
+
+        val rows = db.transactionDao().getAllTransactionsSync()
+            .filter { it.accountId == childId && it.installmentPlanId != null }.sortedBy { it.installmentNumber }
+        assertEquals(
+            listOf(LocalDate.of(2026, 11, 15), LocalDate.of(2026, 11, 25), LocalDate.of(2026, 12, 25)),
+            rows.map { dateOf(it).toLocalDate() },
+        )
+        // The charged one keeps its rate; Nov 25 resolves exactly, Dec 25 only approximately.
+        assertEquals(listOf("7.80", "7.80", "8.00").map(::BigDecimal), rows.map { it.mainRate.setScale(2) })
+        assertEquals(listOf(RateSource.AUTO, RateSource.AUTO, RateSource.APPROXIMATE), rows.map { it.mainRateSource })
+        assertEquals(listOf(78000L, 78000L, 80000L), rows.map { it.amountMinor })
+        rows.forEach { assertEquals(10000L, it.accountAmountMinor) }
+    }
+
+    @Test
+    fun `changing the closing day re-dates each plan's own pending installments`() = runTest {
+        val today = LocalDate.of(2026, 11, 20)
+        val repo = repositoryWith(withGtq, flowOf(today))
+        val cardId = repo.create(card(closingDay = 15), null, null)
+        planOn(cardId, today, Money(300000, gtq)) // Nov 15, Dec 15, Jan 15: two pending.
+        planOn(cardId, today, Money(90000, gtq), purchasedAt = LocalDateTime.of(2026, 10, 10, 8, 0)) // Oct 15, Nov 15, Dec 15: one pending.
+
+        repo.update(repo.observeAll().first().single { it.id == cardId }.copy(statementClosingDay = 25))
+
+        val byPlan = db.transactionDao().getAllTransactionsSync().filter { it.installmentPlanId != null }
+            .groupBy { it.installmentPlanId!! }.toSortedMap().values
+            .map { rows -> rows.sortedBy { it.installmentNumber }.map(::dateOf) }
+        assertEquals(
+            listOf(
+                listOf(
+                    LocalDateTime.of(2026, 11, 15, 10, 30),
+                    LocalDateTime.of(2026, 11, 25, 10, 30),
+                    LocalDateTime.of(2026, 12, 25, 10, 30),
+                ),
+                listOf(
+                    LocalDateTime.of(2026, 10, 15, 8, 0),
+                    LocalDateTime.of(2026, 11, 15, 8, 0),
+                    LocalDateTime.of(2026, 11, 25, 8, 0),
+                ),
+            ),
+            byPlan,
         )
     }
 

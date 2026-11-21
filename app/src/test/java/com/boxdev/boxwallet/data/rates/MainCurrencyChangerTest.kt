@@ -8,6 +8,7 @@ import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.data.local.database.BoxWalletDatabase
 import com.boxdev.boxwallet.data.local.entity.AccountEntity
 import com.boxdev.boxwallet.data.local.entity.AppMetaEntity
+import com.boxdev.boxwallet.data.local.entity.InstallmentPlanEntity
 import com.boxdev.boxwallet.data.local.entity.LoanEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 import com.boxdev.boxwallet.data.remote.GoogleDriveManager
@@ -100,7 +101,7 @@ class MainCurrencyChangerTest {
         val lock = CurrencyChangeLock()
         val backup = BackupRepository(context, db, db.transactionDao(), db.categoryDao(), db.loanDao(), db.installmentPlanDao(), db.accountDao(), db.appMetaDao(), prefs, lock, GoogleDriveManager(context))
         changer = MainCurrencyChanger(
-            db, db.transactionDao(), db.accountDao(), db.loanDao(), db.appMetaDao(), lookup, prefs, backup, lock,
+            db, db.transactionDao(), db.accountDao(), db.loanDao(), db.appMetaDao(), lookup, prefs, backup, lock, InstallmentPlanRates(db),
             today = { today },
             sourceReachable = { lookup.online && lookup.latestReachable },
         )
@@ -185,6 +186,54 @@ class MainCurrencyChangerTest {
         assertEquals("EUR", dao.getById(eurTx)!!.currencyCode)
         assertEquals(0, BigDecimal.ONE.compareTo(dao.getById(gtqTx)!!.accountRate))
         assertTrue(java.io.File(context.filesDir, "backups/pre-currency-change.json").exists())
+    }
+
+    @Test
+    fun `single account re-converts an installment plan once at its purchase day`() = runTest {
+        val card = db.accountDao().insert(
+            AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "USD", createdAt = 0L, statementClosingDay = 15)
+        )
+        prefs.setDefaultAccountId(card)
+        // Only the purchase day has exact rates: an installment re-converted at its own date would be APPROXIMATE.
+        lookup.allExact = false
+        lookup.stored += day
+        // 10.00 EUR bought at 2 -> 20.00 USD in 3 parts.
+        val planId = db.installmentPlanDao().insert(
+            InstallmentPlanEntity(
+                accountId = card, description = "TV", currencyCode = "EUR", originalMinor = 1000,
+                accountTotalMinor = 2000, accountRate = BigDecimal("2"), accountRateSource = RateSource.AUTO,
+                installments = 3, purchaseDate = millis(day),
+            )
+        )
+        val originals = listOf(333L, 333L, 334L)
+        val accountParts = listOf(666L, 666L, 668L)
+        val ids = (1..3).map { k ->
+            db.transactionDao().insert(
+                tx(card, originals[k - 1], "EUR", accountParts[k - 1], "2", accountParts[k - 1], "1", date = day.plusMonths(k.toLong()))
+                    .copy(installmentPlanId = planId, installmentNumber = k)
+            )
+        }
+
+        val summary = changer.apply(gtq)
+
+        assertEquals(ChangeSummary(converted = 3, approximate = 0, manualReplaced = 0), summary)
+        assertEquals("GTQ", db.accountDao().getById(card)!!.currencyCode)
+        // 10.00 EUR -> GTQ at the purchase day's 8 / 0.5 = 16 -> 160.00 GTQ.
+        val plan = db.installmentPlanDao().getById(planId)!!
+        assertEquals(16000L, plan.accountTotalMinor)
+        assertEquals(0, BigDecimal("16").compareTo(plan.accountRate))
+        assertEquals(RateSource.AUTO, plan.accountRateSource)
+        val rows = ids.map { db.transactionDao().getById(it)!! }
+        assertEquals(listOf(5333L, 5333L, 5334L), rows.map { it.accountAmountMinor })
+        assertEquals(plan.accountTotalMinor, rows.sumOf { it.accountAmountMinor })
+        assertEquals(originals, rows.map { it.originalAmountMinor })
+        rows.forEach { row ->
+            assertEquals(0, plan.accountRate.compareTo(row.accountRate))
+            assertEquals(plan.accountRateSource, row.accountRateSource)
+            assertEquals(row.accountAmountMinor, row.amountMinor)
+            assertEquals(0, BigDecimal.ONE.compareTo(row.mainRate))
+            assertEquals(RateSource.AUTO, row.mainRateSource)
+        }
     }
 
     @Test
@@ -513,7 +562,7 @@ class MainCurrencyChangerTest {
         val reachable = MainCurrencyChanger(
             db, db.transactionDao(), db.accountDao(), db.loanDao(), db.appMetaDao(), unpublished, prefs,
             BackupRepository(context, db, db.transactionDao(), db.categoryDao(), db.loanDao(), db.installmentPlanDao(), db.accountDao(), db.appMetaDao(), prefs, CurrencyChangeLock(), GoogleDriveManager(context)),
-            CurrencyChangeLock(), today = { today }, sourceReachable = { true },
+            CurrencyChangeLock(), InstallmentPlanRates(db), today = { today }, sourceReachable = { true },
         )
         db.transactionDao().insert(tx(acc, 1000, "USD", 1000, "1", 1000, "1", date = today))
 

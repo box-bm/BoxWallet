@@ -6,8 +6,10 @@ import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.data.local.database.BoxWalletDatabase
 import com.boxdev.boxwallet.data.local.entity.AccountEntity
 import com.boxdev.boxwallet.data.local.entity.AppMetaEntity
+import com.boxdev.boxwallet.data.local.entity.InstallmentPlanEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 import com.boxdev.boxwallet.domain.money.ExchangeRateResolver
+import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.domain.money.RateLookup
 import com.boxdev.boxwallet.domain.money.RateSource
 import kotlinx.coroutines.test.runTest
@@ -21,6 +23,7 @@ import org.robolectric.annotation.Config
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.ZoneOffset
+import java.util.Currency
 
 /** Uses a real [ExchangeRateResolver] over a fake [RateLookup]. */
 @RunWith(RobolectricTestRunner::class)
@@ -29,7 +32,9 @@ class ApproximateRateFixerTest {
 
     private class FakeLookup(var hasExact: Boolean) : RateLookup {
         private val units = mapOf("USD" to BigDecimal.ONE, "GTQ" to BigDecimal("8"), "EUR" to BigDecimal("0.5"))
-        override suspend fun exact(day: LocalDate, code: String) = if (hasExact) units[code] else null
+        /** Days with only a nearest rate even while [hasExact]. */
+        val missing = mutableSetOf<LocalDate>()
+        override suspend fun exact(day: LocalDate, code: String) = if (hasExact && day !in missing) units[code] else null
         override suspend fun nearest(day: LocalDate, code: String) = units[code]
         override suspend fun download(day: LocalDate) = false
     }
@@ -52,7 +57,7 @@ class ApproximateRateFixerTest {
         val prefs = UserPreferences(context)
         prefs.setMainCurrency("USD")
         lookup = FakeLookup(hasExact = true)
-        fixer = ApproximateRateFixer(db.transactionDao(), db.accountDao(), db.appMetaDao(), ExchangeRateResolver(lookup) { day }, prefs, CurrencyChangeLock())
+        fixer = ApproximateRateFixer(db.transactionDao(), db.accountDao(), db.appMetaDao(), ExchangeRateResolver(lookup) { day }, prefs, CurrencyChangeLock(), InstallmentPlanRates(db))
     }
 
     @After
@@ -136,11 +141,14 @@ class ApproximateRateFixerTest {
 
     @Test
     fun `an installment keeps its account rate and upgrades only its main rate`() = runTest {
+        // The purchase day still has no exact rate; the installment's own day does.
+        val purchaseDay = day.minusMonths(1)
+        lookup.missing += purchaseDay
         val plan = db.installmentPlanDao().insert(
             com.boxdev.boxwallet.data.local.entity.InstallmentPlanEntity(
                 accountId = accountId, description = "TV", currencyCode = "EUR", originalMinor = 2000,
                 accountTotalMinor = 1000, accountRate = BigDecimal("0.5"), accountRateSource = RateSource.APPROXIMATE,
-                installments = 2, purchaseDate = dateMillis,
+                installments = 2, purchaseDate = purchaseDay.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli(),
             )
         )
         val id = db.transactionDao().insert(
@@ -157,5 +165,70 @@ class ApproximateRateFixerTest {
         assertEquals(RateSource.AUTO, fixed.mainRateSource)
         assertEquals(0, BigDecimal("0.125").compareTo(fixed.mainRate))
         assertEquals(125L, fixed.amountMinor)
+    }
+
+    @Test
+    fun `a plan with an approximate purchase rate upgrades with all its installments`() = runTest {
+        val purchaseMillis = day.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli() + 3_600_000
+        // 10.00 EUR saved at an approximate 15 -> 150.00 GTQ in 3 parts.
+        val planId = db.installmentPlanDao().insert(
+            InstallmentPlanEntity(
+                accountId = accountId, description = "TV", currencyCode = "EUR", originalMinor = 1000,
+                accountTotalMinor = 15000, accountRate = BigDecimal("15"), accountRateSource = RateSource.APPROXIMATE,
+                installments = 3, purchaseDate = purchaseMillis,
+            )
+        )
+        val originals = listOf(333L, 333L, 334L)
+        val ids = (1..3).map { k ->
+            db.transactionDao().insert(
+                tx(currency = "EUR", accountAmountMinor = 5000, accountRate = "15", accountSource = RateSource.APPROXIMATE)
+                    .copy(
+                        date = day.plusMonths(k.toLong()).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli() + 3_600_000,
+                        originalAmountMinor = originals[k - 1],
+                        installmentPlanId = planId,
+                        installmentNumber = k,
+                    )
+            )
+        }
+
+        assertEquals(3, fixer.fix())
+
+        // Exact purchase-day rate: 8 / 0.5 = 16 -> 160.00 GTQ = 5333 + 5333 + 5334.
+        val plan = db.installmentPlanDao().getById(planId)!!
+        assertEquals(16000L, plan.accountTotalMinor)
+        assertEquals(0, BigDecimal("16").compareTo(plan.accountRate))
+        assertEquals(RateSource.AUTO, plan.accountRateSource)
+        val rows = ids.map { db.transactionDao().getById(it)!! }
+        assertEquals(listOf(5333L, 5333L, 5334L), rows.map { it.accountAmountMinor })
+        assertEquals(plan.accountTotalMinor, rows.sumOf { it.accountAmountMinor })
+        assertEquals(originals, rows.map { it.originalAmountMinor })
+        rows.forEach { row ->
+            assertEquals(0, plan.accountRate.compareTo(row.accountRate))
+            assertEquals(RateSource.AUTO, row.accountRateSource)
+            assertEquals(RateSource.AUTO, row.mainRateSource)
+            assertEquals(0, BigDecimal("0.125").compareTo(row.mainRate))
+            val expected = Money(row.accountAmountMinor, Currency.getInstance("GTQ"))
+                .convert(Currency.getInstance("USD"), row.mainRate).minor
+            assertEquals(expected, row.amountMinor)
+        }
+        assertEquals(0, db.transactionDao().getWithApproximateRates().size)
+    }
+
+    @Test
+    fun `a plan stays approximate while its purchase day has no exact rate`() = runTest {
+        lookup.missing += day
+        val planId = db.installmentPlanDao().insert(
+            InstallmentPlanEntity(
+                accountId = accountId, description = "TV", currencyCode = "EUR", originalMinor = 1000,
+                accountTotalMinor = 15000, accountRate = BigDecimal("15"), accountRateSource = RateSource.APPROXIMATE,
+                installments = 2, purchaseDate = dateMillis,
+            )
+        )
+
+        fixer.fix()
+
+        val plan = db.installmentPlanDao().getById(planId)!!
+        assertEquals(15000L, plan.accountTotalMinor)
+        assertEquals(RateSource.APPROXIMATE, plan.accountRateSource)
     }
 }

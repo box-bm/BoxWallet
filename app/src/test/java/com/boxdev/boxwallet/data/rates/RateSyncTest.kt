@@ -44,7 +44,7 @@ class RateSyncTest {
             prefs,
         )
         val fixer = ApproximateRateFixer(
-            db.transactionDao(), db.accountDao(), db.appMetaDao(), ExchangeRateResolver(repository) { day.minusDays(1) }, prefs, CurrencyChangeLock(),
+            db.transactionDao(), db.accountDao(), db.appMetaDao(), ExchangeRateResolver(repository) { day.minusDays(1) }, prefs, CurrencyChangeLock(), InstallmentPlanRates(db),
         )
         sync = RateSync(repository, fixer)
     }
