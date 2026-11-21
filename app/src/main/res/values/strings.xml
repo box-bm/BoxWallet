@@ -521,6 +521,7 @@
     <string name="transfer_delete_title">Delete transfer</string>
     <string name="transfer_delete_body">Both accounts will be updated.</string>
     <string name="transfer_error_same_account">Choose two different accounts.</string>
+    <string name="transfer_error_pick_destination">Choose the account that receives the transfer.</string>
     <string name="transfer_error_not_found">This transfer no longer exists.</string>
     <string name="transfer_error_save">Couldn\'t save the transfer.</string>
     <string name="transfer_error_delete">Couldn\'t delete the transfer.</string>

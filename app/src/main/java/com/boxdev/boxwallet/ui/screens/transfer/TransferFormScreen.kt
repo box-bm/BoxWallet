@@ -250,6 +250,7 @@ private fun TransferFormErrorText(error: TransferFormError) {
         TransferFormError.InvalidAmount -> stringResource(R.string.transaction_error_invalid_amount)
         TransferFormError.NeedsRate -> stringResource(R.string.conversion_needs_rate)
         TransferFormError.AccountLoading -> stringResource(R.string.transaction_error_account_loading)
+        TransferFormError.PickDestination -> stringResource(R.string.transfer_error_pick_destination)
         TransferFormError.NotFound -> stringResource(R.string.transfer_error_not_found)
         is TransferFormError.MissingRate -> stringResource(R.string.transaction_error_missing_rate, error.from.currencyCode)
         TransferFormError.SaveFailed -> stringResource(R.string.transfer_error_save)

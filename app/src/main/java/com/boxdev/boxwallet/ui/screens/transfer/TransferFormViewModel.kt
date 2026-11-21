@@ -81,13 +81,13 @@ class TransferFormViewModel @Inject constructor(
 
     /**
      * A `receive` argument still waiting for its rate: applied on the first automatic rate, until the user types
-     * an amount or picks another destination.
+     * an amount or a rate, or picks another destination.
      */
     private var pendingReceive: String? = null
 
     /**
-     * The `receive` argument while it still drives the amount: kept until the user types an amount or picks
-     * another destination, so changing the source re-applies it (in the new currency) through [pendingReceive].
+     * The `receive` argument while it still drives the amount: kept until the user types an amount or a rate, or
+     * picks another destination, so changing the source re-applies it (in the new currency) through [pendingReceive].
      */
     private var receiveTarget: String? = null
 
@@ -257,9 +257,16 @@ class TransferFormViewModel @Inject constructor(
         refreshRate()
     }
 
-    fun updateManualRate(value: String) = _formState.update { it.withManualRate(value) }
+    /** A typed rate (or received amount) is the user's: a `receive` still waiting for a rate no longer applies. */
+    fun updateManualRate(value: String) {
+        dropReceive()
+        _formState.update { it.withManualRate(value) }
+    }
 
-    fun updateEquivalent(value: String) = _formState.update { it.withEquivalent(value) }
+    fun updateEquivalent(value: String) {
+        dropReceive()
+        _formState.update { it.withEquivalent(value) }
+    }
 
     /** Drops the typed rate and goes back to the rate of the transfer's date. */
     fun useAutomaticRate() {
@@ -333,6 +340,7 @@ class TransferFormViewModel @Inject constructor(
         // A second tap while saving (or after) must not write the transfer again.
         if (s.isLoading || s.isSaved) return
         val error = when {
+            s.fromAccountId != null && s.toAccountId == null -> TransferFormError.PickDestination
             s.fromAccount == null || s.toAccount == null -> TransferFormError.AccountLoading
             s.isSameAccount -> TransferFormError.SameAccount
             s.money == null -> TransferFormError.InvalidAmount

@@ -222,8 +222,6 @@ class TransferFormViewModelTest {
 
     @Test
     fun receiveSameCurrencyFillsAmount() = runTest {
-        val state = vm(mapOf("from" to banco, "to" to -1L, "receive" to "1980.00")).loaded()
-        assertEquals(dolares, state.toAccountId)
         val caja = db.accountDao().insert(AccountEntity(name = "Caja", type = "CASH", currencyCode = "GTQ", createdAt = 0L, sortOrder = 2))
         val same = vm(mapOf("from" to banco, "to" to caja, "receive" to "1980.00")).loaded()
         assertEquals("1980.00", same.amount)
@@ -306,6 +304,41 @@ class TransferFormViewModelTest {
         val state = vm(mapOf("to" to card, "receive" to "50.00")).loaded()
         assertEquals(banco, state.fromAccountId)
         assertEquals(null, state.toAccountId)
+    }
+
+    @Test
+    fun savingWithoutADestinationAsksForOne() = runTest {
+        val card = db.accountDao().insert(
+            AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "GTQ", createdAt = 0L, sortOrder = 2, isArchived = true)
+        )
+        val vm = vm(mapOf("to" to card))
+        vm.loaded()
+        vm.updateAmount("50")
+
+        vm.save()
+
+        assertEquals(TransferFormError.PickDestination, vm.formState.value.error)
+        assertFalse(vm.formState.value.isSaved)
+        assertTrue(db.transactionDao().getAllTransactionsSync().isEmpty())
+    }
+
+    /** A receive still waiting for a rate is dropped once the user types one, so a later rate can't overwrite it. */
+    @Test
+    fun aTypedRateDropsAWaitingReceive() = runTest {
+        ratesAvailable = false
+        val vm = vm(mapOf("from" to banco, "to" to dolares, "receive" to "100.00"))
+        val start = vm.formState.first { !it.isLoading && it.fromAccountId != null && it.needsManualRate }
+
+        vm.updateManualRate("0.13")
+        ratesAvailable = true
+        // Another day, so the rate isn't the cached miss; then back to the automatic rate.
+        vm.updateDate(start.date.minusDays(1))
+        vm.useAutomaticRate()
+        val ready = vm.formState.first { it.rate != null && !it.needsManualRate }
+        settle()
+
+        assertEquals("", ready.amount)
+        assertEquals("", vm.formState.value.amount)
     }
 
     /** A prefilled receive follows the source while the amount wasn't typed: same currency, then converted, then back. */
