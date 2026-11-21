@@ -7,7 +7,18 @@ enum class AccountType { CASH, CHECKING, SAVINGS, CREDIT_CARD, OTHER }
 
 /** Persisted by [key]; unknown keys read back as [DEFAULT]. */
 enum class AccountColor(val key: String) {
-    DEFAULT("DEFAULT");
+    DEFAULT("DEFAULT"),
+    RED("RED"),
+    ORANGE("ORANGE"),
+    AMBER("AMBER"),
+    LIME("LIME"),
+    GREEN("GREEN"),
+    TEAL("TEAL"),
+    CYAN("CYAN"),
+    BLUE("BLUE"),
+    INDIGO("INDIGO"),
+    PURPLE("PURPLE"),
+    PINK("PINK");
 
     companion object {
         fun fromKey(key: String?): AccountColor = entries.firstOrNull { it.key == key } ?: DEFAULT
