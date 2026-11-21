@@ -80,4 +80,20 @@ class CardSummaryTest {
         assertEquals(0L, summary.primary.usedMinor)
         assertEquals(Money(1000000, gtq), summary.available)
     }
+
+    @Test
+    fun secondUsedOnlyWhenInUse() {
+        val card = card()
+        fun summary(secondMinor: Long?) = cardSummary(
+            card, cardBalance(card, Money(-250000, gtq), null),
+            secondMinor?.let { cardBalance(child, Money(it, usd), null) }, null, approximate = false,
+        )
+
+        assertEquals(Money(250000, gtq), summary(null).primaryUsed)
+        assertNull(summary(null).secondUsed)
+        assertNull(summary(0).secondUsed)
+        // A credit balance in the second currency is nothing used.
+        assertNull(summary(500).secondUsed)
+        assertEquals(Money(1000, usd), summary(-1000).secondUsed)
+    }
 }

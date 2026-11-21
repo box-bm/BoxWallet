@@ -70,6 +70,8 @@ import com.boxdev.boxwallet.domain.model.AccountColor
 import com.boxdev.boxwallet.domain.model.AccountType
 import com.boxdev.boxwallet.domain.model.AccountWithBalance
 import com.boxdev.boxwallet.domain.model.CardSummary
+import com.boxdev.boxwallet.domain.model.primaryUsed
+import com.boxdev.boxwallet.domain.model.secondUsed
 import com.boxdev.boxwallet.domain.model.TotalBalance
 import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.ui.components.AmountText
@@ -256,7 +258,7 @@ private fun TotalPanel(total: TotalBalance) {
     }
 }
 
-/** One account; a credit card ([card]) shows what is used, with a thin bar of its limit. */
+/** One account; a credit card ([card]) shows what is used (both currencies), with a thin bar of its limit. */
 @Composable
 private fun AccountRow(
     item: AccountWithBalance,
@@ -282,7 +284,10 @@ private fun AccountRow(
                 AmountText(amount = item.balance)
             } else {
                 Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    AmountText(amount = Money(card.primary.usedMinor, account.currency))
+                    Column(horizontalAlignment = Alignment.End) {
+                        AmountText(amount = card.primaryUsed)
+                        card.secondUsed?.let { AmountText(amount = it, style = BoxTheme.moneyType.small) }
+                    }
                     usageFraction(card)?.let { CardUsageBar(it, Modifier.width(72.dp)) }
                 }
             }

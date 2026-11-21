@@ -24,6 +24,12 @@ data class CardSummary(
     val availableApproximate: Boolean,
 )
 
+/** What is used of the main currency, in the card's currency. */
+val CardSummary.primaryUsed: Money get() = Money(primary.usedMinor, primary.balance.currency)
+
+/** What is used of the second currency, or null without one or with nothing used: lists show it under the main. */
+val CardSummary.secondUsed: Money? get() = second?.takeIf { it.usedMinor > 0 }?.let { Money(it.usedMinor, it.balance.currency) }
+
 /**
  * Available = limit − used₁ − used₂ × [rateSecondToPrimary], rounded HALF_EVEN. Null without a limit, or
  * when there is a [second] currency but no rate.

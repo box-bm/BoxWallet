@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.domain.model.Account
@@ -29,6 +30,8 @@ import com.boxdev.boxwallet.domain.model.AccountColor
 import com.boxdev.boxwallet.domain.model.AccountType
 import com.boxdev.boxwallet.domain.model.AccountWithBalance
 import com.boxdev.boxwallet.domain.model.CardSummary
+import com.boxdev.boxwallet.domain.model.primaryUsed
+import com.boxdev.boxwallet.domain.model.secondUsed
 import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.ui.components.AmountText
 import com.boxdev.boxwallet.ui.components.CardUsageBar
@@ -44,10 +47,13 @@ fun showAccountsRow(accounts: List<AccountWithBalance>): Boolean = accounts.size
 private val CardWidth = 168.dp
 private val CardHeight = 132.dp
 
+/** Room for a card's second-currency line; every tile in the row grows together. */
+private val TallCardHeight = 156.dp
+
 /**
  * A horizontal row of account cards (badge, name, balance in the account's currency) ending in
- * "See accounts". A credit card (in [cards]) shows what is used instead, with a thin bar of its limit.
- * A card opens that account's detail.
+ * "See accounts". A credit card (in [cards]) shows what is used instead (its second currency on a line
+ * below when in use), with a thin bar of its limit. A card opens that account's detail.
  */
 @Composable
 fun HomeAccountsRow(
@@ -57,6 +63,7 @@ fun HomeAccountsRow(
     modifier: Modifier = Modifier,
     cards: Map<Long, CardSummary> = emptyMap(),
 ) {
+    val height = if (accounts.any { cards[it.account.id]?.secondUsed != null }) TallCardHeight else CardHeight
     LazyRow(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -64,19 +71,19 @@ fun HomeAccountsRow(
         contentPadding = PaddingValues(top = 4.dp, end = 16.dp, bottom = 4.dp),
     ) {
         items(accounts, key = { it.account.id }) { item ->
-            AccountCard(item, cards[item.account.id], onClick = { onOpenAccount(item.account.id) })
+            AccountCard(item, cards[item.account.id], height, onClick = { onOpenAccount(item.account.id) })
         }
-        item(key = "see_accounts") { SeeAccountsCard(onSeeAccounts) }
+        item(key = "see_accounts") { SeeAccountsCard(height, onSeeAccounts) }
     }
 }
 
 @Composable
-private fun AccountCard(item: AccountWithBalance, card: CardSummary?, onClick: () -> Unit) {
+private fun AccountCard(item: AccountWithBalance, card: CardSummary?, height: Dp, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
         color = BoxTheme.cardColor,
         shape = MaterialTheme.shapes.extraLarge,
-        modifier = Modifier.width(CardWidth).height(CardHeight),
+        modifier = Modifier.width(CardWidth).height(height),
     ) {
         Column(
             Modifier.padding(16.dp).fillMaxHeight(),
@@ -94,7 +101,8 @@ private fun AccountCard(item: AccountWithBalance, card: CardSummary?, onClick: (
                 if (card == null) {
                     AmountText(amount = item.balance, autoSize = true)
                 } else {
-                    AmountText(amount = Money(card.primary.usedMinor, item.account.currency), autoSize = true)
+                    AmountText(amount = card.primaryUsed, autoSize = true)
+                    card.secondUsed?.let { AmountText(amount = it, style = BoxTheme.moneyType.small) }
                     usageFraction(card)?.let { CardUsageBar(it, Modifier.padding(top = 4.dp)) }
                 }
             }
@@ -103,13 +111,13 @@ private fun AccountCard(item: AccountWithBalance, card: CardSummary?, onClick: (
 }
 
 @Composable
-private fun SeeAccountsCard(onClick: () -> Unit) {
+private fun SeeAccountsCard(height: Dp, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
         color = MaterialTheme.colorScheme.secondaryContainer,
         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
         shape = MaterialTheme.shapes.extraLarge,
-        modifier = Modifier.width(CardWidth).height(CardHeight),
+        modifier = Modifier.width(CardWidth).height(height),
     ) {
         Column(
             Modifier.padding(16.dp).fillMaxHeight(),
