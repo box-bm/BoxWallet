@@ -99,6 +99,7 @@ class AccountFormViewModel @Inject constructor(
     fun updateIcon(key: String) = _form.update { it.copy(icon = key) }
     fun updateColor(color: AccountColor) = _form.update { it.copy(color = color) }
     fun updateIncludeInTotal(value: Boolean) = _form.update { it.copy(includeInTotal = value) }
+    fun updateNegativeBalance(value: Boolean) = _form.update { it.copy(negativeBalance = value) }
 
     fun updateCurrency(currency: Currency) {
         if (_form.value.currencyLocked) return
@@ -153,9 +154,17 @@ class AccountFormViewModel @Inject constructor(
             } catch (_: MissingRateException) {
                 _status.update { it.copy(isSaving = false, error = R.string.account_error_missing_rate) }
             } catch (_: IllegalStateException) {
-                // The account gained movements while the form was open: its currency is now locked.
-                _form.update { it.copy(currency = editing?.currency ?: it.currency, currencyLocked = true) }
-                _status.update { it.copy(isSaving = false, error = R.string.account_currency_locked) }
+                // update() refuses a missing account or a currency change once there are movements.
+                val stored = editing
+                val locked = stored != null && s.currency != stored.currency &&
+                    accountRepository.hasNonAdjustmentMovements(stored.id)
+                if (locked) {
+                    // The account gained movements while the form was open: its currency is now locked.
+                    _form.update { it.copy(currency = stored.currency, currencyLocked = true) }
+                    _status.update { it.copy(isSaving = false, error = R.string.account_currency_locked) }
+                } else {
+                    _status.update { it.copy(isSaving = false, error = R.string.account_not_found) }
+                }
             }
         }
     }

@@ -21,6 +21,8 @@ data class AccountFormState(
     val description: String = "",
     val currency: Currency = Currency.getInstance("USD"),
     val currentBalance: String = "",
+    /** The "−/+" toggle beside the balance: flips the sign of what was typed. */
+    val negativeBalance: Boolean = false,
     val icon: String = "AccountBalance",
     val color: AccountColor = AccountColor.DEFAULT,
     val includeInTotal: Boolean = true,
@@ -38,7 +40,7 @@ data class AccountFormState(
 
     /** The typed balance; null when empty (no opening balance), invalid or editing. */
     val balance: Money?
-        get() = if (isEditing || currentBalance.isBlank()) null else parseBalance(currentBalance, currency)
+        get() = if (isEditing || currentBalance.isBlank()) null else signedBalance(currentBalance, currency, negativeBalance)
 
     @get:StringRes
     val balanceError: Int?
@@ -60,3 +62,7 @@ fun parseBalance(input: String, currency: Currency): Money? {
     val money = parseMajor(digits, currency) ?: return null
     return if (negative) money.copy(minor = -money.minor) else money
 }
+
+/** [parseBalance] with the sign toggle applied: [negative] flips the sign of the parsed amount. */
+fun signedBalance(input: String, currency: Currency, negative: Boolean): Money? =
+    parseBalance(input, currency)?.let { if (negative) it.copy(minor = -it.minor) else it }

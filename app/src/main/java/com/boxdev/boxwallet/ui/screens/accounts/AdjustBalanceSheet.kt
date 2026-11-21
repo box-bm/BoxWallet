@@ -8,7 +8,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.IconToggleButton
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -48,9 +52,10 @@ fun AdjustBalanceSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val locale = remember { Locale.getDefault() }
-    var text by rememberSaveable { mutableStateOf(current.toMajor().toPlainString()) }
+    var text by rememberSaveable { mutableStateOf(current.toMajor().abs().toPlainString()) }
+    var negative by rememberSaveable { mutableStateOf(current.minor < 0) }
     var showError by remember { mutableStateOf(false) }
-    val parsed = parseBalance(text, current.currency)
+    val parsed = signedBalance(text, current.currency, negative)
     val submit = { if (parsed != null) onSave(parsed) else showError = true }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
@@ -73,10 +78,12 @@ fun AdjustBalanceSheet(
                     }
                 },
                 label = { Text(stringResource(R.string.account_balance_label)) },
+                leadingIcon = { BalanceSignToggle(negative) { negative = it; showError = false } },
                 prefix = { Text(CurrencyCatalog.symbol(current.currency, locale)) },
                 isError = showError,
                 supportingText = if (showError) ({ Text(stringResource(R.string.account_balance_invalid)) }) else null,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { submit() }),
                 shape = MaterialTheme.shapes.extraLarge,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
@@ -86,5 +93,21 @@ fun AdjustBalanceSheet(
                 Button(onClick = submit, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.action_save)) }
             }
         }
+    }
+}
+
+/**
+ * The "−/+" control at the start of a balance field. Decimal keyboards often have no minus key,
+ * so the sign is a toggle of its own; checked means the typed amount is negative.
+ */
+@Composable
+internal fun BalanceSignToggle(negative: Boolean, onToggle: (Boolean) -> Unit) {
+    val label = stringResource(R.string.account_balance_negative)
+    IconToggleButton(
+        checked = negative,
+        onCheckedChange = onToggle,
+        modifier = Modifier.semantics { contentDescription = label },
+    ) {
+        Text(if (negative) "\u2212" else "+", style = MaterialTheme.typography.titleLarge)
     }
 }

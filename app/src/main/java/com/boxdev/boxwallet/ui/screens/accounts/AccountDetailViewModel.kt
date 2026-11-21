@@ -15,6 +15,7 @@ import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.domain.money.MissingRateException
 import com.boxdev.boxwallet.domain.money.Money
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -51,7 +52,6 @@ class AccountDetailViewModel @Inject constructor(
         if (accountId.value == id) return
         accountId.value = id
         _confirmDelete.value = false
-        _deleted.value = false
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -81,8 +81,11 @@ class AccountDetailViewModel @Inject constructor(
     val confirmDelete: StateFlow<Boolean> = _confirmDelete.asStateFlow()
 
     /** Set once the account is gone, so the screen can leave it. */
-    private val _deleted = MutableStateFlow(false)
-    val deleted: StateFlow<Boolean> = _deleted.asStateFlow()
+    private val deletedId = MutableStateFlow<Long?>(null)
+
+    /** True only for the bound account, so a pane reused for the next account is never closed by a stale flag. */
+    val deleted: StateFlow<Boolean> = combine(deletedId, accountId) { gone, bound -> gone != null && gone == bound }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     fun messageShown() {
         _message.value = null
@@ -95,7 +98,15 @@ class AccountDetailViewModel @Inject constructor(
     fun setArchived(archived: Boolean) = onAccount { accountRepository.archive(it, archived) }
 
     fun deleteAdjustment(adjustment: Transaction) {
-        viewModelScope.launch { transactionRepository.deleteTransaction(adjustment.id) }
+        viewModelScope.launch {
+            try {
+                transactionRepository.deleteTransaction(adjustment.id)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                _message.value = R.string.account_error_generic
+            }
+        }
     }
 
     /** Checks the delete rules first, so the user is never asked to confirm a delete that would fail. */
@@ -117,7 +128,7 @@ class AccountDetailViewModel @Inject constructor(
     fun delete() = onAccount { id ->
         _confirmDelete.value = false
         accountRepository.delete(id)
-        _deleted.value = true
+        deletedId.value = id
     }
 
     /** Runs [action] on the bound account, turning the rules it can break into a message. */
@@ -130,6 +141,10 @@ class AccountDetailViewModel @Inject constructor(
                 _message.value = messageFor(e)
             } catch (_: MissingRateException) {
                 _message.value = R.string.account_error_missing_rate
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                _message.value = R.string.account_error_generic
             }
         }
     }

@@ -640,4 +640,6 @@
     <string name="account_error_last">You need at least one account</string>
     <string name="account_error_has_movements">This account has movements; archive it instead</string>
     <string name="account_error_missing_rate">There\'s no exchange rate for this currency yet</string>
+    <string name="account_balance_negative">Negative balance</string>
+    <string name="account_error_generic">Something went wrong. Try again.</string>
 </resources>

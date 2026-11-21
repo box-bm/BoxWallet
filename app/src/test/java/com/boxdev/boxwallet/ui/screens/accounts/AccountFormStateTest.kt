@@ -74,4 +74,11 @@ class AccountFormStateTest {
         assertNull(s.balanceError)
         assertTrue(s.canSave)
     }
+
+    @Test
+    fun `the sign toggle makes the typed balance negative`() {
+        val s = AccountFormState(name = "Banco", currency = gtq, currentBalance = "50", negativeBalance = true)
+        assertNull(s.balanceError)
+        assertEquals(Money(-5000, gtq), s.balance)
+    }
 }

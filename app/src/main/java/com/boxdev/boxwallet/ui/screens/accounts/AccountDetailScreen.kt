@@ -212,7 +212,8 @@ private fun AccountDetailContent(
             // an archived account must come back before it can be the default.
             val rows = buildList {
                 if (!isDefault && !account.isArchived) add(ActionRow.Default)
-                add(ActionRow.Archive)
+                // The default can't be archived either; an archived account can always come back.
+                if (!isDefault || account.isArchived) add(ActionRow.Archive)
                 add(ActionRow.Delete)
             }
             SettingsGroup(title = null, modifier = Modifier.padding(top = 16.dp)) {

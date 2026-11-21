@@ -116,6 +116,7 @@ fun AccountFormScreen(
             onName = viewModel::updateName,
             onCurrencyClick = { showCurrencyPicker = true },
             onBalance = viewModel::updateBalance,
+            onNegativeBalance = viewModel::updateNegativeBalance,
             onDescription = viewModel::updateDescription,
             onIcon = viewModel::updateIcon,
             onColor = viewModel::updateColor,
@@ -146,6 +147,7 @@ private fun AccountFormFields(
     onName: (String) -> Unit,
     onCurrencyClick: () -> Unit,
     onBalance: (String) -> Unit,
+    onNegativeBalance: (Boolean) -> Unit,
     onDescription: (String) -> Unit,
     onIcon: (String) -> Unit,
     onColor: (AccountColor) -> Unit,
@@ -202,6 +204,7 @@ private fun AccountFormFields(
                 value = form.currentBalance,
                 onValueChange = onBalance,
                 label = { Text(stringResource(R.string.account_balance_label)) },
+                leadingIcon = { BalanceSignToggle(form.negativeBalance, onNegativeBalance) },
                 prefix = { Text(CurrencyCatalog.symbol(form.currency, locale)) },
                 placeholder = { Text("0") },
                 isError = balanceError != null,
@@ -327,7 +330,7 @@ private fun AccountFormPreviewContent() {
                 form = AccountFormState(name = "Banco", currency = Currency.getInstance("GTQ"), currentBalance = "1,250.00", color = AccountColor.TEAL),
                 showErrors = false,
                 error = null,
-                onName = {}, onCurrencyClick = {}, onBalance = {}, onDescription = {},
+                onName = {}, onCurrencyClick = {}, onBalance = {}, onNegativeBalance = {}, onDescription = {},
                 onIcon = {}, onColor = {}, onIncludeInTotal = {},
             )
         }

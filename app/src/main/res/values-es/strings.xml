@@ -627,4 +627,6 @@
     <string name="account_error_last">Necesitas al menos una cuenta</string>
     <string name="account_error_has_movements">Esta cuenta tiene movimientos; archívala en su lugar</string>
     <string name="account_error_missing_rate">No hay tasa de cambio para esta moneda todavía</string>
+    <string name="account_balance_negative">Saldo negativo</string>
+    <string name="account_error_generic">Algo salió mal. Inténtalo de nuevo.</string>
 </resources>
