@@ -814,6 +814,107 @@ class AccountRepositoryTest {
         assertEquals(Money(500000 - 234000, gtq), s.available)
     }
 
+    private val purchase = LocalDateTime.of(2026, 11, 15, 10, 30)
+
+    private suspend fun planOn(accountId: Long, today: LocalDate, original: Money, count: Int = 3) {
+        val amounts = TransactionAmounts(ExchangeRateResolver(withGtq) { today })
+        val resolver = ExchangeRateResolver(withGtq) { today }
+        InstallmentPlanRepository(
+            db, db.installmentPlanDao(), db.transactionDao(), db.accountDao(), amounts, resolver,
+            MovementWriteGuard(CurrencyChangeLock(), prefs, db.accountDao(), amounts), prefs, CurrentDay(flowOf(today)),
+        ).create(NewInstallmentPlan(accountId, "TV", null, original, count, purchase))
+    }
+
+    private suspend fun installmentDates(accountId: Long) =
+        db.transactionDao().getAllTransactionsSync().filter { it.accountId == accountId && it.installmentPlanId != null }
+            .sortedBy { it.installmentNumber }.map(::dateOf)
+
+    @Test
+    fun `changing the closing day moves pending installments to the new closings`() = runTest {
+        val today = LocalDate.of(2026, 11, 20)
+        val repo = repositoryWith(withGtq, flowOf(today))
+        val cardId = repo.create(card(closingDay = 15), null, null)
+        planOn(cardId, today, Money(300000, gtq))
+
+        repo.update(repo.observeAll().first().single { it.id == cardId }.copy(statementClosingDay = 25))
+
+        assertEquals(
+            listOf(
+                LocalDateTime.of(2026, 11, 15, 10, 30),
+                LocalDateTime.of(2026, 11, 25, 10, 30),
+                LocalDateTime.of(2026, 12, 25, 10, 30),
+            ),
+            installmentDates(cardId),
+        )
+    }
+
+    @Test
+    fun `changing the closing day also moves the second currency's installments`() = runTest {
+        val today = LocalDate.of(2026, 11, 20)
+        val repo = repositoryWith(withGtq, flowOf(today))
+        val cardId = repo.create(card(closingDay = 15), null, SecondCurrencyInput(usd, null))
+        val childId = childOf(cardId).id
+        planOn(childId, today, Money(30000, usd))
+
+        repo.update(repo.observeAll().first().single { it.id == cardId }.copy(statementClosingDay = 25))
+
+        assertEquals(
+            listOf(LocalDate.of(2026, 11, 15), LocalDate.of(2026, 11, 25), LocalDate.of(2026, 12, 25)),
+            installmentDates(childId).map { it.toLocalDate() },
+        )
+    }
+
+    private suspend fun pendingCard(today: LocalDate): Pair<AccountRepository, Account> {
+        val repo = repositoryWith(withGtq, flowOf(today))
+        val cardId = repo.create(card(closingDay = 15), null, null)
+        planOn(cardId, today, Money(300000, gtq))
+        return repo to repo.observeAll().first().single { it.id == cardId }
+    }
+
+    @Test
+    fun `turning off the card with pending installments is refused`() = runTest {
+        val (repo, stored) = pendingCard(LocalDate.of(2026, 11, 20))
+
+        assertThrows(AccountRuleError.HasPendingInstallments::class.java) {
+            runBlocking { repo.update(stored.copy(type = AccountType.CHECKING, statementClosingDay = null, paymentDueDay = null)) }
+        }
+        assertEquals(stored, repo.observeAll().first().single { it.id == stored.id })
+    }
+
+    @Test
+    fun `clearing the closing day with pending installments is refused`() = runTest {
+        val (repo, stored) = pendingCard(LocalDate.of(2026, 11, 20))
+
+        assertThrows(AccountRuleError.HasPendingInstallments::class.java) {
+            runBlocking { repo.update(stored.copy(statementClosingDay = null)) }
+        }
+        assertEquals(stored, repo.observeAll().first().single { it.id == stored.id })
+    }
+
+    @Test
+    fun `removing a second currency that has plans is refused`() = runTest {
+        val today = LocalDate.of(2026, 11, 20)
+        val repo = repositoryWith(withGtq, flowOf(today))
+        val cardId = repo.create(card(closingDay = 15), null, SecondCurrencyInput(usd, null))
+        planOn(childOf(cardId).id, today, Money(30000, usd))
+        val stored = repo.observeAll().first().single { it.id == cardId }
+
+        assertThrows(AccountRuleError.HasPendingInstallments::class.java) {
+            runBlocking { repo.update(stored, SecondCurrencyChange.Remove) }
+        }
+        assertEquals(1, db.accountDao().getAll().count { it.parentAccountId == cardId })
+    }
+
+    @Test
+    fun `the card can change once every installment is charged`() = runTest {
+        val (_, stored) = pendingCard(LocalDate.of(2026, 11, 20))
+        val later = repositoryWith(withGtq, flowOf(LocalDate.of(2027, 2, 1)))
+
+        later.update(stored.copy(type = AccountType.CHECKING, statementClosingDay = null, paymentDueDay = null))
+
+        assertEquals(AccountType.CHECKING, later.observeAll().first().single { it.id == stored.id }.type)
+    }
+
     private suspend fun transfer(from: Long, to: Long, minor: Long, date: Long) {
         val id = UUID.randomUUID().toString()
         val out = move(from, TransactionType.TRANSFER_OUT, minor, cleared = true, date = date)

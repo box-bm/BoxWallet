@@ -14,6 +14,7 @@ import com.boxdev.boxwallet.data.local.dao.PendingInstallmentsRow
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.data.local.entity.isInflow
 import com.boxdev.boxwallet.data.rates.MovementWriteGuard
+import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.AccountType
@@ -24,6 +25,7 @@ import com.boxdev.boxwallet.domain.model.cardBalance
 import com.boxdev.boxwallet.domain.model.cardSummary
 import com.boxdev.boxwallet.domain.model.statementStatus
 import com.boxdev.boxwallet.domain.model.TotalBalance
+import com.boxdev.boxwallet.domain.model.installmentClosingDates
 import com.boxdev.boxwallet.domain.model.lastClosingDate
 import com.boxdev.boxwallet.domain.model.toDomain
 import com.boxdev.boxwallet.domain.model.toEntity
@@ -72,6 +74,9 @@ sealed class AccountRuleError : Exception() {
 
     /** A card with a second currency can't stop being a card until that currency is removed. */
     data object RemoveSecondCurrencyFirst : AccountRuleError()
+
+    /** A card with installments still to be charged keeps its closing day, its card type and its plans' currency. */
+    data object HasPendingInstallments : AccountRuleError()
 }
 
 /** A card's second currency: [currentBalance] is signed like the card's (a debt is negative). */
@@ -288,6 +293,13 @@ class AccountRepository @Inject constructor(
             require(stored.isArchived == account.isArchived) { "use archive()" }
             validateCardFields(account)
             val child = accountDao.getChildOf(account.id)
+            val today = currentDay.days.first()
+            val pending = transactionDao.getPendingInstallments(listOfNotNull(account.id, child?.id), cutoffAfter(today))
+            if (pending.isNotEmpty()) {
+                val stopsBeingACard = account.type != AccountType.CREDIT_CARD || account.statementClosingDay == null
+                val removesPlansCurrency = second == SecondCurrencyChange.Remove && pending.any { it.accountId == child?.id }
+                if (stopsBeingACard || removesPlansCurrency) throw AccountRuleError.HasPendingInstallments
+            }
             val kept = child.takeIf { second != SecondCurrencyChange.Remove }
             if (kept != null && account.type != AccountType.CREDIT_CARD) throw AccountRuleError.RemoveSecondCurrencyFirst
             require(kept == null || kept.currencyCode != account.currency.currencyCode) {
@@ -313,6 +325,41 @@ class AccountRepository @Inject constructor(
                 accountDao.update(synced.copy(id = it.id, createdAt = it.createdAt, sortOrder = it.sortOrder))
             }
             if (second is SecondCurrencyChange.Add) insertChild(account, second.input, current.main, openingDate(account))
+            val newClosingDay = account.statementClosingDay
+            if (newClosingDay != null && newClosingDay != stored.statementClosingDay) {
+                redatePending(pending, newClosingDay, today, current.main) { id -> if (id == account.id) account.currency else kept?.let { Currency.getInstance(it.currencyCode) } }
+            }
+        }
+    }
+
+    /**
+     * Moves each plan's [pending] installments onto the closings of [closingDay] from tomorrow on, in order and
+     * at their own time of day, and resolves their main rate again for the new day (approximate for the future).
+     */
+    private suspend fun redatePending(
+        pending: List<TransactionEntity>,
+        closingDay: Int,
+        today: LocalDate,
+        main: Currency,
+        currencyOf: (Long) -> Currency?,
+    ) {
+        val resolver = ExchangeRateResolver(offline(rates))
+        pending.groupBy { it.installmentPlanId }.values.forEach { rows ->
+            val closings = installmentClosingDates(closingDay, today.plusDays(1), rows.size)
+            rows.forEachIndexed { i, row ->
+                val currency = checkNotNull(currencyOf(row.accountId)) { "No account ${row.accountId} for its installment" }
+                val time = LocalDateTime.ofInstant(Instant.ofEpochMilli(row.date), ZoneOffset.UTC).toLocalTime()
+                val date = closings[i].atTime(time)
+                val rate = resolver.resolve(date.toLocalDate(), currency, main) ?: throw MissingRateException(currency, main)
+                transactionDao.update(
+                    row.copy(
+                        date = date.toInstant(ZoneOffset.UTC).toEpochMilli(),
+                        mainRate = rate.value,
+                        mainRateSource = rate.source,
+                        amountMinor = Money(row.accountAmountMinor, currency).convert(main, rate.value).minor,
+                    )
+                )
+            }
         }
     }
 

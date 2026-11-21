@@ -84,6 +84,13 @@ interface TransactionDao {
     )
     fun observeCardMovements(endOfToday: Long): Flow<List<CardMovementRow>>
 
+    /** Installment rows of [accountIds] dated from [endOfToday] (start of tomorrow) on, plan by plan in order. */
+    @Query(
+        "SELECT * FROM transactions WHERE installmentPlanId IS NOT NULL AND accountId IN (:accountIds) " +
+            "AND date >= :endOfToday ORDER BY installmentPlanId, installmentNumber"
+    )
+    suspend fun getPendingInstallments(accountIds: List<Long>, endOfToday: Long): List<TransactionEntity>
+
     /** Installments of plans dated from [endOfToday] (start of tomorrow) on, summed per account. */
     @Query(
         "SELECT accountId AS accountId, SUM(accountAmountMinor) AS pendingMinor FROM transactions " +
