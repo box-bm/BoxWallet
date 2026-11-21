@@ -7,6 +7,7 @@ import com.boxdev.boxwallet.data.local.dao.AppMetaDao
 import com.boxdev.boxwallet.data.local.dao.LoanDao
 import com.boxdev.boxwallet.data.local.dao.TransactionDao
 import com.boxdev.boxwallet.data.local.database.BoxWalletDatabase
+import com.boxdev.boxwallet.data.local.entity.AccountEntity
 import com.boxdev.boxwallet.data.local.entity.AppMetaEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 import com.boxdev.boxwallet.data.repository.BackupRepository
@@ -38,9 +39,11 @@ data class ChangeSummary(val converted: Int, val approximate: Int, val manualRep
 /**
  * Changes the main currency by recalculating every movement in one Room transaction (spec 4).
  *
- * - One account: the account follows the new main currency. Each movement re-resolves its account
- *   rate (original → new), recomputes the account amount from the original, and takes main rate 1.
- * - Several accounts: accounts and their amounts stay; only the main leg (account → new) changes.
+ * - One account in the main currency: the account follows the new main currency. Each movement
+ *   re-resolves its account rate (original → new), recomputes the account amount from the
+ *   original, and takes main rate 1.
+ * - Otherwise (several accounts, or one in another currency): accounts and their amounts stay;
+ *   only the main leg (account → new) changes.
  *
  * Network work happens only in [prefetch]; [apply] reads local rates and falls back to the nearest
  * one (APPROXIMATE). With no rate at all it throws [MissingRateException] and nothing is written.
@@ -89,7 +92,7 @@ class MainCurrencyChanger internal constructor(
      */
     suspend fun prefetch(to: Currency, onProgress: (done: Int, total: Int) -> Unit): Boolean {
         val code = to.currencyCode
-        val needed = if (accountDao.count() <= 1) transactionDao.distinctDayCurrenciesWhereCurrencyNot(code)
+        val needed = if (accountFollowsMain(accountDao.getAll())) transactionDao.distinctDayCurrenciesWhereCurrencyNot(code)
         else transactionDao.distinctDayAccountCurrenciesWhereAccountNot(code)
         val now = today()
         val missing = needed.groupBy({ it.day }, { it.code })
@@ -169,7 +172,7 @@ class MainCurrencyChanger internal constructor(
     private suspend fun recalculate(to: Currency, onProgress: (Int, Int) -> Unit): ChangeSummary {
         val amounts = TransactionAmounts(ExchangeRateResolver(LocalRates(lookup), today))
         val accounts = accountDao.getAll()
-        val single = accounts.size <= 1
+        val single = accountFollowsMain(accounts)
         val accountCurrency = accounts.associate { it.id to Currency.getInstance(it.currencyCode) }
         if (single) accounts.firstOrNull()?.let { accountDao.update(it.copy(currencyCode = to.currencyCode)) }
 
@@ -202,6 +205,15 @@ class MainCurrencyChanger internal constructor(
             onProgress(i + 1, rows.size)
         }
         return ChangeSummary(rows.size, approximate, manualReplaced)
+    }
+
+    /**
+     * The lone account follows the main currency only while it holds it; an account in another
+     * currency (edited, or left after the original one was deleted) keeps it like with several.
+     */
+    private suspend fun accountFollowsMain(accounts: List<AccountEntity>): Boolean {
+        val main = prefs.mainCurrency.first().currencyCode
+        return accounts.size <= 1 && accounts.all { it.currencyCode == main }
     }
 
     private fun TransactionEntity.withMain(amountMinor: Long, rate: BigDecimal, source: RateSource) =

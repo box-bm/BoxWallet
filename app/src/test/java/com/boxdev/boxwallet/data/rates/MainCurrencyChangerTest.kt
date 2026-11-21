@@ -364,6 +364,41 @@ class MainCurrencyChangerTest {
     }
 
     @Test
+    fun `lone account in another currency keeps its currency and amounts`() = runTest {
+        prefs.setMainCurrency("GTQ")
+        val acc = account("USD")
+        val dao = db.transactionDao()
+        val id = dao.insert(tx(acc, 1000, "USD", 1000, "1", 8000, "8"))
+
+        val summary = changer.apply(Currency.getInstance("EUR"))
+
+        assertEquals("USD", db.accountDao().getById(acc)!!.currencyCode)
+        assertEquals(Currency.getInstance("EUR"), prefs.mainCurrency.first())
+        assertEquals(1, summary.converted)
+        val t = dao.getById(id)!!
+        assertEquals(1000L, t.originalAmountMinor)
+        assertEquals("USD", t.currencyCode)
+        assertEquals(1000L, t.accountAmountMinor)
+        assertEquals(0, BigDecimal.ONE.compareTo(t.accountRate))
+        // US$10 at 0.5 EUR per USD = €5.
+        assertEquals(500L, t.amountMinor)
+        assertEquals(0, BigDecimal("0.5").compareTo(t.mainRate))
+    }
+
+    @Test
+    fun `prefetch for a lone account in another currency needs its account currency`() = runTest {
+        prefs.setMainCurrency("GTQ")
+        val acc = account("USD")
+        lookup.allExact = false
+        db.transactionDao().insert(tx(acc, 1000, "EUR", 2000, "2", 16000, "8"))
+
+        assertTrue(changer.prefetch(Currency.getInstance("EUR")) { _, _ -> })
+
+        // The movement is already in EUR, but its USD account leg still needs that day's rate.
+        assertEquals(listOf(day), lookup.downloads)
+    }
+
+    @Test
     fun `prefetch downloads only days without local rates`() = runTest {
         val acc = account("USD")
         lookup.allExact = false
