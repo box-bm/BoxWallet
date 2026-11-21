@@ -12,7 +12,9 @@ import com.boxdev.boxwallet.data.rates.CurrencyChangeLock
 import com.boxdev.boxwallet.data.rates.MovementWriteGuard
 import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.AccountType
+import com.boxdev.boxwallet.domain.model.CardMovement
 import com.boxdev.boxwallet.domain.model.lastClosingDate
+import com.boxdev.boxwallet.domain.model.statementStatus
 import com.boxdev.boxwallet.domain.model.toDomain
 import com.boxdev.boxwallet.domain.money.ExchangeRateResolver
 import com.boxdev.boxwallet.domain.money.MissingRateException
@@ -39,6 +41,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.util.Currency
+import java.util.UUID
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -647,5 +650,73 @@ class AccountRepositoryTest {
             runBlocking { repo.create(card(currency = usd).copy(parentAccountId = id), null, SecondCurrencyInput(eur, null)) }
         }
         assertEquals(2, db.accountDao().count())
+    }
+
+    private fun at(day: LocalDate) = day.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+
+    @Test
+    fun cardSummaryCombinesParentAndChild() = runTest {
+        val repo = repositoryWith(withGtq)
+        val cardId = repo.create(card(closingDay = 15), null, SecondCurrencyInput(usd, null))
+        val childId = childOf(cardId).id
+        val today = LocalDate.now()
+        val closing = lastClosingDate(15, today)
+        val before = closing.minusDays(3)
+        move(cardId, TransactionType.EXPENSE, 20000, cleared = false, date = at(before))
+        move(cardId, TransactionType.INCOME, 5000, cleared = false, date = at(today))
+        move(cardId, TransactionType.EXPENSE, 9999, cleared = false, date = at(today.plusDays(1))) // future: ignored
+        move(childId, TransactionType.EXPENSE, 3000, cleared = true, date = at(before))
+        move(childId, TransactionType.EXPENSE, 1000, cleared = false, date = at(today))
+
+        val summary = repo.observeCardSummaries().first()
+
+        assertEquals(setOf(cardId), summary.keys)
+        val s = summary.getValue(cardId)
+        assertEquals(Money(-15000, gtq), s.primary.balance)
+        assertEquals(15000L, s.primary.usedMinor)
+        assertEquals(childId, s.second?.account?.id)
+        assertEquals(Money(-4000, usd), s.second?.balance)
+        assertEquals(4000L, s.second?.usedMinor)
+        val parentRows = listOf(
+            CardMovement(before, -20000, false),
+            CardMovement(today, 5000, true),
+        )
+        val childRows = listOf(CardMovement(before, -3000, false), CardMovement(today, -1000, false))
+        assertEquals(statementStatus(parentRows, 15, 5, today).toPayMinor, s.primary.statement?.toPayMinor)
+        assertEquals(statementStatus(childRows, 15, 5, today).toPayMinor, s.second?.statement?.toPayMinor)
+        assertEquals(s.primary.statement?.dueDate, s.second?.statement?.dueDate)
+        // Q5,000.00 − Q150.00 − US$40.00 × 7.80.
+        assertEquals(Money(500000 - 15000 - 31200, gtq), s.available)
+        assertFalse(s.availableApproximate)
+    }
+
+    private suspend fun transfer(from: Long, to: Long, minor: Long, date: Long) {
+        val id = UUID.randomUUID().toString()
+        val out = move(from, TransactionType.TRANSFER_OUT, minor, cleared = true, date = date)
+        val inn = move(to, TransactionType.TRANSFER_IN, minor, cleared = true, date = date)
+        val dao = db.transactionDao()
+        dao.update(dao.getById(out)!!.copy(transferId = id))
+        dao.update(dao.getById(inn)!!.copy(transferId = id))
+    }
+
+    @Test
+    fun lastPayerIsNewestPaymentSource() = runTest {
+        val cardId = db.accountDao().insert(AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "USD", createdAt = 0L))
+        val child = db.accountDao().insert(
+            AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "GTQ", createdAt = 0L, parentAccountId = cardId)
+        )
+        val older = db.accountDao().insert(AccountEntity(name = "Main", type = "CHECKING", currencyCode = "USD", createdAt = 0L))
+        val newer = db.accountDao().insert(AccountEntity(name = "Savings", type = "SAVINGS", currencyCode = "USD", createdAt = 0L))
+        transfer(older, cardId, 1000, startOfDay(-5))
+        transfer(newer, child, 1000, startOfDay(-1))
+        // A transfer out of the card doesn't count as a payment.
+        transfer(cardId, older, 1000, startOfDay(0))
+
+        val dao = db.transactionDao()
+        assertEquals(newer, dao.lastPayerAccountId(listOf(cardId, child)))
+        assertEquals(older, dao.lastPayerAccountId(listOf(cardId)))
+
+        repository.archive(newer, true)
+        assertEquals(older, dao.lastPayerAccountId(listOf(cardId, child)))
     }
 }

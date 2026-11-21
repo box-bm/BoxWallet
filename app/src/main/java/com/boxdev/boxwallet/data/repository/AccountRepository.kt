@@ -8,12 +8,19 @@ import com.boxdev.boxwallet.data.local.dao.AccountDao
 import com.boxdev.boxwallet.data.local.dao.TransactionDao
 import com.boxdev.boxwallet.data.local.database.BoxWalletDatabase
 import com.boxdev.boxwallet.data.local.entity.AccountEntity
+import com.boxdev.boxwallet.data.local.dao.CardMovementRow
 import com.boxdev.boxwallet.data.local.entity.TransactionType
+import com.boxdev.boxwallet.data.local.entity.isInflow
 import com.boxdev.boxwallet.data.rates.MovementWriteGuard
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.AccountType
 import com.boxdev.boxwallet.domain.model.AccountWithBalance
+import com.boxdev.boxwallet.domain.model.CardMovement
+import com.boxdev.boxwallet.domain.model.CardSummary
+import com.boxdev.boxwallet.domain.model.cardBalance
+import com.boxdev.boxwallet.domain.model.cardSummary
+import com.boxdev.boxwallet.domain.model.statementStatus
 import com.boxdev.boxwallet.domain.model.TotalBalance
 import com.boxdev.boxwallet.domain.model.lastClosingDate
 import com.boxdev.boxwallet.domain.model.toDomain
@@ -25,6 +32,7 @@ import com.boxdev.boxwallet.domain.money.ExchangeRateResolver
 import com.boxdev.boxwallet.domain.money.MissingRateException
 import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.domain.money.RateLookup
+import com.boxdev.boxwallet.domain.money.RateSource
 import com.boxdev.boxwallet.domain.money.TransactionAmounts
 import com.boxdev.boxwallet.domain.money.withAmounts
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -35,6 +43,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneOffset
@@ -137,6 +146,59 @@ class AccountRepository @Inject constructor(
                 val today = LocalDate.now()
                 totalBalance(accounts, main) { currency -> resolver.resolve(today, currency, main) }
             }
+
+    /**
+     * Each top-level card (archived ones too) by id, with its second currency: balances from the same source
+     * as the accounts list, statements when the card has both days, and available converted at today's
+     * offline rate (second → card currency).
+     */
+    fun observeCardSummaries(): Flow<Map<Long, CardSummary>> {
+        val endOfToday = endOfToday()
+        return combine(
+            accountDao.observeAll(),
+            accountDao.observeBalances(endOfToday),
+            transactionDao.observeCardMovements(endOfToday),
+        ) { accounts, balances, movements -> Triple(accounts, balances, movements) }
+            .map { (entities, balances, movements) ->
+                val today = LocalDate.now()
+                val resolver = ExchangeRateResolver(offline(rates))
+                val balanceOf = balances.associate { it.accountId to it.balanceMinor }
+                val movementsOf = movements.groupBy { it.accountId }
+                val accounts = entities.map { it.toDomain() }.filter { it.type == AccountType.CREDIT_CARD }
+                val childOf = accounts.filter { it.parentAccountId != null }.associateBy { it.parentAccountId }
+                accounts.filter { it.parentAccountId == null }.associate { card ->
+                    fun balanceFor(account: Account) = cardBalance(
+                        account,
+                        Money(balanceOf[account.id] ?: 0L, account.currency),
+                        statementOf(card, movementsOf[account.id].orEmpty(), today),
+                    )
+                    val child = childOf[card.id]
+                    val rate = child?.let { resolver.resolve(today, it.currency, card.currency) }
+                    card.id to cardSummary(
+                        card,
+                        balanceFor(card),
+                        child?.let { balanceFor(it) },
+                        rate?.value,
+                        approximate = rate?.source == RateSource.APPROXIMATE,
+                    )
+                }
+            }
+    }
+
+    /** [card]'s closing and due days applied to [rows] (the card's or its child's); null without both days. */
+    private fun statementOf(card: Account, rows: List<CardMovementRow>, today: LocalDate) =
+        card.statementClosingDay?.let { closing ->
+            card.paymentDueDay?.let { due -> statementStatus(rows.map { it.toCardMovement() }, closing, due, today) }
+        }
+
+    private fun CardMovementRow.toCardMovement(): CardMovement {
+        val inflow = TransactionType.valueOf(type).isInflow
+        return CardMovement(
+            date = LocalDateTime.ofInstant(Instant.ofEpochMilli(date), ZoneOffset.UTC).toLocalDate(),
+            signedMinor = if (inflow) accountAmountMinor else -accountAmountMinor,
+            isInflow = inflow,
+        )
+    }
 
     /** Same lookup without the network: the resolver then falls back from exact to nearest rates. */
     private fun offline(delegate: RateLookup) = object : RateLookup by delegate {

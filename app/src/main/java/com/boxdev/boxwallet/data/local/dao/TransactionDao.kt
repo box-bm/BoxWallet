@@ -10,6 +10,9 @@ data class DayCurrency(val day: Long, val code: String)
 
 data class CurrencyUsage(val currencyCode: String, val uses: Int, val lastUsed: Long)
 
+/** One movement of a card account; [accountAmountMinor] is unsigned, in the account's currency. */
+data class CardMovementRow(val accountId: Long, val date: Long, val type: String, val accountAmountMinor: Long)
+
 @Dao
 interface TransactionDao {
 
@@ -55,6 +58,24 @@ interface TransactionDao {
             "WHERE o.type = 'TRANSFER_OUT'"
     )
     fun observeTransferPairs(): Flow<List<TransferPair>>
+
+    /** Every movement of a `CREDIT_CARD` account dated before [endOfToday] (start of tomorrow), installments included. */
+    @Query(
+        "SELECT t.accountId AS accountId, t.date AS date, t.type AS type, t.accountAmountMinor AS accountAmountMinor " +
+            "FROM transactions t JOIN accounts a ON a.id = t.accountId " +
+            "WHERE a.type = 'CREDIT_CARD' AND t.date < :endOfToday"
+    )
+    fun observeCardMovements(endOfToday: Long): Flow<List<CardMovementRow>>
+
+    /** Source account of the newest transfer into any of [cardIds] whose source isn't archived. */
+    @Query(
+        "SELECT o.accountId FROM transactions i " +
+            "JOIN transactions o ON o.transferId = i.transferId AND o.type = 'TRANSFER_OUT' " +
+            "JOIN accounts a ON a.id = o.accountId " +
+            "WHERE i.type = 'TRANSFER_IN' AND i.accountId IN (:cardIds) AND a.isArchived = 0 " +
+            "ORDER BY i.date DESC, i.id DESC LIMIT 1"
+    )
+    suspend fun lastPayerAccountId(cardIds: List<Long>): Long?
 
     @Query("DELETE FROM transactions WHERE loanId = :loanId")
     suspend fun deleteByLoanId(loanId: Long)
