@@ -40,8 +40,11 @@ data class TransferFormState(
     val rate: ExchangeRate? = null,
     /** No rate exists for these currencies and date: saving requires [manualRate] or [equivalent]. */
     val needsManualRate: Boolean = false,
-    /** Accounts either side can be: the active ones, plus an archived one the edited transfer already uses. */
+    /** The active accounts, plus an archived one the edited transfer already uses. */
     val accounts: List<AccountWithBalance> = emptyList(),
+    /** The edited transfer's stored source and destination: each stays pickable on its own side if archived since. */
+    val keptFromId: Long? = null,
+    val keptToId: Long? = null,
     val isEditing: Boolean = false,
     val isLoading: Boolean = false,
     val isSaved: Boolean = false,
@@ -62,6 +65,16 @@ data class TransferFormState(
         get() = manualRate?.takeIf { isForeign }?.trim()?.toBigDecimalOrNull()?.takeIf { it.signum() > 0 }
 
     val isSameAccount: Boolean get() = fromAccountId != null && fromAccountId == toAccountId
+
+    /** Accounts the source can be: an archived one only where the edited transfer already had it. */
+    val fromOptions: List<AccountWithBalance> get() = accounts.filter { it.account.allowedOn(keptFromId) }
+    val toOptions: List<AccountWithBalance> get() = accounts.filter { it.account.allowedOn(keptToId) }
+
+    /** Swapping must not move an archived account to the side it was never on. */
+    val canSwap: Boolean
+        get() = fromAccount?.allowedOn(keptToId) != false && toAccount?.allowedOn(keptFromId) != false
+
+    private fun Account.allowedOn(kept: Long?): Boolean = !isArchived || id == kept
 
     val isValid: Boolean
         get() = fromAccount != null && toAccount != null && !isSameAccount && money != null &&

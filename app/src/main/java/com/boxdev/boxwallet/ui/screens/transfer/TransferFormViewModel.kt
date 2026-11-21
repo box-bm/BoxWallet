@@ -63,7 +63,7 @@ class TransferFormViewModel @Inject constructor(
     /** Every account with its balance, archived included; [pickable] narrows it for the pickers. */
     private var allAccounts: List<AccountWithBalance> = emptyList()
 
-    /** Accounts the edited transfer already uses, kept selectable even if archived since. */
+    /** Accounts the edited transfer already uses, kept selectable (each on its own side) even if archived since. */
     private var kept: Set<Long> = emptySet()
 
     private fun pickable() = allAccounts.filter { !it.account.isArchived || it.account.id in kept }
@@ -119,6 +119,8 @@ class TransferFormViewModel @Inject constructor(
                 equivalent = transfer.received.toMajor().toPlainString().takeIf { foreign },
                 rate = transfer.rate,
                 accounts = pickable(),
+                keptFromId = transfer.fromAccountId,
+                keptToId = transfer.toAccountId,
                 isEditing = true,
             )
             initial.value = _formState.value
@@ -156,7 +158,7 @@ class TransferFormViewModel @Inject constructor(
     /** Picking the account on the other side swaps the two instead. */
     fun setFrom(id: Long) {
         val s = _formState.value
-        if (id == s.fromAccountId) return
+        if (id == s.fromAccountId || s.fromOptions.none { it.account.id == id }) return
         if (id == s.toAccountId) return swap()
         _formState.update { it.copy(fromAccountId = id, manualRate = null, equivalent = null, error = null) }
         refreshRate()
@@ -165,14 +167,18 @@ class TransferFormViewModel @Inject constructor(
     /** Picking the account on the other side swaps the two instead. */
     fun setTo(id: Long) {
         val s = _formState.value
-        if (id == s.toAccountId) return
+        if (id == s.toAccountId || s.toOptions.none { it.account.id == id }) return
         if (id == s.fromAccountId) return swap()
         _formState.update { it.copy(toAccountId = id, manualRate = null, equivalent = null, error = null) }
         refreshRate()
     }
 
-    /** Swaps source and destination; a typed rate belonged to the old direction and is dropped. */
+    /**
+     * Swaps source and destination; a typed rate belonged to the old direction and is dropped.
+     * Refused when it would move an archived account to the side it was never on.
+     */
     fun swap() {
+        if (!_formState.value.canSwap) return
         _formState.update {
             it.copy(fromAccountId = it.toAccountId, toAccountId = it.fromAccountId, manualRate = null, equivalent = null, error = null)
         }

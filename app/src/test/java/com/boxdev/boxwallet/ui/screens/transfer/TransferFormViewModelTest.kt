@@ -30,6 +30,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -188,5 +189,29 @@ class TransferFormViewModelTest {
         settle()
         assertTrue(vm.formState.value.isSaved)
         verify(analytics, times(1)).logEvent(eq("transfer_deleted"), any())
+    }
+
+    @Test
+    fun anArchivedAccountStaysOnlyOnTheSideTheTransferUsedIt() = runTest {
+        val caja = db.accountDao().insert(AccountEntity(name = "Caja", type = "CASH", currencyCode = "GTQ", createdAt = 0L, sortOrder = 2))
+        val id = transfers.create(TransferDraft(banco, caja, Money(500_00, gtq), november.atTime(10, 0)))
+        db.accountDao().update(db.accountDao().getById(caja)!!.copy(isArchived = true))
+        val vm = vm(mapOf("id" to transfers.get(id)!!.outLegId))
+        val state = vm.formState.first { it.isEditing && !it.isLoading }
+
+        assertTrue(state.toOptions.any { it.account.id == caja })
+        assertTrue(state.fromOptions.none { it.account.id == caja })
+        assertFalse(state.canSwap)
+
+        vm.swap()
+        vm.setFrom(caja)
+        assertEquals(banco, vm.formState.value.fromAccountId)
+        assertEquals(caja, vm.formState.value.toAccountId)
+
+        vm.setTo(dolares)
+        vm.setTo(caja)
+        assertEquals(caja, vm.formState.value.toAccountId)
+        vm.setTo(dolares)
+        assertTrue(vm.formState.value.canSwap)
     }
 }

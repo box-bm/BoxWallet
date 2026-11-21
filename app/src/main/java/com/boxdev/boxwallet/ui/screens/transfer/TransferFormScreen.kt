@@ -130,7 +130,11 @@ private fun TransferFormFields(viewModel: TransferFormViewModel) {
                 item = formState.accounts.firstOrNull { it.account.id == formState.fromAccountId },
                 onClick = { picking = Side.From },
             )
-            FilledTonalIconButton(onClick = viewModel::swap, modifier = Modifier.padding(vertical = 4.dp)) {
+            FilledTonalIconButton(
+                onClick = viewModel::swap,
+                enabled = formState.canSwap,
+                modifier = Modifier.padding(vertical = 4.dp),
+            ) {
                 Icon(Icons.Outlined.SwapVert, contentDescription = stringResource(R.string.transfer_swap))
             }
             AccountSlot(
@@ -182,8 +186,9 @@ private fun TransferFormFields(viewModel: TransferFormViewModel) {
     }
 
     picking?.let { side ->
+        val options = if (side == Side.From) formState.fromOptions else formState.toOptions
         AccountPickerSheet(
-            accounts = formState.accounts.map { it.account },
+            accounts = options.map { it.account },
             selectedId = if (side == Side.From) formState.fromAccountId else formState.toAccountId,
             onPick = {
                 if (side == Side.From) viewModel.setFrom(it) else viewModel.setTo(it)
