@@ -170,7 +170,7 @@ Branch `feat/credit-cards` from `main` at `1252aa8`, which contains PR 1 (box-bm
 
 - [ ] **Step 1: Write failing tests**
   - `CardSummaryTest.availableSingleCurrency`: limit 10000.00, used 2500.00, so available is 7500.00.
-  - `CardSummaryTest.availableDualCurrency`: limit Q 10000.00, used Q 2500.00, used US$ 100.00, and a rate of 7.64. Available is 750000 − 250000 − 76400 = 423600.
+  - `CardSummaryTest.availableDualCurrency`: limit Q 10000.00, used Q 2500.00, used US$ 100.00, and a rate of 7.64. Available is 1000000 − 250000 − 76400 = 673600 minor.
   - `CardSummaryTest.noRateMeansNoAvailable` and `noLimitMeansNoAvailable`.
   - `CardSummaryTest.creditBalanceUsesZero`: a balance of +50.00 gives `usedMinor` 0, and available equals the limit.
   - `AccountRepositoryTest.cardSummaryCombinesParentAndChild`: a dual card with C=15 and D=5, and movements on both balances. Each `CardBalance.statement.toPayMinor` matches `statementStatus` for that balance's rows.
