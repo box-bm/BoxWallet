@@ -17,7 +17,7 @@ import java.math.RoundingMode
 import java.util.Currency
 
 class UnsupportedBackupVersionException(version: Int?) :
-    IllegalArgumentException("Unsupported backup version: ${version ?: "missing"} (supported: 2, ${BackupData.CURRENT_VERSION})")
+    IllegalArgumentException("Unsupported backup version: ${version ?: "missing"} (supported: 2, 3, ${BackupData.CURRENT_VERSION})")
 
 /**
  * Reads backup files of every supported version into the current [BackupData] shape (spec 6.3).
@@ -30,6 +30,9 @@ object LegacyBackupConverter {
 
     private const val LEGACY_VERSION = 2
 
+    /** First version with accounts and currencies; read like the current one, minus the v4 fields. */
+    private const val MULTI_CURRENCY_VERSION = 3
+
     /** Id of the single account a v2 backup is restored into (the tables are empty by then). */
     const val LEGACY_ACCOUNT_ID = 1L
 
@@ -40,15 +43,15 @@ object LegacyBackupConverter {
         val root = JsonParser.parseString(json).asJsonObject
         return when (val version = root.int("version")) {
             LEGACY_VERSION -> fromV2(root, device, LEGACY_ACCOUNT_ID, legacyAccountName)
-            BackupData.CURRENT_VERSION -> fromV3(root)
+            MULTI_CURRENCY_VERSION, BackupData.CURRENT_VERSION -> fromV3(root)
             else -> throw UnsupportedBackupVersionException(version)
         }
     }
 
     /**
-     * Gson skips Kotlin defaults and nullability: check what the restore relies on. Every currency
-     * (main, accounts, movements, loans) must be one the app supports, or the restore fails here,
-     * before anything is written.
+     * Reads v3 and v4. Gson skips Kotlin defaults and nullability: check what the restore relies on.
+     * Every currency (main, accounts, movements, loans) must be one the app supports, or the restore
+     * fails here, before anything is written. Account fields added in v4 get their defaults.
      */
     private fun fromV3(root: JsonObject): BackupData {
         val code = root.string("mainCurrencyCode") ?: throw IllegalArgumentException("Backup is missing \"mainCurrencyCode\"")
@@ -56,7 +59,7 @@ object LegacyBackupConverter {
         val parsed = gson.fromJson(root, BackupData::class.java)
         @Suppress("SENSELESS_COMPARISON", "USELESS_ELVIS")
         val data = parsed.copy(
-            accounts = parsed.accounts ?: emptyList(),
+            accounts = withAccountDefaults(parsed.accounts ?: emptyList(), root.objects("accounts")),
             transactions = parsed.transactions ?: emptyList(),
             categories = parsed.categories ?: emptyList(),
             loans = parsed.loans ?: emptyList(),
@@ -66,6 +69,23 @@ object LegacyBackupConverter {
         data.loans.forEach { requireSupported(it.currencyCode, "loan ${it.id}") }
         return data
     }
+
+    /**
+     * A v3 account has no `description`, `icon`, `color` or `includeInTotal`: Gson leaves the
+     * strings null (the insert would fail) and the Boolean false, so absence is read from [raw].
+     */
+    @Suppress("SENSELESS_COMPARISON", "USELESS_ELVIS")
+    private fun withAccountDefaults(accounts: List<AccountEntity>, raw: List<JsonObject>): List<AccountEntity> =
+        accounts.mapIndexed { i, account ->
+            account.copy(
+                description = account.description ?: "",
+                icon = account.icon ?: DEFAULT_ACCOUNT.icon,
+                color = account.color ?: DEFAULT_ACCOUNT.color,
+                includeInTotal = raw.getOrNull(i)?.present("includeInTotal")?.asBoolean ?: DEFAULT_ACCOUNT.includeInTotal,
+            )
+        }
+
+    private val DEFAULT_ACCOUNT = AccountEntity(name = "", type = "", currencyCode = "", createdAt = 0L)
 
     /** [code] is nullable in practice: Gson leaves a missing field null despite the Kotlin type. */
     private fun requireSupported(code: String?, owner: String) {

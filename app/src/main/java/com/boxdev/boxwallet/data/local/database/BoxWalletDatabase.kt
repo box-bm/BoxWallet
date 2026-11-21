@@ -26,7 +26,7 @@ import com.boxdev.boxwallet.data.local.entity.TransactionEntity
         ExchangeRateEntity::class,
         AppMetaEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true
 )
 @TypeConverters(Converters::class)

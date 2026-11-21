@@ -38,14 +38,13 @@ class RateSyncTest {
         db = Room.inMemoryDatabaseBuilder(context, BoxWalletDatabase::class.java).allowMainThreadQueries().build()
         val prefs = UserPreferences(context)
         prefs.setMainCurrency("USD")
-        prefs.setPendingMainCurrency(null)
         val repository = ExchangeRateRepository(
             db.exchangeRateDao(),
             ExchangeRateApi({ _ -> body?.let { HttpResult.Ok(it) } ?: HttpResult.Status(404) }),
             prefs,
         )
         val fixer = ApproximateRateFixer(
-            db.transactionDao(), db.accountDao(), ExchangeRateResolver(repository) { day.minusDays(1) }, prefs, CurrencyChangeLock(),
+            db.transactionDao(), db.accountDao(), db.appMetaDao(), ExchangeRateResolver(repository) { day.minusDays(1) }, prefs, CurrencyChangeLock(),
         )
         sync = RateSync(repository, fixer)
     }

@@ -8,19 +8,29 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Lets another screen (Reports) open the Movements tab already filtered to one category and date range. The
- * sender calls [request] and switches tabs; the Movements view model applies the category and
- * calls [consume], whether its screen was just created or restored.
+ * Lets another screen open the Movements tab already filtered: Reports to one category and date
+ * range, an account's detail to that account. The sender calls [request] or [requestAccount] and
+ * switches tabs; the Movements view model applies the filter and calls [consume], whether its
+ * screen was just created or restored.
  */
 @Singleton
 class MovementsFilterRequest @Inject constructor() {
-    data class Filter(val categoryId: Long, val start: LocalDate, val end: LocalDate)
+    data class Filter(
+        val categoryId: Long? = null,
+        val start: LocalDate? = null,
+        val end: LocalDate? = null,
+        val accountId: Long? = null,
+    )
 
     private val pending = MutableStateFlow<Filter?>(null)
     val filter: StateFlow<Filter?> = pending.asStateFlow()
 
     fun request(categoryId: Long, start: LocalDate, end: LocalDate) {
-        pending.value = Filter(categoryId, start, end)
+        pending.value = Filter(categoryId = categoryId, start = start, end = end)
+    }
+
+    fun requestAccount(accountId: Long) {
+        pending.value = Filter(accountId = accountId)
     }
 
     fun consume() {

@@ -10,6 +10,7 @@ import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.AccountType
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.data.local.entity.TransactionType
+import com.boxdev.boxwallet.domain.money.AmountResult
 import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.domain.money.TransactionAmounts
 import kotlinx.coroutines.Dispatchers
@@ -29,6 +30,8 @@ import org.junit.Before
 import org.junit.Test
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -39,6 +42,11 @@ import java.util.Currency
 class TransactionFormViewModelTest {
 
     private val usd = Currency.getInstance("USD")
+    private val gtq = Currency.getInstance("GTQ")
+    private val eur = Currency.getInstance("EUR")
+    private val cash = Account(id = 1, name = "Cash", type = AccountType.CASH, currency = gtq, createdAt = 0)
+    private val bank = Account(id = 2, name = "Bank", type = AccountType.CHECKING, currency = usd, createdAt = 0)
+    private val archived = Account(id = 9, name = "Old", type = AccountType.CASH, currency = gtq, createdAt = 0, isArchived = true)
     private val transactionRepository = mock<TransactionRepository>()
     private val accountRepository = mock<AccountRepository>()
     private val categoryRepository = mock<CategoryRepository>()
@@ -51,11 +59,18 @@ class TransactionFormViewModelTest {
         Dispatchers.setMain(StandardTestDispatcher())
         whenever(categoryRepository.getAllCategories()).thenReturn(flowOf(emptyList()))
         whenever(transactionRepository.recentCurrencies()).thenReturn(flowOf(emptyList()))
-        whenever(accountRepository.defaultAccount())
-            .thenReturn(Account(id = 1, name = "Cash", type = AccountType.CASH, currency = usd, createdAt = 0))
+        whenever(accountRepository.defaultAccount()).thenReturn(cash)
+        whenever(accountRepository.observeAll()).thenReturn(flowOf(listOf(cash, bank, archived)))
+        whenever(userPreferences.mainCurrency).thenReturn(flowOf(gtq))
+        whenever(amounts.compute(any())).thenReturn(AmountResult.NeedsManualRate)
+        whenever(amounts.forSave(any(), anyOrNull(), any(), any(), anyOrNull())).thenAnswer { it.arguments[0] as Transaction }
         whenever(transactionRepository.getTransactionById(3L)).thenReturn(
-            Transaction.singleCurrency(1, TransactionType.EXPENSE, LocalDateTime.of(2026, 1, 1, 0, 0), Money(5_00, usd))
+            Transaction.singleCurrency(1, TransactionType.EXPENSE, LocalDateTime.of(2026, 1, 1, 0, 0), Money(5_00, gtq))
                 .copy(id = 3),
+        )
+        whenever(transactionRepository.getTransactionById(4L)).thenReturn(
+            Transaction.singleCurrency(2, TransactionType.EXPENSE, LocalDateTime.of(2026, 1, 1, 0, 0), Money(7_00, usd))
+                .copy(id = 4),
         )
     }
 
@@ -135,5 +150,82 @@ class TransactionFormViewModelTest {
         assertTrue(vm.formState.value.isSaved)
         vm.open(3L)
         assertFalse(vm.formState.value.isSaved)
+    }
+
+    @Test
+    fun newMovementStartsOnDefaultAccount() = runTest {
+        val vm = vm(emptyMap())
+        advanceUntilIdle()
+        val s = vm.formState.value
+        assertEquals(1L, s.accountId)
+        assertEquals(gtq, s.currency)
+        assertEquals(gtq, s.accountCurrency)
+        assertFalse(s.currencyTouched)
+        assertEquals(listOf(cash, bank), s.accounts)
+    }
+
+    @Test
+    fun setAccountMovesCurrencyWhenUntouched() = runTest {
+        val vm = vm(emptyMap())
+        advanceUntilIdle()
+        vm.setAccount(2L)
+        advanceUntilIdle()
+        val s = vm.formState.value
+        assertEquals(2L, s.accountId)
+        assertEquals(usd, s.currency)
+        assertEquals(usd, s.accountCurrency)
+        assertFalse(s.currencyTouched)
+    }
+
+    @Test
+    fun setAccountKeepsTouchedCurrency() = runTest {
+        val vm = vm(emptyMap())
+        advanceUntilIdle()
+        vm.updateCurrency(eur)
+        vm.setAccount(2L)
+        advanceUntilIdle()
+        val s = vm.formState.value
+        assertTrue(s.currencyTouched)
+        assertEquals(eur, s.currency)
+        assertEquals(usd, s.accountCurrency)
+    }
+
+    @Test
+    fun saveUsesSelectedAccount() = runTest {
+        val vm = vm(emptyMap())
+        advanceUntilIdle()
+        vm.setAccount(2L)
+        vm.updateAmount("12")
+        advanceUntilIdle()
+        vm.save()
+        advanceUntilIdle()
+        val saved = argumentCaptor<Transaction>()
+        verify(transactionRepository).insertTransaction(saved.capture())
+        assertEquals(2L, saved.firstValue.accountId)
+        assertEquals(Money(12_00, usd), saved.firstValue.original)
+    }
+
+    @Test
+    fun editingKeepsMovementAccount() = runTest {
+        val vm = vm(mapOf("id" to 4L))
+        advanceUntilIdle()
+        assertEquals(2L, vm.formState.value.accountId)
+        assertEquals(usd, vm.formState.value.accountCurrency)
+        vm.updateDescription("Lunch")
+        vm.save()
+        advanceUntilIdle()
+        val saved = argumentCaptor<Transaction>()
+        verify(transactionRepository).updateTransaction(saved.capture())
+        assertEquals(2L, saved.firstValue.accountId)
+    }
+
+    @Test
+    fun changingTheAccountIsAnUnsavedChange() = runTest {
+        val vm = vm(emptyMap())
+        backgroundScope.launch { vm.hasUnsavedChanges.collect {} }
+        advanceUntilIdle()
+        vm.setAccount(2L)
+        advanceUntilIdle()
+        assertTrue(vm.hasUnsavedChanges.value)
     }
 }

@@ -28,6 +28,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Backup
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Code
@@ -98,6 +99,8 @@ fun SettingsScreen(
     onOpenSection: (SettingsSection) -> Unit,
     onOpenCurrency: (String) -> Unit,
     onChangeMainCurrency: (String) -> Unit,
+    /** Accounts has its own list-detail, so it always opens as its own route. */
+    onOpenAccounts: () -> Unit,
     preselected: SettingsSection? = null,
     onPreselectedConsumed: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
@@ -114,7 +117,7 @@ fun SettingsScreen(
 
     if (!twoPane) {
         SettingsScaffold(title = stringResource(R.string.settings_title), onNavigateBack = onNavigateBack) {
-            SettingsList(selected = null, onOpenSection = onOpenSection, viewModel = viewModel)
+            SettingsList(selected = null, onOpenSection = onOpenSection, onOpenAccounts = onOpenAccounts, viewModel = viewModel)
         }
     } else {
         SettingsListDetail(
@@ -124,6 +127,7 @@ fun SettingsScreen(
             onNavigateBack = onNavigateBack,
             onOpenCurrency = onOpenCurrency,
             onChangeMainCurrency = onChangeMainCurrency,
+            onOpenAccounts = onOpenAccounts,
             viewModel = viewModel,
         )
     }
@@ -138,6 +142,7 @@ private fun SettingsListDetail(
     onNavigateBack: () -> Unit,
     onOpenCurrency: (String) -> Unit,
     onChangeMainCurrency: (String) -> Unit,
+    onOpenAccounts: () -> Unit,
     viewModel: SettingsViewModel,
 ) {
     val directive = calculatePaneScaffoldDirective(currentWindowAdaptiveInfo()).copy(
@@ -202,6 +207,7 @@ private fun SettingsListDetail(
                                         scope.launch { navigator.navigateTo(ListDetailPaneScaffoldRole.Detail, section) }
                                     }
                                 },
+                                onOpenAccounts = onOpenAccounts,
                                 viewModel = viewModel,
                             )
                             Spacer(Modifier.height(0.dp))
@@ -254,6 +260,7 @@ private fun SettingsListDetail(
 private fun ColumnScope.SettingsList(
     selected: SettingsSection?,
     onOpenSection: (SettingsSection) -> Unit,
+    onOpenAccounts: () -> Unit,
     viewModel: SettingsViewModel,
 ) {
     val context = LocalContext.current
@@ -308,13 +315,15 @@ private fun ColumnScope.SettingsList(
     }
 
     SettingsGroup(stringResource(R.string.settings_preferences_section)) {
-        SectionRow(SettingsSection.GENERAL, 0, 4, Icons.Outlined.Tune, R.string.settings_general_title,
+        SettingsRow(0, 5, Icons.Outlined.AccountBalanceWallet, stringResource(R.string.settings_accounts_title),
+            stringResource(R.string.settings_accounts_subtitle), onOpenAccounts)
+        SectionRow(SettingsSection.GENERAL, 1, 5, Icons.Outlined.Tune, R.string.settings_general_title,
             R.string.settings_general_subtitle, selected, onOpenSection)
-        SectionRow(SettingsSection.CURRENCIES, 1, 4, Icons.Outlined.CurrencyExchange, R.string.settings_currencies_title,
+        SectionRow(SettingsSection.CURRENCIES, 2, 5, Icons.Outlined.CurrencyExchange, R.string.settings_currencies_title,
             R.string.settings_currencies_subtitle, selected, onOpenSection)
-        SectionRow(SettingsSection.CATEGORIES, 2, 4, Icons.Outlined.Category, R.string.settings_categories_title,
+        SectionRow(SettingsSection.CATEGORIES, 3, 5, Icons.Outlined.Category, R.string.settings_categories_title,
             R.string.settings_categories_subtitle, selected, onOpenSection)
-        SectionRow(SettingsSection.THEME, 3, 4, Icons.Outlined.Palette, R.string.settings_theme_title,
+        SectionRow(SettingsSection.THEME, 4, 5, Icons.Outlined.Palette, R.string.settings_theme_title,
             R.string.settings_theme_subtitle, selected, onOpenSection)
     }
 

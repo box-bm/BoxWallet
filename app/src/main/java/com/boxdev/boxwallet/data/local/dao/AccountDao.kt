@@ -8,6 +8,13 @@ import androidx.room.Update
 import com.boxdev.boxwallet.data.local.entity.AccountEntity
 import kotlinx.coroutines.flow.Flow
 
+/** Cleared balance of one account, in the account's currency. */
+data class AccountBalanceRow(val accountId: Long, val balanceMinor: Long)
+
+/** Cleared balance expression shared by the per-account query and the one-shot lookup. */
+private const val CLEARED_BALANCE =
+    "SUM(CASE WHEN type IN ('INCOME','ADJUSTMENT_IN') THEN accountAmountMinor ELSE -accountAmountMinor END)"
+
 @Dao
 interface AccountDao {
 
@@ -39,4 +46,11 @@ interface AccountDao {
 
     @Query("SELECT COUNT(*) FROM accounts")
     suspend fun count(): Int
+
+    @Query("SELECT accountId, $CLEARED_BALANCE AS balanceMinor FROM transactions WHERE isCleared = 1 GROUP BY accountId")
+    fun observeBalances(): Flow<List<AccountBalanceRow>>
+
+    /** Cleared balance of one account in its currency; 0 without movements. */
+    @Query("SELECT COALESCE($CLEARED_BALANCE, 0) FROM transactions WHERE isCleared = 1 AND accountId = :accountId")
+    suspend fun getBalance(accountId: Long): Long
 }

@@ -2,6 +2,7 @@ package com.boxdev.boxwallet.ui.screens.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.domain.money.minorDigits
 import com.boxdev.boxwallet.data.repository.CategoryRepository
@@ -43,7 +44,7 @@ data class SearchUiState(
  */
 @HiltViewModel
 class SearchViewModel @Inject constructor(
-    transactionRepository: TransactionRepository,
+    private val transactionRepository: TransactionRepository,
     loanRepository: LoanRepository,
     categoryRepository: CategoryRepository,
 ) : ViewModel() {
@@ -119,5 +120,9 @@ class SearchViewModel @Inject constructor(
     private companion object {
         val DIACRITICS = Regex("\\p{Mn}+")
         val WHITESPACE = Regex("\\s+")
+    }
+
+    fun deleteTransaction(id: Long) {
+        viewModelScope.launch { transactionRepository.deleteTransaction(id) }
     }
 }

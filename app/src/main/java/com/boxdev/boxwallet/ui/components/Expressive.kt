@@ -82,6 +82,7 @@ import androidx.compose.ui.unit.dp
 import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.RoundedPolygon
 import com.boxdev.boxwallet.R
+import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.ui.theme.BoxTheme
 import com.boxdev.boxwallet.util.categoryIconVector
@@ -443,6 +444,18 @@ fun CategoryFilterChips(categories: List<Category>, selectedId: Long?, onSelect:
         CheckFilterChip(selectedId == null, { onSelect(null) }, stringResource(R.string.transactions_filter_all))
         categories.forEach { cat ->
             CheckFilterChip(selectedId == cat.id, { onSelect(cat.id) }, cat.name)
+        }
+    }
+}
+
+/** "All" plus one chip per account; a null [selectedId] means all accounts. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun AccountFilterChips(accounts: List<Account>, selectedId: Long?, onSelect: (Long?) -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        CheckFilterChip(selectedId == null, { onSelect(null) }, stringResource(R.string.transactions_filter_all))
+        accounts.forEach { account ->
+            CheckFilterChip(selectedId == account.id, { onSelect(account.id) }, account.name)
         }
     }
 }

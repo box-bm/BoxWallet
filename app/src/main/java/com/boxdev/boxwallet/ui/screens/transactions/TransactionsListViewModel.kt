@@ -3,8 +3,10 @@ package com.boxdev.boxwallet.ui.screens.transactions
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boxdev.boxwallet.data.local.entity.TransactionType
+import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.TransactionRepository
+import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Transaction
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,6 +28,7 @@ enum class SortBy { DATE_ASC, DATE_DESC, AMOUNT_ASC, AMOUNT_DESC }
 data class TransactionsFilterState(
     val transactionType: TransactionTypeFilter = TransactionTypeFilter.ALL,
     val categoryId: Long? = null,
+    val accountId: Long? = null,
     val startDate: LocalDate? = null,
     val endDate: LocalDate? = null,
     val sortBy: SortBy = SortBy.DATE_DESC,
@@ -36,6 +39,8 @@ data class TransactionsListUiState(
     val transactions: List<Transaction> = emptyList(),
     val filteredTransactions: List<Transaction> = emptyList(),
     val availableCategories: List<Category> = emptyList(),
+    /** Every account, archived included, so a filter on an archived one still shows its name. */
+    val accounts: List<Account> = emptyList(),
     val isLoading: Boolean = true,
     val filterState: TransactionsFilterState = TransactionsFilterState()
 )
@@ -44,6 +49,7 @@ data class TransactionsListUiState(
 class TransactionsListViewModel @Inject constructor(
     private val repository: TransactionRepository,
     private val categoryRepository: CategoryRepository,
+    accountRepository: AccountRepository,
     private val filterRequest: MovementsFilterRequest,
 ) : ViewModel() {
 
@@ -52,22 +58,29 @@ class TransactionsListViewModel @Inject constructor(
     val uiState: StateFlow<TransactionsListUiState> = combine(
         repository.getAllTransactions(),
         categoryRepository.getAllCategories(),
+        accountRepository.observeAll(),
         filterState,
-    ) { transactions, categories, filter ->
+    ) { transactions, categories, accounts, filter ->
         TransactionsListUiState(
             transactions = transactions,
             filteredTransactions = applyFilters(transactions, filter),
             availableCategories = categories,
+            accounts = accounts,
             isLoading = false,
             filterState = filter,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TransactionsListUiState())
 
     init {
-        // Reports can open this tab filtered to a category within the period it was showing.
+        // Reports can open this tab filtered to a category within the period it was showing, an account's detail to it.
         viewModelScope.launch {
             filterRequest.filter.filterNotNull().collect { f ->
-                filterState.value = TransactionsFilterState(categoryId = f.categoryId, startDate = f.start, endDate = f.end)
+                filterState.value = TransactionsFilterState(
+                    categoryId = f.categoryId,
+                    accountId = f.accountId,
+                    startDate = f.start,
+                    endDate = f.end,
+                )
                 filterRequest.consume()
             }
         }
@@ -76,6 +89,8 @@ class TransactionsListViewModel @Inject constructor(
     fun updateTypeFilter(type: TransactionTypeFilter) = filterState.update { it.copy(transactionType = type) }
 
     fun updateCategoryFilter(categoryId: Long?) = filterState.update { it.copy(categoryId = categoryId) }
+
+    fun updateAccountFilter(accountId: Long?) = filterState.update { it.copy(accountId = accountId) }
 
     fun updateSortBy(sortBy: SortBy) = filterState.update { it.copy(sortBy = sortBy) }
 
@@ -94,6 +109,7 @@ class TransactionsListViewModel @Inject constructor(
                 TransactionTypeFilter.ALL -> true
             } &&
                 (f.categoryId == null || tx.categoryId == f.categoryId) &&
+                (f.accountId == null || tx.accountId == f.accountId) &&
                 (f.startDate == null || !date.isBefore(f.startDate)) &&
                 (f.endDate == null || !date.isAfter(f.endDate)) &&
                 (!f.showOnlyRecurrent || tx.isRecurrent)
@@ -104,5 +120,9 @@ class TransactionsListViewModel @Inject constructor(
             SortBy.AMOUNT_ASC -> filtered.sortedBy { it.amount.minor }
             SortBy.AMOUNT_DESC -> filtered.sortedByDescending { it.amount.minor }
         }
+    }
+
+    fun deleteTransaction(id: Long) {
+        viewModelScope.launch { repository.deleteTransaction(id) }
     }
 }

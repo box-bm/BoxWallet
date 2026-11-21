@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.data.local.database.BoxWalletDatabase
 import com.boxdev.boxwallet.data.local.entity.AccountEntity
+import com.boxdev.boxwallet.data.local.entity.AppMetaEntity
 import com.boxdev.boxwallet.data.local.entity.LoanEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 import com.boxdev.boxwallet.data.remote.GoogleDriveManager
@@ -90,19 +91,18 @@ class MainCurrencyChangerTest {
             .allowMainThreadQueries().build()
         prefs = UserPreferences(context)
         prefs.setMainCurrency("USD")
-        prefs.setPendingMainCurrency(null)
         lookup = FakeLookup()
         val lock = CurrencyChangeLock()
         val backup = BackupRepository(context, db, db.transactionDao(), db.categoryDao(), db.loanDao(), db.accountDao(), db.appMetaDao(), prefs, lock, GoogleDriveManager(context))
         changer = MainCurrencyChanger(
-            db, db.transactionDao(), db.accountDao(), db.loanDao(), lookup, prefs, backup, lock,
+            db, db.transactionDao(), db.accountDao(), db.loanDao(), db.appMetaDao(), lookup, prefs, backup, lock,
             today = { today },
             sourceReachable = { lookup.online && lookup.latestReachable },
         )
         val amounts = TransactionAmounts(ExchangeRateResolver(lookup) { today })
         transactions = TransactionRepository(
             db.transactionDao(),
-            AccountRepository(db.accountDao(), prefs, context),
+            AccountRepository(db.accountDao(), prefs, lookup, context, db.transactionDao(), db, amounts, MovementWriteGuard(lock, prefs, db.accountDao(), amounts)),
             prefs,
             context,
             amounts,
@@ -114,7 +114,6 @@ class MainCurrencyChangerTest {
     @After
     fun tearDown() = runTest {
         prefs.setMainCurrency("USD")
-        prefs.setPendingMainCurrency(null)
         db.close()
     }
 
@@ -165,7 +164,7 @@ class MainCurrencyChangerTest {
 
         assertEquals("GTQ", db.accountDao().getById(acc)!!.currencyCode)
         assertEquals(gtq, prefs.mainCurrency.first())
-        assertNull(prefs.pendingMainCurrency.first())
+        assertNull(db.appMetaDao().get(MainCurrencyChanger.META_PENDING_MAIN_CURRENCY))
         assertEquals(ChangeSummary(converted = 3, approximate = 0, manualReplaced = 0), summary)
         // 10 USD -> 80 GTQ; 10 EUR -> 160 GTQ (8 / 0.5); 10 GTQ stays.
         val expected = mapOf(usdTx to 8000L, eurTx to 16000L, gtqTx to 1000L)
@@ -267,7 +266,7 @@ class MainCurrencyChangerTest {
         assertEquals(before, dao.getAllTransactionsSync())
         assertEquals("USD", db.accountDao().getById(acc)!!.currencyCode)
         assertEquals(usd, prefs.mainCurrency.first())
-        assertNull(prefs.pendingMainCurrency.first())
+        assertNull(db.appMetaDao().get(MainCurrencyChanger.META_PENDING_MAIN_CURRENCY))
     }
 
     @Test
@@ -290,25 +289,66 @@ class MainCurrencyChangerTest {
     }
 
     @Test
-    fun `completePending finishes after commit`() = runTest {
+    fun `completePending finishes a committed change with several accounts`() = runTest {
+        prefs.setMainCurrency("GTQ")
         account("GTQ")
-        prefs.setPendingMainCurrency("GTQ")
+        account("USD", makeDefault = false)
+        // Committed: the marker rode in the data transaction; DataStore never got the new currency.
+        db.appMetaDao().put(AppMetaEntity(MainCurrencyChanger.META_PENDING_MAIN_CURRENCY, "EUR"))
 
         changer.completePending()
 
-        assertEquals(gtq, prefs.mainCurrency.first())
-        assertNull(prefs.pendingMainCurrency.first())
+        assertEquals(Currency.getInstance("EUR"), prefs.mainCurrency.first())
+        assertNull(db.appMetaDao().get(MainCurrencyChanger.META_PENDING_MAIN_CURRENCY))
     }
 
     @Test
-    fun `completePending clears when commit never happened`() = runTest {
-        account("USD")
-        prefs.setPendingMainCurrency("GTQ")
+    fun `completePending without a marker leaves the main currency alone`() = runTest {
+        account("GTQ")
 
         changer.completePending()
 
         assertEquals(usd, prefs.mainCurrency.first())
-        assertNull(prefs.pendingMainCurrency.first())
+    }
+
+    @Test
+    fun `legacy pending from v1 is finished with a single account`() = runTest {
+        prefs.setMainCurrency("GTQ")
+        account("EUR")
+        prefs.setLegacyPendingMainCurrencyForTest("EUR")
+
+        changer.completePending()
+
+        assertEquals(Currency.getInstance("EUR"), prefs.mainCurrency.first())
+        assertNull(prefs.takeLegacyPendingMainCurrency())
+    }
+
+    @Test
+    fun `legacy pending ignored when rolled back`() = runTest {
+        prefs.setMainCurrency("GTQ")
+        account("GTQ")
+        prefs.setLegacyPendingMainCurrencyForTest("EUR")
+
+        changer.completePending()
+
+        assertEquals(gtq, prefs.mainCurrency.first())
+        assertNull(prefs.takeLegacyPendingMainCurrency())
+    }
+
+    @Test
+    fun `rolled back change leaves no marker`() = runTest {
+        val acc = account("USD")
+        db.transactionDao().insert(tx(acc, 1000, "USD", 1000, "1", 1000, "1"))
+        lookup.units = mapOf("USD" to BigDecimal.ONE)
+
+        try {
+            changer.apply(gtq)
+            fail("expected a missing rate")
+        } catch (_: MissingRateException) {
+        }
+
+        assertNull(db.appMetaDao().get(MainCurrencyChanger.META_PENDING_MAIN_CURRENCY))
+        assertEquals(usd, prefs.mainCurrency.first())
     }
 
     @Test
@@ -321,6 +361,41 @@ class MainCurrencyChangerTest {
         db.transactionDao().insert(tx(acc, 1000, "USD", 1000, "1", 1000, "1", loanId = loan))
 
         assertEquals(ChangePreview(2, 1, usd, gtq), changer.preview(gtq))
+    }
+
+    @Test
+    fun `lone account in another currency keeps its currency and amounts`() = runTest {
+        prefs.setMainCurrency("GTQ")
+        val acc = account("USD")
+        val dao = db.transactionDao()
+        val id = dao.insert(tx(acc, 1000, "USD", 1000, "1", 8000, "8"))
+
+        val summary = changer.apply(Currency.getInstance("EUR"))
+
+        assertEquals("USD", db.accountDao().getById(acc)!!.currencyCode)
+        assertEquals(Currency.getInstance("EUR"), prefs.mainCurrency.first())
+        assertEquals(1, summary.converted)
+        val t = dao.getById(id)!!
+        assertEquals(1000L, t.originalAmountMinor)
+        assertEquals("USD", t.currencyCode)
+        assertEquals(1000L, t.accountAmountMinor)
+        assertEquals(0, BigDecimal.ONE.compareTo(t.accountRate))
+        // US$10 at 0.5 EUR per USD = €5.
+        assertEquals(500L, t.amountMinor)
+        assertEquals(0, BigDecimal("0.5").compareTo(t.mainRate))
+    }
+
+    @Test
+    fun `prefetch for a lone account in another currency needs its account currency`() = runTest {
+        prefs.setMainCurrency("GTQ")
+        val acc = account("USD")
+        lookup.allExact = false
+        db.transactionDao().insert(tx(acc, 1000, "EUR", 2000, "2", 16000, "8"))
+
+        assertTrue(changer.prefetch(Currency.getInstance("EUR")) { _, _ -> })
+
+        // The movement is already in EUR, but its USD account leg still needs that day's rate.
+        assertEquals(listOf(day), lookup.downloads)
     }
 
     @Test
@@ -354,7 +429,7 @@ class MainCurrencyChangerTest {
 
         assertEquals(before, db.transactionDao().getAllTransactionsSync())
         assertEquals(usd, prefs.mainCurrency.first())
-        assertNull(prefs.pendingMainCurrency.first())
+        assertNull(db.appMetaDao().get(MainCurrencyChanger.META_PENDING_MAIN_CURRENCY))
     }
 
     @Test
@@ -391,7 +466,7 @@ class MainCurrencyChangerTest {
         assertEquals(before, db.transactionDao().getAllTransactionsSync())
         assertEquals("USD", db.accountDao().getById(acc)!!.currencyCode)
         assertEquals(usd, prefs.mainCurrency.first())
-        assertNull(prefs.pendingMainCurrency.first())
+        assertNull(db.appMetaDao().get(MainCurrencyChanger.META_PENDING_MAIN_CURRENCY))
     }
 
     @Test
@@ -403,7 +478,7 @@ class MainCurrencyChangerTest {
             override suspend fun download(day: LocalDate) = false
         }
         val reachable = MainCurrencyChanger(
-            db, db.transactionDao(), db.accountDao(), db.loanDao(), unpublished, prefs,
+            db, db.transactionDao(), db.accountDao(), db.loanDao(), db.appMetaDao(), unpublished, prefs,
             BackupRepository(context, db, db.transactionDao(), db.categoryDao(), db.loanDao(), db.accountDao(), db.appMetaDao(), prefs, CurrencyChangeLock(), GoogleDriveManager(context)),
             CurrencyChangeLock(), today = { today }, sourceReachable = { true },
         )

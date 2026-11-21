@@ -13,6 +13,7 @@ import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.util.ExcelReportGenerator
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Transaction
+import com.boxdev.boxwallet.domain.model.inReports
 import com.boxdev.boxwallet.domain.model.monthsBetween
 import com.boxdev.boxwallet.domain.model.total
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -220,7 +221,11 @@ class AnalyticsViewModel @Inject constructor(
                 transactionRepository.getTransactionsBetweenDates(trendStart, trendEnd),
                 categoriesFlow,
                 installmentsFlow,
-            ) { periodTx, previousTx, trendTx, categories, installments ->
+            ) { allPeriodTx, allPreviousTx, allTrendTx, categories, installments ->
+                // Balance adjustments never count as income or expense in any report.
+                val periodTx = allPeriodTx.inReports()
+                val previousTx = allPreviousTx.inReports()
+                val trendTx = allTrendTx.inReports()
                 val categoryMap = categories.associateBy { it.id }
                 val today = LocalDate.now()
                 val expenses = periodTx.filter { it.type == TransactionType.EXPENSE }
@@ -333,14 +338,6 @@ class AnalyticsViewModel @Inject constructor(
             }
             AnalyticsFrequency.MONTHLY -> start.format(DateTimeFormatter.ofPattern("MMMM yyyy", locale))
             AnalyticsFrequency.YEARLY -> start.year.toString()
-        }
-    }
-
-    private fun List<Transaction>.monthlyTotals(months: List<YearMonth>): List<MonthlyData> {
-        val byMonth = groupBy { YearMonth.from(it.date) }
-        return months.map { month ->
-            val monthTx = byMonth[month].orEmpty()
-            MonthlyData(month, monthTx.total(TransactionType.INCOME), monthTx.total(TransactionType.EXPENSE))
         }
     }
 

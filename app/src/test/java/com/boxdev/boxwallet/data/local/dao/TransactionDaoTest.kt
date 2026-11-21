@@ -73,6 +73,17 @@ class TransactionDaoTest {
     }
 
     @Test
+    fun `adjustments do not change income or expense totals`() = runTest {
+        dao.insert(tx(amountMinor = 1000, type = "INCOME"))
+        dao.insert(tx(amountMinor = 300, type = "EXPENSE"))
+        dao.insert(tx(amountMinor = 5000, type = "ADJUSTMENT_IN"))
+        dao.insert(tx(amountMinor = 200, type = "ADJUSTMENT_OUT"))
+
+        assertEquals(1000L, dao.getTotalIncome().first())
+        assertEquals(300L, dao.getTotalExpense().first())
+    }
+
+    @Test
     fun `recentCurrencies orders by uses then recency`() = runTest {
         repeat(3) { dao.insert(tx(currencyCode = "GTQ", date = 1_000L + it)) }
         dao.insert(tx(currencyCode = "USD", date = 5_000L))

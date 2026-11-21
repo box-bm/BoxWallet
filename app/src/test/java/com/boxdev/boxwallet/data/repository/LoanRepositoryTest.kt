@@ -63,7 +63,7 @@ class LoanRepositoryTest {
             db,
             db.loanDao(),
             db.transactionDao(),
-            AccountRepository(db.accountDao(), prefs, context),
+            AccountRepository(db.accountDao(), prefs, lookup, context, db.transactionDao(), db, amounts, MovementWriteGuard(CurrencyChangeLock(), prefs, db.accountDao(), amounts)),
             amounts,
             MovementWriteGuard(CurrencyChangeLock(), prefs, db.accountDao(), amounts),
         )

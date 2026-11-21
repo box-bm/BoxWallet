@@ -75,7 +75,7 @@ class TransactionRepositoryTest {
         val amounts = TransactionAmounts(ExchangeRateResolver(lookup) { LocalDate.of(2026, 11, 7) })
         repository = TransactionRepository(
             db.transactionDao(),
-            AccountRepository(db.accountDao(), prefs, context),
+            AccountRepository(db.accountDao(), prefs, lookup, context, db.transactionDao(), db, amounts, MovementWriteGuard(CurrencyChangeLock(), prefs, db.accountDao(), amounts)),
             prefs,
             context,
             amounts,
@@ -133,5 +133,59 @@ class TransactionRepositoryTest {
         assertEquals(2400L, manual.accountAmountMinor)
         assertEquals(18336L, manual.amountMinor) // 24.00 USD × 7.64
         assertEquals(0, BigDecimal("7.64").compareTo(manual.mainRate))
+    }
+
+    @Test
+    fun `observeByAccount lists only that account's movements without loan installments`() = runTest {
+        val other = db.accountDao().insert(AccountEntity(name = "Other", type = "CHECKING", currencyCode = "USD", createdAt = 0L))
+        val mine = saved(template(ExchangeRate(BigDecimal.ONE, RateSource.AUTO), 2000).copy(isRecurrent = false))
+        saved(mine.copy(id = 0, accountId = other))
+        val loanId = db.loanDao().insert(
+            com.boxdev.boxwallet.data.local.entity.LoanEntity(
+                name = "Loan", totalAmountMinor = 1000, currencyCode = "USD", totalInstallments = 1,
+                startDate = 0L, loanType = "EXPENSE", frequency = "MONTHLY",
+            )
+        )
+        saved(mine.copy(id = 0, loanId = loanId, installmentNumber = 1))
+
+        assertEquals(listOf(mine.id), repository.observeByAccount(accountId).first().map { it.id })
+    }
+    private suspend fun quetzalDefault(): Long {
+        val id = db.accountDao().insert(AccountEntity(name = "Quetzales", type = "CASH", currencyCode = "GTQ", createdAt = 0L, sortOrder = 1))
+        prefs.setDefaultAccountId(id)
+        return id
+    }
+
+    /** €20 in November: 7.64 GTQ/USD × 1.0852 USD/EUR = 8.290928 GTQ/EUR → Q165.82. */
+    private suspend fun assertOccurrenceInQuetzales(defaultId: Long) {
+        val occurrence = db.transactionDao().getAllTransactions().first().single { it.parentRecurrenceId != null }
+        assertEquals(defaultId, occurrence.accountId)
+        assertEquals("EUR", occurrence.currencyCode)
+        assertEquals(2000L, occurrence.originalAmountMinor)
+        assertEquals(16582L, occurrence.accountAmountMinor)
+        assertEquals(RateSource.AUTO, occurrence.accountRateSource)
+        assertEquals(16582L, occurrence.amountMinor)
+        assertEquals(0, BigDecimal.ONE.compareTo(occurrence.mainRate))
+    }
+
+    @Test
+    fun `recurrence of an archived account goes to the default account`() = runTest {
+        val defaultId = quetzalDefault()
+        val template = saved(template(ExchangeRate(BigDecimal("1.2"), RateSource.MANUAL), 2400))
+        db.accountDao().update(db.accountDao().getById(accountId)!!.copy(isArchived = true))
+
+        repository.createNextRecurrence(template)
+
+        assertOccurrenceInQuetzales(defaultId)
+    }
+
+    @Test
+    fun `recurrence of a missing account goes to the default account`() = runTest {
+        val defaultId = quetzalDefault()
+        val template = saved(template(ExchangeRate(BigDecimal("1.2"), RateSource.MANUAL), 2400))
+
+        repository.createNextRecurrence(template.copy(accountId = 999))
+
+        assertOccurrenceInQuetzales(defaultId)
     }
 }

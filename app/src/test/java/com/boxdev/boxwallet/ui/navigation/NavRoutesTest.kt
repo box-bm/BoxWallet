@@ -18,4 +18,14 @@ class NavRoutesTest {
         assertEquals("loan_form", NavRoutes.LoanForm.createRoute())
         assertEquals("loan_form?id=7", NavRoutes.LoanForm.createRoute(7))
     }
+
+    @Test
+    fun accountRoutes() {
+        assertEquals("accounts", NavRoutes.Accounts.route)
+        assertEquals("account_detail/{accountId}", NavRoutes.AccountDetail.route)
+        assertEquals("account_detail/7", NavRoutes.AccountDetail.createRoute(7))
+        assertEquals("account_form?id={id}", NavRoutes.AccountForm.route)
+        assertEquals("account_form", NavRoutes.AccountForm.createRoute())
+        assertEquals("account_form?id=3", NavRoutes.AccountForm.createRoute(3))
+    }
 }

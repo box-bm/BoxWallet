@@ -118,7 +118,7 @@ class LegacyBackupConverterTest {
         assertEquals(accountId, account.id)
         assertEquals("GTQ", account.currencyCode)
         assertEquals("CHECKING", account.type)
-        assertEquals(3, data.version)
+        assertEquals(BackupData.CURRENT_VERSION, data.version)
         assertEquals("GTQ", data.mainCurrencyCode)
         assertEquals(1762300800000L, data.createdAt)
     }
@@ -170,6 +170,31 @@ class LegacyBackupConverterTest {
             val e = assertThrows(IllegalArgumentException::class.java) { LegacyBackupConverter.decode(json, gtq, "Main") }
             assertTrue("$code: ${e.message}", e.message!!.contains(code))
         }
+    }
+
+    @Test
+    fun v3AccountsGetDefaultsForNewFields() {
+        val account = LegacyBackupConverter.decode(v3(), gtq, "Main").accounts.single()
+        assertEquals("", account.description)
+        assertEquals("AccountBalance", account.icon)
+        assertEquals("DEFAULT", account.color)
+        assertTrue(account.includeInTotal)
+    }
+
+    @Test
+    fun `v4 keeps account customization, an excluded account and the default account`() {
+        val json = """
+            {"version":4,"mainCurrencyCode":"GTQ","defaultAccountId":2,
+             "accounts":[{"id":1,"name":"A","type":"CASH","currencyCode":"GTQ","createdAt":0},
+               {"id":2,"name":"B","type":"SAVINGS","currencyCode":"USD","createdAt":0,"description":"Ahorro",
+                "icon":"Savings","color":"GREEN","includeInTotal":false}]}
+        """.trimIndent()
+        val data = LegacyBackupConverter.decode(json, gtq, "Main")
+        assertEquals(2L, data.defaultAccountId)
+        val b = data.accounts.single { it.id == 2L }
+        assertEquals(listOf("Ahorro", "Savings", "GREEN"), listOf(b.description, b.icon, b.color))
+        assertEquals(false, b.includeInTotal)
+        assertTrue(data.accounts.single { it.id == 1L }.includeInTotal)
     }
 
     @Test

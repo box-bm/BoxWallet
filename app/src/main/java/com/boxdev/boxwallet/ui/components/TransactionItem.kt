@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
@@ -26,7 +27,8 @@ import androidx.compose.ui.unit.dp
 import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.util.DateFormats
 import com.boxdev.boxwallet.util.rememberCurrencyFormatter
-import com.boxdev.boxwallet.data.local.entity.TransactionType
+import com.boxdev.boxwallet.data.local.entity.isAdjustment
+import com.boxdev.boxwallet.data.local.entity.isInflow
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.ui.theme.BoxTheme
@@ -48,15 +50,22 @@ fun TransactionItem(
     onClick: () -> Unit = {},
     onLongClick: (() -> Unit)? = null,
 ) {
-    val isIncome = transaction.type == TransactionType.INCOME
+    val isAdjustment = transaction.type.isAdjustment
+    val isIncome = transaction.type.isInflow
     val kind = amountKind(isIncome)
-    val (badgeContainer, badgeContent) = directionColors(isIncome)
+    // An adjustment only corrects the balance, so it stays neutral instead of reading as income or expense.
+    val (badgeContainer, badgeContent) = if (isAdjustment) {
+        MaterialTheme.colorScheme.surfaceContainerHighest to MaterialTheme.colorScheme.onSurfaceVariant
+    } else directionColors(isIncome)
     val interaction = remember { MutableInteractionSource() }
     // Short, locale-correct day ("6 nov" / "Nov 6"); the year only appears when it isn't this year.
     val dateFormatter = DateFormats.shortDay(withYear = transaction.date.year != java.time.LocalDate.now().year)
     val timeFormatter = DateFormats.shortTime
     val title = transaction.description.ifBlank {
-        category?.name ?: stringResource(if (isIncome) R.string.transaction_type_income else R.string.transaction_type_expense)
+        when {
+            isAdjustment -> stringResource(R.string.transaction_adjustment)
+            else -> category?.name ?: stringResource(if (isIncome) R.string.transaction_type_income else R.string.transaction_type_expense)
+        }
     }
 
     SegmentedListItem(
@@ -69,7 +78,7 @@ fun TransactionItem(
         leadingContent = {
             CategoryBadge(
                 category = category,
-                fallbackIcon = trendIcon(isIncome),
+                fallbackIcon = if (isAdjustment) Icons.Outlined.Tune else trendIcon(isIncome),
                 fallbackContainer = badgeContainer,
                 fallbackContent = badgeContent,
                 interactionSource = interaction,
@@ -117,7 +126,11 @@ fun TransactionItem(
             val formatter = rememberCurrencyFormatter()
             val equivalent = formatter.withEquivalent(transaction.original, transaction.amount).second
             Column(horizontalAlignment = Alignment.End) {
-                AmountText(amount = transaction.original, kind = kind)
+                AmountText(
+                    amount = transaction.original,
+                    kind = kind,
+                    color = if (isAdjustment) MaterialTheme.colorScheme.onSurfaceVariant else kind.color(),
+                )
                 if (equivalent != null) EquivalentText(equivalent)
             }
         },

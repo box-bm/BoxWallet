@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.data.local.database.BoxWalletDatabase
 import com.boxdev.boxwallet.data.local.entity.AccountEntity
+import com.boxdev.boxwallet.data.local.entity.AppMetaEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 import com.boxdev.boxwallet.domain.money.ExchangeRateResolver
 import com.boxdev.boxwallet.domain.money.RateLookup
@@ -50,9 +51,8 @@ class ApproximateRateFixerTest {
         )
         val prefs = UserPreferences(context)
         prefs.setMainCurrency("USD")
-        prefs.setPendingMainCurrency(null)
         lookup = FakeLookup(hasExact = true)
-        fixer = ApproximateRateFixer(db.transactionDao(), db.accountDao(), ExchangeRateResolver(lookup) { day }, prefs, CurrencyChangeLock())
+        fixer = ApproximateRateFixer(db.transactionDao(), db.accountDao(), db.appMetaDao(), ExchangeRateResolver(lookup) { day }, prefs, CurrencyChangeLock())
     }
 
     @After
@@ -93,6 +93,18 @@ class ApproximateRateFixerTest {
         assertEquals(2000L, fixed.amountMinor)
         assertEquals(RateSource.AUTO, fixed.accountRateSource)
         assertEquals(RateSource.AUTO, fixed.mainRateSource)
+    }
+
+    @Test
+    fun `skips while pending marker exists`() = runTest {
+        val id = db.transactionDao().insert(tx(currency = "EUR", accountSource = RateSource.APPROXIMATE))
+        db.appMetaDao().put(AppMetaEntity(MainCurrencyChanger.META_PENDING_MAIN_CURRENCY, "EUR"))
+
+        assertEquals(0, fixer.fix())
+        assertEquals(RateSource.APPROXIMATE, db.transactionDao().getById(id)!!.accountRateSource)
+
+        db.appMetaDao().delete(listOf(MainCurrencyChanger.META_PENDING_MAIN_CURRENCY))
+        assertEquals(1, fixer.fix())
     }
 
     @Test

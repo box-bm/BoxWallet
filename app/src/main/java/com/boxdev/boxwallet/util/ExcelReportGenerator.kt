@@ -3,6 +3,7 @@ package com.boxdev.boxwallet.util
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.domain.model.Loan
 import com.boxdev.boxwallet.domain.model.Transaction
+import com.boxdev.boxwallet.domain.model.inReports
 import com.boxdev.boxwallet.domain.model.monthsBetween
 import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.util.XlsxWorkbook.Sheet
@@ -69,9 +70,11 @@ object ExcelReportGenerator {
         val titleStyle = Style.TITLE
 
         buildTransactionsSheet(wb, transactions, categories, loans, dateFmt, timeFmt, headerStyle, titles)
-        buildSummarySheet(wb, transactions, categories, startDate, endDate, dateFmt, boldStyle, titleStyle)
-        buildCategorySheet(wb, transactions, categories, headerStyle, boldStyle)
-        buildMonthlySheet(wb, transactions, startDate, endDate, monthFmt, headerStyle, boldStyle)
+        // Balance adjustments are listed on the Movements sheet only; every total and breakdown skips them.
+        val reportable = transactions.inReports()
+        buildSummarySheet(wb, reportable, categories, startDate, endDate, dateFmt, boldStyle, titleStyle)
+        buildCategorySheet(wb, reportable, categories, headerStyle, boldStyle)
+        buildMonthlySheet(wb, reportable, startDate, endDate, monthFmt, headerStyle, boldStyle)
         if (loans.isNotEmpty()) {
             buildLoanOverviewSheet(wb, loans, mainCurrency, loanTitles, dateFmt, headerStyle, boldStyle, titleStyle)
         }
@@ -113,7 +116,11 @@ object ExcelReportGenerator {
             row.createCell(0).setCellValue((idx + 1).toDouble())
             row.createCell(1).setCellValue(tx.date.format(dateFmt))
             row.createCell(2).setCellValue(tx.date.format(timeFmt))
-            row.createCell(3).setCellValue(if (tx.type == TransactionType.INCOME) "Income" else "Expense")
+            row.createCell(3).setCellValue(when (tx.type) {
+                TransactionType.INCOME -> "Income"
+                TransactionType.EXPENSE -> "Expense"
+                TransactionType.ADJUSTMENT_IN, TransactionType.ADJUSTMENT_OUT -> "Adjustment"
+            })
             row.createCell(4).setCellValue(tx.categoryId?.let { categories[it] } ?: "Uncategorized")
             row.createCell(5).setCellValue(tx.description)
             row.createCell(6).setCellValue(tx.amount.cell())

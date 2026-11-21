@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.TextAutoSize
 import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.domain.model.FinancialSummary
+import com.boxdev.boxwallet.domain.model.TotalBalance
 import com.boxdev.boxwallet.ui.theme.BoxTheme
 import com.boxdev.boxwallet.util.rememberCurrencyFormatter
 import java.time.YearMonth
@@ -45,12 +46,13 @@ import java.time.format.TextStyle
 import java.util.Locale
 
 /**
- * Home's lead panel: the total balance on an indigo slab, then this month's money in and out as a
+ * Home's lead panel: the total balance of the accounts (with "≈" when it involved conversions) on an indigo slab, then this month's money in and out as a
  * proportion bar with the two amounts beneath it.
  */
 @Composable
 fun BalancePanel(
     summary: FinancialSummary,
+    totalBalance: TotalBalance,
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -80,13 +82,14 @@ fun BalancePanel(
                 color = colors.onPrimary.copy(alpha = 0.86f),
             )
             Spacer(Modifier.height(4.dp))
+            val total = (if (totalBalance.approximate) "≈ " else "") + formatter.format(totalBalance.amount)
             Text(
-                text = formatter.formatMain(summary.balance),
+                text = total,
                 style = BoxTheme.moneyType.hero,
                 maxLines = 1,
                 autoSize = TextAutoSize.StepBased(minFontSize = 28.sp, maxFontSize = BoxTheme.moneyType.hero.fontSize),
                 modifier = Modifier.semantics {
-                    contentDescription = formatter.formatMain(summary.balance)
+                    contentDescription = total
                 },
             )
 

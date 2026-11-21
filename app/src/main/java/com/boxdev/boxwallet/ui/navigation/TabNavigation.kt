@@ -39,3 +39,16 @@ fun NavController.performTabAction(action: TabAction, onScrollToTop: (String) ->
         is TabAction.ScrollToTop -> onScrollToTop(action.route)
     }
 }
+
+/** Tab routes currently on the back stack. */
+fun NavController.tabsInBackStack(): Set<String> = Destination.entries.map { it.route }
+    .filter { runCatching { getBackStackEntry(it) }.isSuccess }
+    .toSet()
+
+/**
+ * Switches to the [route] tab the way tapping it does. From a secondary destination (an account
+ * opened from Settings, say) that stack is left first; a bare [navigateToTab] would save it as the
+ * state of the tab underneath, and tapping that tab later would bring it back.
+ */
+fun NavController.switchToTab(route: String) =
+    performTabAction(resolveTabClick(route, currentDestination?.route, tabsInBackStack()), onScrollToTop = {})

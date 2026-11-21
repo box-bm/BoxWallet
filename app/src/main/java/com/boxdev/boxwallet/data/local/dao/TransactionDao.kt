@@ -30,6 +30,16 @@ interface TransactionDao {
     @Query("DELETE FROM transactions WHERE id = :id")
     suspend fun deleteById(id: Long)
 
+    /** Everything but balance adjustments, loan installments included. */
+    @Query("SELECT COUNT(*) FROM transactions WHERE accountId = :accountId AND type NOT IN ('ADJUSTMENT_IN','ADJUSTMENT_OUT')")
+    suspend fun countNonAdjustmentByAccount(accountId: Long): Int
+
+    @Query("SELECT * FROM transactions WHERE accountId = :accountId AND type IN ('ADJUSTMENT_IN','ADJUSTMENT_OUT')")
+    suspend fun getAdjustmentsByAccount(accountId: Long): List<TransactionEntity>
+
+    @Query("DELETE FROM transactions WHERE accountId = :accountId AND type IN ('ADJUSTMENT_IN','ADJUSTMENT_OUT')")
+    suspend fun deleteAdjustmentsByAccount(accountId: Long)
+
     @Query("DELETE FROM transactions WHERE loanId = :loanId")
     suspend fun deleteByLoanId(loanId: Long)
 
@@ -38,6 +48,10 @@ interface TransactionDao {
 
     @Query("SELECT * FROM transactions WHERE loanId IS NULL ORDER BY date DESC")
     fun getAllTransactions(): Flow<List<TransactionEntity>>
+
+    /** One account's movements, newest first; loan installments are left out like in the global list. */
+    @Query("SELECT * FROM transactions WHERE accountId = :accountId AND loanId IS NULL ORDER BY date DESC")
+    fun observeByAccount(accountId: Long): Flow<List<TransactionEntity>>
 
     @Query("SELECT * FROM transactions WHERE loanId IS NULL ORDER BY date DESC LIMIT :limit")
     fun getLatestTransactions(limit: Int): Flow<List<TransactionEntity>>

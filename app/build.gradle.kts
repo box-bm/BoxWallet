@@ -77,6 +77,12 @@ android {
             excludes += "META-INF/MANIFEST.MF"
         }
     }
+    sourceSets {
+        // MigrationTestHelper reads the exported Room schemas from assets. Robolectric only sees the
+        // tested variant's merged assets (test source-set assets are not merged), so they go into
+        // debug; release builds don't include them.
+        getByName("debug").assets.srcDir("$projectDir/schemas")
+    }
     testOptions {
         unitTests.isIncludeAndroidResources = true
         // Mockito's inline mock maker is loaded as a java agent instead of self-attaching, which was flaky.

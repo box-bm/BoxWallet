@@ -120,6 +120,8 @@ fun AmountField(
     currencyEnabled: Boolean = true,
     /** Spoken instead of the default chip description, e.g. why the currency is locked. */
     currencyDisabledDescription: String? = null,
+    /** Shown in the header just before the currency button, e.g. the movement's account. */
+    accountChip: (@Composable () -> Unit)? = null,
 ) {
     val color by animateColorAsState(
         if (value.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant else kind.color(),
@@ -152,6 +154,10 @@ fun AmountField(
                 }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.weight(1f).padding(start = 4.dp)) { labelText() }
+                    if (accountChip != null) {
+                        accountChip()
+                        Spacer(Modifier.width(8.dp))
+                    }
                     androidx.compose.material3.FilledTonalButton(
                         onClick = onCurrencyClick,
                         enabled = currencyEnabled,
