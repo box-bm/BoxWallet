@@ -14,12 +14,17 @@ import com.boxdev.boxwallet.domain.model.TransferDraft
 import com.boxdev.boxwallet.domain.model.TransferPair
 import com.boxdev.boxwallet.domain.model.toDomain
 import com.boxdev.boxwallet.domain.model.toEntity
+import com.boxdev.boxwallet.domain.money.AmountResult
 import com.boxdev.boxwallet.domain.money.ExchangeRate
 import com.boxdev.boxwallet.domain.money.MissingRateException
+import com.boxdev.boxwallet.domain.money.RateSource
 import com.boxdev.boxwallet.domain.money.TransactionAmounts
+import com.boxdev.boxwallet.domain.money.withAmounts
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.math.BigDecimal
+import java.math.MathContext
 import java.util.Currency
 import java.util.UUID
 import javax.inject.Inject
@@ -151,15 +156,28 @@ class TransferRepository @Inject constructor(
             isCleared = true,
             transferId = transferId,
         )
-        val out = amounts.forSave(base, previousOut, from, current.main, manualAccountRate = null)
-            ?: throw MissingRateException(from, current.main)
-        val into = amounts.forSave(
-            base.copy(accountId = draft.toAccountId, type = TransactionType.TRANSFER_IN),
-            previousIn,
-            to,
-            current.main,
-            manualAccountRate = draft.manualRate.takeIf { from != to },
-        ) ?: throw MissingRateException(from, to)
+        val main = current.main
+        val manual = draft.manualRate.takeIf { from != to }
+        // When one side is the main currency, the typed rate is also the other side's main rate, so
+        // a currency with no stored rate at all can still be saved. A MANUAL main rate on the OUT row
+        // only ever comes from that, so it follows the typed rate when it changes.
+        val out = amounts.forSave(base, previousOut, from, main, manualAccountRate = null).let { saved ->
+            if (manual != null && to == main && (saved == null || saved.mainRate.source == RateSource.MANUAL)) {
+                val mainRate = ExchangeRate(manual, RateSource.MANUAL)
+                base.withAmounts(AmountResult.Ready(draft.sent, ExchangeRate.IDENTITY, draft.sent.convert(main, manual), mainRate))
+            } else {
+                saved
+            }
+        } ?: throw MissingRateException(from, main)
+        val inBase = base.copy(accountId = draft.toAccountId, type = TransactionType.TRANSFER_IN)
+        val into = amounts.forSave(inBase, previousIn, to, main, manualAccountRate = manual)
+            ?: manual?.takeIf { from == main }?.let { rate ->
+                val received = draft.sent.convert(to, rate)
+                val back = ExchangeRate(BigDecimal.ONE.divide(rate, MathContext.DECIMAL64), RateSource.MANUAL)
+                inBase.withAmounts(AmountResult.Ready(received, ExchangeRate(rate, RateSource.MANUAL), received.convert(main, back.value), back))
+            }
+            // With a typed rate, only the destination's main leg can be the missing one.
+            ?: throw if (manual != null) MissingRateException(to, main) else MissingRateException(from, to)
         return out to into
     }
 }

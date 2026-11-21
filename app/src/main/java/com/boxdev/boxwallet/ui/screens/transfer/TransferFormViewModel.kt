@@ -262,8 +262,10 @@ class TransferFormViewModel @Inject constructor(
                 _formState.update { it.copy(isLoading = false, isSaved = true) }
             } catch (e: MissingRateException) {
                 _formState.update {
-                    // Only the source → destination rate can be typed here; a missing main-currency rate can't.
-                    if (s.isForeign && e.from == s.fromCurrency && e.to == s.toCurrency) {
+                    // Only the source → destination rate can be typed here, and only once: a rate
+                    // still missing after one was typed is a main-currency leg, which can't be.
+                    val asksForTypedRate = s.manualRateValue == null && e.from == s.fromCurrency && e.to == s.toCurrency
+                    if (s.isForeign && asksForTypedRate) {
                         it.copy(isLoading = false, needsManualRate = true, rate = null, error = TransferFormError.NeedsRate)
                     } else {
                         it.copy(isLoading = false, error = TransferFormError.MissingRate(e.from))

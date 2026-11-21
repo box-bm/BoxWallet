@@ -137,4 +137,19 @@ class TransferFormViewModelTest {
         assertEquals(banco, state.fromAccountId)
         assertEquals(dolares, state.toAccountId)
     }
+
+    @Test
+    fun typedRateWithAMissingMainLegShowsTheMissingCurrencyNotNeedsRate() = runTest {
+        val euros = db.accountDao().insert(AccountEntity(name = "Euros", type = "CASH", currencyCode = "EUR", createdAt = 0L, sortOrder = 2))
+        val vm = vm(mapOf("from" to dolares, "to" to euros, "amount" to "100"))
+        vm.loaded()
+        vm.formState.first { it.needsManualRate }
+        vm.updateManualRate("0.92")
+
+        vm.save()
+
+        val state = vm.formState.first { it.error != null }
+        assertEquals(TransferFormError.MissingRate(Currency.getInstance("EUR")), state.error)
+        assertEquals(0, db.transactionDao().countAll())
+    }
 }

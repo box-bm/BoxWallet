@@ -14,6 +14,7 @@ import com.boxdev.boxwallet.domain.model.TransferDraft
 import com.boxdev.boxwallet.domain.model.toDomain
 import com.boxdev.boxwallet.domain.money.ExchangeRateResolver
 import com.boxdev.boxwallet.domain.money.Money
+import com.boxdev.boxwallet.domain.money.MissingRateException
 import com.boxdev.boxwallet.domain.money.RateLookup
 import com.boxdev.boxwallet.domain.money.RateSource
 import com.boxdev.boxwallet.domain.money.TransactionAmounts
@@ -206,6 +207,83 @@ class TransferRepositoryTest {
         assertEquals(RateSource.AUTO, into.accountRateSource)
         assertEquals(1, db.transactionDao().getByTransferId(id).count { it.type == TransactionType.TRANSFER_IN.name })
         assertEquals(0L, db.accountDao().getBalance(dolares))
+    }
+
+    /** A repository whose lookup knows no rate at all: offline before any download. */
+    private fun offlineTransfers(): TransferRepository {
+        val none = object : RateLookup {
+            override suspend fun exact(day: LocalDate, code: String): BigDecimal? = null
+            override suspend fun nearest(day: LocalDate, code: String): BigDecimal? = null
+            override suspend fun download(day: LocalDate) = false
+        }
+        val amounts = TransactionAmounts(ExchangeRateResolver(none) { LocalDate.of(2026, 11, 7) })
+        val guard = MovementWriteGuard(CurrencyChangeLock(), prefs, db.accountDao(), amounts)
+        return TransferRepository(db, db.transactionDao(), db.accountDao(), prefs, amounts, guard)
+    }
+
+    @Test
+    fun manualRateFromMainCurrencySavesWithoutAnyStoredRate() = runTest {
+        val id = offlineTransfers().create(draft(dolares, 77100, manualRate = typedRate))
+
+        val (out, into) = legs(id)
+        assertEquals(77100L, out.amountMinor)
+        assertEquals(10000L, into.accountAmountMinor)
+        assertEquals(RateSource.MANUAL, into.accountRateSource)
+        assertEquals(RateSource.MANUAL, into.mainRateSource)
+        assertEquals(0, BigDecimal.ONE.divide(typedRate, MathContext.DECIMAL64).compareTo(into.mainRate))
+        assertEquals(77100L, into.amountMinor) // 100.00 × 7.71: what was sent
+    }
+
+    @Test
+    fun manualRateIntoMainCurrencySavesWithoutAnyStoredRate() = runTest {
+        val rate = BigDecimal("7.71")
+        val sent = TransferDraft(dolares, banco, Money(10000, usd), november.atTime(10, 0), note = "", manualRate = rate)
+
+        val id = offlineTransfers().create(sent)
+
+        val (out, into) = legs(id)
+        assertEquals(10000L, out.accountAmountMinor)
+        assertEquals(RateSource.MANUAL, out.mainRateSource)
+        assertEquals(0, rate.compareTo(out.mainRate))
+        assertEquals(77100L, out.amountMinor)
+        assertEquals(77100L, into.accountAmountMinor)
+        assertEquals(77100L, into.amountMinor)
+    }
+
+    @Test
+    fun editingTheManualRateIntoMainCurrencyRederivesTheSourceMainLeg() = runTest {
+        val offline = offlineTransfers()
+        val sent = TransferDraft(dolares, banco, Money(10000, usd), november.atTime(10, 0), note = "", manualRate = BigDecimal("7.71"))
+        val id = offline.create(sent)
+
+        offline.update(id, sent.copy(manualRate = BigDecimal("7.80")))
+
+        val (out, into) = legs(id)
+        assertEquals(78000L, out.amountMinor)
+        assertEquals(78000L, into.amountMinor)
+    }
+
+    @Test
+    fun manualRateWithoutTheDestinationMainRateNamesThatLeg() = runTest {
+        val euros = account("Euros", "EUR")
+        val noEur = object : RateLookup {
+            override suspend fun exact(day: LocalDate, code: String) = if (code == "GTQ") BigDecimal("7.64") else null
+            override suspend fun nearest(day: LocalDate, code: String) = exact(day, code)
+            override suspend fun download(day: LocalDate) = false
+        }
+        val amounts = TransactionAmounts(ExchangeRateResolver(noEur) { LocalDate.of(2026, 11, 7) })
+        val guard = MovementWriteGuard(CurrencyChangeLock(), prefs, db.accountDao(), amounts)
+        val repo = TransferRepository(db, db.transactionDao(), db.accountDao(), prefs, amounts, guard)
+        val sent = TransferDraft(dolares, euros, Money(10000, usd), november.atTime(10, 0), note = "", manualRate = BigDecimal("0.92"))
+
+        try {
+            repo.create(sent)
+            fail("Expected MissingRateException")
+        } catch (e: MissingRateException) {
+            assertEquals(Currency.getInstance("EUR"), e.from)
+            assertEquals(gtq, e.to)
+        }
+        assertEquals(0, db.transactionDao().countAll())
     }
 
     @Test
