@@ -151,4 +151,22 @@ class TransactionsListViewModelTest {
         advanceUntilIdle()
         assertEquals(listOf(2L, 1L), vm.uiState.value.filteredTransactions.map { it.id })
     }
+
+    @Test
+    fun cardFilterIncludesChildRows() = runTest {
+        val visa = Account(id = 5, name = "Visa", type = AccountType.CREDIT_CARD, currency = usd, createdAt = 0)
+        val visaChild = visa.copy(id = 6, currency = Currency.getInstance("GTQ"), parentAccountId = 5)
+        whenever(accountRepository.observeAll()).thenReturn(flowOf(listOf(cash, bank, visa, visaChild)))
+        whenever(repository.getAllTransactions())
+            .thenReturn(flowOf(listOf(movement(1, 1), movement(2, 5), movement(3, 6), movement(4, 2))))
+        val vm = vm()
+        backgroundScope.launch { vm.uiState.collect {} }
+        vm.updateAccountFilter(5L)
+        advanceUntilIdle()
+        assertEquals(listOf(3L, 2L), vm.uiState.value.filteredTransactions.map { it.id })
+        // Filtering by the child alone (never offered as a chip) keeps only its rows.
+        vm.updateAccountFilter(6L)
+        advanceUntilIdle()
+        assertEquals(listOf(3L), vm.uiState.value.filteredTransactions.map { it.id })
+    }
 }

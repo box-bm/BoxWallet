@@ -60,6 +60,7 @@ import com.boxdev.boxwallet.ui.components.OptionGroup
 import com.boxdev.boxwallet.ui.components.TimeRow
 import com.boxdev.boxwallet.ui.components.groupShape
 import com.boxdev.boxwallet.ui.components.rememberDateTimePickerState
+import com.boxdev.boxwallet.ui.components.accountLabel
 import com.boxdev.boxwallet.ui.screens.accounts.AccountBadge
 import com.boxdev.boxwallet.ui.screens.transaction.AccountPickerSheet
 import com.boxdev.boxwallet.ui.theme.BoxTheme
@@ -128,6 +129,7 @@ private fun TransferFormFields(viewModel: TransferFormViewModel) {
             AccountSlot(
                 label = stringResource(R.string.transfer_from),
                 item = formState.accounts.firstOrNull { it.account.id == formState.fromAccountId },
+                accounts = formState.accounts,
                 onClick = { picking = Side.From },
             )
             FilledTonalIconButton(
@@ -140,6 +142,7 @@ private fun TransferFormFields(viewModel: TransferFormViewModel) {
             AccountSlot(
                 label = stringResource(R.string.transfer_to),
                 item = formState.accounts.firstOrNull { it.account.id == formState.toAccountId },
+                accounts = formState.accounts,
                 onClick = { picking = Side.To },
             )
         }
@@ -203,9 +206,9 @@ private fun TransferFormFields(viewModel: TransferFormViewModel) {
     DateTimePickerDialogs(pickers, formState.date, viewModel::updateDate, viewModel::updateTime)
 }
 
-/** One side of the transfer: its label, the account's badge and name, and its balance. */
+/** One side of the transfer: its label, the account's badge and [accountLabel], and its balance. */
 @Composable
-private fun AccountSlot(label: String, item: AccountWithBalance?, onClick: () -> Unit) {
+private fun AccountSlot(label: String, item: AccountWithBalance?, accounts: List<AccountWithBalance>, onClick: () -> Unit) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         shape = MaterialTheme.shapes.extraLarge,
@@ -227,7 +230,9 @@ private fun AccountSlot(label: String, item: AccountWithBalance?, onClick: () ->
             Column(Modifier.weight(1f)) {
                 Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(
-                    item?.account?.name ?: stringResource(R.string.transaction_account_label),
+                    item?.account?.let { a ->
+                        accountLabel(a, accounts.firstOrNull { it.account.id == a.parentAccountId }?.account)
+                    } ?: stringResource(R.string.transaction_account_label),
                     style = MaterialTheme.typography.bodyLarge,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,

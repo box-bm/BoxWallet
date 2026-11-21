@@ -3,12 +3,14 @@
 package com.boxdev.boxwallet.ui.screens.accounts
 
 import android.content.res.Configuration
+import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -19,6 +21,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.CreditCard
+import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.CurrencyExchange
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Functions
@@ -29,6 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -89,6 +94,7 @@ fun AccountFormScreen(
     val finish: () -> Unit = { if (!finished && currentOnDone()) finished = true }
     val scrollState = rememberScrollState()
     var showCurrencyPicker by remember { mutableStateOf(false) }
+    var showSecondCurrencyPicker by remember { mutableStateOf(false) }
     val locale = remember { Locale.getDefault() }
 
     val resumed = LocalLifecycleOwner.current.lifecycle.currentStateAsState().value
@@ -121,12 +127,23 @@ fun AccountFormScreen(
             onIcon = viewModel::updateIcon,
             onColor = viewModel::updateColor,
             onIncludeInTotal = viewModel::updateIncludeInTotal,
+            card = CardFieldActions(
+                onIsCard = viewModel::updateIsCard,
+                onLimit = viewModel::updateCreditLimit,
+                onClosingDay = viewModel::updateClosingDay,
+                onDueDay = viewModel::updateDueDay,
+                onReminderDays = viewModel::updateReminderDays,
+                onSecondCurrencyClick = { showSecondCurrencyPicker = true },
+                onRemoveSecondCurrency = viewModel::removeSecondCurrency,
+                onSecondDebt = viewModel::updateSecondDebt,
+            ),
         )
     }
 
     if (showCurrencyPicker) {
         var query by remember { mutableStateOf("") }
-        val all = remember(locale) { CurrencyCatalog.all(locale) }
+        // The card's second currency can't also be its first.
+        val all = remember(locale, form.secondCurrency) { CurrencyCatalog.all(locale).filter { it != form.secondCurrency } }
         val sections = remember(query, recentCurrencies, all) { pickerSections(all, recentCurrencies, query, locale) }
         CurrencyPickerSheet(
             selected = form.currency,
@@ -136,7 +153,33 @@ fun AccountFormScreen(
             onDismiss = { showCurrencyPicker = false },
         )
     }
+
+    if (showSecondCurrencyPicker) {
+        var query by remember { mutableStateOf("") }
+        val all = remember(locale, form.currency) { CurrencyCatalog.all(locale).filter { it != form.currency } }
+        val sections = remember(query, recentCurrencies, all) { pickerSections(all, recentCurrencies, query, locale) }
+        CurrencyPickerSheet(
+            // Nothing is checked until one is picked: the card's own currency isn't listed.
+            selected = form.secondCurrency ?: form.currency,
+            sections = sections,
+            onQuery = { query = it },
+            onPick = { viewModel.updateSecondCurrency(it); showSecondCurrencyPicker = false },
+            onDismiss = { showSecondCurrencyPicker = false },
+        )
+    }
 }
+
+/** What the card section of the form reports back. */
+private class CardFieldActions(
+    val onIsCard: (Boolean) -> Unit,
+    val onLimit: (String) -> Unit,
+    val onClosingDay: (String) -> Unit,
+    val onDueDay: (String) -> Unit,
+    val onReminderDays: (String) -> Unit,
+    val onSecondCurrencyClick: () -> Unit,
+    val onRemoveSecondCurrency: () -> Unit,
+    val onSecondDebt: (String) -> Unit,
+)
 
 /** The form's fields, stateless so previews can draw them. */
 @Composable
@@ -152,6 +195,7 @@ private fun AccountFormFields(
     onIcon: (String) -> Unit,
     onColor: (AccountColor) -> Unit,
     onIncludeInTotal: (Boolean) -> Unit,
+    card: CardFieldActions,
 ) {
     val locale = remember { Locale.getDefault() }
     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
@@ -203,13 +247,18 @@ private fun AccountFormFields(
             OutlinedTextField(
                 value = form.currentBalance,
                 onValueChange = onBalance,
-                label = { Text(stringResource(R.string.account_balance_label)) },
-                leadingIcon = { BalanceSignToggle(form.negativeBalance, onNegativeBalance) },
+                label = { Text(stringResource(if (form.isCard) R.string.account_current_debt else R.string.account_balance_label)) },
+                // A card's balance is typed as a debt, so there's no sign to choose.
+                leadingIcon = if (form.isCard) null else ({ BalanceSignToggle(form.negativeBalance, onNegativeBalance) }),
                 prefix = { Text(CurrencyCatalog.symbol(form.currency, locale)) },
                 placeholder = { Text("0") },
                 isError = balanceError != null,
                 supportingText = {
-                    Text(stringResource(balanceError ?: R.string.account_balance_help))
+                    Text(
+                        stringResource(
+                            balanceError ?: if (form.isCard) R.string.account_current_debt_help else R.string.account_balance_help
+                        )
+                    )
                 },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 shape = MaterialTheme.shapes.extraLarge,
@@ -265,15 +314,119 @@ private fun AccountFormFields(
 
         OptionGroup {
             SwitchRow(
-                shape = groupShape(0, 1),
+                shape = groupShape(0, 2),
                 icon = Icons.Outlined.Functions,
                 label = stringResource(R.string.account_include_in_total),
                 supporting = stringResource(R.string.account_include_in_total_help),
                 checked = form.includeInTotal,
                 onCheckedChange = onIncludeInTotal,
             )
+            SwitchRow(
+                shape = groupShape(1, 2),
+                icon = Icons.Outlined.CreditCard,
+                label = stringResource(R.string.account_credit_card),
+                checked = form.isCard,
+                onCheckedChange = card.onIsCard,
+            )
+        }
+
+        if (form.isCard) CardFields(form, showErrors, card)
+    }
+}
+
+/** Limit, statement days, reminder and second currency of a card. */
+@Composable
+private fun CardFields(form: AccountFormState, showErrors: Boolean, card: CardFieldActions) {
+    val locale = remember { Locale.getDefault() }
+    val limitError = form.limitError?.takeIf { showErrors }
+    NumberField(
+        value = form.creditLimit,
+        onValueChange = card.onLimit,
+        label = stringResource(R.string.account_credit_limit),
+        error = limitError,
+        prefix = CurrencyCatalog.symbol(form.currency, locale),
+        keyboardType = KeyboardType.Decimal,
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        NumberField(
+            value = form.closingDay,
+            onValueChange = card.onClosingDay,
+            label = stringResource(R.string.account_closing_day),
+            error = form.closingDayError?.takeIf { showErrors },
+            modifier = Modifier.weight(1f),
+        )
+        NumberField(
+            value = form.dueDay,
+            onValueChange = card.onDueDay,
+            label = stringResource(R.string.account_due_day),
+            error = form.dueDayError?.takeIf { showErrors },
+            modifier = Modifier.weight(1f),
+        )
+    }
+    NumberField(
+        value = form.reminderDays,
+        onValueChange = card.onReminderDays,
+        label = stringResource(R.string.account_reminder_days),
+        supporting = stringResource(R.string.account_reminder_none),
+    )
+
+    val second = form.secondCurrency
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        OptionGroup {
+            ValueRow(
+                shape = groupShape(0, 1),
+                icon = Icons.Outlined.Payments,
+                label = stringResource(R.string.account_second_currency),
+                value = second?.let { "${it.currencyCode} · ${CurrencyCatalog.displayName(it, locale)}" }
+                    ?: stringResource(R.string.account_second_currency_none),
+                // A stored second currency is removed and saved before another one can be picked.
+                onClick = { if (!form.hasSecondCurrency) card.onSecondCurrencyClick() },
+            )
+        }
+        if (second != null) {
+            TextButton(onClick = card.onRemoveSecondCurrency, enabled = form.secondCurrencyRemovable) {
+                Text(stringResource(R.string.account_second_currency_remove))
+            }
+            if (!form.secondCurrencyRemovable) HelpText(stringResource(R.string.account_error_second_currency_has_movements))
         }
     }
+    if (second != null && !form.hasSecondCurrency) {
+        val symbol = CurrencyCatalog.symbol(second, locale)
+        NumberField(
+            value = form.secondDebt,
+            onValueChange = card.onSecondDebt,
+            label = stringResource(R.string.account_second_debt, symbol),
+            error = form.secondDebtError?.takeIf { showErrors },
+            prefix = symbol,
+            keyboardType = KeyboardType.Decimal,
+        )
+    }
+}
+
+/** A single-line numeric field in the form's shape; [error] replaces [supporting] when set. */
+@Composable
+private fun NumberField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    @StringRes error: Int? = null,
+    modifier: Modifier = Modifier,
+    supporting: String? = null,
+    prefix: String? = null,
+    keyboardType: KeyboardType = KeyboardType.Number,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        prefix = prefix?.let { { Text(it) } },
+        isError = error != null,
+        supportingText = (error?.let { stringResource(it) } ?: supporting)?.let { { Text(it) } },
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        shape = MaterialTheme.shapes.extraLarge,
+        singleLine = true,
+        modifier = modifier.fillMaxWidth(),
+    )
 }
 
 @Composable
@@ -332,6 +485,7 @@ private fun AccountFormPreviewContent() {
                 error = null,
                 onName = {}, onCurrencyClick = {}, onBalance = {}, onNegativeBalance = {}, onDescription = {},
                 onIcon = {}, onColor = {}, onIncludeInTotal = {},
+                card = CardFieldActions({}, {}, {}, {}, {}, {}, {}, {}),
             )
         }
     }

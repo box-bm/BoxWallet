@@ -64,7 +64,8 @@ class HomeViewModel @Inject constructor(
     ) { total, accounts, pairs ->
         Balances(
             total = total,
-            active = accounts.filter { !it.account.isArchived },
+            // A card's second currency belongs to its card, never a row of its own.
+            active = accounts.filter { !it.account.isArchived && it.account.parentAccountId == null },
             byId = accounts.associate { it.account.id to it.account },
             pairs = pairs,
         )
