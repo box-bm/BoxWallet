@@ -72,7 +72,7 @@ fun AdjustBalanceSheet(
             OutlinedTextField(
                 value = text,
                 onValueChange = { value ->
-                    if (value.isEmpty() || value.matches(Regex("""^-?[\d,]*\.?\d*$"""))) {
+                    if (isBalanceInput(value)) {
                         text = value
                         showError = false
                     }

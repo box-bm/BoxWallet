@@ -49,18 +49,24 @@ data class AccountFormState(
     val canSave: Boolean get() = nameError == null && balanceError == null
 }
 
+private val BALANCE_INPUT = Regex("""^[\d,]*\.?\d*$""")
+
+/**
+ * Whether [value] can stay in a balance field while typing: digits, "," and one ".". No minus:
+ * the "−/+" toggle sets the sign, so a typed "-" can't negate it twice.
+ */
+fun isBalanceInput(value: String): Boolean = value.matches(BALANCE_INPUT)
+
 /**
  * Parses a balance the user typed: like [parseMajor] (decimals follow the currency, "," groups
- * thousands) but a balance may also be zero or negative ("-50"). Null when it isn't a number.
+ * thousands) but a balance may also be zero. Unsigned; the toggle applies the sign
+ * ([signedBalance]). Null when it isn't a number.
  */
 fun parseBalance(input: String, currency: Currency): Money? {
-    val trimmed = input.trim()
-    val negative = trimmed.startsWith("-")
-    val digits = if (negative) trimmed.substring(1).trimStart() else trimmed
+    val digits = input.trim()
     val zero = digits.replace(",", "").let { Regex("""\d+(\.\d+)?""").matches(it) && BigDecimal(it).signum() == 0 }
     if (zero) return Money(0, currency)
-    val money = parseMajor(digits, currency) ?: return null
-    return if (negative) money.copy(minor = -money.minor) else money
+    return parseMajor(digits, currency)
 }
 
 /** [parseBalance] with the sign toggle applied: [negative] flips the sign of the parsed amount. */

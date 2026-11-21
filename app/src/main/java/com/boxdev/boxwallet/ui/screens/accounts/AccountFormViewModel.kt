@@ -107,9 +107,9 @@ class AccountFormViewModel @Inject constructor(
         _status.update { it.copy(error = null) }
     }
 
-    /** Keeps only what can become a balance: an optional leading minus, digits, "," and one ".". */
+    /** Keeps only what can become a balance ([isBalanceInput]); the sign comes from the toggle. */
     fun updateBalance(value: String) {
-        if (value.isEmpty() || value.matches(Regex("""^-?[\d,]*\.?\d*$"""))) {
+        if (isBalanceInput(value)) {
             _form.update { it.copy(currentBalance = value) }
         }
     }

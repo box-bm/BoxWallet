@@ -50,11 +50,20 @@ class AccountFormStateTest {
     }
 
     @Test
-    fun `a negative balance is valid`() {
-        val s = state(balance = "-50")
-        assertNull(s.balanceError)
-        assertEquals(Money(-5000, gtq), s.balance)
-        assertTrue(s.canSave)
+    fun `a typed minus is not a balance, the sign toggle is`() {
+        val typed = state(balance = "-50")
+        assertNotNull(typed.balanceError)
+        assertNull(typed.balance)
+        assertFalse(typed.canSave)
+        // "-50" with the toggle on can't double-negate into +50.
+        val toggled = AccountFormState(name = "Banco", currency = gtq, currentBalance = "-50", negativeBalance = true)
+        assertNull(toggled.balance)
+    }
+
+    @Test
+    fun `the balance field only takes digits, separators and one dot`() {
+        listOf("", "50", "1,234.5", "12.").forEach { assertTrue(it, isBalanceInput(it)) }
+        listOf("-", "-50", "1-2", "1.2.3", "abc").forEach { assertFalse(it, isBalanceInput(it)) }
     }
 
     @Test
