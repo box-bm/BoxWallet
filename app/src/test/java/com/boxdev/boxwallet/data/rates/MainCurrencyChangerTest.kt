@@ -1,5 +1,6 @@
 package com.boxdev.boxwallet.data.rates
 
+import android.app.Application
 import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -41,8 +42,12 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 import java.util.Currency
 
+/*
+ * A plain Application: BoxWalletApplication.onCreate runs completePending() on Dispatchers.IO at
+ * startup, against the shared DataStore, and could take the legacy marker these tests write.
+ */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [34], application = Application::class)
 class MainCurrencyChangerTest {
 
     /** USD-based rates; every day shares them. `stored` days have exact rates, the rest only nearest. */
