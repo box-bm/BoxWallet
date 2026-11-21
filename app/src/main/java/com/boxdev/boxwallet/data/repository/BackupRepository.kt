@@ -151,7 +151,12 @@ class BackupRepository @Inject constructor(
         } catch (_: JsonParseException) {
             null
         }
-        return data?.takeIf { it.version == BackupData.CURRENT_VERSION && (it.mainCurrencyCode as String?) != null }
+        return data?.takeIf {
+            it.version == BackupData.CURRENT_VERSION && (it.mainCurrencyCode as String?) != null &&
+                (it.accounts as List<*>?) != null && (it.transactions as List<*>?) != null &&
+                (it.categories as List<*>?) != null && (it.loans as List<*>?) != null &&
+                (it.installmentPlans as List<*>?) != null
+        }
     }
 
     /**
@@ -233,7 +238,8 @@ class BackupRepository @Inject constructor(
                 .map { plan -> plan.copy(categoryId = plan.categoryId?.takeIf { it in categoryIds }) }
             val planIds = plans.mapTo(HashSet()) { it.id }
             val droppedPlanIds = data.installmentPlans.mapTo(HashSet()) { it.id } - planIds
-            val txIds = data.transactions.mapTo(HashSet()) { it.id }
+            val kept = data.transactions.filter { it.installmentPlanId !in droppedPlanIds }
+            val txIds = kept.mapTo(HashSet()) { it.id }
             val inOrder = data.accounts.sortedWith(compareBy({ it.sortOrder }, { it.id }))
             val firstByCurrency = inOrder.reversed().associate { it.currencyCode to it.id }
             val defaultAccount = data.defaultAccountId?.takeIf { it in accountIds } ?: inOrder.firstOrNull()?.id
@@ -245,7 +251,7 @@ class BackupRepository @Inject constructor(
                     accountId = loan.accountId?.let { existingAccount(it, loan.currencyCode) },
                 )
             }
-            val transactions = data.transactions.filter { it.installmentPlanId !in droppedPlanIds }.map { tx ->
+            val transactions = kept.map { tx ->
                 val loanKept = tx.loanId?.let { it in loanIds } ?: true
                 val planKept = tx.installmentPlanId?.let { it in planIds } ?: true
                 val inOwnCurrency = tx.accountRate.compareTo(BigDecimal.ONE) == 0 && tx.originalAmountMinor == tx.accountAmountMinor

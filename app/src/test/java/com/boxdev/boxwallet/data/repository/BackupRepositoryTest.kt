@@ -511,7 +511,7 @@ class BackupRepositoryTest {
     @Test
     fun `a file that isn't a backup is refused`() = runTest {
         seedLocalData()
-        listOf("{}", "not json", """{"version":5}""", "[]", "").forEach {
+        listOf("{}", "not json", """{"version":5}""", """{"version":5,"mainCurrencyCode":"USD"}""", "[]", "").forEach {
             assertEquals(it, RestoreResult.Incompatible, repo.restoreJson(it, usd))
         }
         assertEquals(99L, db.transactionDao().getAllTransactionsSync().single().id)
@@ -569,5 +569,22 @@ class BackupRepositoryTest {
 
         assertTrue(db.installmentPlanDao().getAllSync().isEmpty())
         assertEquals(listOf(3L), db.transactionDao().getAllTransactionsSync().map { it.id })
+    }
+
+    @Test
+    fun `a recurrence link to an installment of a dropped plan is cleared`() = runTest {
+        val backup = BackupData(
+            mainCurrencyCode = "USD",
+            accounts = listOf(cardAccount(1)),
+            installmentPlans = listOf(plan(2, accountId = 404)),
+            transactions = listOf(
+                tx(id = 2, accountId = 1, amount = 10, code = "USD").copy(installmentPlanId = 2, installmentNumber = 1),
+                tx(id = 3, accountId = 1, amount = 10, code = "USD", parent = 2),
+            ),
+        )
+
+        repo.restore(backup)
+
+        assertNull(db.transactionDao().getAllTransactionsSync().single().parentRecurrenceId)
     }
 }
