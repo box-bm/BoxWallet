@@ -17,7 +17,7 @@ import com.boxdev.boxwallet.data.local.dao.AppMetaDao
 import com.boxdev.boxwallet.data.local.dao.TransactionDao
 import com.boxdev.boxwallet.data.local.entity.AppMetaEntity
 import com.boxdev.boxwallet.data.repository.AccountRepository
-import com.boxdev.boxwallet.domain.model.cardReminderDue
+import com.boxdev.boxwallet.domain.model.cardReminderStatement
 import com.boxdev.boxwallet.domain.model.cardReminderKey
 import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.util.CurrencyFormatter
@@ -82,11 +82,10 @@ class ReminderWorker @AssistedInject constructor(
     private suspend fun checkCardDueDates() {
         val today = LocalDate.now()
         val formatter = CurrencyFormatter()
-        accountRepository.observeCardSummaries().first().values.forEach { summary ->
+        accountRepository.cardSummariesOn(today).first().values.forEach { summary ->
             val key = cardReminderKey(summary.card.id)
             val notified = appMetaDao.get(key)?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
-            if (!cardReminderDue(summary, today, notified)) return@forEach
-            val statement = summary.primary.statement ?: return@forEach
+            val statement = cardReminderStatement(summary, today, notified) ?: return@forEach
             val amounts = listOfNotNull(summary.primary, summary.second)
                 .mapNotNull { balance ->
                     balance.statement?.takeIf { !it.noStatementYet && it.toPayMinor > 0 }

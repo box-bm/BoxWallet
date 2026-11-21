@@ -1,7 +1,9 @@
 package com.boxdev.boxwallet.domain.model
 
 import com.boxdev.boxwallet.domain.money.Money
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
@@ -65,4 +67,13 @@ class CardReminderTest {
 
     @Test fun secondCurrencyAloneTriggers() =
         assertTrue(due(summary(primaryToPay = 0, secondToPay = 2500), LocalDate.of(2026, 12, 2)))
+
+    @Test fun secondCurrencyTriggersWhenPrimaryHasNoStatementYet() =
+        assertTrue(due(summary(primaryToPay = 0, secondToPay = 2500, noStatement = true), LocalDate.of(2026, 12, 2)))
+
+    @Test fun statementComesFromTheCurrencyWithSomethingToPay() {
+        val s = summary(primaryToPay = 0, secondToPay = 2500, noStatement = true)
+        assertEquals(closing, cardReminderStatement(s, LocalDate.of(2026, 12, 2), null)?.lastClosing)
+        assertNull(cardReminderStatement(s, LocalDate.of(2026, 12, 2), closing))
+    }
 }
