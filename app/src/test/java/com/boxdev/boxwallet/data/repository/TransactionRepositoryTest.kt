@@ -150,4 +150,42 @@ class TransactionRepositoryTest {
 
         assertEquals(listOf(mine.id), repository.observeByAccount(accountId).first().map { it.id })
     }
+    private suspend fun quetzalDefault(): Long {
+        val id = db.accountDao().insert(AccountEntity(name = "Quetzales", type = "CASH", currencyCode = "GTQ", createdAt = 0L, sortOrder = 1))
+        prefs.setDefaultAccountId(id)
+        return id
+    }
+
+    /** €20 in November: 7.64 GTQ/USD × 1.0852 USD/EUR = 8.290928 GTQ/EUR → Q165.82. */
+    private suspend fun assertOccurrenceInQuetzales(defaultId: Long) {
+        val occurrence = db.transactionDao().getAllTransactions().first().single { it.parentRecurrenceId != null }
+        assertEquals(defaultId, occurrence.accountId)
+        assertEquals("EUR", occurrence.currencyCode)
+        assertEquals(2000L, occurrence.originalAmountMinor)
+        assertEquals(16582L, occurrence.accountAmountMinor)
+        assertEquals(RateSource.AUTO, occurrence.accountRateSource)
+        assertEquals(16582L, occurrence.amountMinor)
+        assertEquals(0, BigDecimal.ONE.compareTo(occurrence.mainRate))
+    }
+
+    @Test
+    fun `recurrence of an archived account goes to the default account`() = runTest {
+        val defaultId = quetzalDefault()
+        val template = saved(template(ExchangeRate(BigDecimal("1.2"), RateSource.MANUAL), 2400))
+        db.accountDao().update(db.accountDao().getById(accountId)!!.copy(isArchived = true))
+
+        repository.createNextRecurrence(template)
+
+        assertOccurrenceInQuetzales(defaultId)
+    }
+
+    @Test
+    fun `recurrence of a missing account goes to the default account`() = runTest {
+        val defaultId = quetzalDefault()
+        val template = saved(template(ExchangeRate(BigDecimal("1.2"), RateSource.MANUAL), 2400))
+
+        repository.createNextRecurrence(template.copy(accountId = 999))
+
+        assertOccurrenceInQuetzales(defaultId)
+    }
 }

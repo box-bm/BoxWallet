@@ -183,8 +183,13 @@ class TransactionRepository @Inject constructor(
         val interval = transaction.recurrenceInterval ?: 1
         val nextDate = frequency.advance(transaction.date, interval)
 
+        // An archived (or missing) account no longer takes movements: the occurrence goes to the default
+        // account, and revalidate() below converts it for that account's currency (spec 10).
+        val usable = accountRepository.observeAll().first().any { it.id == transaction.accountId && !it.isArchived }
+        val accountId = if (usable) transaction.accountId else accountRepository.defaultAccount().id
         val nextTransaction = transaction.copy(
             id = 0,
+            accountId = accountId,
             date = nextDate,
             isCleared = false,
             nextOccurrenceDate = frequency.advance(nextDate, interval),
