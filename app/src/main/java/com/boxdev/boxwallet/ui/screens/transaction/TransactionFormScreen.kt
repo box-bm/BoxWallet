@@ -400,7 +400,7 @@ internal fun AccountPickerSheet(
                         AccountBadge(account)
                         Column(Modifier.weight(1f)) {
                             Text(
-                                accountLabel(account, account.parentAccountId?.let(byId::get), locale),
+                                accountLabel(account, account.parentAccountId?.let(byId::get)),
                                 style = MaterialTheme.typography.bodyLarge,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,

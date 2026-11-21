@@ -395,7 +395,7 @@ private fun CardFields(form: AccountFormState, showErrors: Boolean, card: CardFi
         NumberField(
             value = form.secondDebt,
             onValueChange = card.onSecondDebt,
-            label = stringResource(R.string.account_second_debt, symbol),
+            label = stringResource(R.string.account_second_debt, second.currencyCode),
             error = form.secondDebtError?.takeIf { showErrors },
             prefix = symbol,
             keyboardType = KeyboardType.Decimal,

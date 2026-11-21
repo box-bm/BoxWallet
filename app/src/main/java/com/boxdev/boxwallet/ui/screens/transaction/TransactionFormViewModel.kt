@@ -60,8 +60,13 @@ data class TransactionFormState(
     val currency: Currency = Currency.getInstance("USD"),
     /** Currency of the account the movement goes to; null until loaded, and saving waits for it. */
     val accountCurrency: Currency? = null,
-    /** The account the movement goes to; null until loaded. */
+    /** The account the movement goes to (after routing [pickedAccountId]); null until loaded. */
     val accountId: Long? = null,
+    /**
+     * The account the user picked (or the default / stored one); [accountId] is derived from it by [routed]
+     * whenever the account or the currency changes.
+     */
+    val pickedAccountId: Long? = null,
     /** Accounts the movement can go to (not archived); the account chip shows only with more than one. */
     val accounts: List<Account> = emptyList(),
     /** True once the user picked [currency] explicitly, so choosing another account no longer moves it. */
@@ -108,14 +113,13 @@ data class TransactionFormState(
         get() = isValid && accountCurrency != null && (!needsManualRate || manualRateValue != null)
 
     /**
-     * The state with its movement on the balance its currency belongs to (§3.4): on a card with a second
-     * currency, a movement in that currency goes to the second balance and any other one to the card's.
+     * The state with [accountId] derived from [pickedAccountId] and [currency] (§3.4, see [routedAccount]).
      * A typed rate belonged to the old account's currency and is dropped when the account changes.
      */
     fun routed(): TransactionFormState {
-        val selected = accounts.firstOrNull { it.id == accountId } ?: return this
-        val target = routedAccount(selected, currency, accounts)
-        if (target.id == selected.id) return this
+        val picked = accounts.firstOrNull { it.id == (pickedAccountId ?: accountId) } ?: return this
+        val target = routedAccount(picked, currency, accounts)
+        if (target.id == accountId) return this
         return copy(accountId = target.id, accountCurrency = target.currency, manualRate = null, equivalent = null)
     }
 
@@ -134,15 +138,12 @@ data class TransactionFormState(
 }
 
 /**
- * The account a movement in [currency] lands on when [selected] is picked: a card's second currency when
- * the movement is in it, the card for any other currency; every other account is itself.
+ * The account a movement in [currency] lands on when [selected] is picked: a card with a second currency
+ * sends a movement in that currency to it. An explicit pick of the second currency (or any other account)
+ * stays as picked, whatever the currency.
  */
 fun routedAccount(selected: Account, currency: Currency, accounts: List<Account>): Account {
-    val parentId = selected.parentAccountId
-    if (parentId != null) {
-        if (currency == selected.currency) return selected
-        return accounts.firstOrNull { it.id == parentId } ?: selected
-    }
+    if (selected.parentAccountId != null) return selected
     val child = accounts.firstOrNull { it.parentAccountId == selected.id } ?: return selected
     return if (currency == child.currency) child else selected
 }
@@ -220,6 +221,7 @@ class TransactionFormViewModel @Inject constructor(
                         currency = account.currency,
                         accountCurrency = account.currency,
                         accountId = account.id,
+                        pickedAccountId = account.id,
                         isLoading = false,
                     )
                 }
@@ -238,6 +240,8 @@ class TransactionFormViewModel @Inject constructor(
                     currency = t.original.currency,
                     accountCurrency = t.accountAmount.currency,
                     accountId = t.accountId,
+                    // Routing only runs once the account or currency changes, so an untouched edit stays put.
+                    pickedAccountId = t.accountId,
                     accounts = accounts,
                     // The stored currency was chosen for this movement: moving it to another account keeps it.
                     currencyTouched = true,
@@ -291,9 +295,11 @@ class TransactionFormViewModel @Inject constructor(
     fun setAccount(id: Long) {
         val account = _formState.value.accounts.firstOrNull { it.id == id } ?: return
         _formState.update {
-            if (it.accountId == id) return@update it
+            // Already routed there: the pick becomes explicit (a picked second currency stays put).
+            if (it.accountId == id) return@update it.copy(pickedAccountId = id)
             it.copy(
                 accountId = account.id,
+                pickedAccountId = account.id,
                 accountCurrency = account.currency,
                 currency = if (it.currencyTouched) it.currency else account.currency,
                 manualRate = null,
@@ -397,10 +403,7 @@ class TransactionFormViewModel @Inject constructor(
             }
             return
         }
-        // The selection may predate the card's second currency (an edit, a default account): route it again.
-        val routed = s.routed()
-        val rerouted = routed.accountId != s.accountId
-        val accountCurrency = routed.accountCurrency!!
+        val accountCurrency = s.accountCurrency!!
         _formState.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
             try {
@@ -409,7 +412,7 @@ class TransactionFormViewModel @Inject constructor(
                 } else null
 
                 val previous = editing
-                val accountId = routed.accountId ?: previous?.accountId ?: accountRepository.defaultAccount().id
+                val accountId = s.accountId ?: previous?.accountId ?: accountRepository.defaultAccount().id
                 val draft = Transaction.singleCurrency(accountId, s.type, s.date, s.money!!).copy(
                     id = if (s.isEditing) s.id else 0,
                     description = s.description,
@@ -426,13 +429,10 @@ class TransactionFormViewModel @Inject constructor(
                     nextOccurrenceDate = nextOccurrenceDate
                 )
                 val main = userPreferences.mainCurrency.first()
-                val transaction = transactionAmounts.forSave(
-                    draft, previous, accountCurrency, main, s.manualRateValue.takeUnless { rerouted },
-                )
+                val transaction = transactionAmounts.forSave(draft, previous, accountCurrency, main, s.manualRateValue)
                 if (transaction == null) {
-                    // Rerouted, the rate to type is the one into the account it now lands on.
                     _formState.update {
-                        it.routed().copy(isLoading = false, needsManualRate = true, rate = null, error = TransactionFormError.NeedsRate)
+                        it.copy(isLoading = false, needsManualRate = true, rate = null, error = TransactionFormError.NeedsRate)
                     }
                     return@launch
                 }

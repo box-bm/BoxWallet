@@ -1,16 +1,14 @@
 package com.boxdev.boxwallet.ui.components
 
 import com.boxdev.boxwallet.domain.model.Account
-import com.boxdev.boxwallet.domain.money.CurrencyCatalog
-import java.util.Locale
 
 /**
- * How pickers name [account]: a card's second currency reads "<card name> · <currency symbol>"
- * ([parent] is its card), any other account just its name.
+ * How pickers name [account]: a card's second currency reads "<card name> · <ISO code>" (e.g.
+ * "Visa BAC · USD"; [parent] is its card), any other account just its name.
  */
-fun accountLabel(account: Account, parent: Account?, locale: Locale = Locale.getDefault()): String =
+fun accountLabel(account: Account, parent: Account?): String =
     if (account.parentAccountId != null && parent != null) {
-        "${parent.name} · ${CurrencyCatalog.symbol(account.currency, locale)}"
+        "${parent.name} · ${account.currency.currencyCode}"
     } else {
         account.name
     }
