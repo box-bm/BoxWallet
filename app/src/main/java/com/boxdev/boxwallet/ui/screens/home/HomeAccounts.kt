@@ -55,7 +55,8 @@ fun HomeAccountsRow(
     LazyRow(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        contentPadding = PaddingValues(vertical = 4.dp),
+        // End padding lets the last card ("See accounts") scroll fully into view.
+        contentPadding = PaddingValues(top = 4.dp, end = 16.dp, bottom = 4.dp),
     ) {
         items(accounts, key = { it.account.id }) { item ->
             AccountCard(item, onClick = { onOpenAccount(item.account.id) })

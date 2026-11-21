@@ -620,6 +620,7 @@
     <string name="account_delete">Borrar cuenta</string>
     <string name="account_delete_title">¿Borrar %1$s?</string>
     <string name="account_delete_message">También se borran sus ajustes de saldo. No se puede deshacer.</string>
+    <string name="adjustment_delete_message">Este ajuste cambió el saldo de la cuenta. Si lo borras, el saldo vuelve a como estaba.</string>
     <string name="account_movements">Movimientos</string>
     <string name="account_no_movements">Esta cuenta aún no tiene movimientos</string>
     <string name="account_not_found">No se encontró la cuenta</string>

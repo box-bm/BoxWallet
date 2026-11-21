@@ -633,6 +633,7 @@
     <string name="account_delete">Delete account</string>
     <string name="account_delete_title">Delete %1$s?</string>
     <string name="account_delete_message">Its balance adjustments are deleted too. This can\'t be undone.</string>
+    <string name="adjustment_delete_message">This adjustment changed the account balance. Deleting it restores the previous balance.</string>
     <string name="account_movements">Movements</string>
     <string name="account_no_movements">No movements in this account yet</string>
     <string name="account_not_found">Account not found</string>
