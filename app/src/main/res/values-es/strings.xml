@@ -680,4 +680,7 @@
     <string name="card_pay_amount">Pagar %1$s</string>
     <string name="card_pay">Pagar tarjeta</string>
     <string name="backup_error_incompatible">Este respaldo es de una versión anterior de BoxWallet y no se puede restaurar</string>
+    <string name="transaction_in_installments">A cuotas</string>
+    <string name="transaction_installments_preview">%1$s por corte · primera el %2$s</string>
+    <string name="transaction_installment_count">Número de cuotas</string>
 </resources>

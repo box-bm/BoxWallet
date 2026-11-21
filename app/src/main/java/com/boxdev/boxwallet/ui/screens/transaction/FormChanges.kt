@@ -18,7 +18,9 @@ fun TransactionFormState.differsFrom(initial: TransactionFormState): Boolean =
         reminderDuration != initial.reminderDuration ||
         isRecurrent != initial.isRecurrent ||
         recurrenceFrequency != initial.recurrenceFrequency ||
-        recurrenceInterval != initial.recurrenceInterval
+        recurrenceInterval != initial.recurrenceInterval ||
+        inInstallments != initial.inInstallments ||
+        installmentCount != initial.installmentCount
 
 /** True when a user-editable field differs from [initial]; loading, error and derived fields are ignored. */
 fun LoanFormState.differsFrom(initial: LoanFormState): Boolean =

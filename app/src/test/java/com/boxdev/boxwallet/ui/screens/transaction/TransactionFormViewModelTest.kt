@@ -5,6 +5,8 @@ import com.boxdev.boxwallet.analytics.AnalyticsHelper
 import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.data.repository.CategoryRepository
+import com.boxdev.boxwallet.data.repository.InstallmentPlanRepository
+import com.boxdev.boxwallet.data.repository.NewInstallmentPlan
 import com.boxdev.boxwallet.data.repository.TransactionRepository
 import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.AccountType
@@ -54,6 +56,7 @@ class TransactionFormViewModelTest {
     private val userPreferences = mock<UserPreferences>()
     private val amounts = mock<TransactionAmounts>()
     private val analytics = mock<AnalyticsHelper>()
+    private val installmentPlans = mock<InstallmentPlanRepository>()
 
     @Before
     fun setUp() = runTest {
@@ -80,7 +83,7 @@ class TransactionFormViewModelTest {
 
     private fun vm(args: Map<String, Any?>) = TransactionFormViewModel(
         SavedStateHandle(args), transactionRepository, categoryRepository, accountRepository,
-        userPreferences, amounts, analytics,
+        userPreferences, amounts, analytics, installmentPlans,
     )
 
     @Test
@@ -370,5 +373,50 @@ class TransactionFormViewModelTest {
         vm.setAccount(5L)
         advanceUntilIdle()
         assertEquals(6L, savedAccountId(vm))
+    }
+
+    @Test
+    fun savingInInstallmentsCreatesAPlanInsteadOfAMovement() = runTest {
+        val closingCard = Account(
+            id = 7, name = "Gold", type = AccountType.CREDIT_CARD, currency = gtq, createdAt = 0, statementClosingDay = 15,
+        )
+        whenever(accountRepository.observeAll()).thenReturn(flowOf(listOf(cash, closingCard)))
+        val vm = vm(emptyMap())
+        advanceUntilIdle()
+        vm.setAccount(7L)
+        vm.updateAmount("1000")
+        vm.updateDescription("TV")
+        vm.updateInInstallments(true)
+        advanceUntilIdle()
+        vm.save()
+        advanceUntilIdle()
+        val plan = argumentCaptor<NewInstallmentPlan>()
+        verify(installmentPlans).create(plan.capture())
+        assertEquals(3, plan.firstValue.installments)
+        assertEquals(7L, plan.firstValue.accountId)
+        assertEquals(Money(100_000, gtq), plan.firstValue.original)
+        assertEquals("TV", plan.firstValue.description)
+        verify(transactionRepository, never()).insertTransaction(any())
+        assertTrue(vm.formState.value.isSaved)
+    }
+
+    @Test
+    fun recurrenceAndInstallmentsExcludeEachOther() = runTest {
+        val vm = vm(emptyMap())
+        advanceUntilIdle()
+        vm.updateInInstallments(true)
+        vm.updateIsRecurrent(true)
+        assertFalse(vm.formState.value.inInstallments)
+        vm.updateInInstallments(true)
+        assertFalse(vm.formState.value.isRecurrent)
+    }
+
+    @Test
+    fun theInstallmentCountAcceptsOnlyDigits() = runTest {
+        val vm = vm(emptyMap())
+        advanceUntilIdle()
+        vm.updateInstallmentCount("12")
+        vm.updateInstallmentCount("1a")
+        assertEquals("12", vm.formState.value.installmentCount)
     }
 }

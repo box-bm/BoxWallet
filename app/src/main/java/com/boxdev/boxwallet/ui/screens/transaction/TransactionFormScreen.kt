@@ -13,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.EventRepeat
+import androidx.compose.material.icons.outlined.CreditScore
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.TaskAlt
@@ -70,6 +71,9 @@ import com.boxdev.boxwallet.ui.components.directionToggleColors
 import com.boxdev.boxwallet.ui.components.groupShape
 import com.boxdev.boxwallet.ui.components.rememberDateTimePickerState
 import com.boxdev.boxwallet.ui.components.trendIcon
+import com.boxdev.boxwallet.util.rememberCurrencyFormatter
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import java.util.Locale
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -172,6 +176,7 @@ private fun TransactionFormFields(
     var showCurrencyPicker by remember { mutableStateOf(false) }
     var showAccountPicker by remember { mutableStateOf(false) }
     val locale = remember { Locale.getDefault() }
+    val currencyFormatter = rememberCurrencyFormatter()
     val availableReminders = remember { ReminderDuration.entries.filter { !it.debugOnly || BuildConfig.DEBUG } }
 
     Column(
@@ -251,7 +256,8 @@ private fun TransactionFormFields(
         val showReminder = !formState.isCleared
         val showReminderTime = showReminder && formState.hasReminder
         val showFrequency = formState.isRecurrent
-        val count = 2 + (if (showReminder) 1 else 0) + (if (showReminderTime) 1 else 0) + (if (showFrequency) 1 else 0)
+        val showInstallments = formState.canUseInstallments
+        val count = 2 + (if (showInstallments) 1 else 0) + (if (showReminder) 1 else 0) + (if (showReminderTime) 1 else 0) + (if (showFrequency) 1 else 0)
         var i = 0
         OptionGroup(title = stringResource(R.string.form_options)) {
             SwitchRow(
@@ -285,6 +291,22 @@ private fun TransactionFormFields(
                 stringResource(R.string.transaction_recurring),
                 formState.isRecurrent, viewModel::updateIsRecurrent,
             )
+            if (showInstallments) {
+                val preview = formState.installmentPreview
+                SwitchRow(
+                    groupShape(i++, count), Icons.Outlined.CreditScore,
+                    stringResource(R.string.transaction_in_installments),
+                    formState.inInstallments, viewModel::updateInInstallments,
+                    supporting = preview?.let {
+                        stringResource(
+                            R.string.transaction_installments_preview,
+                            currencyFormatter.format(it.perClosing),
+                            remember(locale) { DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale) }
+                                .format(it.firstClosing),
+                        )
+                    },
+                )
+            }
             if (showFrequency) {
                 MenuRow(
                     shape = groupShape(i++, count),
@@ -297,6 +319,19 @@ private fun TransactionFormFields(
                     onSelect = viewModel::updateRecurrenceFrequency,
                 )
             }
+        }
+
+        AnimatedVisibility(visible = formState.installmentsActive) {
+            OutlinedTextField(
+                value = formState.installmentCount,
+                onValueChange = viewModel::updateInstallmentCount,
+                label = { Text(stringResource(R.string.transaction_installment_count)) },
+                isError = formState.installmentCount.toIntOrNull()?.let { it !in MIN_INSTALLMENTS..MAX_INSTALLMENTS } != false,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                shape = MaterialTheme.shapes.extraLarge,
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
 
         AnimatedVisibility(visible = formState.isRecurrent && formState.recurrenceFrequency == RecurrenceFrequency.CUSTOM_MONTHS) {
