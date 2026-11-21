@@ -334,6 +334,36 @@ class BackupRepositoryTest {
     }
 
     @Test
+    fun invalidChildrenAreDetachedAndKeptOnesFollowTheirCard() = runTest {
+        val backup = BackupData(
+            mainCurrencyCode = "USD",
+            accounts = listOf(
+                AccountEntity(id = 1, name = "Main", type = "CHECKING", currencyCode = "USD", createdAt = 0L),
+                // Parent isn't a card.
+                AccountEntity(id = 2, name = "Main", type = "CHECKING", currencyCode = "GTQ", createdAt = 0L, parentAccountId = 1),
+                AccountEntity(
+                    id = 3, name = "Visa", type = "CREDIT_CARD", currencyCode = "GTQ", createdAt = 0L,
+                    isArchived = true, includeInTotal = false,
+                ),
+                // Child isn't a card.
+                AccountEntity(id = 4, name = "Visa", type = "CASH", currencyCode = "USD", createdAt = 0L, parentAccountId = 3),
+                // Same currency as its card.
+                AccountEntity(id = 5, name = "Visa", type = "CREDIT_CARD", currencyCode = "GTQ", createdAt = 0L, parentAccountId = 3),
+                // The valid one, with flags out of step with its card.
+                AccountEntity(id = 6, name = "Visa", type = "CREDIT_CARD", currencyCode = "USD", createdAt = 0L, parentAccountId = 3),
+            ),
+        )
+
+        repo.restore(backup)
+
+        listOf(2L, 4L, 5L).forEach { assertNull("account $it", db.accountDao().getById(it)!!.parentAccountId) }
+        val kept = db.accountDao().getById(6)!!
+        assertEquals(3L, kept.parentAccountId)
+        assertTrue(kept.isArchived)
+        assertFalse(kept.includeInTotal)
+    }
+
+    @Test
     fun `a backup default missing from its accounts falls back to the first account`() = runTest {
         val backup = BackupData(
             mainCurrencyCode = "USD",

@@ -16,6 +16,7 @@ import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.data.rates.CurrencyChangeLock
 import com.boxdev.boxwallet.data.remote.GoogleDriveManager
+import com.boxdev.boxwallet.domain.model.AccountType
 import com.boxdev.boxwallet.domain.model.BackupData
 import com.google.gson.Gson
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -236,13 +237,30 @@ class BackupRepository @Inject constructor(
             )
         }
 
+        /**
+         * Keeps at most one second currency per card: a child stays attached only when it and its top-level
+         * parent are both cards in different currencies (the lowest id wins). It then follows its card's
+         * archived and `includeInTotal` flags; any other child becomes a top-level account.
+         */
         private fun singleChildren(accounts: List<AccountEntity>): List<AccountEntity> {
-            val topLevel = accounts.filter { it.parentAccountId == null }.mapTo(HashSet()) { it.id }
+            val card = AccountType.CREDIT_CARD.name
+            val cards = accounts.filter { it.parentAccountId == null && it.type == card }.associateBy { it.id }
             val withChild = HashSet<Long>()
             val keptChildren = accounts.sortedBy { it.id }
-                .filter { child -> child.parentAccountId?.let { it in topLevel && withChild.add(it) } ?: false }
+                .filter { child ->
+                    val parent = child.parentAccountId?.let(cards::get) ?: return@filter false
+                    child.type == card && child.currencyCode != parent.currencyCode && withChild.add(parent.id)
+                }
                 .mapTo(HashSet()) { it.id }
-            return accounts.map { if (it.parentAccountId == null || it.id in keptChildren) it else it.copy(parentAccountId = null) }
+            return accounts.map {
+                when {
+                    it.parentAccountId == null -> it
+                    it.id in keptChildren -> cards.getValue(it.parentAccountId).let { parent ->
+                        it.copy(isArchived = parent.isArchived, includeInTotal = parent.includeInTotal)
+                    }
+                    else -> it.copy(parentAccountId = null)
+                }
+            }
         }
 
         /**
