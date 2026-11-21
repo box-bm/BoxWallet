@@ -7,6 +7,7 @@ import androidx.room.withTransaction
 import com.boxdev.boxwallet.data.local.dao.AccountDao
 import com.boxdev.boxwallet.data.local.dao.TransactionDao
 import com.boxdev.boxwallet.data.local.database.BoxWalletDatabase
+import com.boxdev.boxwallet.data.local.entity.AccountEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.data.rates.MovementWriteGuard
 import com.boxdev.boxwallet.domain.model.Transaction
@@ -14,6 +15,7 @@ import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.AccountType
 import com.boxdev.boxwallet.domain.model.AccountWithBalance
 import com.boxdev.boxwallet.domain.model.TotalBalance
+import com.boxdev.boxwallet.domain.model.lastClosingDate
 import com.boxdev.boxwallet.domain.model.toDomain
 import com.boxdev.boxwallet.domain.model.toEntity
 import com.boxdev.boxwallet.domain.model.totalBalance
@@ -50,6 +52,22 @@ sealed class AccountRuleError : Exception() {
 
     /** Accounts with movements (other than balance adjustments) are archived, not deleted. */
     data object HasMovements : AccountRuleError()
+
+    /** The second currency of a card can only go while it has nothing but balance adjustments. */
+    data object SecondCurrencyHasMovements : AccountRuleError()
+
+    /** A card with a second currency can't stop being a card until that currency is removed. */
+    data object RemoveSecondCurrencyFirst : AccountRuleError()
+}
+
+/** A card's second currency: [currentBalance] is signed like the card's (a debt is negative). */
+data class SecondCurrencyInput(val currency: Currency, val currentBalance: Money?)
+
+/** What [AccountRepository.update] does with a card's second currency. */
+sealed interface SecondCurrencyChange {
+    data object Keep : SecondCurrencyChange
+    data class Add(val input: SecondCurrencyInput) : SecondCurrencyChange
+    data object Remove : SecondCurrencyChange
 }
 
 @Singleton
@@ -136,34 +154,108 @@ class AccountRepository @Inject constructor(
     suspend fun hasNonAdjustmentMovements(accountId: Long): Boolean =
         transactionDao.countNonAdjustmentByAccount(accountId) > 0
 
-    /** Inserts [account]; a non-zero [currentBalance] (in the account's currency) becomes an opening adjustment. */
-    suspend fun create(account: Account, currentBalance: Money?): Long = guard.write { current ->
-        database.withTransaction {
-            val id = accountDao.insert(account.toEntity())
-            if (currentBalance != null && currentBalance.minor != 0L) {
-                insertAdjustment(id, account.currency, current.main, currentBalance.minor)
+    /** The second-currency child of card [cardId], or null. */
+    fun secondCurrencyOf(cardId: Long): Flow<Account?> = accountDao.observeChildOf(cardId).map { it?.toDomain() }
+
+    /**
+     * Inserts [account]; a non-zero [currentBalance] (in the account's currency, signed: a card's debt is
+     * negative) becomes an opening adjustment. A card can also get its [second] currency, as a child account.
+     */
+    suspend fun create(account: Account, currentBalance: Money?, second: SecondCurrencyInput? = null): Long =
+        guard.write { current ->
+            database.withTransaction {
+                validateCardFields(account)
+                second?.let { requireSecondAllowed(account, it) }
+                val id = accountDao.insert(account.toEntity())
+                val opening = openingDate(account)
+                if (currentBalance != null && currentBalance.minor != 0L) {
+                    insertAdjustment(id, account.currency, current.main, currentBalance.minor, opening)
+                }
+                second?.let { insertChild(account.copy(id = id), it, current.main, opening) }
+                id
             }
-            id
         }
-    }
 
     /**
      * The currency is frozen once the account has movements besides adjustments. While it only has
      * adjustments, changing it rewrites them into the new currency keeping their typed major amount;
      * a missing main rate ([MissingRateException]) rolls the whole update back.
      */
-    suspend fun update(account: Account) = guard.write { current ->
+    /**
+     * A card's second currency follows [second]; a kept one gets the card's name, icon, color,
+     * `includeInTotal` and order. Removing it ([AccountRuleError.SecondCurrencyHasMovements] while it has
+     * movements besides adjustments) takes its adjustments along.
+     */
+    suspend fun update(account: Account, second: SecondCurrencyChange = SecondCurrencyChange.Keep) = guard.write { current ->
         database.withTransaction {
             val stored = accountDao.getById(account.id)
                 ?: throw IllegalStateException("Account ${account.id} does not exist")
             require(stored.isArchived == account.isArchived) { "use archive()" }
+            validateCardFields(account)
+            val child = accountDao.getChildOf(account.id)
+            val kept = child.takeIf { second != SecondCurrencyChange.Remove }
+            if (kept != null && account.type != AccountType.CREDIT_CARD) throw AccountRuleError.RemoveSecondCurrencyFirst
+            require(kept == null || kept.currencyCode != account.currency.currencyCode) {
+                "The second currency must differ from the card's"
+            }
+            if (second is SecondCurrencyChange.Add) {
+                require(child == null) { "Card ${account.id} already has a second currency" }
+                requireSecondAllowed(account, second.input)
+            }
             val currencyChanged = stored.currencyCode != account.currency.currencyCode
             check(!currencyChanged || !hasNonAdjustmentMovements(account.id)) {
                 "Currency of account ${account.id} can't change once it has movements"
             }
+            if (child != null && second == SecondCurrencyChange.Remove) {
+                if (hasNonAdjustmentMovements(child.id)) throw AccountRuleError.SecondCurrencyHasMovements
+                transactionDao.deleteAdjustmentsByAccount(child.id)
+                accountDao.deleteById(child.id)
+            }
             accountDao.update(account.toEntity())
             if (currencyChanged) rewriteAdjustments(account.id, account.currency, current.main)
+            kept?.let { accountDao.update(childEntity(account, Currency.getInstance(it.currencyCode)).copy(id = it.id)) }
+            if (second is SecondCurrencyChange.Add) insertChild(account, second.input, current.main, openingDate(account))
         }
+    }
+
+    /** Days are 1–31 and a limit is positive. */
+    private fun validateCardFields(account: Account) {
+        account.statementClosingDay?.let { require(it in 1..31) { "Closing day $it is outside 1–31" } }
+        account.paymentDueDay?.let { require(it in 1..31) { "Due day $it is outside 1–31" } }
+        account.creditLimitMinor?.let { require(it > 0) { "Credit limit must be positive" } }
+    }
+
+    private fun requireSecondAllowed(account: Account, input: SecondCurrencyInput) {
+        require(account.type == AccountType.CREDIT_CARD) { "Only cards have a second currency" }
+        require(input.currency != account.currency) { "The second currency must differ from the card's" }
+        require(input.currentBalance == null || input.currentBalance.currency == input.currency) {
+            "Second-currency balance must be in that currency"
+        }
+    }
+
+    /** A card's opening adjustments are dated at the end of its last closing day when it has one, else now. */
+    private fun openingDate(account: Account): LocalDateTime {
+        val closingDay = account.statementClosingDay.takeIf { account.type == AccountType.CREDIT_CARD }
+        return closingDay?.let { lastClosingDate(it, LocalDate.now()).atTime(23, 59, 59) } ?: LocalDateTime.now()
+    }
+
+    /** The child row of [card] in [currency]: no card fields, the rest copied from the card. */
+    private fun childEntity(card: Account, currency: Currency): AccountEntity = card.copy(
+        id = 0,
+        type = AccountType.CREDIT_CARD,
+        currency = currency,
+        description = "",
+        parentAccountId = card.id,
+        creditLimitMinor = null,
+        statementClosingDay = null,
+        paymentDueDay = null,
+        dueReminderDaysBefore = null,
+    ).toEntity()
+
+    private suspend fun insertChild(card: Account, input: SecondCurrencyInput, main: Currency, date: LocalDateTime) {
+        val childId = accountDao.insert(childEntity(card, input.currency))
+        val balance = input.currentBalance
+        if (balance != null && balance.minor != 0L) insertAdjustment(childId, input.currency, main, balance.minor, date)
     }
 
     /** Re-expresses the account's adjustments in [currency] (same major amount, HALF_EVEN) with fresh legs. */
@@ -184,23 +276,37 @@ class AccountRepository @Inject constructor(
                 val currency = current.accountCurrency(accountId)
                 require(realBalance.currency == currency) { "Balance must be in the account currency" }
                 val difference = realBalance.minor - accountDao.getBalance(accountId, endOfToday())
-                if (difference != 0L) insertAdjustment(accountId, currency, current.main, difference)
+                if (difference != 0L) insertAdjustment(accountId, currency, current.main, difference, LocalDateTime.now())
             }
         }
     }
 
+    /** A card's second currency is archived and unarchived with it. */
     suspend fun archive(accountId: Long, archived: Boolean) {
         if (archived && userPreferences.defaultAccountId.first() == accountId) throw AccountRuleError.IsDefault
-        val stored = accountDao.getById(accountId) ?: return
-        accountDao.update(stored.copy(isArchived = archived))
+        database.withTransaction {
+            val stored = accountDao.getById(accountId) ?: return@withTransaction
+            accountDao.update(stored.copy(isArchived = archived))
+            accountDao.getChildOf(accountId)?.let { accountDao.update(it.copy(isArchived = archived)) }
+        }
     }
 
-    /** Removes an account with no movements besides its adjustments (those go with it). */
+    /**
+     * Removes an account with no movements besides its adjustments (those go with it). A card's second
+     * currency goes too, under the same rule.
+     */
     suspend fun delete(accountId: Long) {
         if (userPreferences.defaultAccountId.first() == accountId) throw AccountRuleError.IsDefault
-        if (accountDao.count() <= 1) throw AccountRuleError.LastAccount
+        if (accountDao.getAll().count { it.parentAccountId == null } <= 1) throw AccountRuleError.LastAccount
         database.withTransaction {
-            if (hasNonAdjustmentMovements(accountId)) throw AccountRuleError.HasMovements
+            val child = accountDao.getChildOf(accountId)
+            if (hasNonAdjustmentMovements(accountId) || (child != null && hasNonAdjustmentMovements(child.id))) {
+                throw AccountRuleError.HasMovements
+            }
+            child?.let {
+                transactionDao.deleteAdjustmentsByAccount(it.id)
+                accountDao.deleteById(it.id)
+            }
             transactionDao.deleteAdjustmentsByAccount(accountId)
             accountDao.deleteById(accountId)
         }
@@ -213,16 +319,21 @@ class AccountRepository @Inject constructor(
         userPreferences.setDefaultAccountId(accountId)
     }
 
-    /** A cleared adjustment of [deltaMinor] (sign picks the direction) dated now, in the account's currency. */
-    private suspend fun insertAdjustment(accountId: Long, currency: Currency, main: Currency, deltaMinor: Long) {
+    /** A cleared adjustment of [deltaMinor] (sign picks the direction) dated [date], in the account's currency. */
+    private suspend fun insertAdjustment(
+        accountId: Long,
+        currency: Currency,
+        main: Currency,
+        deltaMinor: Long,
+        date: LocalDateTime,
+    ) {
         val original = Money(kotlin.math.abs(deltaMinor), currency)
-        val now = LocalDateTime.now()
-        val ready = amounts.compute(AmountInput(original, now.toLocalDate(), currency, main)) as? AmountResult.Ready
+        val ready = amounts.compute(AmountInput(original, date.toLocalDate(), currency, main)) as? AmountResult.Ready
             ?: throw MissingRateException(currency, main)
         val adjustment = Transaction(
             accountId = accountId,
             type = if (deltaMinor > 0) TransactionType.ADJUSTMENT_IN else TransactionType.ADJUSTMENT_OUT,
-            date = now,
+            date = date,
             original = original,
             accountAmount = ready.accountAmount,
             accountRate = ready.accountRate,

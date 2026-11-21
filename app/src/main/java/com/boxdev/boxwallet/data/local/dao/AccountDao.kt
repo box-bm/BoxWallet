@@ -45,6 +45,13 @@ interface AccountDao {
     @Query("SELECT * FROM accounts WHERE id = :id")
     suspend fun getById(id: Long): AccountEntity?
 
+    /** A card's second-currency child, if any (at most one). */
+    @Query("SELECT * FROM accounts WHERE parentAccountId = :parentId LIMIT 1")
+    suspend fun getChildOf(parentId: Long): AccountEntity?
+
+    @Query("SELECT * FROM accounts WHERE parentAccountId = :parentId LIMIT 1")
+    fun observeChildOf(parentId: Long): Flow<AccountEntity?>
+
     @Query("SELECT * FROM accounts ORDER BY sortOrder ASC, id ASC")
     fun observeAll(): Flow<List<AccountEntity>>
 

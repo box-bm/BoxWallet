@@ -656,6 +656,8 @@
     <string name="account_error_is_default">You can\'t delete or archive the default account</string>
     <string name="account_error_last">You need at least one account</string>
     <string name="account_error_has_movements">This account has movements; archive it instead</string>
+    <string name="account_error_second_currency_has_movements">The second currency already has movements</string>
+    <string name="account_error_remove_second_currency_first">Remove the second currency first</string>
     <string name="account_error_missing_rate">There\'s no exchange rate for this currency yet</string>
     <string name="account_balance_negative">Negative balance</string>
     <string name="account_error_generic">Something went wrong. Try again.</string>

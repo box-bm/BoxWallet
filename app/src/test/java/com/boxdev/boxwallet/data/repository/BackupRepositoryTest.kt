@@ -302,6 +302,38 @@ class BackupRepositoryTest {
     }
 
     @Test
+    fun childWithMissingParentBecomesPlainCard() = runTest {
+        val backup = BackupData(
+            mainCurrencyCode = "USD",
+            accounts = listOf(
+                AccountEntity(id = 1, name = "Main", type = "CHECKING", currencyCode = "USD", createdAt = 0L),
+                AccountEntity(id = 2, name = "Visa", type = "CREDIT_CARD", currencyCode = "GTQ", createdAt = 0L, parentAccountId = 99),
+            ),
+        )
+
+        repo.restore(backup)
+
+        assertNull(db.accountDao().getById(2)!!.parentAccountId)
+    }
+
+    @Test
+    fun secondChildIsDetached() = runTest {
+        val backup = BackupData(
+            mainCurrencyCode = "USD",
+            accounts = listOf(
+                AccountEntity(id = 1, name = "Visa", type = "CREDIT_CARD", currencyCode = "GTQ", createdAt = 0L),
+                AccountEntity(id = 2, name = "Visa", type = "CREDIT_CARD", currencyCode = "USD", createdAt = 0L, parentAccountId = 1),
+                AccountEntity(id = 3, name = "Visa", type = "CREDIT_CARD", currencyCode = "EUR", createdAt = 0L, parentAccountId = 1),
+            ),
+        )
+
+        repo.restore(backup)
+
+        assertEquals(1L, db.accountDao().getById(2)!!.parentAccountId)
+        assertNull(db.accountDao().getById(3)!!.parentAccountId)
+    }
+
+    @Test
     fun `a backup default missing from its accounts falls back to the first account`() = runTest {
         val backup = BackupData(
             mainCurrencyCode = "USD",

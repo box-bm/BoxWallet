@@ -10,6 +10,7 @@ import com.boxdev.boxwallet.data.local.dao.CategoryDao
 import com.boxdev.boxwallet.data.local.dao.LoanDao
 import com.boxdev.boxwallet.data.local.dao.TransactionDao
 import com.boxdev.boxwallet.data.local.database.BoxWalletDatabase
+import com.boxdev.boxwallet.data.local.entity.AccountEntity
 import com.boxdev.boxwallet.data.local.entity.AppMetaEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionType
@@ -196,6 +197,9 @@ class BackupRepository @Inject constructor(
          * amounts it was the movement's own currency; otherwise (or with no account in it) the
          * movement goes to the default account. A loan has no account amount: its own currency is
          * used. With no accounts at all the insert fails and the restore rolls back.
+         *
+         * A card keeps at most one second-currency child: a child whose parent is missing, is itself a
+         * child or already has an earlier child (by id) becomes a plain account.
          */
         private fun sanitized(data: BackupData): BackupData {
             val accountIds = data.accounts.mapTo(HashSet()) { it.id }
@@ -224,7 +228,21 @@ class BackupRepository @Inject constructor(
                     parentRecurrenceId = tx.parentRecurrenceId?.takeIf { it in txIds && it != tx.id },
                 )
             }
-            return data.copy(loans = loans, transactions = parentsFirst(wholeTransfers(transactions)), defaultAccountId = defaultAccount)
+            return data.copy(
+                accounts = singleChildren(data.accounts),
+                loans = loans,
+                transactions = parentsFirst(wholeTransfers(transactions)),
+                defaultAccountId = defaultAccount,
+            )
+        }
+
+        private fun singleChildren(accounts: List<AccountEntity>): List<AccountEntity> {
+            val topLevel = accounts.filter { it.parentAccountId == null }.mapTo(HashSet()) { it.id }
+            val withChild = HashSet<Long>()
+            val keptChildren = accounts.sortedBy { it.id }
+                .filter { child -> child.parentAccountId?.let { it in topLevel && withChild.add(it) } ?: false }
+                .mapTo(HashSet()) { it.id }
+            return accounts.map { if (it.parentAccountId == null || it.id in keptChildren) it else it.copy(parentAccountId = null) }
         }
 
         /**
