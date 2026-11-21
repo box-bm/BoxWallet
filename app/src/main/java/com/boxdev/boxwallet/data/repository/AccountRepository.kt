@@ -35,6 +35,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.util.Currency
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -96,9 +97,13 @@ class AccountRepository @Inject constructor(
     fun observeCurrencies(): Flow<Map<Long, Currency>> =
         accountDao.observeAll().map { rows -> rows.associate { it.id to Currency.getInstance(it.currencyCode) } }
 
-    /** Accounts (by `sortOrder, id`) with their cleared balance; accounts without movements read 0. */
+    /** Start of tomorrow as stored dates (local wall-clock as UTC millis): cards count movements before it. */
+    private fun endOfToday(): Long =
+        LocalDate.now().plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+
+    /** Accounts (by `sortOrder, id`) with their balance (cleared only, except cards); accounts without movements read 0. */
     fun observeAccountsWithBalance(): Flow<List<AccountWithBalance>> =
-        combine(accountDao.observeAll(), accountDao.observeBalances()) { accounts, balances ->
+        combine(accountDao.observeAll(), accountDao.observeBalances(endOfToday())) { accounts, balances ->
             val byAccount = balances.associate { it.accountId to it.balanceMinor }
             accounts.map {
                 val account = it.toDomain()
@@ -178,7 +183,7 @@ class AccountRepository @Inject constructor(
             database.withTransaction {
                 val currency = current.accountCurrency(accountId)
                 require(realBalance.currency == currency) { "Balance must be in the account currency" }
-                val difference = realBalance.minor - accountDao.getBalance(accountId)
+                val difference = realBalance.minor - accountDao.getBalance(accountId, endOfToday())
                 if (difference != 0L) insertAdjustment(accountId, currency, current.main, difference)
             }
         }

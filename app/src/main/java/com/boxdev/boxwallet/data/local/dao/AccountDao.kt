@@ -8,12 +8,19 @@ import androidx.room.Update
 import com.boxdev.boxwallet.data.local.entity.AccountEntity
 import kotlinx.coroutines.flow.Flow
 
-/** Cleared balance of one account, in the account's currency. */
+/** Balance of one account, in the account's currency. */
 data class AccountBalanceRow(val accountId: Long, val balanceMinor: Long)
 
-/** Cleared balance expression shared by the per-account query and the one-shot lookup. */
-private const val CLEARED_BALANCE =
-    "SUM(CASE WHEN type IN ('INCOME','ADJUSTMENT_IN','TRANSFER_IN') THEN accountAmountMinor ELSE -accountAmountMinor END)"
+/** Balance expression shared by the per-account query and the one-shot lookup (over `transactions t`). */
+private const val BALANCE =
+    "SUM(CASE WHEN t.type IN ('INCOME','ADJUSTMENT_IN','TRANSFER_IN') THEN t.accountAmountMinor ELSE -t.accountAmountMinor END)"
+
+/**
+ * Which movements count: cards ignore the cleared flag and count everything dated before `:endOfToday`
+ * (start of tomorrow); every other account type counts cleared movements only.
+ */
+private const val COUNTED =
+    "((a.type = 'CREDIT_CARD' AND t.date < :endOfToday) OR (a.type <> 'CREDIT_CARD' AND t.isCleared = 1))"
 
 @Dao
 interface AccountDao {
@@ -47,10 +54,10 @@ interface AccountDao {
     @Query("SELECT COUNT(*) FROM accounts")
     suspend fun count(): Int
 
-    @Query("SELECT accountId, $CLEARED_BALANCE AS balanceMinor FROM transactions WHERE isCleared = 1 GROUP BY accountId")
-    fun observeBalances(): Flow<List<AccountBalanceRow>>
+    @Query("SELECT t.accountId AS accountId, $BALANCE AS balanceMinor FROM transactions t JOIN accounts a ON a.id = t.accountId WHERE $COUNTED GROUP BY t.accountId")
+    fun observeBalances(endOfToday: Long): Flow<List<AccountBalanceRow>>
 
-    /** Cleared balance of one account in its currency; 0 without movements. */
-    @Query("SELECT COALESCE($CLEARED_BALANCE, 0) FROM transactions WHERE isCleared = 1 AND accountId = :accountId")
-    suspend fun getBalance(accountId: Long): Long
+    /** Balance of one account in its currency; 0 without counted movements. */
+    @Query("SELECT COALESCE($BALANCE, 0) FROM transactions t JOIN accounts a ON a.id = t.accountId WHERE t.accountId = :accountId AND $COUNTED")
+    suspend fun getBalance(accountId: Long, endOfToday: Long): Long
 }

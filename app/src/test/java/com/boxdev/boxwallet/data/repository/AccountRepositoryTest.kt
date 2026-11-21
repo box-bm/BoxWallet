@@ -34,6 +34,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.math.BigDecimal
 import java.time.LocalDate
+import java.time.ZoneOffset
 import java.util.Currency
 
 @RunWith(RobolectricTestRunner::class)
@@ -73,12 +74,12 @@ class AccountRepositoryTest {
     @After
     fun tearDown() = db.close()
 
-    private suspend fun move(accountId: Long, type: TransactionType, minor: Long, cleared: Boolean) =
+    private suspend fun move(accountId: Long, type: TransactionType, minor: Long, cleared: Boolean, date: Long = 0L) =
         db.transactionDao().insert(
             TransactionEntity(
                 accountId = accountId,
                 type = type.name,
-                date = 0L,
+                date = date,
                 originalAmountMinor = minor,
                 currencyCode = "USD",
                 accountAmountMinor = minor,
@@ -391,5 +392,25 @@ class AccountRepositoryTest {
             runBlocking { repository.update(stored.copy(isArchived = true)) }
         }
         assertFalse(db.accountDao().getById(id)!!.isArchived)
+    }
+
+    private fun startOfDay(offsetDays: Long) =
+        LocalDate.now().plusDays(offsetDays).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+
+    @Test
+    fun cardBalanceIgnoresClearedButNotFuture() = runTest {
+        val card = db.accountDao().insert(AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "USD", createdAt = 0L))
+        val checking = db.accountDao().insert(AccountEntity(name = "Main", type = "CHECKING", currencyCode = "USD", createdAt = 0L, sortOrder = 1))
+        move(card, TransactionType.EXPENSE, 10000, cleared = false, date = startOfDay(0))
+        move(card, TransactionType.EXPENSE, 5000, cleared = true, date = startOfDay(1))
+        move(card, TransactionType.INCOME, 1000, cleared = false, date = startOfDay(-1))
+        // Same rows on a checking account, all uncleared: none counts there.
+        move(checking, TransactionType.EXPENSE, 10000, cleared = false, date = startOfDay(0))
+        move(checking, TransactionType.EXPENSE, 5000, cleared = false, date = startOfDay(1))
+        move(checking, TransactionType.INCOME, 1000, cleared = false, date = startOfDay(-1))
+
+        val rows = repository.observeAccountsWithBalance().first()
+        assertEquals(Money(-9000, usd), rows.first { it.account.id == card }.balance)
+        assertEquals(Money(0, usd), rows.first { it.account.id == checking }.balance)
     }
 }
