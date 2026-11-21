@@ -143,6 +143,47 @@ class BackupRepositoryTest {
     }
 
     @Test
+    fun transferPairRoundTrips() = runTest {
+        val gtqAcc = db.accountDao().insert(AccountEntity(name = "GTQ", type = "CHECKING", currencyCode = "GTQ", createdAt = 1L))
+        val usdAcc = db.accountDao().insert(AccountEntity(name = "USD", type = "SAVINGS", currencyCode = "USD", createdAt = 2L, sortOrder = 1))
+        db.transactionDao().insert(
+            tx(id = 10, accountId = gtqAcc, amount = 8000, code = "GTQ").copy(type = "TRANSFER_OUT", transferId = "t1")
+        )
+        db.transactionDao().insert(
+            tx(id = 11, accountId = usdAcc, amount = 8000, code = "GTQ")
+                .copy(type = "TRANSFER_IN", transferId = "t1", accountAmountMinor = 1000, accountRate = BigDecimal("0.125"))
+        )
+        val json = Gson().toJson(repo.snapshot())
+        db.transactionDao().deleteAll()
+        db.accountDao().deleteAll()
+
+        assertTrue(repo.restoreJson(json, usd) is RestoreResult.Restored)
+
+        val rows = db.transactionDao().getAllTransactionsSync().sortedBy { it.id }
+        assertEquals(listOf("TRANSFER_OUT", "TRANSFER_IN"), rows.map { it.type })
+        assertEquals(listOf("t1", "t1"), rows.map { it.transferId })
+        assertEquals(listOf(8000L, 8000L), rows.map { it.originalAmountMinor })
+        assertEquals(listOf(8000L, 1000L), rows.map { it.accountAmountMinor })
+    }
+
+    @Test
+    fun loneTransferLegBecomesAdjustment() = runTest {
+        val acc = db.accountDao().insert(AccountEntity(name = "USD", type = "CHECKING", currencyCode = "USD", createdAt = 1L))
+        db.transactionDao().insert(tx(id = 10, accountId = acc, amount = 500, code = "USD").copy(type = "TRANSFER_OUT", transferId = "a"))
+        db.transactionDao().insert(tx(id = 11, accountId = acc, amount = 700, code = "USD").copy(type = "TRANSFER_IN", transferId = "b"))
+        val json = Gson().toJson(repo.snapshot())
+        db.transactionDao().deleteAll()
+        db.accountDao().deleteAll()
+
+        assertTrue(repo.restoreJson(json, usd) is RestoreResult.Restored)
+
+        val rows = db.transactionDao().getAllTransactionsSync().sortedBy { it.id }
+        assertEquals(listOf("ADJUSTMENT_OUT", "ADJUSTMENT_IN"), rows.map { it.type })
+        assertEquals(listOf(null, null), rows.map { it.transferId })
+        assertEquals(listOf(500L, 700L), rows.map { it.amountMinor })
+    }
+
+    @Test
     fun `v3 with another main currency asks and writes nothing`() = runTest {
         seedLocalData()
         val backup = BackupData(
