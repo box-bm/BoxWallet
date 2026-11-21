@@ -48,6 +48,7 @@ import java.math.BigDecimal
         Index("loanId"),
         Index("currencyCode"),
         Index("parentRecurrenceId"),
+        Index("transferId"),
     ],
 )
 data class TransactionEntity(
@@ -78,6 +79,8 @@ data class TransactionEntity(
     val recurrenceInterval: Int? = null,
     val nextOccurrenceDate: Long? = null,
     val parentRecurrenceId: Long? = null,
+    /** Shared by the two legs of a transfer between accounts. */
+    val transferId: String? = null,
 )
 
 enum class TransactionType {

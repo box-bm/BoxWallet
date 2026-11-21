@@ -5,6 +5,15 @@ import java.util.Currency
 
 enum class AccountType { CASH, CHECKING, SAVINGS, CREDIT_CARD, OTHER }
 
+/** Persisted by [key]; unknown keys read back as [DEFAULT]. */
+enum class AccountColor(val key: String) {
+    DEFAULT("DEFAULT");
+
+    companion object {
+        fun fromKey(key: String?): AccountColor = entries.firstOrNull { it.key == key } ?: DEFAULT
+    }
+}
+
 data class Account(
     val id: Long = 0,
     val name: String,
@@ -14,6 +23,19 @@ data class Account(
     val sortOrder: Int = 0,
     /** Epoch millis. */
     val createdAt: Long,
+    val description: String = "",
+    /** Material icon name. */
+    val icon: String = "AccountBalance",
+    val color: AccountColor = AccountColor.DEFAULT,
+    val includeInTotal: Boolean = true,
+    val parentAccountId: Long? = null,
+    /** Credit cards only, in the account's currency. */
+    val creditLimitMinor: Long? = null,
+    /** Day of month (1–31), credit cards only. */
+    val statementClosingDay: Int? = null,
+    /** Day of month (1–31), credit cards only. */
+    val paymentDueDay: Int? = null,
+    val dueReminderDaysBefore: Int? = null,
 )
 
 fun AccountEntity.toDomain(): Account = Account(
@@ -24,6 +46,15 @@ fun AccountEntity.toDomain(): Account = Account(
     isArchived = isArchived,
     sortOrder = sortOrder,
     createdAt = createdAt,
+    description = description,
+    icon = icon,
+    color = AccountColor.fromKey(color),
+    includeInTotal = includeInTotal,
+    parentAccountId = parentAccountId,
+    creditLimitMinor = creditLimitMinor,
+    statementClosingDay = statementClosingDay,
+    paymentDueDay = paymentDueDay,
+    dueReminderDaysBefore = dueReminderDaysBefore,
 )
 
 fun Account.toEntity(): AccountEntity = AccountEntity(
@@ -34,4 +65,13 @@ fun Account.toEntity(): AccountEntity = AccountEntity(
     isArchived = isArchived,
     sortOrder = sortOrder,
     createdAt = createdAt,
+    description = description,
+    icon = icon,
+    color = color.key,
+    includeInTotal = includeInTotal,
+    parentAccountId = parentAccountId,
+    creditLimitMinor = creditLimitMinor,
+    statementClosingDay = statementClosingDay,
+    paymentDueDay = paymentDueDay,
+    dueReminderDaysBefore = dueReminderDaysBefore,
 )
