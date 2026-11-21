@@ -48,7 +48,8 @@ class ApproximateRateFixer @Inject constructor(
         val day = LocalDate.ofEpochDay(Math.floorDiv(tx.date, MILLIS_PER_DAY))
         var result = tx
 
-        if (tx.accountRateSource == RateSource.APPROXIMATE) {
+        // A plan's purchase converted once: its installments keep that account leg.
+        if (tx.accountRateSource == RateSource.APPROXIMATE && tx.installmentPlanId == null) {
             val rate = resolver.resolve(day, Currency.getInstance(tx.currencyCode), accountCurrency)
             if (rate != null && rate.source == RateSource.AUTO) {
                 val accountAmount = Money(tx.originalAmountMinor, Currency.getInstance(tx.currencyCode))

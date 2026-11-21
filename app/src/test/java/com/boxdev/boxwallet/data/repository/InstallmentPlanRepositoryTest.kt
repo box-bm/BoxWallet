@@ -159,7 +159,7 @@ class InstallmentPlanRepositoryTest {
             }
         }
         assertTrue(db.installmentPlanDao().getAllSync().isEmpty())
-        assertTrue(db.transactionDao().getAllTransactions().first().isEmpty())
+        assertTrue(db.transactionDao().getAllTransactions(Long.MAX_VALUE).first().isEmpty())
     }
 
     @Test
@@ -181,7 +181,7 @@ class InstallmentPlanRepositoryTest {
         } catch (_: MissingRateException) {
         }
         assertTrue(db.installmentPlanDao().getAllSync().isEmpty())
-        assertTrue(db.transactionDao().getAllTransactions().first().isEmpty())
+        assertTrue(db.transactionDao().getAllTransactions(Long.MAX_VALUE).first().isEmpty())
     }
 
     @Test

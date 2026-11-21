@@ -133,4 +133,29 @@ class ApproximateRateFixerTest {
         assertEquals(RateSource.APPROXIMATE, same.mainRateSource)
         assertEquals(0, BigDecimal("0.1").compareTo(same.mainRate))
     }
+
+    @Test
+    fun `an installment keeps its account rate and upgrades only its main rate`() = runTest {
+        val plan = db.installmentPlanDao().insert(
+            com.boxdev.boxwallet.data.local.entity.InstallmentPlanEntity(
+                accountId = accountId, description = "TV", currencyCode = "EUR", originalMinor = 2000,
+                accountTotalMinor = 1000, accountRate = BigDecimal("0.5"), accountRateSource = RateSource.APPROXIMATE,
+                installments = 2, purchaseDate = dateMillis,
+            )
+        )
+        val id = db.transactionDao().insert(
+            tx(currency = "EUR", accountAmountMinor = 1000, accountRate = "0.5", accountSource = RateSource.APPROXIMATE)
+                .copy(installmentPlanId = plan, installmentNumber = 1)
+        )
+
+        assertEquals(1, fixer.fix())
+
+        val fixed = db.transactionDao().getById(id)!!
+        assertEquals(0, BigDecimal("0.5").compareTo(fixed.accountRate))
+        assertEquals(RateSource.APPROXIMATE, fixed.accountRateSource)
+        assertEquals(1000L, fixed.accountAmountMinor)
+        assertEquals(RateSource.AUTO, fixed.mainRateSource)
+        assertEquals(0, BigDecimal("0.125").compareTo(fixed.mainRate))
+        assertEquals(125L, fixed.amountMinor)
+    }
 }

@@ -137,7 +137,7 @@ class AccountRepositoryTest {
         Account(name = name, type = AccountType.CASH, currency = Currency.getInstance(currency), createdAt = 0L)
 
     private suspend fun rows(accountId: Long) =
-        db.transactionDao().getAllTransactions().first().filter { it.accountId == accountId }
+        db.transactionDao().getAllTransactions(Long.MAX_VALUE).first().filter { it.accountId == accountId }
 
     private suspend fun makeDefault(id: Long) = prefs.setDefaultAccountId(id)
 

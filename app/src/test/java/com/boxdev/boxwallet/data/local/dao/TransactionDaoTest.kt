@@ -5,6 +5,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.boxdev.boxwallet.data.local.database.BoxWalletDatabase
 import com.boxdev.boxwallet.data.local.entity.AccountEntity
+import com.boxdev.boxwallet.data.local.entity.InstallmentPlanEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 import com.boxdev.boxwallet.domain.money.RateSource
 import kotlinx.coroutines.flow.first
@@ -54,6 +55,7 @@ class TransactionDaoTest {
         date: Long = 0L,
         type: String = "EXPENSE",
         isCleared: Boolean = true,
+        installmentPlanId: Long? = null,
     ) = TransactionEntity(
         accountId = accountId,
         type = type,
@@ -67,6 +69,7 @@ class TransactionDaoTest {
         mainRate = BigDecimal.ONE,
         mainRateSource = RateSource.AUTO,
         isCleared = isCleared,
+        installmentPlanId = installmentPlanId,
     )
 
     @Test
@@ -125,5 +128,24 @@ class TransactionDaoTest {
         dao.insert(tx())
 
         accountDao.deleteById(accountId)
+    }
+
+    @Test
+    fun `a future installment is hidden and today's is listed`() = runTest {
+        val plan = db.installmentPlanDao().insert(
+            InstallmentPlanEntity(
+                accountId = accountId, description = "TV", currencyCode = "GTQ", originalMinor = 200,
+                accountTotalMinor = 200, accountRate = BigDecimal.ONE, accountRateSource = RateSource.AUTO,
+                installments = 2, purchaseDate = 0L,
+            )
+        )
+        val today = dao.insert(tx(date = END_OF_TODAY - 1, installmentPlanId = plan))
+        dao.insert(tx(date = END_OF_TODAY, installmentPlanId = plan))
+        val plainFuture = dao.insert(tx(date = END_OF_TODAY + 5_000))
+
+        assertEquals(setOf(today, plainFuture), dao.getAllTransactions(END_OF_TODAY).first().map { it.id }.toSet())
+        assertEquals(2, dao.observeByAccount(accountId, END_OF_TODAY).first().size)
+        assertEquals(2, dao.getLatestTransactions(10, END_OF_TODAY).first().size)
+        assertEquals(2, dao.getTransactionsBetweenDates(0L, END_OF_TODAY * 3, END_OF_TODAY).first().size)
     }
 }

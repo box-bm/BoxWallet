@@ -118,7 +118,7 @@ class TransactionRepositoryTest {
         val manualTemplate = saved(template(ExchangeRate(BigDecimal("1.2"), RateSource.MANUAL), 2400))
         repository.createNextRecurrence(manualTemplate)
 
-        val rows = db.transactionDao().getAllTransactions().first()
+        val rows = db.transactionDao().getAllTransactions(Long.MAX_VALUE).first()
             .filter { it.parentRecurrenceId != null }
             .sortedBy { it.parentRecurrenceId }
 
@@ -160,7 +160,7 @@ class TransactionRepositoryTest {
 
     /** €20 in November: 7.64 GTQ/USD × 1.0852 USD/EUR = 8.290928 GTQ/EUR → Q165.82. */
     private suspend fun assertOccurrenceInQuetzales(defaultId: Long) {
-        val occurrence = db.transactionDao().getAllTransactions().first().single { it.parentRecurrenceId != null }
+        val occurrence = db.transactionDao().getAllTransactions(Long.MAX_VALUE).first().single { it.parentRecurrenceId != null }
         assertEquals(defaultId, occurrence.accountId)
         assertEquals("EUR", occurrence.currencyCode)
         assertEquals(2000L, occurrence.originalAmountMinor)
@@ -227,5 +227,37 @@ class TransactionRepositoryTest {
 
         day.value = LocalDate.of(2026, 12, 1) // a new month starts empty
         assertEquals(0L, summaries.getFinancialSummary().first().monthlyExpense)
+    }
+
+    @Test
+    fun `an installment counts in its own month, not the purchase month`() = runTest {
+        val today = LocalDate.of(2026, 11, 20)
+        val day = MutableStateFlow(today)
+        val amounts = TransactionAmounts(ExchangeRateResolver(lookup) { today })
+        val guard = MovementWriteGuard(CurrencyChangeLock(), prefs, db.accountDao(), amounts)
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val summaries = TransactionRepository(
+            db.transactionDao(),
+            AccountRepository(db.accountDao(), prefs, lookup, context, db.transactionDao(), db, amounts, guard),
+            prefs, context, amounts, guard, CurrentDay(day),
+        )
+        val resolver = ExchangeRateResolver(lookup) { today }
+        val plans = InstallmentPlanRepository(
+            db, db.installmentPlanDao(), db.transactionDao(), db.accountDao(), amounts, resolver, guard, prefs, CurrentDay(day),
+        )
+        val card = db.accountDao().insert(
+            AccountEntity(
+                name = "Visa", type = "CREDIT_CARD", currencyCode = "GTQ", createdAt = 0L,
+                creditLimitMinor = 1_000_000, statementClosingDay = 15, paymentDueDay = 5,
+            )
+        )
+        plans.create(NewInstallmentPlan(card, "TV", null, Money(300_000, gtq), 3, LocalDate.of(2026, 11, 15).atTime(10, 0)))
+
+        assertEquals(100_000L, summaries.getFinancialSummary().first().monthlyExpense)
+        assertEquals(1, summaries.getAllTransactions().first().size)
+
+        day.value = LocalDate.of(2026, 12, 20)
+        assertEquals(100_000L, summaries.getFinancialSummary().first().monthlyExpense)
+        assertEquals(2, summaries.getAllTransactions().first().size)
     }
 }

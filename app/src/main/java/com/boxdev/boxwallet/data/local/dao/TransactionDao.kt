@@ -111,19 +111,19 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE id = :id")
     suspend fun getById(id: Long): TransactionEntity?
 
-    @Query("SELECT * FROM transactions WHERE loanId IS NULL ORDER BY date DESC")
-    fun getAllTransactions(): Flow<List<TransactionEntity>>
+    @Query("SELECT * FROM transactions WHERE loanId IS NULL AND (installmentPlanId IS NULL OR date < :endOfToday) ORDER BY date DESC")
+    fun getAllTransactions(endOfToday: Long): Flow<List<TransactionEntity>>
 
     /** One account's movements, newest first; loan installments are left out like in the global list. */
-    @Query("SELECT * FROM transactions WHERE accountId = :accountId AND loanId IS NULL ORDER BY date DESC")
-    fun observeByAccount(accountId: Long): Flow<List<TransactionEntity>>
+    @Query("SELECT * FROM transactions WHERE accountId = :accountId AND loanId IS NULL AND (installmentPlanId IS NULL OR date < :endOfToday) ORDER BY date DESC")
+    fun observeByAccount(accountId: Long, endOfToday: Long): Flow<List<TransactionEntity>>
 
     /** Newest movements for Home; a transfer counts once, by its TRANSFER_OUT row. */
-    @Query("SELECT * FROM transactions WHERE loanId IS NULL AND type != 'TRANSFER_IN' ORDER BY date DESC LIMIT :limit")
-    fun getLatestTransactions(limit: Int): Flow<List<TransactionEntity>>
+    @Query("SELECT * FROM transactions WHERE loanId IS NULL AND type != 'TRANSFER_IN' AND (installmentPlanId IS NULL OR date < :endOfToday) ORDER BY date DESC LIMIT :limit")
+    fun getLatestTransactions(limit: Int, endOfToday: Long): Flow<List<TransactionEntity>>
 
-    @Query("SELECT * FROM transactions WHERE date BETWEEN :startDate AND :endDate AND loanId IS NULL ORDER BY date DESC")
-    fun getTransactionsBetweenDates(startDate: Long, endDate: Long): Flow<List<TransactionEntity>>
+    @Query("SELECT * FROM transactions WHERE date BETWEEN :startDate AND :endDate AND loanId IS NULL AND (installmentPlanId IS NULL OR date < :endOfToday) ORDER BY date DESC")
+    fun getTransactionsBetweenDates(startDate: Long, endDate: Long, endOfToday: Long): Flow<List<TransactionEntity>>
 
     @Query("SELECT * FROM transactions WHERE date >= :startDate AND date < :endDate AND loanId IS NOT NULL ORDER BY date ASC")
     fun getInstallmentsBetweenDates(startDate: Long, endDate: Long): Flow<List<TransactionEntity>>
