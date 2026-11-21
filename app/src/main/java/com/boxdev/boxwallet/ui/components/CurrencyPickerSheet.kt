@@ -45,10 +45,10 @@ import com.boxdev.boxwallet.domain.money.PickerSections
 import java.util.Currency
 import java.util.Locale
 
-/** Bottom sheet to choose a currency: search field, recently used, then every currency. */
+/** Bottom sheet to choose a currency: search field, recently used, then every currency; [selected] is checked. */
 @Composable
 fun CurrencyPickerSheet(
-    selected: Currency,
+    selected: Currency?,
     sections: PickerSections,
     onQuery: (String) -> Unit,
     onPick: (Currency) -> Unit,

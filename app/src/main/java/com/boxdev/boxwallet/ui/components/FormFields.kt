@@ -372,20 +372,23 @@ fun SwitchRow(
     ) { RowBody(icon, label, supporting) { Switch(checked = checked, onCheckedChange = null) } }
 }
 
-/** Row showing a value; tapping it runs [onClick]. */
+/** Row showing a value; tapping it runs [onClick], and without one it is read-only. */
 @Composable
 fun ValueRow(
     shape: androidx.compose.ui.graphics.Shape,
     icon: ImageVector?,
     label: String,
     value: String,
-    onClick: () -> Unit,
+    onClick: (() -> Unit)?,
     trailingIcon: ImageVector? = null,
 ) {
-    GroupRowSurface(shape, Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+    // Without onClick the row only shows its value: not clickable, and the value isn't in the action color.
+    val modifier = onClick?.let { Modifier.fillMaxWidth().clickable(onClick = it) } ?: Modifier.fillMaxWidth()
+    GroupRowSurface(shape, modifier) {
         RowBody(icon, label, null) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(value, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                val color = if (onClick != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                Text(value, style = MaterialTheme.typography.titleSmall, color = color)
                 if (trailingIcon != null) Icon(trailingIcon, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }

@@ -16,6 +16,8 @@ sealed interface TransferFormError {
     data object InvalidAmount : TransferFormError
     data object NeedsRate : TransferFormError
     data object AccountLoading : TransferFormError
+    /** No destination is picked (a link to an account that can't take the transfer leaves it empty). */
+    data object PickDestination : TransferFormError
     data object NotFound : TransferFormError
     /** No rate is known to convert [from] and nothing can be typed for it (the main-currency leg). */
     data class MissingRate(val from: Currency) : TransferFormError

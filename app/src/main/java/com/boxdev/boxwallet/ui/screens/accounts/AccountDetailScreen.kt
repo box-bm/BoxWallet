@@ -68,12 +68,16 @@ import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.AccountColor
 import com.boxdev.boxwallet.domain.model.AccountType
 import com.boxdev.boxwallet.domain.model.AccountWithBalance
+import com.boxdev.boxwallet.domain.model.CardBalance
+import com.boxdev.boxwallet.domain.model.CardSummary
 import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.ui.components.AdjustmentDeleteDialog
 import com.boxdev.boxwallet.ui.components.transferTitle
 import com.boxdev.boxwallet.ui.components.AmountText
 import com.boxdev.boxwallet.ui.components.BackButton
+import com.boxdev.boxwallet.ui.components.CardBlock
+import com.boxdev.boxwallet.ui.components.payRoute
 import com.boxdev.boxwallet.ui.components.ConfirmDeleteDialog
 import com.boxdev.boxwallet.ui.components.EmptyState
 import com.boxdev.boxwallet.ui.components.SectionHeader
@@ -100,6 +104,8 @@ fun AccountDetailScreen(
     onOpenTransfer: (Long) -> Unit = {},
     /** Opens a new transfer from the given account. */
     onNewTransfer: (Long) -> Unit = {},
+    /** Opens a route; a card's Pay opens its prefilled transfer ([payRoute]). */
+    onNavigate: (String) -> Unit = {},
     accountId: Long? = null,
     viewModel: AccountDetailViewModel = hiltViewModel(key = accountId?.let { "account_detail_$it" }),
 ) {
@@ -111,7 +117,8 @@ fun AccountDetailScreen(
     val currentOnDeleted by rememberUpdatedState(onDeleted)
     val snackbar = remember { SnackbarHostState() }
     val context = LocalContext.current
-    var showAdjust by remember { mutableStateOf(false) }
+    /** The account whose balance is being adjusted: this one, or one currency of a card. */
+    var adjusting by remember { mutableStateOf<AccountWithBalance?>(null) }
     var pendingAdjustment by remember { mutableStateOf<Transaction?>(null) }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
 
@@ -160,8 +167,15 @@ fun AccountDetailScreen(
                 isDefault = uiState.isDefault,
                 movements = uiState.movements,
                 categories = uiState.categories,
+                card = uiState.card,
                 transferTitleOf = { tx -> tx.transferId?.let { transferTitle(uiState.transferPairs[it], uiState.accountsById) } },
-                onAdjust = { showAdjust = true },
+                internalTransfers = uiState.internalTransfers,
+                onAdjust = { adjusting = item },
+                onAdjustCard = { adjusting = AccountWithBalance(it.account, it.balance) },
+                // An archived card takes no payments, like it takes no transfers.
+                onPay = if (!item.account.isArchived) {
+                    { balance -> uiState.card?.let { onNavigate(payRoute(it.card, balance, uiState.cardPayer)) } }
+                } else null,
                 onEdit = { onEditAccount(item.account.id) },
                 // An archived account can't take part in a new transfer; one account alone has nowhere to send.
                 onTransfer = if (uiState.canTransfer && !item.account.isArchived) {
@@ -183,11 +197,11 @@ fun AccountDetailScreen(
         }
     }
 
-    if (showAdjust && item != null) {
+    adjusting?.let { target ->
         AdjustBalanceSheet(
-            current = item.balance,
-            onSave = { viewModel.adjustBalance(it); showAdjust = false },
-            onDismiss = { showAdjust = false },
+            current = target.balance,
+            onSave = { viewModel.adjustBalance(target.account.id, it); adjusting = null },
+            onDismiss = { adjusting = null },
         )
     }
     pendingAdjustment?.let { adjustment ->
@@ -213,8 +227,11 @@ private fun AccountDetailContent(
     isDefault: Boolean,
     movements: List<Transaction>,
     categories: Map<Long, com.boxdev.boxwallet.domain.model.Category>,
+    card: CardSummary?,
     transferTitleOf: (Transaction) -> String?,
     onAdjust: () -> Unit,
+    onAdjustCard: (CardBalance) -> Unit,
+    onPay: ((CardBalance) -> Unit)?,
     onEdit: () -> Unit,
     onTransfer: (() -> Unit)?,
     onSetDefault: () -> Unit,
@@ -223,6 +240,7 @@ private fun AccountDetailContent(
     onOpenMovement: (Transaction) -> Unit,
     onSeeInMovements: () -> Unit,
     modifier: Modifier = Modifier,
+    internalTransfers: Set<String> = emptySet(),
 ) {
     val account = item.account
     LazyColumn(
@@ -230,7 +248,19 @@ private fun AccountDetailContent(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        item(key = "hero") { BalanceHero(item, isDefault, onAdjust, onEdit, onTransfer) }
+        item(key = "hero") {
+            if (card != null) {
+                CardBlock(
+                    summary = card,
+                    onPay = onPay,
+                    onAdjust = onAdjustCard,
+                    tags = { AccountTags(account, isDefault) },
+                    actions = { EditAndTransfer(onEdit, onTransfer) },
+                )
+            } else {
+                BalanceHero(item, isDefault, onAdjust, onEdit, onTransfer)
+            }
+        }
         item(key = "actions") {
             // Only what the account can do right now: the default can't become the default again,
             // an archived account must come back before it can be the default.
@@ -294,8 +324,9 @@ private fun AccountDetailContent(
                 index = index,
                 count = movements.size,
                 transferTitle = transferTitleOf(tx),
-                // Only this account's movements: a transfer reads as money in or out of it.
-                signedTransfer = true,
+                // Only this account's movements: a transfer reads as money in or out of it, except one between a
+                // card's two currencies, which stays inside the card.
+                signedTransfer = tx.transferId !in internalTransfers,
                 onClick = { onOpenMovement(tx) },
             )
         }
@@ -342,15 +373,29 @@ private fun BalanceHero(
                         Text(stringResource(R.string.account_edit), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
-                if (onTransfer != null) {
-                    // Its own row: three buttons side by side would truncate their labels on a phone.
-                    FilledTonalButton(onClick = onTransfer, shapes = ButtonDefaults.shapes(), modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Outlined.SwapHoriz, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
-                        Text(stringResource(R.string.account_action_transfer), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                }
+                TransferButton(onTransfer)
             }
         }
+    }
+}
+
+/** A card's Edit and Transfer, below its per-currency Pay and Adjust. */
+@Composable
+private fun EditAndTransfer(onEdit: () -> Unit, onTransfer: (() -> Unit)?) {
+    OutlinedButton(onClick = onEdit, shapes = ButtonDefaults.shapes(), modifier = Modifier.fillMaxWidth()) {
+        Icon(Icons.Outlined.Edit, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+        Text(stringResource(R.string.account_edit), maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+    TransferButton(onTransfer)
+}
+
+@Composable
+private fun TransferButton(onTransfer: (() -> Unit)?) {
+    if (onTransfer == null) return
+    // Its own row: three buttons side by side would truncate their labels on a phone.
+    FilledTonalButton(onClick = onTransfer, shapes = ButtonDefaults.shapes(), modifier = Modifier.fillMaxWidth()) {
+        Icon(Icons.Outlined.SwapHoriz, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+        Text(stringResource(R.string.account_action_transfer), maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -368,8 +413,9 @@ private fun AccountDetailPreviewContent() {
                 isDefault = false,
                 movements = emptyList(),
                 categories = emptyMap(),
+                card = null,
                 transferTitleOf = { null },
-                onAdjust = {}, onEdit = {}, onTransfer = {}, onSetDefault = {}, onArchive = {}, onDelete = {}, onOpenMovement = {}, onSeeInMovements = {},
+                onAdjust = {}, onAdjustCard = {}, onPay = {}, onEdit = {}, onTransfer = {}, onSetDefault = {}, onArchive = {}, onDelete = {}, onOpenMovement = {}, onSeeInMovements = {},
             )
         }
     }

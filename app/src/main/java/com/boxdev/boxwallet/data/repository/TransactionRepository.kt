@@ -16,11 +16,14 @@ import com.boxdev.boxwallet.domain.model.toEntity
 import com.boxdev.boxwallet.domain.money.RateSource
 import com.boxdev.boxwallet.domain.money.TransactionAmounts
 import com.boxdev.boxwallet.util.CurrencyFormatter
+import com.boxdev.boxwallet.util.CurrentDay
 import com.boxdev.boxwallet.worker.ReminderWorker
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import java.time.YearMonth
@@ -37,6 +40,7 @@ class TransactionRepository @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val transactionAmounts: TransactionAmounts,
     private val guard: MovementWriteGuard,
+    private val currentDay: CurrentDay = CurrentDay(),
 ) {
 
     /** Maps entities to the domain with their account's currency and the current main currency. */
@@ -153,16 +157,23 @@ class TransactionRepository @Inject constructor(
             .toDomain()
     }
 
-    fun getFinancialSummary(): Flow<FinancialSummary> {
-        val currentMonth = YearMonth.now()
+    /**
+     * Income and expense, all-time and for the current month. Counts what balances count: cleared
+     * movements, plus card movements dated up to today whether cleared or not. Follows the day, so the
+     * month and the card cutoff move on at midnight.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun getFinancialSummary(): Flow<FinancialSummary> = currentDay.days.flatMapLatest { today ->
+        val currentMonth = YearMonth.from(today)
         val startOfMonth = currentMonth.atDay(1).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
         val endOfMonth = currentMonth.atEndOfMonth().plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+        val endOfToday = today.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
 
-        return combine(
-            transactionDao.getTotalIncome(),
-            transactionDao.getTotalExpense(),
-            transactionDao.getTotalIncomeBetweenDates(startOfMonth, endOfMonth),
-            transactionDao.getTotalExpenseBetweenDates(startOfMonth, endOfMonth)
+        combine(
+            transactionDao.getTotalIncome(endOfToday),
+            transactionDao.getTotalExpense(endOfToday),
+            transactionDao.getTotalIncomeBetweenDates(startOfMonth, endOfMonth, endOfToday),
+            transactionDao.getTotalExpenseBetweenDates(startOfMonth, endOfMonth, endOfToday)
         ) { totalIncome, totalExpense, monthlyIncome, monthlyExpense ->
             FinancialSummary(
                 totalIncome = totalIncome ?: 0L,

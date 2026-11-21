@@ -18,6 +18,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -239,5 +240,135 @@ class TransactionFormViewModelTest {
         vm.save()
         advanceUntilIdle()
         verify(transactionRepository).insertTransaction(any())
+    }
+
+    private val visa = Account(id = 5, name = "Visa", type = AccountType.CREDIT_CARD, currency = gtq, createdAt = 0)
+    private val visaUsd = Account(
+        id = 6, name = "Visa", type = AccountType.CREDIT_CARD, currency = usd, createdAt = 0, parentAccountId = 5,
+    )
+
+    /** Types an amount, saves, and returns the account the inserted movement went to. */
+    private suspend fun TestScope.savedAccountId(vm: TransactionFormViewModel): Long {
+        vm.updateAmount("12")
+        advanceUntilIdle()
+        vm.save()
+        advanceUntilIdle()
+        val saved = argumentCaptor<Transaction>()
+        verify(transactionRepository).insertTransaction(saved.capture())
+        return saved.firstValue.accountId
+    }
+
+    @Test
+    fun usdExpenseOnDualCardGoesToChild() = runTest {
+        whenever(accountRepository.observeAll()).thenReturn(flowOf(listOf(cash, bank, visa, visaUsd)))
+        val vm = vm(emptyMap())
+        advanceUntilIdle()
+        vm.setAccount(5L)
+        vm.updateCurrency(usd)
+        advanceUntilIdle()
+        assertEquals(6L, vm.formState.value.accountId)
+        assertEquals(usd, vm.formState.value.accountCurrency)
+        assertEquals(6L, savedAccountId(vm))
+    }
+
+    @Test
+    fun gtqExpenseOnDualCardStaysOnParent() = runTest {
+        whenever(accountRepository.observeAll()).thenReturn(flowOf(listOf(cash, bank, visa, visaUsd)))
+        val vm = vm(emptyMap())
+        advanceUntilIdle()
+        vm.setAccount(5L)
+        advanceUntilIdle()
+        assertEquals(5L, vm.formState.value.accountId)
+        assertEquals(5L, savedAccountId(vm))
+    }
+
+    @Test
+    fun anExplicitlyPickedChildKeepsAnyCurrency() = runTest {
+        whenever(accountRepository.observeAll()).thenReturn(flowOf(listOf(cash, bank, visa, visaUsd)))
+        val vm = vm(emptyMap())
+        advanceUntilIdle()
+        vm.setAccount(6L)
+        advanceUntilIdle()
+        // Picking the child keeps it: the currency follows it to USD.
+        assertEquals(6L, vm.formState.value.accountId)
+        assertEquals(usd, vm.formState.value.currency)
+        vm.updateCurrency(eur)
+        advanceUntilIdle()
+        assertEquals(6L, vm.formState.value.accountId)
+        assertEquals(usd, vm.formState.value.accountCurrency)
+        vm.updateManualRate("1.1") // No rate is known in this fixture: a foreign movement needs one typed.
+        assertEquals(6L, savedAccountId(vm))
+    }
+
+    @Test
+    fun parentPickReturnsToTheParentWhenTheCurrencyLeavesTheChilds() = runTest {
+        whenever(accountRepository.observeAll()).thenReturn(flowOf(listOf(cash, bank, visa, visaUsd)))
+        val vm = vm(emptyMap())
+        advanceUntilIdle()
+        vm.setAccount(5L)
+        vm.updateCurrency(usd)
+        advanceUntilIdle()
+        assertEquals(6L, vm.formState.value.accountId)
+        vm.updateCurrency(gtq)
+        advanceUntilIdle()
+        assertEquals(5L, vm.formState.value.accountId)
+        assertEquals(gtq, vm.formState.value.accountCurrency)
+        assertEquals(5L, savedAccountId(vm))
+    }
+
+    @Test
+    fun pickingTheChildWithATouchedGtqCurrencyStaysOnTheChild() = runTest {
+        whenever(accountRepository.observeAll()).thenReturn(flowOf(listOf(cash, bank, visa, visaUsd)))
+        val vm = vm(emptyMap())
+        advanceUntilIdle()
+        vm.updateCurrency(gtq)
+        vm.setAccount(6L)
+        advanceUntilIdle()
+        assertEquals(6L, vm.formState.value.accountId)
+        assertEquals(gtq, vm.formState.value.currency)
+        vm.updateManualRate("0.13")
+        assertEquals(6L, savedAccountId(vm))
+    }
+
+    @Test
+    fun pickingTheChildAfterAutoRoutingMakesItExplicit() = runTest {
+        whenever(accountRepository.observeAll()).thenReturn(flowOf(listOf(cash, bank, visa, visaUsd)))
+        val vm = vm(emptyMap())
+        advanceUntilIdle()
+        vm.setAccount(5L)
+        vm.updateCurrency(usd)
+        vm.setAccount(6L)
+        vm.updateCurrency(gtq)
+        advanceUntilIdle()
+        assertEquals(6L, vm.formState.value.accountId)
+    }
+
+    @Test
+    fun anUntouchedEditOfAUsdMovementOnTheParentStaysOnTheParent() = runTest {
+        whenever(accountRepository.observeAll()).thenReturn(flowOf(listOf(cash, bank, visa, visaUsd)))
+        whenever(transactionRepository.getTransactionById(8L)).thenReturn(
+            Transaction.singleCurrency(5, TransactionType.EXPENSE, LocalDateTime.of(2026, 1, 1, 0, 0), Money(7_00, usd))
+                .copy(id = 8),
+        )
+        val vm = vm(mapOf("id" to 8L))
+        advanceUntilIdle()
+        assertEquals(5L, vm.formState.value.accountId)
+        vm.updateDescription("Lunch")
+        vm.save()
+        advanceUntilIdle()
+        val saved = argumentCaptor<Transaction>()
+        verify(transactionRepository).updateTransaction(saved.capture())
+        assertEquals(5L, saved.firstValue.accountId)
+    }
+
+    @Test
+    fun aTouchedUsdCurrencyPickingTheCardLandsOnTheChild() = runTest {
+        whenever(accountRepository.observeAll()).thenReturn(flowOf(listOf(cash, bank, visa, visaUsd)))
+        val vm = vm(emptyMap())
+        advanceUntilIdle()
+        vm.updateCurrency(usd)
+        vm.setAccount(5L)
+        advanceUntilIdle()
+        assertEquals(6L, savedAccountId(vm))
     }
 }

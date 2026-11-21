@@ -47,6 +47,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.currentStateAsState
 import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.domain.model.AccountWithBalance
+import com.boxdev.boxwallet.domain.model.accountLabel
 import com.boxdev.boxwallet.domain.money.CurrencyCatalog
 import com.boxdev.boxwallet.ui.components.AmountField
 import com.boxdev.boxwallet.ui.components.AmountKind
@@ -128,6 +129,7 @@ private fun TransferFormFields(viewModel: TransferFormViewModel) {
             AccountSlot(
                 label = stringResource(R.string.transfer_from),
                 item = formState.accounts.firstOrNull { it.account.id == formState.fromAccountId },
+                accounts = formState.accounts,
                 onClick = { picking = Side.From },
             )
             FilledTonalIconButton(
@@ -140,6 +142,7 @@ private fun TransferFormFields(viewModel: TransferFormViewModel) {
             AccountSlot(
                 label = stringResource(R.string.transfer_to),
                 item = formState.accounts.firstOrNull { it.account.id == formState.toAccountId },
+                accounts = formState.accounts,
                 onClick = { picking = Side.To },
             )
         }
@@ -203,9 +206,9 @@ private fun TransferFormFields(viewModel: TransferFormViewModel) {
     DateTimePickerDialogs(pickers, formState.date, viewModel::updateDate, viewModel::updateTime)
 }
 
-/** One side of the transfer: its label, the account's badge and name, and its balance. */
+/** One side of the transfer: its label, the account's badge and [accountLabel], and its balance. */
 @Composable
-private fun AccountSlot(label: String, item: AccountWithBalance?, onClick: () -> Unit) {
+private fun AccountSlot(label: String, item: AccountWithBalance?, accounts: List<AccountWithBalance>, onClick: () -> Unit) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         shape = MaterialTheme.shapes.extraLarge,
@@ -227,7 +230,9 @@ private fun AccountSlot(label: String, item: AccountWithBalance?, onClick: () ->
             Column(Modifier.weight(1f)) {
                 Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(
-                    item?.account?.name ?: stringResource(R.string.transaction_account_label),
+                    item?.account?.let { a ->
+                        accountLabel(a, accounts.firstOrNull { it.account.id == a.parentAccountId }?.account)
+                    } ?: stringResource(R.string.transaction_account_label),
                     style = MaterialTheme.typography.bodyLarge,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -245,6 +250,7 @@ private fun TransferFormErrorText(error: TransferFormError) {
         TransferFormError.InvalidAmount -> stringResource(R.string.transaction_error_invalid_amount)
         TransferFormError.NeedsRate -> stringResource(R.string.conversion_needs_rate)
         TransferFormError.AccountLoading -> stringResource(R.string.transaction_error_account_loading)
+        TransferFormError.PickDestination -> stringResource(R.string.transfer_error_pick_destination)
         TransferFormError.NotFound -> stringResource(R.string.transfer_error_not_found)
         is TransferFormError.MissingRate -> stringResource(R.string.transaction_error_missing_rate, error.from.currencyCode)
         TransferFormError.SaveFailed -> stringResource(R.string.transfer_error_save)

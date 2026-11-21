@@ -43,6 +43,11 @@ class TransactionDaoTest {
     @After
     fun tearDown() = db.close()
 
+    private companion object {
+        /** Start of "tomorrow" for these tests: cards count movements dated before it. */
+        const val END_OF_TODAY = 86_400_000L
+    }
+
     private fun tx(
         amountMinor: Long = 100,
         currencyCode: String = "GTQ",
@@ -69,7 +74,7 @@ class TransactionDaoTest {
         dao.insert(tx(amountMinor = 1050))
         dao.insert(tx(amountMinor = 250))
 
-        assertEquals(1300L, dao.getTotalExpense().first())
+        assertEquals(1300L, dao.getTotalExpense(END_OF_TODAY).first())
     }
 
     @Test
@@ -79,8 +84,29 @@ class TransactionDaoTest {
         dao.insert(tx(amountMinor = 5000, type = "ADJUSTMENT_IN"))
         dao.insert(tx(amountMinor = 200, type = "ADJUSTMENT_OUT"))
 
-        assertEquals(1000L, dao.getTotalIncome().first())
-        assertEquals(300L, dao.getTotalExpense().first())
+        assertEquals(1000L, dao.getTotalIncome(END_OF_TODAY).first())
+        assertEquals(300L, dao.getTotalExpense(END_OF_TODAY).first())
+    }
+
+    @Test
+    fun `card movements count in totals whether cleared or not, up to today`() = runTest {
+        val card = accountDao.insert(AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "GTQ", createdAt = 0L))
+        dao.insert(tx(amountMinor = 300, isCleared = false, date = 1_000L).copy(accountId = card))
+        dao.insert(tx(amountMinor = 50, isCleared = false, date = END_OF_TODAY).copy(accountId = card)) // tomorrow
+        dao.insert(tx(amountMinor = 70, isCleared = false, date = 1_000L)) // pending on a checking account
+        dao.insert(tx(amountMinor = 20, isCleared = true, date = 1_000L))
+
+        assertEquals(320L, dao.getTotalExpense(END_OF_TODAY).first())
+        assertEquals(320L, dao.getTotalExpenseBetweenDates(0L, END_OF_TODAY + 10_000L, END_OF_TODAY).first())
+    }
+
+    @Test
+    fun `card income counts in month totals whether cleared or not`() = runTest {
+        val card = accountDao.insert(AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "GTQ", createdAt = 0L))
+        dao.insert(tx(amountMinor = 400, type = "INCOME", isCleared = false, date = 1_000L).copy(accountId = card))
+
+        assertEquals(400L, dao.getTotalIncome(END_OF_TODAY).first())
+        assertEquals(400L, dao.getTotalIncomeBetweenDates(0L, 2_000L, END_OF_TODAY).first())
     }
 
     @Test

@@ -48,6 +48,8 @@ import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.domain.model.ReminderDuration
+import com.boxdev.boxwallet.domain.model.accountLabel
+import com.boxdev.boxwallet.domain.model.withChildrenAfterParents
 import com.boxdev.boxwallet.domain.money.CurrencyCatalog
 import com.boxdev.boxwallet.domain.money.pickerSections
 import com.boxdev.boxwallet.ui.components.AmountField
@@ -200,7 +202,12 @@ private fun TransactionFormFields(
             onCurrencyClick = { showCurrencyPicker = true },
             // With a single account the form stays as it was before accounts: no chip.
             accountChip = if (formState.accounts.size > 1) {
-                { AccountChip(formState.accounts.firstOrNull { it.id == formState.accountId }) { showAccountPicker = true } }
+                {
+                    AccountChip(
+                        formState.accounts.firstOrNull { it.id == formState.accountId },
+                        formState.accounts,
+                    ) { showAccountPicker = true }
+                }
             } else null,
         )
 
@@ -332,10 +339,11 @@ private fun TransactionFormFields(
     DateTimePickerDialogs(pickers, formState.date, viewModel::updateDate, viewModel::updateTime)
 }
 
-/** The movement's account as a quiet button beside the currency: its icon and name. */
+/** The movement's account as a quiet button beside the currency: its icon and [accountLabel]. */
 @Composable
-private fun AccountChip(account: Account?, onClick: () -> Unit) {
-    val name = account?.name ?: stringResource(R.string.transaction_account_label)
+private fun AccountChip(account: Account?, accounts: List<Account>, onClick: () -> Unit) {
+    val name = account?.let { a -> accountLabel(a, accounts.firstOrNull { it.id == a.parentAccountId }) }
+        ?: stringResource(R.string.transaction_account_label)
     val description = stringResource(R.string.transaction_account_chip_description, name)
     FilledTonalButton(
         onClick = onClick,
@@ -358,7 +366,8 @@ private fun AccountChip(account: Account?, onClick: () -> Unit) {
 
 /**
  * The accounts a movement (or either side of a transfer) can go to, each with its badge, name and
- * currency, and its balance when [balances] has one.
+ * currency, and its balance when [balances] has one. A card's second currency follows its card,
+ * named by [accountLabel].
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -371,11 +380,13 @@ internal fun AccountPickerSheet(
     balances: Map<Long, Money> = emptyMap(),
 ) {
     val locale = remember { Locale.getDefault() }
+    val ordered = remember(accounts) { withChildrenAfterParents(accounts) }
+    val byId = remember(accounts) { accounts.associateBy { it.id } }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 24.dp)) {
             SheetHeader(title = title)
             LazyColumn(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                items(accounts, key = { it.id }) { account ->
+                items(ordered, key = { it.id }) { account ->
                     val selected = account.id == selectedId
                     Row(
                         modifier = Modifier
@@ -388,7 +399,12 @@ internal fun AccountPickerSheet(
                     ) {
                         AccountBadge(account)
                         Column(Modifier.weight(1f)) {
-                            Text(account.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(
+                                accountLabel(account, account.parentAccountId?.let(byId::get)),
+                                style = MaterialTheme.typography.bodyLarge,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                             Text(
                                 "${account.currency.currencyCode} · ${CurrencyCatalog.displayName(account.currency, locale)}",
                                 style = MaterialTheme.typography.bodySmall,

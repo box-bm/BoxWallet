@@ -23,6 +23,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -55,9 +56,13 @@ class TransferFormViewModelTest {
     private val gtq = Currency.getInstance("GTQ")
     private val november = LocalDate.of(2026, 11, 5)
 
+    /** False while offline: no rate is known yet. */
+    private var ratesAvailable = true
+
     /** Units per USD. */
     private val lookup = object : RateLookup {
-        override suspend fun exact(day: LocalDate, code: String) = if (code == "GTQ") BigDecimal("7.64") else null
+        override suspend fun exact(day: LocalDate, code: String) =
+            if (code == "GTQ" && ratesAvailable) BigDecimal("7.64") else null
         override suspend fun nearest(day: LocalDate, code: String) = exact(day, code)
         override suspend fun download(day: LocalDate) = false
     }
@@ -213,5 +218,165 @@ class TransferFormViewModelTest {
         assertEquals(caja, vm.formState.value.toAccountId)
         vm.setTo(dolares)
         assertTrue(vm.formState.value.canSwap)
+    }
+
+    @Test
+    fun receiveSameCurrencyFillsAmount() = runTest {
+        val caja = db.accountDao().insert(AccountEntity(name = "Caja", type = "CASH", currencyCode = "GTQ", createdAt = 0L, sortOrder = 2))
+        val same = vm(mapOf("from" to banco, "to" to caja, "receive" to "1980.00")).loaded()
+        assertEquals("1980.00", same.amount)
+    }
+
+    @Test
+    fun receiveCrossCurrencyCoversDebt() = runTest {
+        val card = db.accountDao().insert(AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "GTQ", createdAt = 0L, sortOrder = 2))
+        val child = db.accountDao().insert(
+            AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "USD", createdAt = 0L, sortOrder = 2, parentAccountId = card)
+        )
+        val vm = vm(mapOf("from" to banco, "to" to child, "receive" to "100.00"))
+        val state = vm.formState.first { !it.isLoading && it.amount.isNotEmpty() && it.equivalent != null }
+        assertEquals(child, state.toAccountId)
+        assertEquals("764.00", state.amount)
+        assertEquals("100.00", state.equivalent)
+        assertEquals(null, state.manualRate)
+        assertFalse(vm.hasUnsavedChanges.value)
+    }
+
+    /** Ruling 9: from a currency worth more, the amount is rounded up so the whole debt arrives. */
+    @Test
+    fun receiveFromAStrongerCurrencyCoversDebt() = runTest {
+        val card = db.accountDao().insert(AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "GTQ", createdAt = 0L, sortOrder = 2))
+        val vm = vm(mapOf("from" to dolares, "to" to card, "receive" to "100.03"))
+        val state = vm.formState.first { !it.isLoading && it.amount.isNotEmpty() && it.equivalent != null }
+        assertEquals("13.10", state.amount)
+        assertTrue(BigDecimal(state.equivalent) >= BigDecimal("100.03"))
+        // One cent less would fall short.
+        assertTrue(BigDecimal("13.09").multiply(BigDecimal("7.64")) < BigDecimal("100.03"))
+    }
+
+    /** Ruling 10a: paying a card that is the default account starts from another account. */
+    @Test
+    fun payingTheDefaultCardStartsFromAnotherAccount() = runTest {
+        val card = db.accountDao().insert(AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "GTQ", createdAt = 0L, sortOrder = 2))
+        val child = db.accountDao().insert(
+            AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "USD", createdAt = 0L, sortOrder = 2, parentAccountId = card)
+        )
+        prefs.setDefaultAccountId(card)
+
+        val toCard = vm(mapOf("to" to card, "receive" to "50.00")).loaded()
+        assertEquals(banco, toCard.fromAccountId)
+        assertEquals(card, toCard.toAccountId)
+        assertEquals("50.00", toCard.amount)
+
+        val toChild = vm(mapOf("to" to child)).loaded()
+        assertEquals(banco, toChild.fromAccountId)
+        assertEquals(child, toChild.toAccountId)
+    }
+
+    /** Ruling 10b: a receive without a rate at start is applied on the first rate, and isn't an edit. */
+    @Test
+    fun receiveWaitsForTheFirstRate() = runTest {
+        ratesAvailable = false
+        val vm = vm(mapOf("from" to banco, "to" to dolares, "receive" to "100.00"))
+        backgroundScope.launch { vm.hasUnsavedChanges.collect {} }
+        val start = vm.formState.first { !it.isLoading && it.fromAccountId != null && it.needsManualRate }
+        assertEquals("", start.amount)
+
+        ratesAvailable = true
+        vm.updateDate(start.date.minusDays(1))
+        val ready = vm.formState.first { it.amount.isNotEmpty() && it.equivalent != null }
+        assertEquals("764.00", ready.amount)
+        assertEquals("100.00", ready.equivalent)
+
+        // Back on the start date only the prefill differs, and it doesn't count as an edit.
+        vm.updateDate(start.date)
+        settle()
+        assertEquals("764.00", vm.formState.value.amount)
+        assertFalse(vm.hasUnsavedChanges.value)
+    }
+
+    /** Paying an archived card (a stale link) leaves the destination for the user instead of another account. */
+    @Test
+    fun anUnpickableDestinationIsLeftEmpty() = runTest {
+        val card = db.accountDao().insert(
+            AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "GTQ", createdAt = 0L, sortOrder = 2, isArchived = true)
+        )
+        val state = vm(mapOf("to" to card, "receive" to "50.00")).loaded()
+        assertEquals(banco, state.fromAccountId)
+        assertEquals(null, state.toAccountId)
+    }
+
+    @Test
+    fun savingWithoutADestinationAsksForOne() = runTest {
+        val card = db.accountDao().insert(
+            AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "GTQ", createdAt = 0L, sortOrder = 2, isArchived = true)
+        )
+        val vm = vm(mapOf("to" to card))
+        vm.loaded()
+        vm.updateAmount("50")
+
+        vm.save()
+
+        assertEquals(TransferFormError.PickDestination, vm.formState.value.error)
+        assertFalse(vm.formState.value.isSaved)
+        assertTrue(db.transactionDao().getAllTransactionsSync().isEmpty())
+    }
+
+    /** A typed rate belongs to the old source: picking a same-currency source brings the receive back. */
+    @Test
+    fun aTypedRateKeepsTheReceiveForTheNextSource() = runTest {
+        val card = db.accountDao().insert(AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "GTQ", createdAt = 0L, sortOrder = 2))
+        val vm = vm(mapOf("from" to dolares, "to" to card, "receive" to "1980.00"))
+        vm.formState.first { !it.isLoading && it.amount.isNotEmpty() && it.equivalent != null }
+
+        vm.updateManualRate("7.70")
+        vm.setFrom(banco)
+        settle()
+
+        assertEquals("1980.00", vm.formState.value.amount)
+    }
+
+    /** A receive still waiting for a rate is dropped once the user types one, so a later rate can't overwrite it. */
+    @Test
+    fun aTypedRateDropsAWaitingReceive() = runTest {
+        ratesAvailable = false
+        val vm = vm(mapOf("from" to banco, "to" to dolares, "receive" to "100.00"))
+        val start = vm.formState.first { !it.isLoading && it.fromAccountId != null && it.needsManualRate }
+
+        vm.updateManualRate("0.13")
+        ratesAvailable = true
+        // Another day, so the rate isn't the cached miss; then back to the automatic rate.
+        vm.updateDate(start.date.minusDays(1))
+        vm.useAutomaticRate()
+        val ready = vm.formState.first { it.rate != null && !it.needsManualRate }
+        settle()
+
+        assertEquals("", ready.amount)
+        assertEquals("", vm.formState.value.amount)
+    }
+
+    /** A prefilled receive follows the source while the amount wasn't typed: same currency, then converted, then back. */
+    @Test
+    fun changingTheSourceReappliesTheReceive() = runTest {
+        val card = db.accountDao().insert(AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "GTQ", createdAt = 0L, sortOrder = 2))
+        val vm = vm(mapOf("from" to banco, "to" to card, "receive" to "100.00"))
+        backgroundScope.launch { vm.hasUnsavedChanges.collect {} }
+        assertEquals("100.00", vm.loaded().amount)
+
+        vm.setFrom(dolares)
+        val converted = vm.formState.first { it.fromAccountId == dolares && it.equivalent != null }
+        assertEquals("13.09", converted.amount)
+        assertTrue(BigDecimal(converted.equivalent) >= BigDecimal("100.00"))
+
+        vm.setFrom(banco)
+        settle()
+        assertEquals("100.00", vm.formState.value.amount)
+        assertFalse(vm.hasUnsavedChanges.value)
+
+        // Once typed, the amount is the user's.
+        vm.updateAmount("40")
+        vm.setFrom(dolares)
+        settle()
+        assertEquals("40", vm.formState.value.amount)
     }
 }

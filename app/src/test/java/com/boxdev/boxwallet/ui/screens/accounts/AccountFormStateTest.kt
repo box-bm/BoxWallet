@@ -1,5 +1,6 @@
 package com.boxdev.boxwallet.ui.screens.accounts
 
+import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.domain.money.Money
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -89,5 +90,57 @@ class AccountFormStateTest {
         val s = AccountFormState(name = "Banco", currency = gtq, currentBalance = "50", negativeBalance = true)
         assertNull(s.balanceError)
         assertEquals(Money(-5000, gtq), s.balance)
+    }
+
+    private fun card(closing: String = "", due: String = "", limit: String = "", balance: String = "") =
+        AccountFormState(
+            name = "Visa", currency = gtq, isCard = true,
+            closingDay = closing, dueDay = due, creditLimit = limit, currentBalance = balance,
+        )
+
+    @Test
+    fun cardDayValidation() {
+        listOf("0", "32", "a").forEach {
+            assertEquals(it, R.string.account_error_day, card(closing = it).closingDayError)
+            assertEquals(it, R.string.account_error_day, card(due = it).dueDayError)
+            assertFalse(it, card(closing = it).canSave)
+        }
+        assertNull(card(closing = "31").closingDayError)
+        assertNull(card(due = "31").dueDayError)
+        assertTrue(card(closing = "31", due = "31").canSave)
+    }
+
+    @Test
+    fun cardLimitValidation() {
+        assertEquals(R.string.account_error_limit, card(limit = "0").limitError)
+        assertFalse(card(limit = "0").canSave)
+        assertNull(card(limit = "").limitError)
+        assertNull(card(limit = "5,000").limitError)
+        assertEquals(500000L, card(limit = "5,000").creditLimitMinor)
+    }
+
+    @Test
+    fun cardDebtIsNegated() {
+        assertEquals(Money(-198000, gtq), card(balance = "1980").balance)
+        // The sign toggle is hidden for a card: a debt is always negative.
+        assertEquals(Money(-198000, gtq), card(balance = "1980").copy(negativeBalance = true).balance)
+    }
+
+    @Test
+    fun cardFieldsAreIgnoredWhenTheSwitchIsOff() {
+        val s = card(closing = "0", limit = "0", balance = "50").copy(isCard = false)
+        assertNull(s.closingDayError)
+        assertNull(s.limitError)
+        assertTrue(s.canSave)
+        assertEquals(Money(5000, gtq), s.balance)
+    }
+
+    @Test
+    fun aNewSecondCurrencyDebtIsNegated() {
+        val usd = Currency.getInstance("USD")
+        val s = card().copy(secondCurrency = usd, secondDebt = "120")
+        assertEquals(Money(-12000, usd), s.secondBalance)
+        assertNull(s.copy(secondDebt = "").secondBalance)
+        assertNotNull(s.copy(secondDebt = "1.234").secondDebtError)
     }
 }

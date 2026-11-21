@@ -69,7 +69,7 @@ class TransactionsListViewModel @Inject constructor(
     ) { transactions, categories, accounts, pairs, filter ->
         TransactionsListUiState(
             transactions = transactions,
-            filteredTransactions = applyFilters(transactions, filter),
+            filteredTransactions = applyFilters(transactions, filter, accounts),
             availableCategories = categories,
             accounts = accounts,
             transferPairs = pairs,
@@ -107,7 +107,9 @@ class TransactionsListViewModel @Inject constructor(
         filterState.value = TransactionsFilterState()
     }
 
-    private fun applyFilters(transactions: List<Transaction>, f: TransactionsFilterState): List<Transaction> {
+    private fun applyFilters(transactions: List<Transaction>, f: TransactionsFilterState, accounts: List<Account>): List<Transaction> {
+        // A card's filter covers its second currency too.
+        val accountIds = f.accountId?.let { id -> setOf(id) + accounts.filter { it.parentAccountId == id }.map { it.id } }
         val filtered = transactions.filter { tx ->
             val date = tx.date.toLocalDate()
             // Unscoped, a transfer is one row: its OUT leg. Scoped to an account, that account's own leg.
@@ -118,7 +120,7 @@ class TransactionsListViewModel @Inject constructor(
                 TransactionTypeFilter.ALL -> true
             } &&
                 (f.categoryId == null || tx.categoryId == f.categoryId) &&
-                (f.accountId == null || tx.accountId == f.accountId) &&
+                (accountIds == null || tx.accountId in accountIds) &&
                 (f.startDate == null || !date.isBefore(f.startDate)) &&
                 (f.endDate == null || !date.isAfter(f.endDate)) &&
                 (!f.showOnlyRecurrent || tx.isRecurrent)

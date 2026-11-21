@@ -10,11 +10,13 @@ import com.boxdev.boxwallet.data.local.dao.CategoryDao
 import com.boxdev.boxwallet.data.local.dao.LoanDao
 import com.boxdev.boxwallet.data.local.dao.TransactionDao
 import com.boxdev.boxwallet.data.local.database.BoxWalletDatabase
+import com.boxdev.boxwallet.data.local.entity.AccountEntity
 import com.boxdev.boxwallet.data.local.entity.AppMetaEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.data.rates.CurrencyChangeLock
 import com.boxdev.boxwallet.data.remote.GoogleDriveManager
+import com.boxdev.boxwallet.domain.model.AccountType
 import com.boxdev.boxwallet.domain.model.BackupData
 import com.google.gson.Gson
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -196,6 +198,9 @@ class BackupRepository @Inject constructor(
          * amounts it was the movement's own currency; otherwise (or with no account in it) the
          * movement goes to the default account. A loan has no account amount: its own currency is
          * used. With no accounts at all the insert fails and the restore rolls back.
+         *
+         * A card keeps at most one second-currency child: a child whose parent is missing, is itself a
+         * child or already has an earlier child (by id) becomes a plain account.
          */
         private fun sanitized(data: BackupData): BackupData {
             val accountIds = data.accounts.mapTo(HashSet()) { it.id }
@@ -224,7 +229,38 @@ class BackupRepository @Inject constructor(
                     parentRecurrenceId = tx.parentRecurrenceId?.takeIf { it in txIds && it != tx.id },
                 )
             }
-            return data.copy(loans = loans, transactions = parentsFirst(wholeTransfers(transactions)), defaultAccountId = defaultAccount)
+            return data.copy(
+                accounts = singleChildren(data.accounts),
+                loans = loans,
+                transactions = parentsFirst(wholeTransfers(transactions)),
+                defaultAccountId = defaultAccount,
+            )
+        }
+
+        /**
+         * Keeps at most one second currency per card: a child stays attached only when it and its top-level
+         * parent are both cards in different currencies (the lowest id wins). It then follows its card's
+         * archived and `includeInTotal` flags; any other child becomes a top-level account.
+         */
+        private fun singleChildren(accounts: List<AccountEntity>): List<AccountEntity> {
+            val card = AccountType.CREDIT_CARD.name
+            val cards = accounts.filter { it.parentAccountId == null && it.type == card }.associateBy { it.id }
+            val withChild = HashSet<Long>()
+            val keptChildren = accounts.sortedBy { it.id }
+                .filter { child ->
+                    val parent = child.parentAccountId?.let(cards::get) ?: return@filter false
+                    child.type == card && child.currencyCode != parent.currencyCode && withChild.add(parent.id)
+                }
+                .mapTo(HashSet()) { it.id }
+            return accounts.map {
+                when {
+                    it.parentAccountId == null -> it
+                    it.id in keptChildren -> cards.getValue(it.parentAccountId).let { parent ->
+                        it.copy(isArchived = parent.isArchived, includeInTotal = parent.includeInTotal)
+                    }
+                    else -> it.copy(parentAccountId = null)
+                }
+            }
         }
 
         /**

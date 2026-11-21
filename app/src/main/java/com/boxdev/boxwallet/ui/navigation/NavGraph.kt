@@ -173,6 +173,7 @@ fun NavGraph(
     val onNewTransferFrom: (Long) -> Unit = {
         navController.navigate(NavRoutes.TransferForm.createRoute(from = it)) { launchSingleTop = true }
     }
+    val onNavigateTo: (String) -> Unit = { navController.navigate(it) { launchSingleTop = true } }
     val onEditLoan: (Long) -> Unit = { navController.navigate(NavRoutes.LoanForm.createRoute(it)) { launchSingleTop = true } }
     LaunchedEffect(navBackStackEntry) {
         navBackStackEntry?.destination?.route?.let { route ->
@@ -290,6 +291,7 @@ fun NavGraph(
                 navArgument("from") { type = NavType.LongType; defaultValue = -1L },
                 navArgument("to") { type = NavType.LongType; defaultValue = -1L },
                 navArgument("amount") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("receive") { type = NavType.StringType; nullable = true; defaultValue = null },
             ),
         ) { entry ->
             TransferFormScreen(onDone = { entry.ifResumed { navController.popBackStack() } })
@@ -337,6 +339,7 @@ fun NavGraph(
                 onSeeInMovements = { navController.switchToTab(NavRoutes.TransactionsList.route) },
                 onOpenTransfer = onOpenTransfer,
                 onNewTransfer = onNewTransferFrom,
+                onNavigate = onNavigateTo,
             )
         }
 
@@ -361,6 +364,7 @@ fun NavGraph(
                     onDeleted = { entry.ifResumed { navController.popBackStack() } },
                     onOpenTransfer = onOpenTransfer,
                     onNewTransfer = onNewTransferFrom,
+                    onNavigate = onNavigateTo,
                 )
             }
         }

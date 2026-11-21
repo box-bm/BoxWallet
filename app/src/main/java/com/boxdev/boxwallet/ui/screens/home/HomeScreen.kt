@@ -117,6 +117,7 @@ fun HomeScreen(
                 item(key = "accounts") {
                     HomeAccountsRow(
                         accounts = uiState.accounts,
+                        cards = uiState.cards,
                         onOpenAccount = onOpenAccount,
                         onSeeAccounts = onSeeAccounts,
                         modifier = Modifier.padding(top = 12.dp),

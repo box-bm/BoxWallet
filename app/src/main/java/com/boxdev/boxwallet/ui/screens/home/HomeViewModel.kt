@@ -10,6 +10,7 @@ import com.boxdev.boxwallet.data.repository.TransactionRepository
 import com.boxdev.boxwallet.data.repository.TransferRepository
 import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.AccountWithBalance
+import com.boxdev.boxwallet.domain.model.CardSummary
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.FinancialSummary
 import com.boxdev.boxwallet.domain.model.Loan
@@ -34,6 +35,8 @@ data class HomeUiState(
     val totalBalance: TotalBalance = TotalBalance(Money(0, Currency.getInstance("USD")), approximate = false),
     /** Accounts not archived, with their balance; the row only shows with more than one. */
     val accounts: List<AccountWithBalance> = emptyList(),
+    /** Card summaries by card id, for the card tiles' used amount and limit bar. */
+    val cards: Map<Long, CardSummary> = emptyMap(),
     /** Every account by id, archived included, to name both sides of a transfer. */
     val accountsById: Map<Long, Account> = emptyMap(),
     /** Each transfer's two accounts by transferId. */
@@ -55,18 +58,22 @@ class HomeViewModel @Inject constructor(
         val active: List<AccountWithBalance>,
         val byId: Map<Long, Account>,
         val pairs: Map<String, TransferPair>,
+        val cards: Map<Long, CardSummary>,
     )
 
     private val balances = combine(
         accountRepository.observeTotalBalance(),
         accountRepository.observeAccountsWithBalance(),
         transferRepository.observePairs(),
-    ) { total, accounts, pairs ->
+        accountRepository.observeCardSummaries(),
+    ) { total, accounts, pairs, cards ->
         Balances(
             total = total,
-            active = accounts.filter { !it.account.isArchived },
+            // A card's second currency belongs to its card, never a row of its own.
+            active = accounts.filter { !it.account.isArchived && it.account.parentAccountId == null },
             byId = accounts.associate { it.account.id to it.account },
             pairs = pairs,
+            cards = cards,
         )
     }
 
@@ -84,6 +91,7 @@ class HomeViewModel @Inject constructor(
             categories = categories,
             totalBalance = balances.total,
             accounts = balances.active,
+            cards = balances.cards,
             accountsById = balances.byId,
             transferPairs = balances.pairs,
             isLoading = false

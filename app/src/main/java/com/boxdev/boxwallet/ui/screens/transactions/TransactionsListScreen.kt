@@ -124,8 +124,9 @@ fun TransactionsListScreen(
     val filter = uiState.filterState
     val categoryMap = remember(uiState.availableCategories) { uiState.availableCategories.associateBy { it.id } }
     // The selector lists accounts still in use, plus an archived one the filter points at (from its detail).
+    // A card's second currency is part of its card, never a chip of its own.
     val filterAccounts = remember(uiState.accounts, filter.accountId) {
-        uiState.accounts.filter { !it.isArchived || it.id == filter.accountId }
+        uiState.accounts.filter { it.parentAccountId == null && (!it.isArchived || it.id == filter.accountId) }
     }
     val filteredAccount = uiState.accounts.firstOrNull { it.id == filter.accountId }
     var showFilters by rememberSaveable { mutableStateOf(false) }

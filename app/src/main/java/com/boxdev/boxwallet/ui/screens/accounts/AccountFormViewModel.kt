@@ -8,11 +8,15 @@ import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.data.local.dao.CurrencyUsage
 import com.boxdev.boxwallet.data.repository.AccountRepository
+import com.boxdev.boxwallet.data.repository.AccountRuleError
+import com.boxdev.boxwallet.data.repository.SecondCurrencyChange
+import com.boxdev.boxwallet.data.repository.SecondCurrencyInput
 import com.boxdev.boxwallet.data.repository.TransactionRepository
 import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.AccountColor
 import com.boxdev.boxwallet.domain.model.AccountType
 import com.boxdev.boxwallet.domain.money.MissingRateException
+import com.boxdev.boxwallet.domain.money.Money
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -49,6 +53,9 @@ class AccountFormViewModel @Inject constructor(
     /** The stored account when editing, so fields the form doesn't show (type, card fields) survive the save. */
     private var editing: Account? = null
 
+    /** The stored card's second currency when editing, so the save knows whether it was added or removed. */
+    private var storedSecond: Currency? = null
+
     private val _form = MutableStateFlow(AccountFormState(isEditing = accountId != null))
     val form: StateFlow<AccountFormState> = _form.asStateFlow()
 
@@ -78,6 +85,9 @@ class AccountFormViewModel @Inject constructor(
                 return
             }
             editing = account
+            val isCard = account.type == AccountType.CREDIT_CARD
+            val child = accountRepository.secondCurrencyOf(account.id).first()
+            storedSecond = child?.currency
             AccountFormState(
                 name = account.name,
                 description = account.description,
@@ -87,6 +97,15 @@ class AccountFormViewModel @Inject constructor(
                 includeInTotal = account.includeInTotal,
                 currencyLocked = accountRepository.hasNonAdjustmentMovements(account.id),
                 isEditing = true,
+                isCard = isCard,
+                creditLimit = account.creditLimitMinor?.let { Money(it, account.currency).toMajor().toPlainString() }.orEmpty(),
+                closingDay = account.statementClosingDay?.toString().orEmpty(),
+                dueDay = account.paymentDueDay?.toString().orEmpty(),
+                // A card keeps its choice (empty is "no reminder"); anything else starts at the default.
+                reminderDays = if (isCard) account.dueReminderDaysBefore?.toString().orEmpty() else AccountFormState().reminderDays,
+                secondCurrency = child?.currency,
+                hasSecondCurrency = child != null,
+                secondCurrencyRemovable = child == null || !accountRepository.hasNonAdjustmentMovements(child.id),
             )
         }
         _form.value = loaded
@@ -102,9 +121,58 @@ class AccountFormViewModel @Inject constructor(
     fun updateNegativeBalance(value: Boolean) = _form.update { it.copy(negativeBalance = value) }
 
     fun updateCurrency(currency: Currency) {
-        if (_form.value.currencyLocked) return
+        val form = _form.value
+        if (form.currencyLocked || currency == form.secondCurrency) return
         _form.update { it.copy(currency = currency) }
         _status.update { it.copy(error = null) }
+    }
+
+    /** A card with a second currency stays a card until that currency is removed. */
+    fun updateIsCard(value: Boolean) {
+        if (!value && _form.value.secondCurrency != null) {
+            _status.update { it.copy(error = R.string.account_error_remove_second_currency_first) }
+            return
+        }
+        _form.update { it.copy(isCard = value) }
+        _status.update { it.copy(error = null) }
+    }
+
+    fun updateCreditLimit(value: String) {
+        if (isBalanceInput(value)) _form.update { it.copy(creditLimit = value) }
+    }
+
+    fun updateClosingDay(value: String) {
+        if (isDayInput(value)) _form.update { it.copy(closingDay = value) }
+    }
+
+    fun updateDueDay(value: String) {
+        if (isDayInput(value)) _form.update { it.copy(dueDay = value) }
+    }
+
+    fun updateReminderDays(value: String) {
+        if (isDayInput(value)) _form.update { it.copy(reminderDays = value) }
+    }
+
+    /**
+     * Picks the card's second currency; never the card's own. A stored one can't be swapped for another
+     * here: it's removed (and saved) first.
+     */
+    fun updateSecondCurrency(currency: Currency) {
+        val form = _form.value
+        if (currency == form.currency || form.hasSecondCurrency) return
+        _form.update { it.copy(secondCurrency = currency) }
+        _status.update { it.copy(error = null) }
+    }
+
+    /** Drops the second currency; a stored one only while it has nothing but adjustments. */
+    fun removeSecondCurrency() {
+        if (!_form.value.secondCurrencyRemovable) return
+        _form.update { it.copy(secondCurrency = null, secondDebt = "") }
+        _status.update { it.copy(error = null) }
+    }
+
+    fun updateSecondDebt(value: String) {
+        if (isBalanceInput(value)) _form.update { it.copy(secondDebt = value) }
     }
 
     /** Keeps only what can become a balance ([isBalanceInput]); the sign comes from the toggle. */
@@ -127,6 +195,12 @@ class AccountFormViewModel @Inject constructor(
             try {
                 val stored = editing
                 if (stored != null) {
+                    // A card switched off becomes a checking account; any other type is kept.
+                    val type = when {
+                        s.isCard -> AccountType.CREDIT_CARD
+                        stored.type == AccountType.CREDIT_CARD -> AccountType.CHECKING
+                        else -> stored.type
+                    }
                     accountRepository.update(
                         stored.copy(
                             name = s.name.trim(),
@@ -135,7 +209,8 @@ class AccountFormViewModel @Inject constructor(
                             icon = s.icon,
                             color = s.color,
                             includeInTotal = s.includeInTotal,
-                        )
+                        ).withCardFields(s, type),
+                        secondCurrencyChange(s),
                     )
                 } else {
                     val account = Account(
@@ -147,10 +222,13 @@ class AccountFormViewModel @Inject constructor(
                         icon = s.icon,
                         color = s.color,
                         includeInTotal = s.includeInTotal,
-                    )
-                    accountRepository.create(account, s.balance)
+                    ).withCardFields(s, if (s.isCard) AccountType.CREDIT_CARD else AccountType.CHECKING)
+                    val second = s.secondCurrency?.takeIf { s.isCard }?.let { SecondCurrencyInput(it, s.secondBalance) }
+                    accountRepository.create(account, s.balance, second)
                 }
                 _status.update { it.copy(isSaving = false, isSaved = true) }
+            } catch (e: AccountRuleError) {
+                _status.update { it.copy(isSaving = false, error = messageFor(e)) }
             } catch (_: MissingRateException) {
                 _status.update { it.copy(isSaving = false, error = R.string.account_error_missing_rate) }
             } catch (_: IllegalStateException) {
@@ -168,4 +246,35 @@ class AccountFormViewModel @Inject constructor(
             }
         }
     }
+
+    /** What the save does with the card's second currency, from the stored one to the form's. */
+    private fun secondCurrencyChange(s: AccountFormState): SecondCurrencyChange {
+        val wanted = s.secondCurrency?.takeIf { s.isCard }
+        return when {
+            storedSecond == null && wanted != null -> SecondCurrencyChange.Add(SecondCurrencyInput(wanted, s.secondBalance))
+            storedSecond != null && wanted == null -> SecondCurrencyChange.Remove
+            else -> SecondCurrencyChange.Keep
+        }
+    }
+
+    @StringRes
+    private fun messageFor(error: AccountRuleError): Int = when (error) {
+        AccountRuleError.IsDefault -> R.string.account_error_is_default
+        AccountRuleError.LastAccount -> R.string.account_error_last
+        AccountRuleError.HasMovements -> R.string.account_error_has_movements
+        AccountRuleError.SecondCurrencyHasMovements -> R.string.account_error_second_currency_has_movements
+        AccountRuleError.RemoveSecondCurrencyFirst -> R.string.account_error_remove_second_currency_first
+    }
+}
+
+/** [type] with the form's card fields; any other type clears them. */
+private fun Account.withCardFields(s: AccountFormState, type: AccountType): Account {
+    val card = type == AccountType.CREDIT_CARD
+    return copy(
+        type = type,
+        creditLimitMinor = s.creditLimitMinor.takeIf { card },
+        statementClosingDay = s.closingDayValue.takeIf { card },
+        paymentDueDay = s.dueDayValue.takeIf { card },
+        dueReminderDaysBefore = s.reminderDaysValue.takeIf { card },
+    )
 }

@@ -12,12 +12,23 @@ import com.boxdev.boxwallet.data.rates.CurrencyChangeLock
 import com.boxdev.boxwallet.data.rates.MovementWriteGuard
 import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.AccountType
+import com.boxdev.boxwallet.domain.model.CardMovement
+import com.boxdev.boxwallet.domain.model.lastClosingDate
+import com.boxdev.boxwallet.domain.model.statementStatus
 import com.boxdev.boxwallet.domain.model.toDomain
 import com.boxdev.boxwallet.domain.money.ExchangeRateResolver
 import com.boxdev.boxwallet.domain.money.MissingRateException
 import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.domain.money.TransactionAmounts
+import com.boxdev.boxwallet.util.CurrentDay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -33,8 +44,12 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.math.BigDecimal
+import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.util.Currency
+import java.util.UUID
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -60,25 +75,26 @@ class AccountRepositoryTest {
         runBlocking { prefs.setMainCurrency("USD") }
     }
 
-    private fun repositoryWith(lookup: RateLookup): AccountRepository {
+    private fun repositoryWith(lookup: RateLookup, days: Flow<LocalDate>? = null): AccountRepository {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val amounts = TransactionAmounts(ExchangeRateResolver(lookup) { LocalDate.of(2026, 11, 7) })
         return AccountRepository(
             db.accountDao(), prefs, lookup, context,
             db.transactionDao(), db, amounts,
             MovementWriteGuard(CurrencyChangeLock(), prefs, db.accountDao(), amounts),
+            days?.let(::CurrentDay) ?: CurrentDay(),
         )
     }
 
     @After
     fun tearDown() = db.close()
 
-    private suspend fun move(accountId: Long, type: TransactionType, minor: Long, cleared: Boolean) =
+    private suspend fun move(accountId: Long, type: TransactionType, minor: Long, cleared: Boolean, date: Long = 0L) =
         db.transactionDao().insert(
             TransactionEntity(
                 accountId = accountId,
                 type = type.name,
-                date = 0L,
+                date = date,
                 originalAmountMinor = minor,
                 currencyCode = "USD",
                 accountAmountMinor = minor,
@@ -391,5 +407,411 @@ class AccountRepositoryTest {
             runBlocking { repository.update(stored.copy(isArchived = true)) }
         }
         assertFalse(db.accountDao().getById(id)!!.isArchived)
+    }
+
+    private fun startOfDay(offsetDays: Long) =
+        LocalDate.now().plusDays(offsetDays).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+
+    @Test
+    fun cardBalanceIgnoresClearedButNotFuture() = runTest {
+        val card = db.accountDao().insert(AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "USD", createdAt = 0L))
+        val checking = db.accountDao().insert(AccountEntity(name = "Main", type = "CHECKING", currencyCode = "USD", createdAt = 0L, sortOrder = 1))
+        move(card, TransactionType.EXPENSE, 10000, cleared = false, date = startOfDay(0))
+        move(card, TransactionType.EXPENSE, 5000, cleared = true, date = startOfDay(1))
+        move(card, TransactionType.INCOME, 1000, cleared = false, date = startOfDay(-1))
+        // Same rows on a checking account, all uncleared: none counts there.
+        move(checking, TransactionType.EXPENSE, 10000, cleared = false, date = startOfDay(0))
+        move(checking, TransactionType.EXPENSE, 5000, cleared = false, date = startOfDay(1))
+        move(checking, TransactionType.INCOME, 1000, cleared = false, date = startOfDay(-1))
+
+        val rows = repository.observeAccountsWithBalance().first()
+        assertEquals(Money(-9000, usd), rows.first { it.account.id == card }.balance)
+        assertEquals(Money(0, usd), rows.first { it.account.id == checking }.balance)
+    }
+
+    @Test
+    fun aNewDayRequeriesBalancesWithItsCutoff() = runBlocking {
+        val today = LocalDate.now()
+        val day = MutableStateFlow(today)
+        val repo = repositoryWith(noRates, day)
+        val card = db.accountDao().insert(AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "USD", createdAt = 0L))
+        move(card, TransactionType.EXPENSE, 500, cleared = false, date = startOfDay(1))
+
+        val balances = Channel<Pair<Long, Long>>(Channel.UNLIMITED)
+        val job = launch(Dispatchers.Default) {
+            combine(repo.observeAccountsWithBalance(), repo.observeCardSummaries()) { rows, cards ->
+                rows.single().balance.minor to cards.getValue(card).primary.balance.minor
+            }.collect { balances.send(it) }
+        }
+        try {
+            withTimeout(5_000) { assertEquals(0L to 0L, balances.receive()) }
+            day.value = today.plusDays(1)
+            // Both flows pick up the movement dated "tomorrow" without re-subscribing (times out otherwise).
+            withTimeout(5_000) { while (balances.receive() != -500L to -500L) Unit }
+        } finally {
+            job.cancel()
+        }
+    }
+
+    @Test
+    fun statementUsesTheSameDayAsTheCutoff() = runTest {
+        val day = LocalDate.of(2026, 3, 10)
+        val repo = repositoryWith(noRates, MutableStateFlow(day))
+        val card = db.accountDao().insert(
+            AccountEntity(
+                name = "Visa", type = "CREDIT_CARD", currencyCode = "USD", createdAt = 0L,
+                statementClosingDay = 15, paymentDueDay = 5,
+            )
+        )
+        val feb1 = LocalDate.of(2026, 2, 1).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+        move(card, TransactionType.EXPENSE, 700, cleared = false, date = feb1)
+
+        val statement = repo.observeCardSummaries().first().getValue(card).primary.statement!!
+        assertEquals(LocalDate.of(2026, 2, 15), statement.lastClosing)
+        assertEquals(LocalDate.of(2026, 3, 5), statement.dueDate)
+        assertEquals(700L, statement.toPayMinor)
+    }
+
+    private val gtq = Currency.getInstance("GTQ")
+    private val eur = Currency.getInstance("EUR")
+    private val withGtq = object : RateLookup {
+        override suspend fun exact(day: LocalDate, code: String): BigDecimal? = when (code) {
+            "GTQ" -> BigDecimal("7.80")
+            "EUR" -> BigDecimal("0.50")
+            else -> null
+        }
+        override suspend fun nearest(day: LocalDate, code: String): BigDecimal? = exact(day, code)
+        override suspend fun download(day: LocalDate) = false
+    }
+
+    private fun card(closingDay: Int? = null, currency: Currency = gtq) = Account(
+        name = "Visa BAC", type = AccountType.CREDIT_CARD, currency = currency, createdAt = 0L,
+        icon = "CreditCard", sortOrder = 3, creditLimitMinor = 500000,
+        statementClosingDay = closingDay, paymentDueDay = closingDay?.let { 5 },
+    )
+
+    private fun dateOf(row: TransactionEntity): LocalDateTime =
+        LocalDateTime.ofInstant(Instant.ofEpochMilli(row.date), ZoneOffset.UTC)
+
+    private suspend fun childOf(cardId: Long) = db.accountDao().getAll().single { it.parentAccountId == cardId }
+
+    @Test
+    fun createCardWithDebtDatesAdjustmentAtLastClosing() = runTest {
+        val id = repositoryWith(withGtq).create(card(closingDay = 15), Money(-198000, gtq))
+
+        val row = rows(id).single()
+        assertEquals("ADJUSTMENT_OUT", row.type)
+        assertEquals(198000L, row.accountAmountMinor)
+        assertEquals(lastClosingDate(15, LocalDate.now()).atTime(23, 59, 59), dateOf(row))
+    }
+
+    @Test
+    fun createCardWithoutClosingDatesAdjustmentNow() = runTest {
+        val id = repositoryWith(withGtq).create(card(), Money(-198000, gtq))
+
+        assertEquals(LocalDate.now(), dateOf(rows(id).single()).toLocalDate())
+    }
+
+    @Test
+    fun createDualCurrencyCardCreatesChild() = runTest {
+        val repo = repositoryWith(withGtq)
+        val id = repo.create(
+            card(closingDay = 15).copy(includeInTotal = false), Money(-198000, gtq),
+            SecondCurrencyInput(usd, Money(-5000, usd)),
+        )
+
+        val child = childOf(id)
+        assertEquals(id, child.parentAccountId)
+        assertEquals("CREDIT_CARD", child.type)
+        assertEquals("USD", child.currencyCode)
+        assertEquals(null, child.creditLimitMinor)
+        assertEquals(null, child.statementClosingDay)
+        assertEquals(null, child.paymentDueDay)
+        assertEquals(null, child.dueReminderDaysBefore)
+        assertFalse(child.includeInTotal)
+        assertEquals("Visa BAC", child.name)
+        val adjustment = rows(child.id).single()
+        assertEquals("ADJUSTMENT_OUT", adjustment.type)
+        assertEquals(5000L, adjustment.accountAmountMinor)
+        assertEquals(dateOf(rows(id).single()), dateOf(adjustment))
+        assertEquals(child.id, repo.secondCurrencyOf(id).first()?.id)
+
+        // adjustBalance works on the child with the card rule.
+        repo.adjustBalance(child.id, Money(-6000, usd))
+        assertEquals(Money(-6000, usd), repo.observeAccountsWithBalance().first().first { it.account.id == child.id }.balance)
+    }
+
+    @Test
+    fun secondCurrencyCannotEqualCardCurrency() = runTest {
+        val repo = repositoryWith(withGtq)
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repo.create(card(), null, SecondCurrencyInput(gtq, null)) }
+        }
+        val id = repo.create(card(), null)
+        val stored = db.accountDao().getById(id)!!.toDomain()
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repo.update(stored, SecondCurrencyChange.Add(SecondCurrencyInput(gtq, null))) }
+        }
+        assertEquals(1, db.accountDao().count())
+    }
+
+    @Test
+    fun onlyOneChild() = runTest {
+        val repo = repositoryWith(withGtq)
+        val id = repo.create(card(), null, SecondCurrencyInput(usd, null))
+        val stored = db.accountDao().getById(id)!!.toDomain()
+
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repo.update(stored, SecondCurrencyChange.Add(SecondCurrencyInput(eur, null))) }
+        }
+        assertEquals(2, db.accountDao().count())
+    }
+
+    @Test
+    fun secondCurrencyOnlyOnCards() = runTest {
+        val repo = repositoryWith(withGtq)
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repo.create(account("Cash"), null, SecondCurrencyInput(gtq, null)) }
+        }
+        val id = repo.create(account("Cash"), null)
+        val stored = db.accountDao().getById(id)!!.toDomain()
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repo.update(stored, SecondCurrencyChange.Add(SecondCurrencyInput(gtq, null))) }
+        }
+        assertEquals(1, db.accountDao().count())
+    }
+
+    @Test
+    fun cardFieldsAreValidated() = runTest {
+        val repo = repositoryWith(withGtq)
+        listOf(
+            card().copy(statementClosingDay = 0),
+            card().copy(statementClosingDay = 32),
+            card().copy(paymentDueDay = 0),
+            card().copy(paymentDueDay = 32),
+            card().copy(creditLimitMinor = 0),
+            card().copy(creditLimitMinor = -100),
+        ).forEach { invalid ->
+            assertThrows(IllegalArgumentException::class.java) { runBlocking { repo.create(invalid, null) } }
+        }
+        val id = repo.create(card(), null)
+        val stored = db.accountDao().getById(id)!!.toDomain()
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repo.update(stored.copy(paymentDueDay = 40)) }
+        }
+        assertEquals(1, db.accountDao().count())
+    }
+
+    @Test
+    fun archiveAndIncludeInTotalCascadeToChild() = runTest {
+        val repo = repositoryWith(withGtq)
+        makeDefault(repo.create(account("Main"), null))
+        val id = repo.create(card(), null, SecondCurrencyInput(usd, null))
+        val stored = db.accountDao().getById(id)!!.toDomain()
+
+        repo.update(stored.copy(includeInTotal = false, name = "Visa Oro"))
+        assertFalse(childOf(id).includeInTotal)
+        assertEquals("Visa Oro", childOf(id).name)
+
+        repo.archive(id, true)
+        assertTrue(childOf(id).isArchived)
+        repo.archive(id, false)
+        assertFalse(childOf(id).isArchived)
+    }
+
+    @Test
+    fun secondCurrencyIsOnlyUpdatedOrArchivedThroughItsCard() = runTest {
+        val repo = repositoryWith(withGtq)
+        val id = repo.create(card(), null, SecondCurrencyInput(usd, null))
+        val child = childOf(id)
+
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repo.update(child.toDomain().copy(name = "Renamed")) }
+        }
+        assertThrows(IllegalArgumentException::class.java) { runBlocking { repo.archive(child.id, true) } }
+        assertEquals(child, childOf(id))
+    }
+
+    @Test
+    fun syncingTheSecondCurrencyKeepsItsCreationAndOrder() = runTest {
+        val repo = repositoryWith(withGtq)
+        val id = repo.create(card().copy(createdAt = 100L, sortOrder = 2), null, SecondCurrencyInput(usd, null))
+        val child = childOf(id)
+        db.accountDao().update(child.copy(createdAt = 555L, sortOrder = 9))
+
+        repo.update(db.accountDao().getById(id)!!.toDomain().copy(name = "Visa Oro", createdAt = 100L, sortOrder = 3))
+
+        assertEquals("Visa Oro", childOf(id).name)
+        assertEquals(555L, childOf(id).createdAt)
+        assertEquals(9, childOf(id).sortOrder)
+    }
+
+    @Test
+    fun removeSecondCurrencyRefusedWithMovements() = runTest {
+        val repo = repositoryWith(withGtq)
+        val used = repo.create(card(), null, SecondCurrencyInput(usd, Money(-5000, usd)))
+        move(childOf(used).id, TransactionType.EXPENSE, 100, cleared = true)
+
+        val error = runCatching {
+            repo.update(db.accountDao().getById(used)!!.toDomain(), SecondCurrencyChange.Remove)
+        }.exceptionOrNull()
+        assertEquals(AccountRuleError.SecondCurrencyHasMovements, error)
+        assertEquals(2, rows(childOf(used).id).size)
+
+        val clean = repo.create(card(), null, SecondCurrencyInput(usd, Money(-5000, usd)))
+        val cleanChild = childOf(clean).id
+        repo.update(db.accountDao().getById(clean)!!.toDomain(), SecondCurrencyChange.Remove)
+        assertEquals(null, db.accountDao().getById(cleanChild))
+        assertTrue(rows(cleanChild).isEmpty())
+        assertEquals(null, repo.secondCurrencyOf(clean).first())
+    }
+
+    @Test
+    fun turningCardOffRequiresRemovingSecondCurrency() = runTest {
+        val repo = repositoryWith(withGtq)
+        val id = repo.create(card(), null, SecondCurrencyInput(usd, null))
+        val stored = db.accountDao().getById(id)!!.toDomain()
+
+        val error = runCatching { repo.update(stored.copy(type = AccountType.CHECKING)) }.exceptionOrNull()
+
+        assertEquals(AccountRuleError.RemoveSecondCurrencyFirst, error)
+        assertEquals("CREDIT_CARD", db.accountDao().getById(id)!!.type)
+    }
+
+    @Test
+    fun deleteCardTakesChildAlongUnlessChildHasMovements() = runTest {
+        val repo = repositoryWith(withGtq)
+        makeDefault(repo.create(account("Main"), null))
+        val id = repo.create(card(), Money(-1000, gtq), SecondCurrencyInput(usd, Money(-5000, usd)))
+        val child = childOf(id).id
+        val expense = move(child, TransactionType.EXPENSE, 100, cleared = true)
+
+        assertEquals(AccountRuleError.HasMovements, runCatching { repo.delete(id) }.exceptionOrNull())
+        assertEquals(2, rows(child).size)
+
+        db.transactionDao().deleteById(expense)
+        repo.delete(id)
+        assertEquals(null, db.accountDao().getById(id))
+        assertEquals(null, db.accountDao().getById(child))
+        assertTrue(rows(child).isEmpty())
+    }
+
+    @Test
+    fun totalBalanceIncludesChild() = runTest {
+        prefs.setMainCurrency("GTQ")
+        val cardId = db.accountDao().insert(AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "GTQ", createdAt = 0L))
+        val child = db.accountDao().insert(
+            AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "USD", createdAt = 0L, parentAccountId = cardId)
+        )
+        move(cardId, TransactionType.EXPENSE, 10000, cleared = false, date = startOfDay(0))
+        move(child, TransactionType.EXPENSE, 1000, cleared = false, date = startOfDay(0))
+
+        val total = repositoryWith(CountingLookup(BigDecimal("7.80"))).observeTotalBalance().first()
+
+        // −Q100.00 + −US$10.00 × 7.80 = −Q178.00.
+        assertEquals(Money(-17800, gtq), total.amount)
+    }
+
+    @Test
+    fun secondCurrencyCannotHaveItsOwn() = runTest {
+        val repo = repositoryWith(withGtq)
+        val id = repo.create(card(), null, SecondCurrencyInput(usd, null))
+        val child = childOf(id).toDomain()
+
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repo.update(child, SecondCurrencyChange.Add(SecondCurrencyInput(eur, null))) }
+        }
+        // Even when the caller drops the parent id, the stored row decides.
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repo.update(child.copy(parentAccountId = null), SecondCurrencyChange.Add(SecondCurrencyInput(eur, null))) }
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repo.create(card(currency = usd).copy(parentAccountId = id), null, SecondCurrencyInput(eur, null)) }
+        }
+        assertEquals(2, db.accountDao().count())
+    }
+
+    private fun at(day: LocalDate) = day.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+
+    @Test
+    fun cardSummaryCombinesParentAndChild() = runTest {
+        val repo = repositoryWith(withGtq)
+        val cardId = repo.create(card(closingDay = 15), null, SecondCurrencyInput(usd, null))
+        val childId = childOf(cardId).id
+        val today = LocalDate.now()
+        val closing = lastClosingDate(15, today)
+        val before = closing.minusDays(3)
+        move(cardId, TransactionType.EXPENSE, 20000, cleared = false, date = at(before))
+        move(cardId, TransactionType.INCOME, 5000, cleared = false, date = at(today))
+        move(cardId, TransactionType.EXPENSE, 9999, cleared = false, date = at(today.plusDays(1))) // future: ignored
+        move(childId, TransactionType.EXPENSE, 3000, cleared = true, date = at(before))
+        move(childId, TransactionType.EXPENSE, 1000, cleared = false, date = at(today))
+
+        val summary = repo.observeCardSummaries().first()
+
+        assertEquals(setOf(cardId), summary.keys)
+        val s = summary.getValue(cardId)
+        assertEquals(Money(-15000, gtq), s.primary.balance)
+        assertEquals(15000L, s.primary.usedMinor)
+        assertEquals(childId, s.second?.account?.id)
+        assertEquals(Money(-4000, usd), s.second?.balance)
+        assertEquals(4000L, s.second?.usedMinor)
+        val parentRows = listOf(
+            CardMovement(before, -20000, false),
+            CardMovement(today, 5000, true),
+        )
+        val childRows = listOf(CardMovement(before, -3000, false), CardMovement(today, -1000, false))
+        assertEquals(statementStatus(parentRows, 15, 5, today).toPayMinor, s.primary.statement?.toPayMinor)
+        assertEquals(statementStatus(childRows, 15, 5, today).toPayMinor, s.second?.statement?.toPayMinor)
+        assertEquals(s.primary.statement?.dueDate, s.second?.statement?.dueDate)
+        // Q5,000.00 − Q150.00 − US$40.00 × 7.80.
+        assertEquals(Money(500000 - 15000 - 31200, gtq), s.available)
+        assertFalse(s.availableApproximate)
+    }
+
+    private suspend fun transfer(from: Long, to: Long, minor: Long, date: Long) {
+        val id = UUID.randomUUID().toString()
+        val out = move(from, TransactionType.TRANSFER_OUT, minor, cleared = true, date = date)
+        val inn = move(to, TransactionType.TRANSFER_IN, minor, cleared = true, date = date)
+        val dao = db.transactionDao()
+        dao.update(dao.getById(out)!!.copy(transferId = id))
+        dao.update(dao.getById(inn)!!.copy(transferId = id))
+    }
+
+    @Test
+    fun lastPayerIsNewestPaymentSource() = runTest {
+        val cardId = db.accountDao().insert(AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "USD", createdAt = 0L))
+        val child = db.accountDao().insert(
+            AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "GTQ", createdAt = 0L, parentAccountId = cardId)
+        )
+        val older = db.accountDao().insert(AccountEntity(name = "Main", type = "CHECKING", currencyCode = "USD", createdAt = 0L))
+        val newer = db.accountDao().insert(AccountEntity(name = "Savings", type = "SAVINGS", currencyCode = "USD", createdAt = 0L))
+        transfer(older, cardId, 1000, startOfDay(-5))
+        transfer(newer, child, 1000, startOfDay(-1))
+        // A transfer out of the card doesn't count as a payment.
+        transfer(cardId, older, 1000, startOfDay(0))
+
+        val dao = db.transactionDao()
+        assertEquals(newer, dao.lastPayerAccountId(listOf(cardId, child)))
+        assertEquals(older, dao.lastPayerAccountId(listOf(cardId)))
+
+        repository.archive(newer, true)
+        assertEquals(older, dao.lastPayerAccountId(listOf(cardId, child)))
+    }
+
+    @Test
+    fun lastPayerIsNeverOneOfTheCardsOwnAccounts() = runTest {
+        val cardId = db.accountDao().insert(AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "USD", createdAt = 0L))
+        val child = db.accountDao().insert(
+            AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "GTQ", createdAt = 0L, parentAccountId = cardId)
+        )
+        val main = db.accountDao().insert(AccountEntity(name = "Main", type = "CHECKING", currencyCode = "USD", createdAt = 0L))
+        transfer(main, cardId, 1000, startOfDay(-5))
+        // Moving money between the card's two currencies isn't paying the card.
+        transfer(child, cardId, 1000, startOfDay(-1))
+        transfer(cardId, child, 1000, startOfDay(0))
+
+        val dao = db.transactionDao()
+        assertEquals(main, dao.lastPayerAccountId(listOf(cardId, child)))
     }
 }

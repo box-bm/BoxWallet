@@ -10,6 +10,9 @@ data class DayCurrency(val day: Long, val code: String)
 
 data class CurrencyUsage(val currencyCode: String, val uses: Int, val lastUsed: Long)
 
+/** One movement of a card account; [accountAmountMinor] is unsigned, in the account's currency. */
+data class CardMovementRow(val accountId: Long, val date: Long, val type: String, val accountAmountMinor: Long)
+
 @Dao
 interface TransactionDao {
 
@@ -56,6 +59,28 @@ interface TransactionDao {
     )
     fun observeTransferPairs(): Flow<List<TransferPair>>
 
+    /** Every movement of a `CREDIT_CARD` account dated before [endOfToday] (start of tomorrow), installments included. */
+    @Query(
+        "SELECT t.accountId AS accountId, t.date AS date, t.type AS type, t.accountAmountMinor AS accountAmountMinor " +
+            "FROM transactions t JOIN accounts a ON a.id = t.accountId " +
+            "WHERE a.type = 'CREDIT_CARD' AND t.date < :endOfToday"
+    )
+    fun observeCardMovements(endOfToday: Long): Flow<List<CardMovementRow>>
+
+    /**
+     * Source account of the newest transfer into any of [cardIds] whose source isn't archived and isn't one of
+     * [cardIds] itself (moving money between a card's two currencies isn't paying it).
+     */
+    @Query(
+        "SELECT o.accountId FROM transactions i " +
+            "JOIN transactions o ON o.transferId = i.transferId AND o.type = 'TRANSFER_OUT' " +
+            "JOIN accounts a ON a.id = o.accountId " +
+            "WHERE i.type = 'TRANSFER_IN' AND i.accountId IN (:cardIds) AND o.accountId NOT IN (:cardIds) " +
+            "AND a.isArchived = 0 " +
+            "ORDER BY i.date DESC, i.id DESC LIMIT 1"
+    )
+    suspend fun lastPayerAccountId(cardIds: List<Long>): Long?
+
     @Query("DELETE FROM transactions WHERE loanId = :loanId")
     suspend fun deleteByLoanId(loanId: Long)
 
@@ -79,17 +104,20 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE date >= :startDate AND date < :endDate AND loanId IS NOT NULL ORDER BY date ASC")
     fun getInstallmentsBetweenDates(startDate: Long, endDate: Long): Flow<List<TransactionEntity>>
 
-    @Query("SELECT SUM(amountMinor) FROM transactions WHERE type = 'INCOME' AND isCleared = 1")
-    fun getTotalIncome(): Flow<Long?>
+    // Income and expense totals count what the balances count (AccountDao's COUNTED): cleared movements,
+    // plus every card movement dated before :endOfToday, cleared or not.
 
-    @Query("SELECT SUM(amountMinor) FROM transactions WHERE type = 'EXPENSE' AND isCleared = 1")
-    fun getTotalExpense(): Flow<Long?>
+    @Query("SELECT SUM(t.amountMinor) FROM transactions t JOIN accounts a ON a.id = t.accountId WHERE t.type = 'INCOME' AND $COUNTED")
+    fun getTotalIncome(endOfToday: Long): Flow<Long?>
 
-    @Query("SELECT SUM(amountMinor) FROM transactions WHERE type = 'INCOME' AND isCleared = 1 AND date BETWEEN :startDate AND :endDate")
-    fun getTotalIncomeBetweenDates(startDate: Long, endDate: Long): Flow<Long?>
+    @Query("SELECT SUM(t.amountMinor) FROM transactions t JOIN accounts a ON a.id = t.accountId WHERE t.type = 'EXPENSE' AND $COUNTED")
+    fun getTotalExpense(endOfToday: Long): Flow<Long?>
 
-    @Query("SELECT SUM(amountMinor) FROM transactions WHERE type = 'EXPENSE' AND isCleared = 1 AND date BETWEEN :startDate AND :endDate")
-    fun getTotalExpenseBetweenDates(startDate: Long, endDate: Long): Flow<Long?>
+    @Query("SELECT SUM(t.amountMinor) FROM transactions t JOIN accounts a ON a.id = t.accountId WHERE t.type = 'INCOME' AND $COUNTED AND t.date BETWEEN :startDate AND :endDate")
+    fun getTotalIncomeBetweenDates(startDate: Long, endDate: Long, endOfToday: Long): Flow<Long?>
+
+    @Query("SELECT SUM(t.amountMinor) FROM transactions t JOIN accounts a ON a.id = t.accountId WHERE t.type = 'EXPENSE' AND $COUNTED AND t.date BETWEEN :startDate AND :endDate")
+    fun getTotalExpenseBetweenDates(startDate: Long, endDate: Long, endOfToday: Long): Flow<Long?>
 
     @Query("SELECT * FROM transactions WHERE hasReminder = 1 AND reminderDate > :currentTime ORDER BY reminderDate ASC")
     fun getUpcomingReminders(currentTime: Long): Flow<List<TransactionEntity>>

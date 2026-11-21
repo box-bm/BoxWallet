@@ -5,6 +5,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boxdev.boxwallet.R
+import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.data.repository.AccountRuleError
 import com.boxdev.boxwallet.data.repository.CategoryRepository
@@ -12,6 +13,7 @@ import com.boxdev.boxwallet.data.repository.TransactionRepository
 import com.boxdev.boxwallet.data.repository.TransferRepository
 import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.AccountWithBalance
+import com.boxdev.boxwallet.domain.model.CardSummary
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.domain.model.TransferPair
@@ -21,16 +23,20 @@ import com.boxdev.boxwallet.ui.navigation.MovementsFilterRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDateTime
 import javax.inject.Inject
 
 data class AccountDetailUiState(
@@ -44,7 +50,42 @@ data class AccountDetailUiState(
     val transferPairs: Map<String, TransferPair> = emptyMap(),
     /** At least two active accounts exist, so a transfer can be made. */
     val canTransfer: Boolean = false,
+    /** The account's card summary (both currencies) when it is a credit card. */
+    val card: CardSummary? = null,
+    /**
+     * Transfers between a card and its own second currency: money moved inside the card, listed once and
+     * unsigned.
+     */
+    val internalTransfers: Set<String> = emptySet(),
+    /** Where a card payment comes from: the last account that paid it, else the default account. */
+    val cardPayer: Long? = null,
     val isLoading: Boolean = true,
+)
+
+/**
+ * What [AccountRepository.lastPayerOf] reads for card [cardId] (and its second currency [childId]): the
+ * transfers coming in (id, date and source account) and which accounts are archived. Equal keys give the
+ * same payer, so other changes (an expense, a rename, a new rate) don't query it again.
+ */
+internal data class CardPayerKey(
+    val cardId: Long,
+    val childId: Long?,
+    val incoming: List<Triple<Long, LocalDateTime, Long?>>,
+    val archived: Set<Long>,
+)
+
+internal fun cardPayerKey(
+    cardId: Long,
+    childId: Long?,
+    movements: List<Transaction>,
+    pairs: Map<String, TransferPair>,
+    accounts: List<AccountWithBalance>,
+) = CardPayerKey(
+    cardId = cardId,
+    childId = childId,
+    incoming = movements.filter { it.type == TransactionType.TRANSFER_IN }
+        .map { Triple(it.id, it.date, it.transferId?.let(pairs::get)?.fromAccountId) },
+    archived = accounts.filter { it.account.isArchived }.mapTo(HashSet()) { it.account.id },
 )
 
 @HiltViewModel
@@ -66,15 +107,42 @@ class AccountDetailViewModel @Inject constructor(
         _confirmDelete.value = false
     }
 
+    /**
+     * [id]'s movements, newest first, with those of its card's second currency when it has one. A transfer
+     * between the two currencies has a leg on each side; it lists once, as its outgoing leg.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun movementsOf(id: Long): Flow<List<Transaction>> =
+        accountRepository.secondCurrencyOf(id).map { it?.id }.distinctUntilChanged().flatMapLatest { childId ->
+            if (childId == null) {
+                transactionRepository.observeByAccount(id)
+            } else {
+                combine(transactionRepository.observeByAccount(id), transactionRepository.observeByAccount(childId)) { own, child ->
+                    val merged = (own + child).sortedWith(compareByDescending<Transaction> { it.date }.thenByDescending { it.id })
+                    val outgoing = merged.filter { it.type == TransactionType.TRANSFER_OUT }.mapNotNullTo(HashSet()) { it.transferId }
+                    merged.filter { it.type != TransactionType.TRANSFER_IN || it.transferId !in outgoing }
+                }
+            }
+        }
+
     @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<AccountDetailUiState> = accountId.filterNotNull().flatMapLatest { id ->
+        // The last payer is only looked up again when something it depends on changes.
+        var payerKey: CardPayerKey? = null
+        var lastPayer: Long? = null
         combine(
-            accountRepository.observeAccountsWithBalance(),
-            accountRepository.observeDefaultAccountId(),
-            transactionRepository.observeByAccount(id),
+            combine(accountRepository.observeAccountsWithBalance(), accountRepository.observeDefaultAccountId(), ::Pair),
+            movementsOf(id),
             categoryRepository.getAllCategories(),
             transferRepository.observePairs(),
-        ) { accounts, defaultId, movements, categories, pairs ->
+            accountRepository.observeCardSummaries(),
+        ) { (accounts, defaultId), movements, categories, pairs, cards ->
+            val card = cards[id]
+            val key = card?.let { cardPayerKey(id, it.second?.account?.id, movements, pairs, accounts) }
+            if (key != payerKey) {
+                lastPayer = key?.let { accountRepository.lastPayerOf(it.cardId, it.childId) }
+                payerKey = key
+            }
             AccountDetailUiState(
                 account = accounts.firstOrNull { it.account.id == id },
                 isDefault = defaultId == id,
@@ -83,6 +151,12 @@ class AccountDetailViewModel @Inject constructor(
                 accountsById = accounts.associate { it.account.id to it.account },
                 transferPairs = pairs,
                 canTransfer = accounts.count { !it.account.isArchived } >= 2,
+                card = card,
+                cardPayer = card?.let { lastPayer ?: defaultId },
+                internalTransfers = card?.second?.account?.id?.let { childId ->
+                    val family = setOf(id, childId)
+                    pairs.values.filter { it.fromAccountId in family && it.toAccountId in family }.mapTo(HashSet()) { it.transferId }
+                }.orEmpty(),
                 isLoading = false,
             )
         }
@@ -112,7 +186,12 @@ class AccountDetailViewModel @Inject constructor(
         accountId.value?.let(movementsFilter::requestAccount)
     }
 
-    fun adjustBalance(realBalance: Money) = onAccount { accountRepository.adjustBalance(it, realBalance) }
+    /** Adjusts the bound account, or one currency of a card: [targetId] is the account itself or its second currency. */
+    fun adjustBalance(targetId: Long, realBalance: Money) = onAccount { id ->
+        val child = accountRepository.secondCurrencyOf(id).first()
+        require(targetId == id || targetId == child?.id) { "Account $targetId isn't part of account $id" }
+        accountRepository.adjustBalance(targetId, realBalance)
+    }
 
     fun setDefault() = onAccount { accountRepository.setDefault(it) }
 
@@ -135,7 +214,10 @@ class AccountDetailViewModel @Inject constructor(
         val rule = when {
             accountRepository.observeDefaultAccountId().first() == id -> AccountRuleError.IsDefault
             accountRepository.count() <= 1 -> AccountRuleError.LastAccount
-            accountRepository.hasNonAdjustmentMovements(id) -> AccountRuleError.HasMovements
+            // A card's second currency goes with it, so its movements count too.
+            accountRepository.hasNonAdjustmentMovements(id) ||
+                accountRepository.secondCurrencyOf(id).first()?.let { accountRepository.hasNonAdjustmentMovements(it.id) } == true ->
+                AccountRuleError.HasMovements
             else -> null
         }
         if (rule != null) throw rule
@@ -175,5 +257,7 @@ class AccountDetailViewModel @Inject constructor(
         AccountRuleError.IsDefault -> R.string.account_error_is_default
         AccountRuleError.LastAccount -> R.string.account_error_last
         AccountRuleError.HasMovements -> R.string.account_error_has_movements
+        AccountRuleError.SecondCurrencyHasMovements -> R.string.account_error_second_currency_has_movements
+        AccountRuleError.RemoveSecondCurrencyFirst -> R.string.account_error_remove_second_currency_first
     }
 }

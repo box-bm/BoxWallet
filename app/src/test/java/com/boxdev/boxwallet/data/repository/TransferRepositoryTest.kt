@@ -139,8 +139,8 @@ class TransferRepositoryTest {
             assertNull(row.categoryId)
             assertEquals("Ahorro", row.description)
         }
-        assertEquals(-50000L, db.accountDao().getBalance(banco))
-        assertEquals(50000L, db.accountDao().getBalance(caja))
+        assertEquals(-50000L, db.accountDao().getBalance(banco, Long.MAX_VALUE))
+        assertEquals(50000L, db.accountDao().getBalance(caja, Long.MAX_VALUE))
     }
 
     @Test
@@ -206,7 +206,7 @@ class TransferRepositoryTest {
         assertEquals(euros, into.accountId)
         assertEquals(RateSource.AUTO, into.accountRateSource)
         assertEquals(1, db.transactionDao().getByTransferId(id).count { it.type == TransactionType.TRANSFER_IN.name })
-        assertEquals(0L, db.accountDao().getBalance(dolares))
+        assertEquals(0L, db.accountDao().getBalance(dolares, Long.MAX_VALUE))
     }
 
     /** A repository whose lookup knows no rate at all: offline before any download. */
