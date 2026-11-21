@@ -82,5 +82,19 @@ data class TransactionEntity(
 
 enum class TransactionType {
     INCOME,
-    EXPENSE
+    EXPENSE,
+    ADJUSTMENT_IN,
+    ADJUSTMENT_OUT
 }
+
+/** Money enters the account (adds to its balance). */
+val TransactionType.isInflow: Boolean
+    get() = this == TransactionType.INCOME || this == TransactionType.ADJUSTMENT_IN
+
+/** Only real income/expense feeds categories, charts, reports and exports. */
+val TransactionType.countsInReports: Boolean
+    get() = this == TransactionType.INCOME || this == TransactionType.EXPENSE
+
+/** Balance corrections that are not income or expense. */
+val TransactionType.isAdjustment: Boolean
+    get() = this == TransactionType.ADJUSTMENT_IN || this == TransactionType.ADJUSTMENT_OUT
