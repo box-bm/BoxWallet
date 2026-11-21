@@ -231,7 +231,7 @@ class ExcelReportGeneratorTest {
     }
 
     @Test
-    fun `accounts sheet lists each account with its cleared balance in its own currency`() {
+    fun `accounts sheet lists each account with its balance in its own currency`() {
         val file = ExcelReportGenerator.create(
             tmp.newFile("balances.xlsx"), transactions, emptyMap(), accounts, emptyMap(),
             LocalDate.of(2026, 1, 1), LocalDate.of(2026, 2, 28), gtq
@@ -245,6 +245,24 @@ class ExcelReportGeneratorTest {
         assertTrue(sheet.contains(text("A3", "Dólares")))
         assertTrue(sheet.contains(text("B3", "USD")))
         assertTrue(sheet.contains("<c r=\"C3\"><v>100.92</v></c>"))
+    }
+
+    @Test
+    fun `a card's second currency is named after its card and the balance header fits cards`() {
+        val visa = Account(id = 3, name = "Visa BAC", type = AccountType.CREDIT_CARD, currency = gtq, createdAt = 0)
+        val visaUsd = visa.copy(id = 4, currency = usd, parentAccountId = 3)
+        val withCard = accounts + AccountWithBalance(visa, Money(-50_000, gtq)) + AccountWithBalance(visaUsd, Money(-1_000, usd))
+        val expense = movement(1_000, LocalDateTime.of(2026, 1, 7, 9, 0), TransactionType.EXPENSE).copy(accountId = 4)
+        val file = ExcelReportGenerator.create(
+            tmp.newFile("cards.xlsx"), listOf(expense), emptyMap(), withCard, emptyMap(),
+            LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31), gtq
+        )
+
+        val sheet = sheetXml(file, "Accounts")
+        assertTrue(Regex("<c r=\"C1\"[^>]*><is><t xml:space=\"preserve\">Balance</t>").containsMatchIn(sheet))
+        assertTrue(sheet.contains(text("A4", "Visa BAC")))
+        assertTrue(sheet.contains(text("A5", "Visa BAC · USD")))
+        assertTrue(sheetXml(file, "Movements").contains(text("D2", "Visa BAC · USD")))
     }
 
     @Test

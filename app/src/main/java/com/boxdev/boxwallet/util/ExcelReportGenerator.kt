@@ -7,6 +7,7 @@ import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.domain.model.inReports
 import com.boxdev.boxwallet.domain.model.monthsBetween
 import com.boxdev.boxwallet.domain.money.Money
+import com.boxdev.boxwallet.ui.components.accountLabel
 import com.boxdev.boxwallet.util.XlsxWorkbook.Sheet
 import com.boxdev.boxwallet.util.XlsxWorkbook.Style
 import java.io.File
@@ -47,7 +48,7 @@ object ExcelReportGenerator {
      *  2. Summary          — income/expense totals, averages, savings rate, top categories
      *  3. By Category      — per-category income/expense breakdown
      *  4. Monthly Overview — month-by-month summary (skipped for single-month ranges)
-     *  5. Accounts         — each account's cleared balance in its own currency, from [accounts]
+     *  5. Accounts         — each account's balance (as the app shows it) in its own currency, from [accounts]
      *  6. Loan Installments— only when loan transactions exist in the range
      */
     fun create(
@@ -71,7 +72,11 @@ object ExcelReportGenerator {
         val headerStyle = Style.HEADER
         val titleStyle = Style.TITLE
 
-        val accountNames = accounts.associate { it.account.id to it.account.name }
+        // A card's second currency is named after its card ("Visa BAC · USD"), as in the app.
+        val byId = accounts.associate { it.account.id to it.account }
+        val accountNames = accounts.associate { (account) ->
+            account.id to accountLabel(account, account.parentAccountId?.let(byId::get))
+        }
         buildTransactionsSheet(wb, transactions, categories, accountNames, loans, dateFmt, timeFmt, headerStyle, titles)
         // Balance adjustments are listed on the Movements sheet only; every total and breakdown skips them.
         val reportable = transactions.inReports()
@@ -79,7 +84,7 @@ object ExcelReportGenerator {
         buildCategorySheet(wb, reportable, categories, headerStyle, boldStyle)
         buildMonthlySheet(wb, reportable, startDate, endDate, monthFmt, headerStyle, boldStyle)
         if (accounts.isNotEmpty()) {
-            buildAccountsSheet(wb, accounts, headerStyle)
+            buildAccountsSheet(wb, accounts, accountNames, headerStyle)
         }
         if (loans.isNotEmpty()) {
             buildLoanOverviewSheet(wb, loans, mainCurrency, loanTitles, dateFmt, headerStyle, boldStyle, titleStyle)
@@ -150,13 +155,21 @@ object ExcelReportGenerator {
     // Sheet 5: Accounts
     // ──────────────────────────────────────────────────────────────
 
-    /** One row per account; the balance is the app's cleared balance, in the account's own currency. */
-    private fun buildAccountsSheet(wb: XlsxWorkbook, accounts: List<AccountWithBalance>, headerStyle: Style) {
+    /**
+     * One row per account (named by [names]) with the balance the app shows, in the account's own currency:
+     * cleared movements, or for a card every movement dated through today.
+     */
+    private fun buildAccountsSheet(
+        wb: XlsxWorkbook,
+        accounts: List<AccountWithBalance>,
+        names: Map<Long, String>,
+        headerStyle: Style,
+    ) {
         val sheet = wb.createSheet("Accounts")
-        sheet.header(listOf("Account", "Currency", "Cleared balance"), headerStyle)
+        sheet.header(listOf("Account", "Currency", "Balance"), headerStyle)
         accounts.forEachIndexed { idx, (account, balance) ->
             val row = sheet.createRow(idx + 1)
-            row.createCell(0).setCellValue(account.name)
+            row.createCell(0).setCellValue(names[account.id] ?: account.name)
             row.createCell(1).setCellValue(account.currency.currencyCode)
             row.createCell(2).setCellValue(balance.toMajor())
         }
