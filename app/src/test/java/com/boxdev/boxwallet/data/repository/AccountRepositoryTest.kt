@@ -168,6 +168,7 @@ class AccountRepositoryTest {
 
     @Test
     fun currencyLockedOnlyByNonAdjustmentMovements() = runTest {
+        val repository = repositoryWith(knownRates)
         val id = repository.create(account("Dollars"), Money(500, usd))
         val stored = db.accountDao().getById(id)!!.toDomain()
 
@@ -276,6 +277,99 @@ class AccountRepositoryTest {
 
         assertTrue(error is MissingRateException)
         assertEquals(0, db.accountDao().count())
+    }
+
+    private val jpy = Currency.getInstance("JPY")
+    private val knownRates = object : RateLookup {
+        override suspend fun exact(day: LocalDate, code: String): BigDecimal? = when (code) {
+            "JPY" -> BigDecimal("150")
+            "EUR" -> BigDecimal("0.50")
+            else -> null
+        }
+        override suspend fun nearest(day: LocalDate, code: String): BigDecimal? = exact(day, code)
+        override suspend fun download(day: LocalDate) = false
+    }
+
+    @Test
+    fun currencyChangeRewritesAdjustmentsInNewCurrency() = runTest {
+        val repo = repositoryWith(knownRates)
+        val id = repo.create(account("Dollars"), Money(10000, usd))
+        val stored = db.accountDao().getById(id)!!.toDomain()
+
+        repo.update(stored.copy(currency = jpy))
+
+        val row = rows(id).single()
+        assertEquals("ADJUSTMENT_IN", row.type)
+        assertEquals("JPY", row.currencyCode)
+        assertEquals(100L, row.originalAmountMinor)
+        assertEquals(100L, row.accountAmountMinor)
+        assertEquals(0, BigDecimal.ONE.compareTo(row.accountRate))
+        assertEquals(RateSource.AUTO, row.accountRateSource)
+        // ¥100 at 150 JPY per USD = US$0.67 (HALF_EVEN), the main currency being USD.
+        assertEquals(67L, row.amountMinor)
+        assertEquals(RateSource.AUTO, row.mainRateSource)
+        assertEquals(Money(100, jpy), repo.observeAccountsWithBalance().first().single().balance)
+    }
+
+    @Test
+    fun currencyChangeRollsBackWhenNoRateExists() = runTest {
+        val id = repository.create(account("Dollars"), Money(10000, usd))
+        val stored = db.accountDao().getById(id)!!.toDomain()
+
+        val error = runCatching { repository.update(stored.copy(currency = jpy, name = "Yen")) }.exceptionOrNull()
+
+        assertTrue(error is MissingRateException)
+        val account = db.accountDao().getById(id)!!
+        assertEquals("USD", account.currencyCode)
+        assertEquals("Dollars", account.name)
+        val row = rows(id).single()
+        assertEquals("USD", row.currencyCode)
+        assertEquals(10000L, row.originalAmountMinor)
+        assertEquals(10000L, row.accountAmountMinor)
+        assertEquals(10000L, row.amountMinor)
+    }
+
+    private class CountingLookup(private val gtqPerUsd: BigDecimal?) : RateLookup {
+        var downloads = 0
+        override suspend fun exact(day: LocalDate, code: String): BigDecimal? = if (code == "GTQ") gtqPerUsd else null
+        override suspend fun nearest(day: LocalDate, code: String): BigDecimal? = exact(day, code)
+        override suspend fun download(day: LocalDate): Boolean {
+            downloads++
+            return true
+        }
+    }
+
+    private suspend fun gtqAndUsdAccounts() {
+        prefs.setMainCurrency("GTQ")
+        val quetzales = db.accountDao().insert(AccountEntity(name = "Q", type = "CASH", currencyCode = "GTQ", createdAt = 0L))
+        val dollars = db.accountDao().insert(AccountEntity(name = "D", type = "CASH", currencyCode = "USD", createdAt = 0L, sortOrder = 1))
+        move(quetzales, TransactionType.INCOME, 10000, cleared = true)
+        move(dollars, TransactionType.INCOME, 1000, cleared = true)
+    }
+
+    @Test
+    fun totalBalanceConvertsOtherCurrenciesWithStoredRates() = runTest {
+        val lookup = CountingLookup(BigDecimal("7.80"))
+        gtqAndUsdAccounts()
+
+        val total = repositoryWith(lookup).observeTotalBalance().first()
+
+        // Q100.00 + US$10.00 × 7.80 = Q178.00; another currency always marks the total "≈".
+        assertEquals(Money(17800, Currency.getInstance("GTQ")), total.amount)
+        assertTrue(total.approximate)
+        assertEquals(0, lookup.downloads)
+    }
+
+    @Test
+    fun totalBalanceSkipsAccountsWithoutAnyRate() = runTest {
+        val lookup = CountingLookup(null)
+        gtqAndUsdAccounts()
+
+        val total = repositoryWith(lookup).observeTotalBalance().first()
+
+        assertEquals(Money(10000, Currency.getInstance("GTQ")), total.amount)
+        assertTrue(total.approximate)
+        assertEquals(0, lookup.downloads)
     }
 
     @Test

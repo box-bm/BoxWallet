@@ -34,6 +34,9 @@ interface TransactionDao {
     @Query("SELECT COUNT(*) FROM transactions WHERE accountId = :accountId AND type NOT IN ('ADJUSTMENT_IN','ADJUSTMENT_OUT')")
     suspend fun countNonAdjustmentByAccount(accountId: Long): Int
 
+    @Query("SELECT * FROM transactions WHERE accountId = :accountId AND type IN ('ADJUSTMENT_IN','ADJUSTMENT_OUT')")
+    suspend fun getAdjustmentsByAccount(accountId: Long): List<TransactionEntity>
+
     @Query("DELETE FROM transactions WHERE accountId = :accountId AND type IN ('ADJUSTMENT_IN','ADJUSTMENT_OUT')")
     suspend fun deleteAdjustmentsByAccount(accountId: Long)
 

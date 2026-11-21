@@ -24,6 +24,7 @@ import com.boxdev.boxwallet.domain.money.MissingRateException
 import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.domain.money.RateLookup
 import com.boxdev.boxwallet.domain.money.TransactionAmounts
+import com.boxdev.boxwallet.domain.money.withAmounts
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -136,15 +137,34 @@ class AccountRepository @Inject constructor(
         }
     }
 
-    /** The currency is frozen once the account has movements besides adjustments. */
-    suspend fun update(account: Account) = database.withTransaction {
-        val stored = accountDao.getById(account.id)
-            ?: throw IllegalStateException("Account ${account.id} does not exist")
-        require(stored.isArchived == account.isArchived) { "use archive()" }
-        check(stored.currencyCode == account.currency.currencyCode || !hasNonAdjustmentMovements(account.id)) {
-            "Currency of account ${account.id} can't change once it has movements"
+    /**
+     * The currency is frozen once the account has movements besides adjustments. While it only has
+     * adjustments, changing it rewrites them into the new currency keeping their typed major amount;
+     * a missing main rate ([MissingRateException]) rolls the whole update back.
+     */
+    suspend fun update(account: Account) = guard.write { current ->
+        database.withTransaction {
+            val stored = accountDao.getById(account.id)
+                ?: throw IllegalStateException("Account ${account.id} does not exist")
+            require(stored.isArchived == account.isArchived) { "use archive()" }
+            val currencyChanged = stored.currencyCode != account.currency.currencyCode
+            check(!currencyChanged || !hasNonAdjustmentMovements(account.id)) {
+                "Currency of account ${account.id} can't change once it has movements"
+            }
+            accountDao.update(account.toEntity())
+            if (currencyChanged) rewriteAdjustments(account.id, account.currency, current.main)
         }
-        accountDao.update(account.toEntity())
+    }
+
+    /** Re-expresses the account's adjustments in [currency] (same major amount, HALF_EVEN) with fresh legs. */
+    private suspend fun rewriteAdjustments(accountId: Long, currency: Currency, main: Currency) {
+        transactionDao.getAdjustmentsByAccount(accountId).forEach { row ->
+            val old = row.toDomain(Currency.getInstance(row.currencyCode), main)
+            val original = Money.of(old.original.toMajor(), currency)
+            val ready = amounts.compute(AmountInput(original, old.date.toLocalDate(), currency, main))
+                as? AmountResult.Ready ?: throw MissingRateException(currency, main)
+            transactionDao.update(old.copy(original = original).withAmounts(ready).toEntity())
+        }
     }
 
     /** Adds the adjustment that makes the cleared balance equal [realBalance]; nothing when already equal. */
