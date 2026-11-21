@@ -322,6 +322,20 @@ class TransferFormViewModelTest {
         assertTrue(db.transactionDao().getAllTransactionsSync().isEmpty())
     }
 
+    /** A typed rate belongs to the old source: picking a same-currency source brings the receive back. */
+    @Test
+    fun aTypedRateKeepsTheReceiveForTheNextSource() = runTest {
+        val card = db.accountDao().insert(AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "GTQ", createdAt = 0L, sortOrder = 2))
+        val vm = vm(mapOf("from" to dolares, "to" to card, "receive" to "1980.00"))
+        vm.formState.first { !it.isLoading && it.amount.isNotEmpty() && it.equivalent != null }
+
+        vm.updateManualRate("7.70")
+        vm.setFrom(banco)
+        settle()
+
+        assertEquals("1980.00", vm.formState.value.amount)
+    }
+
     /** A receive still waiting for a rate is dropped once the user types one, so a later rate can't overwrite it. */
     @Test
     fun aTypedRateDropsAWaitingReceive() = runTest {

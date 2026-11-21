@@ -81,13 +81,13 @@ class TransferFormViewModel @Inject constructor(
 
     /**
      * A `receive` argument still waiting for its rate: applied on the first automatic rate, until the user types
-     * an amount or a rate, or picks another destination.
+     * an amount, a rate or a received amount, or picks another destination.
      */
     private var pendingReceive: String? = null
 
     /**
-     * The `receive` argument while it still drives the amount: kept until the user types an amount or a rate, or
-     * picks another destination, so changing the source re-applies it (in the new currency) through [pendingReceive].
+     * The `receive` argument while it still drives the amount: kept until the user types an amount or a received
+     * amount, or picks another destination, so changing the source re-applies it (in the new currency) through [pendingReceive].
      */
     private var receiveTarget: String? = null
 
@@ -257,12 +257,16 @@ class TransferFormViewModel @Inject constructor(
         refreshRate()
     }
 
-    /** A typed rate (or received amount) is the user's: a `receive` still waiting for a rate no longer applies. */
+    /**
+     * A typed rate stops a `receive` still waiting for a rate from applying; the receive stays the target, so
+     * picking another source (which drops the typed rate) applies it again.
+     */
     fun updateManualRate(value: String) {
-        dropReceive()
+        pendingReceive = null
         _formState.update { it.withManualRate(value) }
     }
 
+    /** A typed received amount is the user's: the `receive` no longer drives the amount. */
     fun updateEquivalent(value: String) {
         dropReceive()
         _formState.update { it.withEquivalent(value) }
