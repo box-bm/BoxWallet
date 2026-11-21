@@ -629,4 +629,23 @@ class AccountRepositoryTest {
         // −Q100.00 + −US$10.00 × 7.80 = −Q178.00.
         assertEquals(Money(-17800, gtq), total.amount)
     }
+
+    @Test
+    fun secondCurrencyCannotHaveItsOwn() = runTest {
+        val repo = repositoryWith(withGtq)
+        val id = repo.create(card(), null, SecondCurrencyInput(usd, null))
+        val child = childOf(id).toDomain()
+
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repo.update(child, SecondCurrencyChange.Add(SecondCurrencyInput(eur, null))) }
+        }
+        // Even when the caller drops the parent id, the stored row decides.
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repo.update(child.copy(parentAccountId = null), SecondCurrencyChange.Add(SecondCurrencyInput(eur, null))) }
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repo.create(card(currency = usd).copy(parentAccountId = id), null, SecondCurrencyInput(eur, null)) }
+        }
+        assertEquals(2, db.accountDao().count())
+    }
 }

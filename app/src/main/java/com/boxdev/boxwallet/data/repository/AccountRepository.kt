@@ -200,7 +200,7 @@ class AccountRepository @Inject constructor(
             }
             if (second is SecondCurrencyChange.Add) {
                 require(child == null) { "Card ${account.id} already has a second currency" }
-                requireSecondAllowed(account, second.input)
+                requireSecondAllowed(account.copy(parentAccountId = stored.parentAccountId), second.input)
             }
             val currencyChanged = stored.currencyCode != account.currency.currencyCode
             check(!currencyChanged || !hasNonAdjustmentMovements(account.id)) {
@@ -227,6 +227,7 @@ class AccountRepository @Inject constructor(
 
     private fun requireSecondAllowed(account: Account, input: SecondCurrencyInput) {
         require(account.type == AccountType.CREDIT_CARD) { "Only cards have a second currency" }
+        require(account.parentAccountId == null) { "A second currency can't have its own" }
         require(input.currency != account.currency) { "The second currency must differ from the card's" }
         require(input.currentBalance == null || input.currentBalance.currency == input.currency) {
             "Second-currency balance must be in that currency"
