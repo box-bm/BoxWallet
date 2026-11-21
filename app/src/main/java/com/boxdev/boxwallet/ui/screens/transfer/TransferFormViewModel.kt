@@ -30,8 +30,11 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.boxdev.boxwallet.domain.money.Money
+import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.LocalDateTime
+import java.util.Currency
 import javax.inject.Inject
 
 private val DECIMAL = Regex("^\\d*\\.?\\d*$")
@@ -75,6 +78,12 @@ class TransferFormViewModel @Inject constructor(
     private var loadJob: Job? = null
 
     private var rateJob: Job? = null
+
+    /**
+     * A `receive` argument still waiting for its rate: applied on the first automatic rate, until the user types
+     * an amount or picks another destination.
+     */
+    private var pendingReceive: String? = null
 
     /** Rates resolved per currency pair and day, so typing an amount doesn't resolve (or download) again. */
     private val rateCache = FormRateCache(transactionAmounts, viewModelScope)
@@ -134,24 +143,40 @@ class TransferFormViewModel @Inject constructor(
 
     /**
      * A new transfer: from [from] (else the default account) to [to] (else the first other active account).
-     * [receive] replaces [amount] when given (see [amountToReceive]).
+     * Without [from], a default that is [to] or another currency of the same card gives way to the first other
+     * active account, so paying a card never starts as a transfer out of it. [receive] replaces [amount] when
+     * given (see [amountToReceive]); without a rate yet it waits in [pendingReceive].
      */
     private fun startNew(from: Long?, to: Long?, amount: String, receive: String?) {
         loadJob = viewModelScope.launch {
             allAccounts = accountRepository.observeAccountsWithBalance().first()
             val active = pickable().map { it.account.id }
-            val source = from?.takeIf { it in active } ?: accountRepository.defaultAccount().id
+            val family = to?.takeIf { it in active }?.let(::cardFamilyOf).orEmpty()
+            val fallback = accountRepository.defaultAccount().id
+            val source = from?.takeIf { it in active }
+                ?: fallback.takeIf { it !in family }
+                ?: active.firstOrNull { it !in family }
+                ?: fallback
             val destination = to?.takeIf { it in active && it != source } ?: active.firstOrNull { it != source }
             val start = TransferFormState(fromAccountId = source, toAccountId = destination, amount = amount, accounts = pickable())
-            _formState.value = receive?.let { start.copy(amount = amountToReceive(start, it) ?: amount) } ?: start
+            val prefilled = receive?.let { amountToReceive(start, it) }
+            pendingReceive = receive.takeIf { prefilled == null }
+            _formState.value = prefilled?.let { start.copy(amount = it) } ?: start
             initial.value = _formState.value
             refreshRate()
         }
     }
 
+    /** [id] with its card's other currency: the card and its second-currency child, or just [id]. */
+    private fun cardFamilyOf(id: Long): Set<Long> {
+        val account = allAccounts.firstOrNull { it.account.id == id }?.account ?: return setOf(id)
+        val root = account.parentAccountId ?: account.id
+        return allAccounts.map { it.account }.filter { it.id == root || it.parentAccountId == root }.mapTo(HashSet()) { it.id } + id
+    }
+
     /**
-     * The sent amount for [receive] to arrive: [receive] itself in the same currency, otherwise [receive] ÷ the
-     * automatic rate rounded HALF_UP to the source currency, so at least [receive] arrives. Null without a rate.
+     * The sent amount for [receive] to arrive: [receive] itself in the same currency, otherwise from the
+     * automatic rate (see [sentToReceive]). Null without a rate.
      */
     private suspend fun amountToReceive(state: TransferFormState, receive: String): String? {
         val from = state.fromCurrency ?: return null
@@ -161,13 +186,22 @@ class TransferFormViewModel @Inject constructor(
         val main = userPreferences.mainCurrency.first()
         val result = rateCache.rates(FormRateCache.Key(from, to, main, state.date.toLocalDate()))
         if (result !is AmountResult.Ready) return null
-        return target.toMajor()
-            .divide(result.accountRate.value, from.minorDigits(), RoundingMode.HALF_UP)
-            .toPlainString()
+        return sentToReceive(target, from, result.accountRate.value)
+    }
+
+    /**
+     * The smallest amount in [from] that converts (as the transfer converts it) to at least [target] at [rate]:
+     * the quotient rounded down, then raised one minor unit at a time while it still falls short.
+     */
+    private fun sentToReceive(target: Money, from: Currency, rate: BigDecimal): String {
+        var sent = Money.of(target.toMajor().divide(rate, from.minorDigits(), RoundingMode.DOWN), from)
+        while (sent.convert(target.currency, rate).minor < target.minor) sent = Money(sent.minor + 1, from)
+        return sent.toMajor().toPlainString()
     }
 
     fun updateAmount(value: String) {
         if (value.isEmpty() || DECIMAL.matches(value)) {
+            pendingReceive = null
             _formState.update { s ->
                 val updated = s.copy(amount = value, error = null)
                 updated.manualRate?.let { updated.withManualRate(it) } ?: updated
@@ -190,6 +224,7 @@ class TransferFormViewModel @Inject constructor(
         val s = _formState.value
         if (id == s.toAccountId || s.toOptions.none { it.account.id == id }) return
         if (id == s.fromAccountId) return swap()
+        pendingReceive = null
         _formState.update { it.copy(toAccountId = id, manualRate = null, equivalent = null, error = null) }
         refreshRate()
     }
@@ -200,6 +235,7 @@ class TransferFormViewModel @Inject constructor(
      */
     fun swap() {
         if (!_formState.value.canSwap) return
+        pendingReceive = null
         _formState.update {
             it.copy(fromAccountId = it.toAccountId, toAccountId = it.fromAccountId, manualRate = null, equivalent = null, error = null)
         }
@@ -240,17 +276,30 @@ class TransferFormViewModel @Inject constructor(
         rateJob = viewModelScope.launch {
             val main = userPreferences.mainCurrency.first()
             val result = rateCache.rates(FormRateCache.Key(from, to, main, day))
+            // A `receive` that had no rate at start is applied with the first one.
+            val pending = (result as? AmountResult.Ready)?.let { ready ->
+                pendingReceive?.let { parseMajor(it, to) }?.let { sentToReceive(it, from, ready.accountRate.value) }
+            }
             _formState.update {
                 val stale = it.fromCurrency != from || it.toCurrency != to || it.date.toLocalDate() != day
                 if (it.manualRate != null || stale) return@update it
                 when (result) {
-                    is AmountResult.Ready -> it.copy(
-                        rate = result.accountRate,
-                        needsManualRate = false,
-                        equivalent = FormRateCache.equivalent(it.amount, from, to, result),
-                    )
+                    is AmountResult.Ready -> {
+                        val amount = pending ?: it.amount
+                        it.copy(
+                            amount = amount,
+                            rate = result.accountRate,
+                            needsManualRate = false,
+                            equivalent = FormRateCache.equivalent(amount, from, to, result),
+                        )
+                    }
                     AmountResult.NeedsManualRate -> it.copy(rate = null, needsManualRate = true, equivalent = null)
                 }
+            }
+            if (pending != null && _formState.value.amount == pending) {
+                pendingReceive = null
+                // The prefill is where the form starts, not an edit.
+                initial.update { base -> base?.copy(amount = pending) }
             }
         }
     }

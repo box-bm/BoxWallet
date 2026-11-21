@@ -23,6 +23,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -55,9 +56,13 @@ class TransferFormViewModelTest {
     private val gtq = Currency.getInstance("GTQ")
     private val november = LocalDate.of(2026, 11, 5)
 
+    /** False while offline: no rate is known yet. */
+    private var ratesAvailable = true
+
     /** Units per USD. */
     private val lookup = object : RateLookup {
-        override suspend fun exact(day: LocalDate, code: String) = if (code == "GTQ") BigDecimal("7.64") else null
+        override suspend fun exact(day: LocalDate, code: String) =
+            if (code == "GTQ" && ratesAvailable) BigDecimal("7.64") else null
         override suspend fun nearest(day: LocalDate, code: String) = exact(day, code)
         override suspend fun download(day: LocalDate) = false
     }
@@ -236,6 +241,59 @@ class TransferFormViewModelTest {
         assertEquals("764.00", state.amount)
         assertEquals("100.00", state.equivalent)
         assertEquals(null, state.manualRate)
+        assertFalse(vm.hasUnsavedChanges.value)
+    }
+
+    /** Ruling 9: from a currency worth more, the amount is rounded up so the whole debt arrives. */
+    @Test
+    fun receiveFromAStrongerCurrencyCoversDebt() = runTest {
+        val card = db.accountDao().insert(AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "GTQ", createdAt = 0L, sortOrder = 2))
+        val vm = vm(mapOf("from" to dolares, "to" to card, "receive" to "100.03"))
+        val state = vm.formState.first { !it.isLoading && it.amount.isNotEmpty() && it.equivalent != null }
+        assertEquals("13.10", state.amount)
+        assertTrue(BigDecimal(state.equivalent) >= BigDecimal("100.03"))
+        // One cent less would fall short.
+        assertTrue(BigDecimal("13.09").multiply(BigDecimal("7.64")) < BigDecimal("100.03"))
+    }
+
+    /** Ruling 10a: paying a card that is the default account starts from another account. */
+    @Test
+    fun payingTheDefaultCardStartsFromAnotherAccount() = runTest {
+        val card = db.accountDao().insert(AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "GTQ", createdAt = 0L, sortOrder = 2))
+        val child = db.accountDao().insert(
+            AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "USD", createdAt = 0L, sortOrder = 2, parentAccountId = card)
+        )
+        prefs.setDefaultAccountId(card)
+
+        val toCard = vm(mapOf("to" to card, "receive" to "50.00")).loaded()
+        assertEquals(banco, toCard.fromAccountId)
+        assertEquals(card, toCard.toAccountId)
+        assertEquals("50.00", toCard.amount)
+
+        val toChild = vm(mapOf("to" to child)).loaded()
+        assertEquals(banco, toChild.fromAccountId)
+        assertEquals(child, toChild.toAccountId)
+    }
+
+    /** Ruling 10b: a receive without a rate at start is applied on the first rate, and isn't an edit. */
+    @Test
+    fun receiveWaitsForTheFirstRate() = runTest {
+        ratesAvailable = false
+        val vm = vm(mapOf("from" to banco, "to" to dolares, "receive" to "100.00"))
+        backgroundScope.launch { vm.hasUnsavedChanges.collect {} }
+        val start = vm.formState.first { !it.isLoading && it.fromAccountId != null && it.needsManualRate }
+        assertEquals("", start.amount)
+
+        ratesAvailable = true
+        vm.updateDate(start.date.minusDays(1))
+        val ready = vm.formState.first { it.amount.isNotEmpty() && it.equivalent != null }
+        assertEquals("764.00", ready.amount)
+        assertEquals("100.00", ready.equivalent)
+
+        // Back on the start date only the prefill differs, and it doesn't count as an edit.
+        vm.updateDate(start.date)
+        settle()
+        assertEquals("764.00", vm.formState.value.amount)
         assertFalse(vm.hasUnsavedChanges.value)
     }
 }
