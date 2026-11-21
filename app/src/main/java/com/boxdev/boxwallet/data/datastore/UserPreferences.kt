@@ -27,7 +27,7 @@ class UserPreferences @Inject constructor(
         private val LEGACY_CURRENCY_KEY = stringPreferencesKey("currency")
         private val MAIN_CURRENCY_KEY = stringPreferencesKey("main_currency")
         private val DEFAULT_ACCOUNT_ID_KEY = longPreferencesKey("default_account_id")
-        private val PENDING_MAIN_CURRENCY_KEY = stringPreferencesKey("pending_main_currency")
+        private val LEGACY_PENDING_MAIN_CURRENCY_KEY = stringPreferencesKey("pending_main_currency")
         private val LAST_RATE_SYNC_AT_KEY = longPreferencesKey("last_rate_sync_at")
         private val USD: Currency = Currency.getInstance("USD")
         private val DEFAULT_CATEGORY_ID_KEY = stringPreferencesKey("default_category_id")
@@ -45,9 +45,6 @@ class UserPreferences @Inject constructor(
 
     val defaultAccountId: Flow<Long?> = context.userPreferencesDataStore.data
         .map { it[DEFAULT_ACCOUNT_ID_KEY] }
-
-    val pendingMainCurrency: Flow<String?> = context.userPreferencesDataStore.data
-        .map { it[PENDING_MAIN_CURRENCY_KEY] }
 
     val lastRateSyncAt: Flow<Long?> = context.userPreferencesDataStore.data
         .map { it[LAST_RATE_SYNC_AT_KEY] }
@@ -80,11 +77,9 @@ class UserPreferences @Inject constructor(
         context.userPreferencesDataStore.edit { it[DEFAULT_ACCOUNT_ID_KEY] = id }
     }
 
-    suspend fun setPendingMainCurrency(code: String?) {
-        context.userPreferencesDataStore.edit { preferences ->
-            if (code != null) preferences[PENDING_MAIN_CURRENCY_KEY] = code
-            else preferences.remove(PENDING_MAIN_CURRENCY_KEY)
-        }
+    /** The pending main currency marker now lives in `app_meta`; drops the stale pre-v2 key. */
+    suspend fun clearLegacyPendingMainCurrency() {
+        context.userPreferencesDataStore.edit { it.remove(LEGACY_PENDING_MAIN_CURRENCY_KEY) }
     }
 
     suspend fun setLastRateSyncAt(millis: Long) {

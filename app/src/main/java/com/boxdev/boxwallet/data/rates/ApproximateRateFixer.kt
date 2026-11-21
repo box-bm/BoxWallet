@@ -2,6 +2,7 @@ package com.boxdev.boxwallet.data.rates
 
 import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.data.local.dao.AccountDao
+import com.boxdev.boxwallet.data.local.dao.AppMetaDao
 import com.boxdev.boxwallet.data.local.dao.TransactionDao
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 import com.boxdev.boxwallet.domain.money.ExchangeRateResolver
@@ -20,6 +21,7 @@ import javax.inject.Inject
 class ApproximateRateFixer @Inject constructor(
     private val transactionDao: TransactionDao,
     private val accountDao: AccountDao,
+    private val appMetaDao: AppMetaDao,
     private val resolver: ExchangeRateResolver,
     private val prefs: UserPreferences,
     private val lock: CurrencyChangeLock,
@@ -28,7 +30,7 @@ class ApproximateRateFixer @Inject constructor(
     /** Returns how many movements were corrected. */
     suspend fun fix(): Int = lock.mutex.withLock {
         // A main currency change is rewriting every movement; it resolves them itself.
-        if (prefs.pendingMainCurrency.first() != null) return@withLock 0
+        if (appMetaDao.get(MainCurrencyChanger.META_PENDING_MAIN_CURRENCY) != null) return@withLock 0
         val pending = transactionDao.getWithApproximateRates()
         if (pending.isEmpty()) return@withLock 0
         val main = prefs.mainCurrency.first()

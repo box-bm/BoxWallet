@@ -3,9 +3,11 @@ package com.boxdev.boxwallet.data.rates
 import androidx.room.withTransaction
 import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.data.local.dao.AccountDao
+import com.boxdev.boxwallet.data.local.dao.AppMetaDao
 import com.boxdev.boxwallet.data.local.dao.LoanDao
 import com.boxdev.boxwallet.data.local.dao.TransactionDao
 import com.boxdev.boxwallet.data.local.database.BoxWalletDatabase
+import com.boxdev.boxwallet.data.local.entity.AppMetaEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 import com.boxdev.boxwallet.data.repository.BackupRepository
 import com.boxdev.boxwallet.domain.money.AmountInput
@@ -48,6 +50,7 @@ class MainCurrencyChanger internal constructor(
     private val transactionDao: TransactionDao,
     private val accountDao: AccountDao,
     private val loanDao: LoanDao,
+    private val appMetaDao: AppMetaDao,
     private val lookup: RateLookup,
     private val prefs: UserPreferences,
     private val backup: BackupRepository,
@@ -63,12 +66,13 @@ class MainCurrencyChanger internal constructor(
         transactionDao: TransactionDao,
         accountDao: AccountDao,
         loanDao: LoanDao,
+        appMetaDao: AppMetaDao,
         rates: ExchangeRateRepository,
         prefs: UserPreferences,
         backup: BackupRepository,
         lock: CurrencyChangeLock,
     ) : this(
-        database, transactionDao, accountDao, loanDao, rates, prefs, backup, lock,
+        database, transactionDao, accountDao, loanDao, appMetaDao, rates, prefs, backup, lock,
         today = { LocalDate.now() },
         sourceReachable = { rates.syncLatest() },
     )
@@ -119,37 +123,30 @@ class MainCurrencyChanger internal constructor(
         onProgress: (done: Int, total: Int) -> Unit = { _, _ -> },
     ): ChangeSummary = lock.mutex.withLock {
         if (prefs.mainCurrency.first() == to) return@withLock ChangeSummary(0, 0, 0)
-        prefs.setPendingMainCurrency(to.currencyCode)
-        try {
-            backup.writeLocalSnapshot()
-        } catch (e: Throwable) {
-            withContext(NonCancellable) { prefs.setPendingMainCurrency(null) }
-            throw e
-        }
+        backup.writeLocalSnapshot()
         withContext(NonCancellable) {
-            val summary = try {
-                database.withTransaction { recalculate(to, onProgress) }
-            } catch (e: Throwable) {
-                prefs.setPendingMainCurrency(null)
-                throw e
+            // The marker commits with the data, so "marker present" means the data is already in `to`.
+            val summary = database.withTransaction {
+                val result = recalculate(to, onProgress)
+                appMetaDao.put(AppMetaEntity(META_PENDING_MAIN_CURRENCY, to.currencyCode))
+                result
             }
             prefs.setMainCurrency(to.currencyCode)
-            prefs.setPendingMainCurrency(null)
+            appMetaDao.delete(listOf(META_PENDING_MAIN_CURRENCY))
             summary
         }
     }
 
     /**
-     * Finishes a change interrupted between the database commit and the DataStore write. The commit
-     * happened when the default account already holds the pending currency; otherwise the
-     * transaction rolled back and the mark is just cleared. Call at startup, before other DB work.
+     * Finishes a change interrupted between the database commit and the DataStore write: the marker
+     * is committed with the data, so while it exists the data is already in the pending currency.
+     * Also drops the pre-v2 DataStore marker. Call at startup, before other DB work.
      */
     suspend fun completePending(): Unit = lock.mutex.withLock {
-        val pending = prefs.pendingMainCurrency.first() ?: return@withLock
-        val account = prefs.defaultAccountId.first()?.let { accountDao.getById(it) }
-            ?: accountDao.getAll().firstOrNull()
-        if (account?.currencyCode == pending) prefs.setMainCurrency(pending)
-        prefs.setPendingMainCurrency(null)
+        prefs.clearLegacyPendingMainCurrency()
+        val pending = appMetaDao.get(META_PENDING_MAIN_CURRENCY) ?: return@withLock
+        prefs.setMainCurrency(pending)
+        appMetaDao.delete(listOf(META_PENDING_MAIN_CURRENCY))
     }
 
     private suspend fun recalculate(to: Currency, onProgress: (Int, Int) -> Unit): ChangeSummary {
@@ -207,7 +204,9 @@ class MainCurrencyChanger internal constructor(
         override suspend fun download(day: LocalDate): Boolean = false
     }
 
-    private companion object {
-        const val MILLIS_PER_DAY = 86_400_000L
+    companion object {
+        /** `app_meta` key of a main currency change committed but not yet applied to DataStore. */
+        const val META_PENDING_MAIN_CURRENCY = "pending_main_currency"
+        private const val MILLIS_PER_DAY = 86_400_000L
     }
 }
