@@ -64,6 +64,8 @@ fun HomeScreen(
     onEditTransaction: (Long) -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     onNavigateToSearch: () -> Unit = {},
+    onOpenAccount: (Long) -> Unit = {},
+    onSeeAccounts: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var pendingAdjustment by remember { mutableStateOf<Transaction?>(null) }
@@ -107,7 +109,17 @@ fun HomeScreen(
         }
 
         val balance: LazyListScope.() -> Unit = {
-            item(key = "balance") { BalancePanel(summary = uiState.financialSummary) }
+            item(key = "balance") { BalancePanel(summary = uiState.financialSummary, totalBalance = uiState.totalBalance) }
+            if (showAccountsRow(uiState.accounts)) {
+                item(key = "accounts") {
+                    HomeAccountsRow(
+                        accounts = uiState.accounts,
+                        onOpenAccount = onOpenAccount,
+                        onSeeAccounts = onSeeAccounts,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                }
+            }
         }
         val recent: LazyListScope.() -> Unit = {
             item(key = "recent_header") {

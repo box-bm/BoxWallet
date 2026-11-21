@@ -5,6 +5,7 @@ import com.boxdev.boxwallet.ui.screens.loans.LoanFormState
 /** True when a user-editable field differs from [initial]; loading, error and derived fields are ignored. */
 fun TransactionFormState.differsFrom(initial: TransactionFormState): Boolean =
     amount != initial.amount ||
+        accountId != initial.accountId ||
         currency != initial.currency ||
         manualRate != initial.manualRate ||
         equivalent != initial.equivalent ||

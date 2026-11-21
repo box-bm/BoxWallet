@@ -51,7 +51,7 @@ class TransactionAmounts(private val resolver: ExchangeRateResolver) {
     /**
      * Freezes the conversions of [draft], the movement about to be saved; [previous] is the stored
      * version when editing. Unchanged currency, day and amount (with the same rate choice) keep the
-     * stored conversion verbatim. A day or amount change under a kept MANUAL account rate keeps that
+     * stored conversion verbatim; a move to an account in another currency always computes afresh. A day or amount change under a kept MANUAL account rate keeps that
      * rate and re-resolves the other leg for the movement's date; anything else is computed afresh.
      * Null when no rate exists and none was typed.
      */
@@ -62,7 +62,8 @@ class TransactionAmounts(private val resolver: ExchangeRateResolver) {
         main: Currency,
         manualAccountRate: BigDecimal?,
     ): Transaction? {
-        if (previous != null && keepsRateChoice(previous, manualAccountRate)) {
+        val sameAccountCurrency = previous?.accountAmount?.currency == accountCurrency
+        if (previous != null && sameAccountCurrency && keepsRateChoice(previous, manualAccountRate)) {
             val frozen = draft.withAmounts(
                 AmountResult.Ready(previous.accountAmount, previous.accountRate, previous.amount, previous.mainRate)
             )

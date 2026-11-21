@@ -235,4 +235,16 @@ class TransactionAmountsTest {
 
         assertEquals(null, amounts(FakeLookup(emptyMap())).forSave(previous.copy(id = 0), null, usd, gtq, null))
     }
+
+    @Test
+    fun `edit moving to an account in another currency computes the conversion afresh`() = runTest {
+        val lookup = FakeLookup(mapOf("EUR" to eurUnits, "GTQ" to BigDecimal("7.64")))
+        val previous = manualOctober().copy(accountRate = ExchangeRate(BigDecimal("1.0852"), RateSource.AUTO))
+
+        val saved = amounts(lookup).forSave(previous.copy(accountId = 2), previous, gtq, gtq, null)!!
+
+        assertEquals(gtq, saved.accountAmount.currency)
+        assertEquals(Money(2000, eur), saved.original)
+        assertEquals(gtq, saved.amount.currency)
+    }
 }

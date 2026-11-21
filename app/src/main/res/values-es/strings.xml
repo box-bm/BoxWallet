@@ -629,4 +629,10 @@
     <string name="account_error_missing_rate">No hay tasa de cambio para esta moneda todavía</string>
     <string name="account_balance_negative">Saldo negativo</string>
     <string name="account_error_generic">Algo salió mal. Inténtalo de nuevo.</string>
+    <string name="home_see_accounts">Ver cuentas</string>
+    <string name="transaction_account_label">Cuenta</string>
+    <string name="transaction_account_chip_description">Cuenta: %1$s. Toca para cambiar</string>
+    <string name="transactions_filter_account">Cuenta</string>
+    <string name="transactions_filter_account_remove">Quitar el filtro de la cuenta %1$s</string>
+    <string name="account_see_in_movements">Ver en Movimientos</string>
 </resources>

@@ -200,6 +200,8 @@ fun NavGraph(
                 onEditTransaction = onEditTransaction,
                 onNavigateToSettings = onNavigateToSettings,
                 onNavigateToSearch = onNavigateToSearch,
+                onOpenAccount = { navController.navigate(NavRoutes.AccountDetail.createRoute(it)) { launchSingleTop = true } },
+                onSeeAccounts = { navController.navigate(NavRoutes.Accounts.route) { launchSingleTop = true } },
             )
         }
 
@@ -305,6 +307,7 @@ fun NavGraph(
                 onNewAccount = { navController.navigate(NavRoutes.AccountForm.createRoute()) { launchSingleTop = true } },
                 onEditAccount = onEditAccount,
                 onEditTransaction = onEditTransaction,
+                onSeeInMovements = { navController.navigateToTab(NavRoutes.TransactionsList.route) },
             )
         }
 
@@ -325,6 +328,7 @@ fun NavGraph(
                     onNavigateBack = { navController.popBackStack() },
                     onEditAccount = onEditAccount,
                     onEditTransaction = onEditTransaction,
+                    onSeeInMovements = { navController.navigateToTab(NavRoutes.TransactionsList.route) },
                     onDeleted = { entry.ifResumed { navController.popBackStack() } },
                 )
             }

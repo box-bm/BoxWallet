@@ -90,6 +90,8 @@ fun AccountDetailScreen(
     onNavigateBack: (() -> Unit)?,
     onEditAccount: (Long) -> Unit,
     onEditTransaction: (Long) -> Unit,
+    /** Switches to the Movements tab, which the view model has already asked to filter by this account. */
+    onSeeInMovements: () -> Unit,
     onDeleted: () -> Unit,
     accountId: Long? = null,
     viewModel: AccountDetailViewModel = hiltViewModel(key = accountId?.let { "account_detail_$it" }),
@@ -157,6 +159,7 @@ fun AccountDetailScreen(
                 onArchive = { viewModel.setArchived(!item.account.isArchived) },
                 onDelete = viewModel::requestDelete,
                 onOpenMovement = { tx -> if (tx.type.isAdjustment) pendingAdjustment = tx else onEditTransaction(tx.id) },
+                onSeeInMovements = { viewModel.seeInMovements(); onSeeInMovements() },
                 modifier = Modifier.padding(padding),
             )
         }
@@ -198,6 +201,7 @@ private fun AccountDetailContent(
     onArchive: () -> Unit,
     onDelete: () -> Unit,
     onOpenMovement: (Transaction) -> Unit,
+    onSeeInMovements: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val account = item.account
@@ -246,7 +250,12 @@ private fun AccountDetailContent(
             }
         }
         item(key = "movements_header") {
-            SectionHeader(stringResource(R.string.account_movements), Modifier.padding(top = 20.dp))
+            SectionHeader(
+                title = stringResource(R.string.account_movements),
+                modifier = Modifier.padding(top = 20.dp),
+                actionLabel = stringResource(R.string.account_see_in_movements).takeIf { movements.isNotEmpty() },
+                onAction = onSeeInMovements,
+            )
         }
         if (movements.isEmpty()) {
             item(key = "empty") {
@@ -321,7 +330,7 @@ private fun AccountDetailPreviewContent() {
                 isDefault = false,
                 movements = emptyList(),
                 categories = emptyMap(),
-                onAdjust = {}, onEdit = {}, onSetDefault = {}, onArchive = {}, onDelete = {}, onOpenMovement = {},
+                onAdjust = {}, onEdit = {}, onSetDefault = {}, onArchive = {}, onDelete = {}, onOpenMovement = {}, onSeeInMovements = {},
             )
         }
     }

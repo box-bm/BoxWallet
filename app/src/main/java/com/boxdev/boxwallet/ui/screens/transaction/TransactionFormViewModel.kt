@@ -10,6 +10,7 @@ import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.TransactionRepository
+import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.domain.model.ReminderDuration
@@ -60,6 +61,12 @@ data class TransactionFormState(
     val currency: Currency = Currency.getInstance("USD"),
     /** Currency of the account the movement goes to; null until loaded, and saving waits for it. */
     val accountCurrency: Currency? = null,
+    /** The account the movement goes to; null until loaded. */
+    val accountId: Long? = null,
+    /** Accounts the movement can go to (not archived); the account chip shows only with more than one. */
+    val accounts: List<Account> = emptyList(),
+    /** True once the user picked [currency] explicitly, so choosing another account no longer moves it. */
+    val currencyTouched: Boolean = false,
     /** Original → account rate typed by the user (overrides the automatic one), or null. */
     val manualRate: String? = null,
     /** The amount in [accountCurrency], in major units; typing it derives [manualRate]. */
@@ -155,7 +162,16 @@ class TransactionFormViewModel @Inject constructor(
     val recentCurrencies: StateFlow<List<CurrencyUsage>> = transactionRepository.recentCurrencies()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /** Latest non-archived accounts, carried into every fresh state so a reload never hides the chip. */
+    private var accounts: List<Account> = emptyList()
+
     init {
+        viewModelScope.launch {
+            accountRepository.observeAll().collect { all ->
+                accounts = all.filter { !it.isArchived }
+                _formState.update { it.copy(accounts = accounts) }
+            }
+        }
         loadTransaction(savedStateHandle.get<Long>("id"))
     }
 
@@ -167,7 +183,7 @@ class TransactionFormViewModel @Inject constructor(
         val current = _formState.value
         if (current.id == transactionId && !current.isSaved && (current.isLoading || initial.value != null)) return
         // Reset at once, so the last movement's saved flag can't close the form for this one.
-        _formState.value = TransactionFormState(id = transactionId, isLoading = true)
+        _formState.value = TransactionFormState(id = transactionId, isLoading = true, accounts = accounts)
         loadTransaction(transactionId)
     }
 
@@ -180,11 +196,16 @@ class TransactionFormViewModel @Inject constructor(
         initial.value = null
         if (transactionId == null || transactionId == -1L) {
             // Loading until the account is known, so a quick save can't store a placeholder currency.
-            _formState.value = TransactionFormState(isLoading = true)
+            _formState.value = TransactionFormState(isLoading = true, accounts = accounts)
             loadJob = viewModelScope.launch {
                 val account = accountRepository.defaultAccount()
                 _formState.update {
-                    it.copy(currency = account.currency, accountCurrency = account.currency, isLoading = false)
+                    it.copy(
+                        currency = account.currency,
+                        accountCurrency = account.currency,
+                        accountId = account.id,
+                        isLoading = false,
+                    )
                 }
                 initial.value = _formState.value
             }
@@ -200,6 +221,10 @@ class TransactionFormViewModel @Inject constructor(
                     amount = t.original.toMajor().toPlainString(),
                     currency = t.original.currency,
                     accountCurrency = t.accountAmount.currency,
+                    accountId = t.accountId,
+                    accounts = accounts,
+                    // The stored currency was chosen for this movement: moving it to another account keeps it.
+                    currencyTouched = true,
                     manualRate = t.accountRate.takeIf { it.source == RateSource.MANUAL }?.value?.toPlainString(),
                     equivalent = t.accountAmount.toMajor().toPlainString()
                         .takeIf { t.original.currency != t.accountAmount.currency },
@@ -237,7 +262,29 @@ class TransactionFormViewModel @Inject constructor(
 
     /** Changes the movement's currency; any typed rate belonged to the old one and is dropped. */
     fun updateCurrency(value: Currency) {
-        _formState.update { it.copy(currency = value, manualRate = null, equivalent = null, error = null) }
+        _formState.update {
+            it.copy(currency = value, currencyTouched = true, manualRate = null, equivalent = null, error = null)
+        }
+        refreshRate()
+    }
+
+    /**
+     * Moves the movement to another account. Its currency follows the account's unless the user
+     * picked one; a typed rate belonged to the old account's currency and is dropped.
+     */
+    fun setAccount(id: Long) {
+        val account = _formState.value.accounts.firstOrNull { it.id == id } ?: return
+        _formState.update {
+            if (it.accountId == id) return@update it
+            it.copy(
+                accountId = account.id,
+                accountCurrency = account.currency,
+                currency = if (it.currencyTouched) it.currency else account.currency,
+                manualRate = null,
+                equivalent = null,
+                error = null,
+            )
+        }
         refreshRate()
     }
 
@@ -341,7 +388,7 @@ class TransactionFormViewModel @Inject constructor(
                 } else null
 
                 val previous = editing
-                val accountId = previous?.accountId ?: accountRepository.defaultAccount().id
+                val accountId = s.accountId ?: previous?.accountId ?: accountRepository.defaultAccount().id
                 val draft = Transaction.singleCurrency(accountId, s.type, s.date, s.money!!).copy(
                     id = if (s.isEditing) s.id else 0,
                     description = s.description,

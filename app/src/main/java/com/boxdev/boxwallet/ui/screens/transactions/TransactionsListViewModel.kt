@@ -3,8 +3,10 @@ package com.boxdev.boxwallet.ui.screens.transactions
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boxdev.boxwallet.data.local.entity.TransactionType
+import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.TransactionRepository
+import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Transaction
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -37,6 +39,8 @@ data class TransactionsListUiState(
     val transactions: List<Transaction> = emptyList(),
     val filteredTransactions: List<Transaction> = emptyList(),
     val availableCategories: List<Category> = emptyList(),
+    /** Every account, archived included, so a filter on an archived one still shows its name. */
+    val accounts: List<Account> = emptyList(),
     val isLoading: Boolean = true,
     val filterState: TransactionsFilterState = TransactionsFilterState()
 )
@@ -45,6 +49,7 @@ data class TransactionsListUiState(
 class TransactionsListViewModel @Inject constructor(
     private val repository: TransactionRepository,
     private val categoryRepository: CategoryRepository,
+    accountRepository: AccountRepository,
     private val filterRequest: MovementsFilterRequest,
 ) : ViewModel() {
 
@@ -53,12 +58,14 @@ class TransactionsListViewModel @Inject constructor(
     val uiState: StateFlow<TransactionsListUiState> = combine(
         repository.getAllTransactions(),
         categoryRepository.getAllCategories(),
+        accountRepository.observeAll(),
         filterState,
-    ) { transactions, categories, filter ->
+    ) { transactions, categories, accounts, filter ->
         TransactionsListUiState(
             transactions = transactions,
             filteredTransactions = applyFilters(transactions, filter),
             availableCategories = categories,
+            accounts = accounts,
             isLoading = false,
             filterState = filter,
         )
@@ -82,6 +89,8 @@ class TransactionsListViewModel @Inject constructor(
     fun updateTypeFilter(type: TransactionTypeFilter) = filterState.update { it.copy(transactionType = type) }
 
     fun updateCategoryFilter(categoryId: Long?) = filterState.update { it.copy(categoryId = categoryId) }
+
+    fun updateAccountFilter(accountId: Long?) = filterState.update { it.copy(accountId = accountId) }
 
     fun updateSortBy(sortBy: SortBy) = filterState.update { it.copy(sortBy = sortBy) }
 

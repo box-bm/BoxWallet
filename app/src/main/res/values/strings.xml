@@ -642,4 +642,10 @@
     <string name="account_error_missing_rate">There\'s no exchange rate for this currency yet</string>
     <string name="account_balance_negative">Negative balance</string>
     <string name="account_error_generic">Something went wrong. Try again.</string>
+    <string name="home_see_accounts">See accounts</string>
+    <string name="transaction_account_label">Account</string>
+    <string name="transaction_account_chip_description">Account: %1$s. Tap to change</string>
+    <string name="transactions_filter_account">Account</string>
+    <string name="transactions_filter_account_remove">Remove the %1$s account filter</string>
+    <string name="account_see_in_movements">See in Movements</string>
 </resources>

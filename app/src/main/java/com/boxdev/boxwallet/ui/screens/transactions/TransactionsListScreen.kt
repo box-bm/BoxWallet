@@ -35,6 +35,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.SearchOff
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material3.InputChip
+import androidx.compose.material3.InputChipDefaults
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.boxdev.boxwallet.ui.screens.accounts.AccountBadge
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ListItemDefaults
@@ -44,6 +50,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.size
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -74,6 +82,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.AlertDialog
 import com.boxdev.boxwallet.domain.model.net
+import com.boxdev.boxwallet.ui.components.AccountFilterChips
 import com.boxdev.boxwallet.ui.components.CategoryFilterChips
 import com.boxdev.boxwallet.ui.components.CheckFilterChip
 import com.boxdev.boxwallet.ui.components.CollapsibleFilterPanel
@@ -111,6 +120,11 @@ fun TransactionsListScreen(
     }
     val filter = uiState.filterState
     val categoryMap = remember(uiState.availableCategories) { uiState.availableCategories.associateBy { it.id } }
+    // The selector lists accounts still in use, plus an archived one the filter points at (from its detail).
+    val filterAccounts = remember(uiState.accounts, filter.accountId) {
+        uiState.accounts.filter { !it.isArchived || it.id == filter.accountId }
+    }
+    val filteredAccount = uiState.accounts.firstOrNull { it.id == filter.accountId }
     var showFilters by rememberSaveable { mutableStateOf(false) }
     val twoPane = BoxTheme.layout.twoPane
     val listState = rememberLazyListState()
@@ -178,6 +192,12 @@ fun TransactionsListScreen(
                     CategoryFilterChips(uiState.availableCategories, filter.categoryId, viewModel::updateCategoryFilter)
                 }
             }
+            // With a single account there is nothing to choose: the panel stays as it was.
+            if (filterAccounts.size > 1) {
+                FilterGroup(stringResource(R.string.transactions_filter_account)) {
+                    AccountFilterChips(filterAccounts, filter.accountId, viewModel::updateAccountFilter)
+                }
+            }
             FilterGroup(stringResource(R.string.transactions_filter_sort)) {
                 ConnectedChoiceRow(
                     options = listOf(SortBy.DATE_DESC, SortBy.DATE_ASC, SortBy.AMOUNT_DESC, SortBy.AMOUNT_ASC),
@@ -211,6 +231,20 @@ fun TransactionsListScreen(
         Column(Modifier.fillMaxSize()) {
             CollapsibleFilterPanel(visible = showFilters) {
                 filterPanel(Modifier.padding(16.dp))
+            }
+            // An account filter usually comes from the account's detail, with the panel closed: say so.
+            if (filteredAccount != null && !showFilters) {
+                val remove = stringResource(R.string.transactions_filter_account_remove, filteredAccount.name)
+                InputChip(
+                    selected = true,
+                    onClick = { viewModel.updateAccountFilter(null) },
+                    label = { Text(filteredAccount.name, maxLines = 1) },
+                    avatar = { AccountBadge(filteredAccount, size = InputChipDefaults.AvatarSize.value.toInt()) },
+                    trailingIcon = {
+                        Icon(Icons.Outlined.Close, contentDescription = null, modifier = Modifier.size(InputChipDefaults.IconSize))
+                    },
+                    modifier = Modifier.padding(vertical = 8.dp).semantics { contentDescription = remove },
+                )
             }
 
             when {

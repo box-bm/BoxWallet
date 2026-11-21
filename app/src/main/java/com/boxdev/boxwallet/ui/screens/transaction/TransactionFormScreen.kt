@@ -69,6 +69,31 @@ import com.boxdev.boxwallet.ui.components.groupShape
 import com.boxdev.boxwallet.ui.components.rememberDateTimePickerState
 import com.boxdev.boxwallet.ui.components.trendIcon
 import java.util.Locale
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.text.style.TextOverflow
+import com.boxdev.boxwallet.domain.model.Account
+import com.boxdev.boxwallet.ui.components.SheetHeader
+import com.boxdev.boxwallet.ui.screens.accounts.AccountBadge
+import com.boxdev.boxwallet.util.accountIcon
 
 /**
  * Full-screen create/edit form for a movement. The view model loads the movement from the
@@ -140,6 +165,7 @@ private fun TransactionFormFields(
     val pickers = rememberDateTimePickerState()
     val recentCurrencies by viewModel.recentCurrencies.collectAsState()
     var showCurrencyPicker by remember { mutableStateOf(false) }
+    var showAccountPicker by remember { mutableStateOf(false) }
     val locale = remember { Locale.getDefault() }
     val availableReminders = remember { ReminderDuration.entries.filter { !it.debugOnly || BuildConfig.DEBUG } }
 
@@ -169,6 +195,10 @@ private fun TransactionFormFields(
             autoFocus = !formState.isEditing,
             currencyCode = formState.currency.currencyCode,
             onCurrencyClick = { showCurrencyPicker = true },
+            // With a single account the form stays as it was before accounts: no chip.
+            accountChip = if (formState.accounts.size > 1) {
+                { AccountChip(formState.accounts.firstOrNull { it.id == formState.accountId }) { showAccountPicker = true } }
+            } else null,
         )
 
         val accountCurrency = formState.accountCurrency
@@ -287,7 +317,84 @@ private fun TransactionFormFields(
         )
     }
 
+    if (showAccountPicker) {
+        AccountPickerSheet(
+            accounts = formState.accounts,
+            selectedId = formState.accountId,
+            onPick = { viewModel.setAccount(it); showAccountPicker = false },
+            onDismiss = { showAccountPicker = false },
+        )
+    }
+
     DateTimePickerDialogs(pickers, formState.date, viewModel::updateDate, viewModel::updateTime)
+}
+
+/** The movement's account as a quiet button beside the currency: its icon and name. */
+@Composable
+private fun AccountChip(account: Account?, onClick: () -> Unit) {
+    val name = account?.name ?: stringResource(R.string.transaction_account_label)
+    val description = stringResource(R.string.transaction_account_chip_description, name)
+    FilledTonalButton(
+        onClick = onClick,
+        colors = ButtonDefaults.filledTonalButtonColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+        ),
+        contentPadding = PaddingValues(start = 12.dp, end = 16.dp),
+        modifier = Modifier.semantics { contentDescription = description },
+    ) {
+        Icon(
+            account?.let { accountIcon(it.icon) } ?: Icons.Outlined.AccountBalanceWallet,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 96.dp))
+    }
+}
+
+/** The accounts a movement can go to, each with its badge, name and currency. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AccountPickerSheet(
+    accounts: List<Account>,
+    selectedId: Long?,
+    onPick: (Long) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val locale = remember { Locale.getDefault() }
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 24.dp)) {
+            SheetHeader(title = stringResource(R.string.transaction_account_label))
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                items(accounts, key = { it.id }) { account ->
+                    val selected = account.id == selectedId
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 64.dp)
+                            .selectable(selected = selected, role = Role.RadioButton, onClick = { onPick(account.id) })
+                            .padding(horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        AccountBadge(account)
+                        Column(Modifier.weight(1f)) {
+                            Text(account.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(
+                                "${account.currency.currencyCode} · ${CurrencyCatalog.displayName(account.currency, locale)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        if (selected) Icon(Icons.Outlined.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
+        }
+    }
 }
 
 /** The form's error line, in the error color. */

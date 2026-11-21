@@ -14,6 +14,7 @@ import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.domain.money.MissingRateException
 import com.boxdev.boxwallet.domain.money.Money
+import com.boxdev.boxwallet.ui.navigation.MovementsFilterRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -43,6 +44,7 @@ class AccountDetailViewModel @Inject constructor(
     private val accountRepository: AccountRepository,
     private val transactionRepository: TransactionRepository,
     categoryRepository: CategoryRepository,
+    private val movementsFilter: MovementsFilterRequest,
 ) : ViewModel() {
 
     /** From the nav route on phones; set with [bind] when the detail lives in a pane. */
@@ -89,6 +91,11 @@ class AccountDetailViewModel @Inject constructor(
 
     fun messageShown() {
         _message.value = null
+    }
+
+    /** Asks the Movements tab to open filtered to this account; the screen then switches tabs. */
+    fun seeInMovements() {
+        accountId.value?.let(movementsFilter::requestAccount)
     }
 
     fun adjustBalance(realBalance: Money) = onAccount { accountRepository.adjustBalance(it, realBalance) }
