@@ -216,6 +216,10 @@ class AccountRepository @Inject constructor(
     suspend fun hasNonAdjustmentMovements(accountId: Long): Boolean =
         transactionDao.countNonAdjustmentByAccount(accountId) > 0
 
+    /** The account that last paid card [cardId] (or its second currency [childId]), never one of the card's own. */
+    suspend fun lastPayerOf(cardId: Long, childId: Long?): Long? =
+        transactionDao.lastPayerAccountId(listOfNotNull(cardId, childId))
+
     /** The second-currency child of card [cardId], or null. */
     fun secondCurrencyOf(cardId: Long): Flow<Account?> = accountDao.observeChildOf(cardId).map { it?.toDomain() }
 

@@ -31,9 +31,14 @@ class NavRoutesTest {
 
     @Test
     fun transferFormRoute() {
-        assertEquals("transfer_form?id={id}&from={from}&to={to}&amount={amount}", NavRoutes.TransferForm.route)
+        assertEquals("transfer_form?id={id}&from={from}&to={to}&amount={amount}&receive={receive}", NavRoutes.TransferForm.route)
         assertEquals("transfer_form", NavRoutes.TransferForm.createRoute())
         assertEquals("transfer_form?from=2&amount=10.50", NavRoutes.TransferForm.createRoute(from = 2, amount = "10.50"))
         assertEquals("transfer_form?id=7", NavRoutes.TransferForm.createRoute(id = 7))
+    }
+
+    @Test
+    fun transferFormRouteWithReceive() {
+        assertEquals("transfer_form?to=3&receive=1980.00", NavRoutes.TransferForm.createRoute(to = 3, receive = "1980.00"))
     }
 }

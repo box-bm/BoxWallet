@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.domain.model.AccountWithBalance
+import com.boxdev.boxwallet.domain.model.CardSummary
 import com.boxdev.boxwallet.domain.model.TotalBalance
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -17,6 +18,8 @@ data class AccountsUiState(
     val archived: List<AccountWithBalance> = emptyList(),
     val total: TotalBalance? = null,
     val defaultAccountId: Long? = null,
+    /** Card summaries by card id, for the cards' used amount and limit bar. */
+    val cards: Map<Long, CardSummary> = emptyMap(),
     val isLoading: Boolean = true,
 )
 
@@ -29,10 +32,13 @@ class AccountsViewModel @Inject constructor(
         accountRepository.observeAccountsWithBalance(),
         accountRepository.observeTotalBalance(),
         accountRepository.observeDefaultAccountId(),
-    ) { accounts, total, defaultId ->
+        accountRepository.observeCardSummaries(),
+    ) { accounts, total, defaultId, cards ->
         // A card's second-currency sub-account shows inside its card, never as an account of its own.
         val (archived, active) = accounts.filter { it.account.parentAccountId == null }
             .partition { it.account.isArchived }
-        AccountsUiState(active = active, archived = archived, total = total, defaultAccountId = defaultId, isLoading = false)
+        AccountsUiState(
+            active = active, archived = archived, total = total, defaultAccountId = defaultId, cards = cards, isLoading = false,
+        )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AccountsUiState())
 }

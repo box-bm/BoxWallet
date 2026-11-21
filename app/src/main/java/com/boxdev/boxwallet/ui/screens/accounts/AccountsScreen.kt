@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -68,10 +69,13 @@ import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.AccountColor
 import com.boxdev.boxwallet.domain.model.AccountType
 import com.boxdev.boxwallet.domain.model.AccountWithBalance
+import com.boxdev.boxwallet.domain.model.CardSummary
 import com.boxdev.boxwallet.domain.model.TotalBalance
 import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.ui.components.AmountText
 import com.boxdev.boxwallet.ui.components.BackButton
+import com.boxdev.boxwallet.ui.components.CardUsageBar
+import com.boxdev.boxwallet.ui.components.usageFraction
 import com.boxdev.boxwallet.ui.components.PanePlaceholder
 import com.boxdev.boxwallet.ui.components.PaneRow
 import com.boxdev.boxwallet.ui.components.segmentShapes
@@ -102,6 +106,8 @@ fun AccountsScreen(
     onOpenTransfer: (Long) -> Unit = {},
     /** Opens a new transfer from the given account. */
     onNewTransfer: (Long) -> Unit = {},
+    /** Opens a route from the detail pane (a card's Pay). */
+    onNavigate: (String) -> Unit = {},
     viewModel: AccountsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -165,6 +171,7 @@ fun AccountsScreen(
                         onDeleted = { selectedId = null },
                         onOpenTransfer = onOpenTransfer,
                         onNewTransfer = onNewTransfer,
+                        onNavigate = onNavigate,
                         accountId = id,
                         viewModel = hiltViewModel(key = "account_detail_pane"),
                     )
@@ -189,7 +196,10 @@ private fun ColumnScope.AccountsList(
     uiState.total?.let { TotalPanel(it) }
     SettingsGroup(title = null) {
         uiState.active.forEachIndexed { index, item ->
-            AccountRow(item, index, uiState.active.size, item.account.id == uiState.defaultAccountId, item.account.id == selectedId) {
+            AccountRow(
+                item, uiState.cards[item.account.id], index, uiState.active.size,
+                item.account.id == uiState.defaultAccountId, item.account.id == selectedId,
+            ) {
                 onOpen(item.account.id)
             }
         }
@@ -212,7 +222,10 @@ private fun ColumnScope.AccountsList(
             AnimatedVisibility(expanded) {
                 SettingsGroup(title = null, modifier = Modifier.padding(top = 8.dp)) {
                     uiState.archived.forEachIndexed { index, item ->
-                        AccountRow(item, index, uiState.archived.size, isDefault = false, selected = item.account.id == selectedId) {
+                        AccountRow(
+                            item, uiState.cards[item.account.id], index, uiState.archived.size,
+                            isDefault = false, selected = item.account.id == selectedId,
+                        ) {
                             onOpen(item.account.id)
                         }
                     }
@@ -243,9 +256,11 @@ private fun TotalPanel(total: TotalBalance) {
     }
 }
 
+/** One account; a credit card ([card]) shows what is used, with a thin bar of its limit. */
 @Composable
 private fun AccountRow(
     item: AccountWithBalance,
+    card: CardSummary?,
     index: Int,
     count: Int,
     isDefault: Boolean,
@@ -262,7 +277,16 @@ private fun AccountRow(
         supportingContent = if (isDefault || !account.includeInTotal || account.description.isNotBlank()) {
             { AccountTags(account, isDefault, compact = true) }
         } else null,
-        trailingContent = { AmountText(amount = item.balance) },
+        trailingContent = {
+            if (card == null) {
+                AmountText(amount = item.balance)
+            } else {
+                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    AmountText(amount = Money(card.primary.usedMinor, account.currency))
+                    usageFraction(card)?.let { CardUsageBar(it, Modifier.width(72.dp)) }
+                }
+            }
+        },
     ) {
         Text(account.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }

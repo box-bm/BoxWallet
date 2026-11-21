@@ -67,12 +67,16 @@ interface TransactionDao {
     )
     fun observeCardMovements(endOfToday: Long): Flow<List<CardMovementRow>>
 
-    /** Source account of the newest transfer into any of [cardIds] whose source isn't archived. */
+    /**
+     * Source account of the newest transfer into any of [cardIds] whose source isn't archived and isn't one of
+     * [cardIds] itself (moving money between a card's two currencies isn't paying it).
+     */
     @Query(
         "SELECT o.accountId FROM transactions i " +
             "JOIN transactions o ON o.transferId = i.transferId AND o.type = 'TRANSFER_OUT' " +
             "JOIN accounts a ON a.id = o.accountId " +
-            "WHERE i.type = 'TRANSFER_IN' AND i.accountId IN (:cardIds) AND a.isArchived = 0 " +
+            "WHERE i.type = 'TRANSFER_IN' AND i.accountId IN (:cardIds) AND o.accountId NOT IN (:cardIds) " +
+            "AND a.isArchived = 0 " +
             "ORDER BY i.date DESC, i.id DESC LIMIT 1"
     )
     suspend fun lastPayerAccountId(cardIds: List<Long>): Long?

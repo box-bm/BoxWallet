@@ -214,4 +214,28 @@ class TransferFormViewModelTest {
         vm.setTo(dolares)
         assertTrue(vm.formState.value.canSwap)
     }
+
+    @Test
+    fun receiveSameCurrencyFillsAmount() = runTest {
+        val state = vm(mapOf("from" to banco, "to" to -1L, "receive" to "1980.00")).loaded()
+        assertEquals(dolares, state.toAccountId)
+        val caja = db.accountDao().insert(AccountEntity(name = "Caja", type = "CASH", currencyCode = "GTQ", createdAt = 0L, sortOrder = 2))
+        val same = vm(mapOf("from" to banco, "to" to caja, "receive" to "1980.00")).loaded()
+        assertEquals("1980.00", same.amount)
+    }
+
+    @Test
+    fun receiveCrossCurrencyCoversDebt() = runTest {
+        val card = db.accountDao().insert(AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "GTQ", createdAt = 0L, sortOrder = 2))
+        val child = db.accountDao().insert(
+            AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "USD", createdAt = 0L, sortOrder = 2, parentAccountId = card)
+        )
+        val vm = vm(mapOf("from" to banco, "to" to child, "receive" to "100.00"))
+        val state = vm.formState.first { !it.isLoading && it.amount.isNotEmpty() && it.equivalent != null }
+        assertEquals(child, state.toAccountId)
+        assertEquals("764.00", state.amount)
+        assertEquals("100.00", state.equivalent)
+        assertEquals(null, state.manualRate)
+        assertFalse(vm.hasUnsavedChanges.value)
+    }
 }

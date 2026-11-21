@@ -28,8 +28,11 @@ import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.AccountColor
 import com.boxdev.boxwallet.domain.model.AccountType
 import com.boxdev.boxwallet.domain.model.AccountWithBalance
+import com.boxdev.boxwallet.domain.model.CardSummary
 import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.ui.components.AmountText
+import com.boxdev.boxwallet.ui.components.CardUsageBar
+import com.boxdev.boxwallet.ui.components.usageFraction
 import com.boxdev.boxwallet.ui.screens.accounts.AccountBadge
 import com.boxdev.boxwallet.ui.theme.BoxTheme
 import com.boxdev.boxwallet.ui.theme.BoxWalletTheme
@@ -43,7 +46,8 @@ private val CardHeight = 132.dp
 
 /**
  * A horizontal row of account cards (badge, name, balance in the account's currency) ending in
- * "See accounts". A card opens that account's detail.
+ * "See accounts". A credit card (in [cards]) shows what is used instead, with a thin bar of its limit.
+ * A card opens that account's detail.
  */
 @Composable
 fun HomeAccountsRow(
@@ -51,6 +55,7 @@ fun HomeAccountsRow(
     onOpenAccount: (Long) -> Unit,
     onSeeAccounts: () -> Unit,
     modifier: Modifier = Modifier,
+    cards: Map<Long, CardSummary> = emptyMap(),
 ) {
     LazyRow(
         modifier = modifier.fillMaxWidth(),
@@ -59,14 +64,14 @@ fun HomeAccountsRow(
         contentPadding = PaddingValues(top = 4.dp, end = 16.dp, bottom = 4.dp),
     ) {
         items(accounts, key = { it.account.id }) { item ->
-            AccountCard(item, onClick = { onOpenAccount(item.account.id) })
+            AccountCard(item, cards[item.account.id], onClick = { onOpenAccount(item.account.id) })
         }
         item(key = "see_accounts") { SeeAccountsCard(onSeeAccounts) }
     }
 }
 
 @Composable
-private fun AccountCard(item: AccountWithBalance, onClick: () -> Unit) {
+private fun AccountCard(item: AccountWithBalance, card: CardSummary?, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
         color = BoxTheme.cardColor,
@@ -86,7 +91,12 @@ private fun AccountCard(item: AccountWithBalance, onClick: () -> Unit) {
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                AmountText(amount = item.balance, autoSize = true)
+                if (card == null) {
+                    AmountText(amount = item.balance, autoSize = true)
+                } else {
+                    AmountText(amount = Money(card.primary.usedMinor, item.account.currency), autoSize = true)
+                    usageFraction(card)?.let { CardUsageBar(it, Modifier.padding(top = 4.dp)) }
+                }
             }
         }
     }

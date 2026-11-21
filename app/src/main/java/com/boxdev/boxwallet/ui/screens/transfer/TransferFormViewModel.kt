@@ -15,6 +15,8 @@ import com.boxdev.boxwallet.domain.money.ExchangeRate
 import com.boxdev.boxwallet.domain.money.MissingRateException
 import com.boxdev.boxwallet.domain.money.RateSource
 import com.boxdev.boxwallet.domain.money.TransactionAmounts
+import com.boxdev.boxwallet.domain.money.minorDigits
+import com.boxdev.boxwallet.domain.money.parseMajor
 import com.boxdev.boxwallet.ui.screens.transaction.FormRateCache
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
@@ -28,6 +30,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.math.RoundingMode
 import java.time.LocalDateTime
 import javax.inject.Inject
 
@@ -35,7 +38,8 @@ private val DECIMAL = Regex("^\\d*\\.?\\d*$")
 
 /**
  * Create/edit form for a transfer between two accounts. Route arguments: `id` (either leg's
- * transaction id) edits a stored transfer; otherwise `from`, `to` and `amount` prefill a new one.
+ * transaction id) edits a stored transfer; otherwise `from`, `to` and `amount` prefill a new one, and
+ * `receive` (destination major units, e.g. a card statement) fills the amount so at least that arrives.
  * The rate shown is a preview: [TransferRepository] resolves the real one when saving, and only a
  * rate the user typed (directly or through the received amount) is sent along.
  */
@@ -90,6 +94,7 @@ class TransferFormViewModel @Inject constructor(
                 from = savedStateHandle.get<Long>("from")?.takeIf { it != UNSET },
                 to = savedStateHandle.get<Long>("to")?.takeIf { it != UNSET },
                 amount = savedStateHandle.get<String>("amount")?.takeIf { DECIMAL.matches(it) }.orEmpty(),
+                receive = savedStateHandle.get<String>("receive")?.takeIf { DECIMAL.matches(it) },
             )
         }
     }
@@ -127,22 +132,38 @@ class TransferFormViewModel @Inject constructor(
         }
     }
 
-    /** A new transfer: from [from] (else the default account) to [to] (else the first other active account). */
-    private fun startNew(from: Long?, to: Long?, amount: String) {
+    /**
+     * A new transfer: from [from] (else the default account) to [to] (else the first other active account).
+     * [receive] replaces [amount] when given (see [amountToReceive]).
+     */
+    private fun startNew(from: Long?, to: Long?, amount: String, receive: String?) {
         loadJob = viewModelScope.launch {
             allAccounts = accountRepository.observeAccountsWithBalance().first()
             val active = pickable().map { it.account.id }
             val source = from?.takeIf { it in active } ?: accountRepository.defaultAccount().id
             val destination = to?.takeIf { it in active && it != source } ?: active.firstOrNull { it != source }
-            _formState.value = TransferFormState(
-                fromAccountId = source,
-                toAccountId = destination,
-                amount = amount,
-                accounts = pickable(),
-            )
+            val start = TransferFormState(fromAccountId = source, toAccountId = destination, amount = amount, accounts = pickable())
+            _formState.value = receive?.let { start.copy(amount = amountToReceive(start, it) ?: amount) } ?: start
             initial.value = _formState.value
             refreshRate()
         }
+    }
+
+    /**
+     * The sent amount for [receive] to arrive: [receive] itself in the same currency, otherwise [receive] ÷ the
+     * automatic rate rounded HALF_UP to the source currency, so at least [receive] arrives. Null without a rate.
+     */
+    private suspend fun amountToReceive(state: TransferFormState, receive: String): String? {
+        val from = state.fromCurrency ?: return null
+        val to = state.toCurrency ?: return null
+        val target = parseMajor(receive, to) ?: return null
+        if (from == to) return target.toMajor().toPlainString()
+        val main = userPreferences.mainCurrency.first()
+        val result = rateCache.rates(FormRateCache.Key(from, to, main, state.date.toLocalDate()))
+        if (result !is AmountResult.Ready) return null
+        return target.toMajor()
+            .divide(result.accountRate.value, from.minorDigits(), RoundingMode.HALF_UP)
+            .toPlainString()
     }
 
     fun updateAmount(value: String) {

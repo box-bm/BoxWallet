@@ -681,4 +681,12 @@
     <string name="transactions_filter_account">Account</string>
     <string name="transactions_filter_account_remove">Remove the %1$s account filter</string>
     <string name="account_see_in_movements">See in Movements</string>
+    <string name="card_statement_due">This statement: %1$s · pay by %2$s</string>
+    <string name="card_statement_paid">Statement paid ✓</string>
+    <string name="card_no_statement_yet">No statement yet</string>
+    <string name="card_used">Used</string>
+    <string name="card_available">Available</string>
+    <string name="card_credit_balance">Credit balance</string>
+    <string name="card_pay_amount">Pay %1$s</string>
+    <string name="card_pay">Pay card</string>
 </resources>

@@ -10,14 +10,24 @@ sealed class NavRoutes(val route: String) {
     data object TransactionForm : NavRoutes("transaction_form?id={id}") {
         fun createRoute(id: Long? = null) = if (id == null) "transaction_form" else "transaction_form?id=$id"
     }
-    /** [id] is either leg's transaction id; [amount] is plain major units in the source currency. */
-    data object TransferForm : NavRoutes("transfer_form?id={id}&from={from}&to={to}&amount={amount}") {
-        fun createRoute(id: Long? = null, from: Long? = null, to: Long? = null, amount: String? = null): String {
+    /**
+     * [id] is either leg's transaction id; [amount] is plain major units in the source currency, [receive]
+     * plain major units in the destination currency (what must arrive, e.g. a card's statement).
+     */
+    data object TransferForm : NavRoutes("transfer_form?id={id}&from={from}&to={to}&amount={amount}&receive={receive}") {
+        fun createRoute(
+            id: Long? = null,
+            from: Long? = null,
+            to: Long? = null,
+            amount: String? = null,
+            receive: String? = null,
+        ): String {
             val args = listOfNotNull(
                 id?.let { "id=$it" },
                 from?.let { "from=$it" },
                 to?.let { "to=$it" },
                 amount?.let { "amount=$it" },
+                receive?.let { "receive=$it" },
             )
             return if (args.isEmpty()) "transfer_form" else "transfer_form?" + args.joinToString("&")
         }

@@ -719,4 +719,20 @@ class AccountRepositoryTest {
         repository.archive(newer, true)
         assertEquals(older, dao.lastPayerAccountId(listOf(cardId, child)))
     }
+
+    @Test
+    fun lastPayerIsNeverOneOfTheCardsOwnAccounts() = runTest {
+        val cardId = db.accountDao().insert(AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "USD", createdAt = 0L))
+        val child = db.accountDao().insert(
+            AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "GTQ", createdAt = 0L, parentAccountId = cardId)
+        )
+        val main = db.accountDao().insert(AccountEntity(name = "Main", type = "CHECKING", currencyCode = "USD", createdAt = 0L))
+        transfer(main, cardId, 1000, startOfDay(-5))
+        // Moving money between the card's two currencies isn't paying the card.
+        transfer(child, cardId, 1000, startOfDay(-1))
+        transfer(cardId, child, 1000, startOfDay(0))
+
+        val dao = db.transactionDao()
+        assertEquals(main, dao.lastPayerAccountId(listOf(cardId, child)))
+    }
 }
