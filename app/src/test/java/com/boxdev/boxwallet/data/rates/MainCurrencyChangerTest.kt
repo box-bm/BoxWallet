@@ -102,7 +102,7 @@ class MainCurrencyChangerTest {
         val amounts = TransactionAmounts(ExchangeRateResolver(lookup) { today })
         transactions = TransactionRepository(
             db.transactionDao(),
-            AccountRepository(db.accountDao(), prefs, lookup, context),
+            AccountRepository(db.accountDao(), prefs, lookup, context, db.transactionDao(), db, amounts, MovementWriteGuard(lock, prefs, db.accountDao(), amounts)),
             prefs,
             context,
             amounts,

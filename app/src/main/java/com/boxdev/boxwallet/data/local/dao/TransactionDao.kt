@@ -30,6 +30,13 @@ interface TransactionDao {
     @Query("DELETE FROM transactions WHERE id = :id")
     suspend fun deleteById(id: Long)
 
+    /** Everything but balance adjustments, loan installments included. */
+    @Query("SELECT COUNT(*) FROM transactions WHERE accountId = :accountId AND type NOT IN ('ADJUSTMENT_IN','ADJUSTMENT_OUT')")
+    suspend fun countNonAdjustmentByAccount(accountId: Long): Int
+
+    @Query("DELETE FROM transactions WHERE accountId = :accountId AND type IN ('ADJUSTMENT_IN','ADJUSTMENT_OUT')")
+    suspend fun deleteAdjustmentsByAccount(accountId: Long)
+
     @Query("DELETE FROM transactions WHERE loanId = :loanId")
     suspend fun deleteByLoanId(loanId: Long)
 

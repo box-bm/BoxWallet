@@ -11,6 +11,9 @@ import com.boxdev.boxwallet.data.local.database.BoxWalletDatabase
 import com.boxdev.boxwallet.data.local.entity.AccountEntity
 import com.boxdev.boxwallet.data.local.entity.AppMetaEntity
 import com.boxdev.boxwallet.data.rates.CurrencyChangeLock
+import com.boxdev.boxwallet.data.rates.MovementWriteGuard
+import com.boxdev.boxwallet.domain.money.ExchangeRateResolver
+import com.boxdev.boxwallet.domain.money.TransactionAmounts
 import com.boxdev.boxwallet.data.remote.GoogleAuthManager
 import com.boxdev.boxwallet.data.remote.GoogleDriveManager
 import com.boxdev.boxwallet.data.repository.AccountRepository
@@ -47,16 +50,18 @@ class OnboardingViewModelTest {
             context, db, db.transactionDao(), db.categoryDao(), db.loanDao(), db.accountDao(), db.appMetaDao(),
             prefs, CurrencyChangeLock(), GoogleDriveManager(context),
         )
+        val lookup = object : RateLookup {
+            override suspend fun exact(day: LocalDate, code: String): BigDecimal? = null
+            override suspend fun nearest(day: LocalDate, code: String): BigDecimal? = null
+            override suspend fun download(day: LocalDate) = false
+        }
+        val amounts = TransactionAmounts(ExchangeRateResolver(lookup))
         vm = OnboardingViewModel(
             prefs, GoogleAuthManager(context), GoogleDriveManager(context), backup,
             AccountRepository(
-                db.accountDao(), prefs,
-                object : RateLookup {
-                    override suspend fun exact(day: LocalDate, code: String): BigDecimal? = null
-                    override suspend fun nearest(day: LocalDate, code: String): BigDecimal? = null
-                    override suspend fun download(day: LocalDate) = false
-                },
-                context,
+                db.accountDao(), prefs, lookup, context,
+                db.transactionDao(), db, amounts,
+                MovementWriteGuard(CurrencyChangeLock(), prefs, db.accountDao(), amounts),
             ),
         )
         vm.overrideCurrency(eur)
