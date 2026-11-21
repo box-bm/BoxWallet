@@ -32,5 +32,8 @@ data class LoanEntity(
     val startDate: Long,
     val loanType: String = "EXPENSE",
     val frequency: String = "MONTHLY",
-    val frequencyInterval: Int = 1
+    val frequencyInterval: Int = 1,
+    /** `SCHEDULED` (fixed installments) or an open-ended kind. */
+    val kind: String = "SCHEDULED",
+    val expectedDate: Long? = null,
 )

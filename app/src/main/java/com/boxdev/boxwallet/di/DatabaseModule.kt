@@ -6,10 +6,10 @@ import com.boxdev.boxwallet.data.local.dao.AccountDao
 import com.boxdev.boxwallet.data.local.dao.AppMetaDao
 import com.boxdev.boxwallet.data.local.dao.CategoryDao
 import com.boxdev.boxwallet.data.local.dao.ExchangeRateDao
+import com.boxdev.boxwallet.data.local.dao.InstallmentPlanDao
 import com.boxdev.boxwallet.data.local.dao.LoanDao
 import com.boxdev.boxwallet.data.local.dao.TransactionDao
 import com.boxdev.boxwallet.data.local.database.BoxWalletDatabase
-import com.boxdev.boxwallet.data.local.database.MIGRATION_1_2
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -27,7 +27,8 @@ object DatabaseModule {
         // The old schema stored Double amounts; testers restore from a Drive backup instead.
         context.deleteDatabase(BoxWalletDatabase.LEGACY_DATABASE_NAME)
         return Room.databaseBuilder(context, BoxWalletDatabase::class.java, BoxWalletDatabase.DATABASE_NAME)
-            .addMigrations(MIGRATION_1_2)
+            .fallbackToDestructiveMigration(dropAllTables = true)
+            .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
             .build()
     }
 
@@ -48,4 +49,7 @@ object DatabaseModule {
 
     @Provides
     fun provideAppMetaDao(db: BoxWalletDatabase): AppMetaDao = db.appMetaDao()
+
+    @Provides
+    fun provideInstallmentPlanDao(db: BoxWalletDatabase): InstallmentPlanDao = db.installmentPlanDao()
 }
