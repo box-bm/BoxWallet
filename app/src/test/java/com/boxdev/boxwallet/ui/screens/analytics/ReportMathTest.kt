@@ -10,6 +10,8 @@ import org.junit.Test
 import com.boxdev.boxwallet.domain.money.ExchangeRate
 import com.boxdev.boxwallet.domain.money.Money
 import java.util.Currency
+import com.boxdev.boxwallet.domain.model.inReports
+import com.boxdev.boxwallet.domain.model.net
 import java.time.LocalDate
 
 class ReportMathTest {
@@ -75,6 +77,24 @@ class ReportMathTest {
     // summarizeInstallments
 
     private val today = LocalDate.of(2026, 11, 6)
+
+    @Test
+    fun `adjustments never count in monthly income or expense`() {
+        val month = java.time.YearMonth.of(2026, 11)
+        val list = listOf(
+            installment(1, 1, LocalDate.of(2026, 11, 2), 1_000, TransactionType.INCOME),
+            installment(2, 1, LocalDate.of(2026, 11, 3), 300, TransactionType.EXPENSE),
+            installment(3, 1, LocalDate.of(2026, 11, 4), 5_000, TransactionType.ADJUSTMENT_IN),
+            installment(4, 1, LocalDate.of(2026, 11, 5), 200, TransactionType.ADJUSTMENT_OUT),
+        )
+
+        val data = list.monthlyTotals(listOf(month)).single()
+
+        assertEquals(1_000L, data.income)
+        assertEquals(300L, data.expense)
+        assertEquals(2, list.inReports().size)
+        assertEquals(700L, list.net())
+    }
 
     private fun installment(
         id: Long,

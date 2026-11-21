@@ -1,11 +1,23 @@
 package com.boxdev.boxwallet.ui.screens.analytics
 
 import com.boxdev.boxwallet.domain.model.Transaction
+import com.boxdev.boxwallet.domain.model.inReports
+import com.boxdev.boxwallet.domain.model.total
+import java.time.YearMonth
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
 // Pure Reports logic, kept out of the view model and composables so it can be unit tested.
+
+/** Income and expense per month in [months]; balance adjustments never count. */
+fun List<Transaction>.monthlyTotals(months: List<YearMonth>): List<MonthlyData> {
+    val byMonth = inReports().groupBy { YearMonth.from(it.date) }
+    return months.map { month ->
+        val monthTx = byMonth[month].orEmpty()
+        MonthlyData(month, monthTx.total(TransactionType.INCOME), monthTx.total(TransactionType.EXPENSE))
+    }
+}
 
 /** The previous-period range a "vs previous" figure compares against. */
 data class ComparisonRange(val start: LocalDate, val end: LocalDate, val toDate: Boolean)

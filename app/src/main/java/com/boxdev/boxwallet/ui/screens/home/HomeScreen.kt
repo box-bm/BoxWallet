@@ -31,7 +31,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import com.boxdev.boxwallet.domain.model.Transaction
+import com.boxdev.boxwallet.ui.components.AdjustmentDeleteDialog
+import com.boxdev.boxwallet.data.local.entity.isAdjustment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -61,6 +66,14 @@ fun HomeScreen(
     onNavigateToSearch: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var pendingAdjustment by remember { mutableStateOf<Transaction?>(null) }
+    pendingAdjustment?.let { adjustment ->
+        AdjustmentDeleteDialog(
+            adjustment = adjustment,
+            onDelete = { viewModel.deleteTransaction(adjustment.id); pendingAdjustment = null },
+            onDismiss = { pendingAdjustment = null },
+        )
+    }
     val categoryMap = remember(uiState.categories) { uiState.categories.associateBy { it.id } }
     val twoPane = BoxTheme.layout.twoPane
     val startList = rememberLazyListState()
@@ -122,7 +135,9 @@ fun HomeScreen(
                         category = transaction.categoryId?.let { categoryMap[it] },
                         index = index,
                         count = list.size,
-                        onClick = { onEditTransaction(transaction.id) },
+                        onClick = {
+                            if (transaction.type.isAdjustment) pendingAdjustment = transaction else onEditTransaction(transaction.id)
+                        },
                         modifier = Modifier.padding(bottom = ListItemDefaults.SegmentedGap),
                     )
                 }

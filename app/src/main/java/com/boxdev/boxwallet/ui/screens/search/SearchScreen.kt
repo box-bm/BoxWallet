@@ -53,7 +53,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import com.boxdev.boxwallet.domain.model.Transaction
+import com.boxdev.boxwallet.ui.components.AdjustmentDeleteDialog
+import com.boxdev.boxwallet.data.local.entity.isAdjustment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -88,6 +93,14 @@ fun SearchScreen(
     viewModel: SearchViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var pendingAdjustment by remember { mutableStateOf<Transaction?>(null) }
+    pendingAdjustment?.let { adjustment ->
+        AdjustmentDeleteDialog(
+            adjustment = adjustment,
+            onDelete = { viewModel.deleteTransaction(adjustment.id); pendingAdjustment = null },
+            onDismiss = { pendingAdjustment = null },
+        )
+    }
     val categoryMap = remember(uiState.categories) { uiState.categories.associateBy { it.id } }
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
@@ -201,7 +214,9 @@ fun SearchScreen(
                                 index = index,
                                 count = list.size,
                                 showDate = true,
-                                onClick = { onOpenTransaction(transaction.id) },
+                                onClick = {
+                                    if (transaction.type.isAdjustment) pendingAdjustment = transaction else onOpenTransaction(transaction.id)
+                                },
                                 modifier = Modifier
                                     .padding(bottom = ListItemDefaults.SegmentedGap)
                                     .animateItem(),

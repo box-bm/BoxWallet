@@ -2,6 +2,7 @@ package com.boxdev.boxwallet.ui.screens.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.LoanRepository
 import com.boxdev.boxwallet.data.repository.TransactionRepository
@@ -49,4 +50,8 @@ class HomeViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = HomeUiState()
     )
+
+    fun deleteTransaction(id: Long) {
+        viewModelScope.launch { transactionRepository.deleteTransaction(id) }
+    }
 }

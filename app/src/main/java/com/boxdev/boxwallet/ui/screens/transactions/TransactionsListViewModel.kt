@@ -105,4 +105,8 @@ class TransactionsListViewModel @Inject constructor(
             SortBy.AMOUNT_DESC -> filtered.sortedByDescending { it.amount.minor }
         }
     }
+
+    fun deleteTransaction(id: Long) {
+        viewModelScope.launch { repository.deleteTransaction(id) }
+    }
 }

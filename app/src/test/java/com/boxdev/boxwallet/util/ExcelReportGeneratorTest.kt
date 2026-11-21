@@ -72,6 +72,34 @@ class ExcelReportGeneratorTest {
         }
     }
 
+    private fun sheetXml(file: java.io.File, name: String): String = ZipFile(file).use { zip ->
+        val idx = sheetNames(file).indexOf(name) + 1
+        zip.getInputStream(zip.getEntry("xl/worksheets/sheet$idx.xml")).readBytes().toString(Charsets.UTF_8)
+    }
+
+    @Test
+    fun `adjustments are excluded from totals and labelled`() {
+        val adjustments = listOf(
+            movement(500_000, LocalDateTime.of(2026, 1, 20, 9, 0), TransactionType.ADJUSTMENT_IN),
+            movement(20_000, LocalDateTime.of(2026, 2, 10, 9, 0), TransactionType.ADJUSTMENT_OUT),
+        )
+        val range = LocalDate.of(2026, 1, 1) to LocalDate.of(2026, 2, 28)
+        val names = mapOf(1L to "Salary", 2L to "Home")
+        val without = ExcelReportGenerator.create(
+            tmp.newFile("without.xlsx"), transactions, names, mapOf(7L to loan), range.first, range.second, gtq
+        )
+        val with = ExcelReportGenerator.create(
+            tmp.newFile("with.xlsx"), transactions + adjustments, names, mapOf(7L to loan), range.first, range.second, gtq
+        )
+
+        val movements = sheetXml(with, "Movements")
+        assertTrue(movements.contains("Adjustment"))
+        assertTrue(movements.contains("<v>5000.0</v>"))
+        for (sheet in listOf("Summary", "By Category", "Monthly Overview")) {
+            assertEquals(sheet, sheetXml(without, sheet), sheetXml(with, sheet))
+        }
+    }
+
     @Test
     fun `skips monthly and loan sheets when not applicable`() {
         val file = ExcelReportGenerator.create(

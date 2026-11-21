@@ -50,6 +50,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import com.boxdev.boxwallet.ui.components.AdjustmentDeleteDialog
+import com.boxdev.boxwallet.data.local.entity.countsInReports
+import com.boxdev.boxwallet.data.local.entity.isAdjustment
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -98,6 +101,14 @@ fun TransactionsListScreen(
     viewModel: TransactionsListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var pendingAdjustment by remember { mutableStateOf<Transaction?>(null) }
+    pendingAdjustment?.let { adjustment ->
+        AdjustmentDeleteDialog(
+            adjustment = adjustment,
+            onDelete = { viewModel.deleteTransaction(adjustment.id); pendingAdjustment = null },
+            onDismiss = { pendingAdjustment = null },
+        )
+    }
     val filter = uiState.filterState
     val categoryMap = remember(uiState.availableCategories) { uiState.availableCategories.associateBy { it.id } }
     var showFilters by rememberSaveable { mutableStateOf(false) }
@@ -229,7 +240,10 @@ fun TransactionsListScreen(
                     listState = listState,
                     categoryMap = categoryMap,
                     selectedId = if (twoPane) selectedId else null,
-                    onEditTransaction = openMovement,
+                    onEditTransaction = { id ->
+                        val tapped = uiState.filteredTransactions.firstOrNull { it.id == id }
+                        if (tapped?.type?.isAdjustment == true) pendingAdjustment = tapped else openMovement(id)
+                    },
                 )
             }
         }
@@ -340,6 +354,7 @@ private fun TransactionsByDay(
             if (date != null) {
                 stickyHeader(key = "h_$date") {
                     val net = transactions.net()
+                    val hasReportable = transactions.any { it.type.countsInReports }
                     Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
                         Row(
                             modifier = Modifier.padding(start = 4.dp, top = 16.dp, bottom = 8.dp),
@@ -364,12 +379,14 @@ private fun TransactionsByDay(
                                     .weight(1f)
                                     .semantics { heading() },
                             )
-                            AmountText(
-                                amount = mainMoney(kotlin.math.abs(net)),
-                                kind = amountKind(net >= 0),
-                                style = BoxTheme.moneyType.small,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                            if (hasReportable) {
+                                AmountText(
+                                    amount = mainMoney(kotlin.math.abs(net)),
+                                    kind = amountKind(net >= 0),
+                                    style = BoxTheme.moneyType.small,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                     }
                 }

@@ -34,6 +34,7 @@
     <string name="transaction_edit_title">Edit Movement</string>
     <string name="transaction_new_title">New Movement</string>
     <string name="transaction_type_expense">Expense</string>
+    <string name="transaction_adjustment">Balance adjustment</string>
     <string name="transaction_type_income">Income</string>
     <string name="transaction_amount_label">Amount *</string>
     <string name="transaction_amount_placeholder">0.00</string>
