@@ -39,6 +39,15 @@ import org.robolectric.annotation.Config
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.ZoneOffset
+import com.boxdev.boxwallet.domain.model.TransferDraft
+import com.boxdev.boxwallet.domain.money.Money
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import org.junit.Assert.assertTrue
+import org.mockito.kotlin.spy
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verifyBlocking
+import java.util.Currency
 
 /** Real repositories over an in-memory database. */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -51,6 +60,8 @@ class AccountDetailViewModelTest {
         override suspend fun nearest(day: LocalDate, code: String) = exact(day, code)
         override suspend fun download(day: LocalDate) = false
     }
+
+    private val gtq = Currency.getInstance("GTQ")
 
     private lateinit var db: BoxWalletDatabase
     private lateinit var prefs: UserPreferences
@@ -154,5 +165,43 @@ class AccountDetailViewModelTest {
 
         assertEquals(R.string.account_error_has_movements, vm.message.first { it != null })
         assertFalse(vm.confirmDelete.value)
+    }
+
+    @Test
+    fun aTransferBetweenTheCardsTwoCurrenciesListsOnce() = runTest {
+        val own = expense(card, "GTQ", 1_00)
+        val exchange = transfers.create(
+            TransferDraft(card, child, Money(76_40, gtq), LocalDate.now().atTime(9, 0), manualRate = BigDecimal("0.1309")),
+        )
+
+        val state = vm(card).uiState.first { !it.isLoading && it.movements.any { m -> m.transferId == exchange } }
+
+        assertEquals(1, state.movements.count { it.transferId == exchange })
+        assertEquals(2, state.movements.size)
+        assertTrue(state.movements.any { it.id == own })
+    }
+
+    @Test
+    fun theLastPayerIsOnlyLookedUpAgainWhenAPaymentChanges() = runTest {
+        val repo = spy(accounts)
+        val ahorro = db.accountDao().insert(AccountEntity(name = "Ahorro", type = "SAVINGS", currencyCode = "GTQ", createdAt = 0L, sortOrder = 2))
+        val vm = AccountDetailViewModel(
+            SavedStateHandle(mapOf("accountId" to card)), repo, transactions, CategoryRepository(db.categoryDao()), transfers,
+            MovementsFilterRequest(),
+        )
+        val collecting = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect {} }
+        vm.uiState.first { !it.isLoading && it.card != null }
+
+        // Unrelated changes: an expense on the card, a renamed account.
+        expense(card, "GTQ", 5_00)
+        vm.uiState.first { it.movements.size == 1 }
+        db.accountDao().update(db.accountDao().getById(banco)!!.copy(name = "Banco Industrial"))
+        vm.uiState.first { it.accountsById[banco]?.name == "Banco Industrial" }
+        verifyBlocking(repo, times(1)) { lastPayerOf(card, child) }
+
+        transfers.create(TransferDraft(ahorro, card, Money(5_00, gtq), LocalDate.now().atTime(9, 0)))
+        assertEquals(ahorro, vm.uiState.first { it.cardPayer == ahorro }.cardPayer)
+        verifyBlocking(repo, times(2)) { lastPayerOf(card, child) }
+        collecting.cancel()
     }
 }

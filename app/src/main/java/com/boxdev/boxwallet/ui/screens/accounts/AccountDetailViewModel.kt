@@ -5,6 +5,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boxdev.boxwallet.R
+import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.data.repository.AccountRuleError
 import com.boxdev.boxwallet.data.repository.CategoryRepository
@@ -35,6 +36,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDateTime
 import javax.inject.Inject
 
 data class AccountDetailUiState(
@@ -53,6 +55,32 @@ data class AccountDetailUiState(
     /** Where a card payment comes from: the last account that paid it, else the default account. */
     val cardPayer: Long? = null,
     val isLoading: Boolean = true,
+)
+
+/**
+ * What [AccountRepository.lastPayerOf] reads for card [cardId] (and its second currency [childId]): the
+ * transfers coming in (id, date and source account) and which accounts are archived. Equal keys give the
+ * same payer, so other changes (an expense, a rename, a new rate) don't query it again.
+ */
+internal data class CardPayerKey(
+    val cardId: Long,
+    val childId: Long?,
+    val incoming: List<Triple<Long, LocalDateTime, Long?>>,
+    val archived: Set<Long>,
+)
+
+internal fun cardPayerKey(
+    cardId: Long,
+    childId: Long?,
+    movements: List<Transaction>,
+    pairs: Map<String, TransferPair>,
+    accounts: List<AccountWithBalance>,
+) = CardPayerKey(
+    cardId = cardId,
+    childId = childId,
+    incoming = movements.filter { it.type == TransactionType.TRANSFER_IN }
+        .map { Triple(it.id, it.date, it.transferId?.let(pairs::get)?.fromAccountId) },
+    archived = accounts.filter { it.account.isArchived }.mapTo(HashSet()) { it.account.id },
 )
 
 @HiltViewModel
@@ -74,7 +102,10 @@ class AccountDetailViewModel @Inject constructor(
         _confirmDelete.value = false
     }
 
-    /** [id]'s movements, newest first, with those of its card's second currency when it has one. */
+    /**
+     * [id]'s movements, newest first, with those of its card's second currency when it has one. A transfer
+     * between the two currencies has a leg on each side, so it lists once.
+     */
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun movementsOf(id: Long): Flow<List<Transaction>> =
         accountRepository.secondCurrencyOf(id).map { it?.id }.distinctUntilChanged().flatMapLatest { childId ->
@@ -83,12 +114,16 @@ class AccountDetailViewModel @Inject constructor(
             } else {
                 combine(transactionRepository.observeByAccount(id), transactionRepository.observeByAccount(childId)) { own, child ->
                     (own + child).sortedWith(compareByDescending<Transaction> { it.date }.thenByDescending { it.id })
+                        .distinctBy { it.transferId ?: it.id }
                 }
             }
         }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<AccountDetailUiState> = accountId.filterNotNull().flatMapLatest { id ->
+        // The last payer is only looked up again when something it depends on changes.
+        var payerKey: CardPayerKey? = null
+        var lastPayer: Long? = null
         combine(
             combine(accountRepository.observeAccountsWithBalance(), accountRepository.observeDefaultAccountId(), ::Pair),
             movementsOf(id),
@@ -97,6 +132,11 @@ class AccountDetailViewModel @Inject constructor(
             accountRepository.observeCardSummaries(),
         ) { (accounts, defaultId), movements, categories, pairs, cards ->
             val card = cards[id]
+            val key = card?.let { cardPayerKey(id, it.second?.account?.id, movements, pairs, accounts) }
+            if (key != payerKey) {
+                lastPayer = key?.let { accountRepository.lastPayerOf(it.cardId, it.childId) }
+                payerKey = key
+            }
             AccountDetailUiState(
                 account = accounts.firstOrNull { it.account.id == id },
                 isDefault = defaultId == id,
@@ -106,7 +146,7 @@ class AccountDetailViewModel @Inject constructor(
                 transferPairs = pairs,
                 canTransfer = accounts.count { !it.account.isArchived } >= 2,
                 card = card,
-                cardPayer = card?.let { accountRepository.lastPayerOf(id, it.second?.account?.id) ?: defaultId },
+                cardPayer = card?.let { lastPayer ?: defaultId },
                 isLoading = false,
             )
         }
