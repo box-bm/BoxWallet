@@ -10,6 +10,9 @@ data class DayCurrency(val day: Long, val code: String)
 
 data class CurrencyUsage(val currencyCode: String, val uses: Int, val lastUsed: Long)
 
+/** Installments still to come on one account, in the account's currency. */
+data class PendingInstallmentsRow(val accountId: Long, val pendingMinor: Long)
+
 /** One movement of a card account; [accountAmountMinor] is unsigned, in the account's currency. */
 data class CardMovementRow(val accountId: Long, val date: Long, val type: String, val accountAmountMinor: Long)
 
@@ -44,6 +47,20 @@ interface TransactionDao {
     @Query("DELETE FROM transactions WHERE accountId = :accountId AND type IN ('ADJUSTMENT_IN','ADJUSTMENT_OUT')")
     suspend fun deleteAdjustmentsByAccount(accountId: Long)
 
+    /** The installments of one visacuotas plan, in date order. */
+    @Query("SELECT * FROM transactions WHERE installmentPlanId = :planId ORDER BY date ASC, installmentNumber ASC")
+    suspend fun getByPlanId(planId: Long): List<TransactionEntity>
+
+    @Query("SELECT * FROM transactions WHERE installmentPlanId = :planId ORDER BY date ASC, installmentNumber ASC")
+    fun observeByPlanId(planId: Long): Flow<List<TransactionEntity>>
+
+    /** Every plan installment of the given accounts. */
+    @Query("SELECT * FROM transactions WHERE installmentPlanId IS NOT NULL AND accountId IN (:accountIds)")
+    fun observePlanInstallmentsOfAccounts(accountIds: List<Long>): Flow<List<TransactionEntity>>
+
+    @Query("UPDATE transactions SET description = :description, categoryId = :categoryId WHERE installmentPlanId = :planId")
+    suspend fun updateDetailsByPlanId(planId: Long, description: String, categoryId: Long?)
+
     /** Both legs of a transfer. */
     @Query("SELECT * FROM transactions WHERE transferId = :transferId")
     suspend fun getByTransferId(transferId: String): List<TransactionEntity>
@@ -67,6 +84,20 @@ interface TransactionDao {
     )
     fun observeCardMovements(endOfToday: Long): Flow<List<CardMovementRow>>
 
+    /** Installment rows of [accountIds] dated from [endOfToday] (start of tomorrow) on, plan by plan in order. */
+    @Query(
+        "SELECT * FROM transactions WHERE installmentPlanId IS NOT NULL AND accountId IN (:accountIds) " +
+            "AND date >= :endOfToday ORDER BY installmentPlanId, installmentNumber"
+    )
+    suspend fun getPendingInstallments(accountIds: List<Long>, endOfToday: Long): List<TransactionEntity>
+
+    /** Installments of plans dated from [endOfToday] (start of tomorrow) on, summed per account. */
+    @Query(
+        "SELECT accountId AS accountId, SUM(accountAmountMinor) AS pendingMinor FROM transactions " +
+            "WHERE installmentPlanId IS NOT NULL AND date >= :endOfToday GROUP BY accountId"
+    )
+    fun observePendingInstallments(endOfToday: Long): Flow<List<PendingInstallmentsRow>>
+
     /**
      * Source account of the newest transfer into any of [cardIds] whose source isn't archived and isn't one of
      * [cardIds] itself (moving money between a card's two currencies isn't paying it).
@@ -87,19 +118,19 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE id = :id")
     suspend fun getById(id: Long): TransactionEntity?
 
-    @Query("SELECT * FROM transactions WHERE loanId IS NULL ORDER BY date DESC")
-    fun getAllTransactions(): Flow<List<TransactionEntity>>
+    @Query("SELECT * FROM transactions WHERE loanId IS NULL AND (installmentPlanId IS NULL OR date < :endOfToday) ORDER BY date DESC")
+    fun getAllTransactions(endOfToday: Long): Flow<List<TransactionEntity>>
 
     /** One account's movements, newest first; loan installments are left out like in the global list. */
-    @Query("SELECT * FROM transactions WHERE accountId = :accountId AND loanId IS NULL ORDER BY date DESC")
-    fun observeByAccount(accountId: Long): Flow<List<TransactionEntity>>
+    @Query("SELECT * FROM transactions WHERE accountId = :accountId AND loanId IS NULL AND (installmentPlanId IS NULL OR date < :endOfToday) ORDER BY date DESC")
+    fun observeByAccount(accountId: Long, endOfToday: Long): Flow<List<TransactionEntity>>
 
     /** Newest movements for Home; a transfer counts once, by its TRANSFER_OUT row. */
-    @Query("SELECT * FROM transactions WHERE loanId IS NULL AND type != 'TRANSFER_IN' ORDER BY date DESC LIMIT :limit")
-    fun getLatestTransactions(limit: Int): Flow<List<TransactionEntity>>
+    @Query("SELECT * FROM transactions WHERE loanId IS NULL AND type != 'TRANSFER_IN' AND (installmentPlanId IS NULL OR date < :endOfToday) ORDER BY date DESC LIMIT :limit")
+    fun getLatestTransactions(limit: Int, endOfToday: Long): Flow<List<TransactionEntity>>
 
-    @Query("SELECT * FROM transactions WHERE date BETWEEN :startDate AND :endDate AND loanId IS NULL ORDER BY date DESC")
-    fun getTransactionsBetweenDates(startDate: Long, endDate: Long): Flow<List<TransactionEntity>>
+    @Query("SELECT * FROM transactions WHERE date BETWEEN :startDate AND :endDate AND loanId IS NULL AND (installmentPlanId IS NULL OR date < :endOfToday) ORDER BY date DESC")
+    fun getTransactionsBetweenDates(startDate: Long, endDate: Long, endOfToday: Long): Flow<List<TransactionEntity>>
 
     @Query("SELECT * FROM transactions WHERE date >= :startDate AND date < :endDate AND loanId IS NOT NULL ORDER BY date ASC")
     fun getInstallmentsBetweenDates(startDate: Long, endDate: Long): Flow<List<TransactionEntity>>

@@ -110,6 +110,7 @@ fun TransactionsListScreen(
     onEditTransaction: (Long) -> Unit = {},
     onNavigateToSearch: () -> Unit = {},
     onOpenTransfer: (Long) -> Unit = {},
+    onOpenInstallmentPlan: (Long) -> Unit = {},
     viewModel: TransactionsListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -283,6 +284,7 @@ fun TransactionsListScreen(
                         val tapped = uiState.filteredTransactions.firstOrNull { it.id == id }
                         when {
                             tapped?.type?.isAdjustment == true -> pendingAdjustment = tapped
+                            tapped?.installmentPlanId != null -> onOpenInstallmentPlan(tapped.installmentPlanId)
                             tapped?.type?.isTransfer == true -> onOpenTransfer(id)
                             else -> openMovement(id)
                         }
@@ -446,6 +448,7 @@ private fun TransactionsByDay(
                     showDate = date == null,
                     transferTitle = transaction.transferId?.let { transferTitle(uiState.transferPairs[it], accountsById) },
                     signedTransfer = signedTransfer,
+                    installmentCount = transaction.installmentPlanId?.let(uiState.installmentCounts::get),
                     containerColor = if (transaction.id == selectedId) {
                         MaterialTheme.colorScheme.secondaryContainer
                     } else BoxTheme.cardColor,

@@ -1,6 +1,12 @@
 package com.boxdev.boxwallet.ui.screens.transaction
 
+import com.boxdev.boxwallet.data.local.entity.TransactionType
+import com.boxdev.boxwallet.domain.model.Account
+import com.boxdev.boxwallet.domain.model.AccountType
 import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
+import com.boxdev.boxwallet.domain.money.Money
+import java.time.LocalDate
+import java.time.LocalDateTime
 import org.junit.Assert.*
 import org.junit.Test
 import java.math.BigDecimal
@@ -141,5 +147,66 @@ class TransactionFormStateTest {
     fun `manual rate is ignored when currency matches the account`() {
         val s = TransactionFormState(amount = "20", currency = usd, accountCurrency = usd, manualRate = "1.1")
         assertNull(s.manualRateValue)
+    }
+
+    // installments
+
+    private val gtq = Currency.getInstance("GTQ")
+    private val card = Account(id = 1, name = "Visa", type = AccountType.CREDIT_CARD, currency = gtq, createdAt = 0, statementClosingDay = 15)
+
+    private fun cardState(
+        account: Account = card,
+        type: TransactionType = TransactionType.EXPENSE,
+        isEditing: Boolean = false,
+        isRecurrent: Boolean = false,
+        count: String = "3",
+        date: LocalDateTime = LocalDateTime.of(2026, 11, 16, 9, 30),
+    ) = TransactionFormState(
+        amount = "1000",
+        currency = gtq,
+        accountCurrency = account.currency,
+        accountId = account.id,
+        pickedAccountId = account.id,
+        accounts = listOf(account),
+        type = type,
+        isEditing = isEditing,
+        isRecurrent = isRecurrent,
+        inInstallments = true,
+        installmentCount = count,
+        date = date,
+    )
+
+    @Test
+    fun `installments are offered only for a new card expense with a closing day`() {
+        assertTrue(cardState().canUseInstallments)
+        assertFalse(cardState(account = card.copy(type = AccountType.CHECKING)).canUseInstallments)
+        assertFalse(cardState(type = TransactionType.INCOME).canUseInstallments)
+        assertFalse(cardState(isEditing = true).canUseInstallments)
+        assertFalse(cardState(isRecurrent = true).canUseInstallments)
+        assertFalse(cardState(account = card.copy(statementClosingDay = null)).canUseInstallments)
+    }
+
+    @Test
+    fun `a card child takes its closing day from the parent`() {
+        val child = Account(id = 2, name = "Visa", type = AccountType.CREDIT_CARD, currency = Currency.getInstance("USD"), createdAt = 0, parentAccountId = 1)
+        val s = cardState(account = child).copy(accounts = listOf(card, child))
+        assertTrue(s.canUseInstallments)
+    }
+
+    @Test
+    fun `preview splits the amount and finds the first closing`() {
+        val preview = cardState().installmentPreview!!
+        assertEquals(Money(33333, gtq), preview.perClosing)
+        assertEquals(LocalDate.of(2026, 12, 15), preview.firstClosing)
+    }
+
+    @Test
+    fun `the installment count must be between 2 and 60`() {
+        assertTrue(cardState(count = "2").isValid)
+        assertTrue(cardState(count = "60").isValid)
+        assertFalse(cardState(count = "1").isValid)
+        assertFalse(cardState(count = "61").isValid)
+        assertFalse(cardState(count = "").isValid)
+        assertNull(cardState(count = "1").installmentPreview)
     }
 }

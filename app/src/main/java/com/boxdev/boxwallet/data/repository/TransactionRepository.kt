@@ -68,6 +68,9 @@ class TransactionRepository @Inject constructor(
         require(!transaction.type.isTransfer && transaction.transferId == null && stored?.transferId == null) {
             "Transfer ${transaction.id} must be edited through TransferRepository"
         }
+        require(transaction.installmentPlanId == null && stored?.installmentPlanId == null) {
+            "Installment ${transaction.id} must be changed through its plan"
+        }
         val saved = guard.write { current ->
             current.revalidate(transaction).also { transactionDao.update(it.toEntity()) }
         }
@@ -89,10 +92,12 @@ class TransactionRepository @Inject constructor(
         scheduleOrCancelReminder(saved)
     }
 
-    /** Deleting either leg of a transfer deletes both. */
+    /** Deleting either leg of a transfer deletes both. A plan installment only goes with its plan. */
     suspend fun deleteTransaction(id: Long) {
+        val stored = transactionDao.getById(id)
+        require(stored?.installmentPlanId == null) { "Installment $id must be changed through its plan" }
         ReminderWorker.cancel(context, id)
-        val transferId = transactionDao.getById(id)?.transferId
+        val transferId = stored?.transferId
         if (transferId != null) transactionDao.deleteByTransferId(transferId) else transactionDao.deleteById(id)
     }
 
@@ -132,21 +137,31 @@ class TransactionRepository @Inject constructor(
     /** Currencies of past movements, most used and most recent first. */
     fun recentCurrencies(limit: Int = 12): Flow<List<CurrencyUsage>> = transactionDao.recentCurrencies(limit)
 
+    /** Start of tomorrow, as UTC millis of the local wall-clock: plan installments before it are listed. */
+    private fun endOfToday(today: LocalDate): Long =
+        today.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+
+    /** A plan installment dated after today is never listed; it appears from its closing day on. */
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun getAllTransactions(): Flow<List<Transaction>> =
-        transactionDao.getAllTransactions().toDomain()
+        currentDay.days.flatMapLatest { transactionDao.getAllTransactions(endOfToday(it)).toDomain() }
 
-    /** [accountId]'s movements, newest first, without loan installments. */
+    /** [accountId]'s movements, newest first, without loan installments or future plan installments. */
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun observeByAccount(accountId: Long): Flow<List<Transaction>> =
-        transactionDao.observeByAccount(accountId).toDomain()
+        currentDay.days.flatMapLatest { transactionDao.observeByAccount(accountId, endOfToday(it)).toDomain() }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun getLatestTransactions(limit: Int = 3): Flow<List<Transaction>> =
-        transactionDao.getLatestTransactions(limit).toDomain()
+        currentDay.days.flatMapLatest { transactionDao.getLatestTransactions(limit, endOfToday(it)).toDomain() }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun getTransactionsBetweenDates(startDate: LocalDate, endDate: LocalDate): Flow<List<Transaction>> {
         val startMillis = startDate.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
         val endMillis = endDate.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
-        return transactionDao.getTransactionsBetweenDates(startMillis, endMillis)
-            .toDomain()
+        return currentDay.days.flatMapLatest {
+            transactionDao.getTransactionsBetweenDates(startMillis, endMillis, endOfToday(it)).toDomain()
+        }
     }
 
     /** Loan installments due between [startDate] and [endDate], both inclusive, oldest first. */

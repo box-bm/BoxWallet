@@ -88,10 +88,14 @@ fun payRoute(card: Account, balance: CardBalance, payer: Long?): String =
         receive = toPayOf(balance)?.toMajor()?.toPlainString(),
     )
 
-/** Share of the limit in use (both currencies when the rate is known), or null without a limit. */
+/**
+ * Share of the limit taken (both currencies when the rate is known), pending installments included, or null
+ * without a limit.
+ */
 fun usageFraction(summary: CardSummary): Float? {
     val limit = summary.limit?.minor?.takeIf { it > 0 } ?: return null
-    val used = summary.available?.let { limit - it.minor } ?: summary.primary.usedMinor
+    val used = summary.available?.let { limit - it.minor }
+        ?: (summary.primary.usedMinor + summary.primary.pendingInstallmentsMinor)
     return (used.toFloat() / limit).coerceIn(0f, 1f)
 }
 
@@ -136,6 +140,14 @@ fun CardBlock(
                     Label(stringResource(R.string.card_used))
                     AmountText(amount = summary.primary.usedMoney, style = BoxTheme.moneyType.large, autoSize = true)
                     summary.second?.let { AmountText(amount = it.usedMoney, style = BoxTheme.moneyType.small) }
+                    // Installments still to come already take credit: they sit beside Used and in the bar.
+                    summary.pendingInstallments?.let { pending ->
+                        Text(
+                            stringResource(R.string.card_installments_pending, formatter.format(pending)),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
             // The bar shows whenever there is a limit, as on Home and the accounts list; Available needs the rate.
@@ -242,7 +254,7 @@ private fun CardBlockPreviewContent(paid: Boolean) {
             CardBlock(
                 summary = cardSummary(
                     card,
-                    cardBalance(card, Money(if (paid) -420_50 else -2_500_00, gtq), statement(1_980_00)),
+                    cardBalance(card, Money(if (paid) -420_50 else -2_500_00, gtq), statement(1_980_00), pendingInstallmentsMinor = 3_600_00),
                     cardBalance(child, Money(if (paid) 0 else -120_00, usd), statement(120_00)),
                     BigDecimal("7.75"),
                     approximate = false,

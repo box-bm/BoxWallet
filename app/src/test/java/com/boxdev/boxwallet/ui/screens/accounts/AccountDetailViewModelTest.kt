@@ -14,6 +14,8 @@ import com.boxdev.boxwallet.data.rates.CurrencyChangeLock
 import com.boxdev.boxwallet.data.rates.MovementWriteGuard
 import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.data.repository.CategoryRepository
+import com.boxdev.boxwallet.data.repository.InstallmentPlanRepository
+import com.boxdev.boxwallet.data.repository.NewInstallmentPlan
 import com.boxdev.boxwallet.data.repository.TransactionRepository
 import com.boxdev.boxwallet.data.repository.TransferRepository
 import com.boxdev.boxwallet.domain.money.ExchangeRateResolver
@@ -21,6 +23,8 @@ import com.boxdev.boxwallet.domain.money.RateLookup
 import com.boxdev.boxwallet.domain.money.RateSource
 import com.boxdev.boxwallet.domain.money.TransactionAmounts
 import com.boxdev.boxwallet.ui.navigation.MovementsFilterRequest
+import com.boxdev.boxwallet.util.CurrentDay
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -68,6 +72,7 @@ class AccountDetailViewModelTest {
     private lateinit var accounts: AccountRepository
     private lateinit var transactions: TransactionRepository
     private lateinit var transfers: TransferRepository
+    private lateinit var plans: InstallmentPlanRepository
     private var banco = 0L
     private var card = 0L
     private var child = 0L
@@ -95,6 +100,10 @@ class AccountDetailViewModelTest {
         accounts = AccountRepository(db.accountDao(), prefs, lookup, context, db.transactionDao(), db, amounts, guard)
         transactions = TransactionRepository(db.transactionDao(), accounts, prefs, context, amounts, guard)
         transfers = TransferRepository(db, db.transactionDao(), db.accountDao(), prefs, amounts, guard)
+        plans = InstallmentPlanRepository(
+            db, db.installmentPlanDao(), db.transactionDao(), db.accountDao(), amounts, ExchangeRateResolver(lookup), guard, prefs,
+            CurrentDay(flowOf(LocalDate.now())),
+        )
     }
 
     /** DataStore outlives the test; restore the default main currency. */
@@ -111,6 +120,7 @@ class AccountDetailViewModelTest {
         transactions,
         CategoryRepository(db.categoryDao()),
         transfers,
+        plans,
         MovementsFilterRequest(),
     )
 
@@ -202,7 +212,7 @@ class AccountDetailViewModelTest {
         val ahorro = db.accountDao().insert(AccountEntity(name = "Ahorro", type = "SAVINGS", currencyCode = "GTQ", createdAt = 0L, sortOrder = 2))
         val vm = AccountDetailViewModel(
             SavedStateHandle(mapOf("accountId" to card)), repo, transactions, CategoryRepository(db.categoryDao()), transfers,
-            MovementsFilterRequest(),
+            plans, MovementsFilterRequest(),
         )
         val collecting = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect {} }
         vm.uiState.first { !it.isLoading && it.card != null }
@@ -218,5 +228,27 @@ class AccountDetailViewModelTest {
         assertEquals(ahorro, vm.uiState.first { it.cardPayer == ahorro }.cardPayer)
         verifyBlocking(repo, times(2)) { lastPayerOf(card, child) }
         collecting.cancel()
+    }
+
+    @Test
+    fun `a card lists its unfinished plans first`() = runTest {
+        db.accountDao().update(db.accountDao().getById(card)!!.copy(statementClosingDay = 15))
+        val now = LocalDate.now()
+        // Older but still running: twelve closings from three months ago.
+        val running = plans.create(NewInstallmentPlan(card, "TV", null, Money(120_000, gtq), 12, now.minusMonths(3).atTime(9, 0)))
+        // Newer but done: both closings are behind today.
+        val done = plans.create(NewInstallmentPlan(card, "Shoes", null, Money(20_000, gtq), 2, now.minusDays(75).atTime(9, 0)))
+
+        val state = vm(card).uiState.first { !it.isLoading && it.installmentPlans.size == 2 }
+
+        assertEquals(listOf(running, done), state.installmentPlans.map { it.id })
+        assertEquals(mapOf(running to 12, done to 2), state.installmentCounts)
+    }
+
+    @Test
+    fun `an account that is not a card lists no plans`() = runTest {
+        val state = vm(banco).uiState.first { !it.isLoading }
+
+        assertTrue(state.installmentPlans.isEmpty())
     }
 }

@@ -2,16 +2,17 @@ package com.boxdev.boxwallet.data.repository
 
 import android.content.Context
 import androidx.room.withTransaction
-import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.data.local.dao.AccountDao
 import com.boxdev.boxwallet.data.local.dao.AppMetaDao
 import com.boxdev.boxwallet.data.local.dao.CategoryDao
+import com.boxdev.boxwallet.data.local.dao.InstallmentPlanDao
 import com.boxdev.boxwallet.data.local.dao.LoanDao
 import com.boxdev.boxwallet.data.local.dao.TransactionDao
 import com.boxdev.boxwallet.data.local.database.BoxWalletDatabase
 import com.boxdev.boxwallet.data.local.entity.AccountEntity
 import com.boxdev.boxwallet.data.local.entity.AppMetaEntity
+import com.boxdev.boxwallet.data.local.entity.InstallmentPlanEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.data.rates.CurrencyChangeLock
@@ -19,6 +20,7 @@ import com.boxdev.boxwallet.data.remote.GoogleDriveManager
 import com.boxdev.boxwallet.domain.model.AccountType
 import com.boxdev.boxwallet.domain.model.BackupData
 import com.google.gson.Gson
+import com.google.gson.JsonParseException
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -38,16 +40,17 @@ import javax.inject.Singleton
 
 /** Outcome of reading a backup for restore. */
 sealed interface RestoreResult {
-    val data: BackupData
-
     /** The data replaced the local data; the main currency is the backup's. */
-    data class Restored(override val data: BackupData) : RestoreResult
+    data class Restored(val data: BackupData) : RestoreResult
+
+    /** Nothing was written: the file isn't a backup in the current format (older version or not a backup). */
+    data object Incompatible : RestoreResult
 
     /**
      * Nothing was written: the backup was made with another main currency. The UI asks which one to
      * keep and then calls [BackupRepository.restore] (and, to keep [device], a main currency change).
      */
-    data class CurrencyMismatch(val backup: Currency, val device: Currency, override val data: BackupData) : RestoreResult
+    data class CurrencyMismatch(val backup: Currency, val device: Currency, val data: BackupData) : RestoreResult
 }
 
 /** Single owner of the backup file format and the restore order. */
@@ -58,6 +61,7 @@ class BackupRepository @Inject constructor(
     private val transactionDao: TransactionDao,
     private val categoryDao: CategoryDao,
     private val loanDao: LoanDao,
+    private val installmentPlanDao: InstallmentPlanDao,
     private val accountDao: AccountDao,
     private val appMetaDao: AppMetaDao,
     private val prefs: UserPreferences,
@@ -101,12 +105,13 @@ class BackupRepository @Inject constructor(
     internal suspend fun consistentSnapshot(): BackupData =
         lock.mutex.withLock { database.withTransaction { snapshot() } }
 
-    /** The current data in the v4 shape; exchange rates are left out (spec 6.3). */
+    /** The current data in the current format; exchange rates are left out (spec 6.3). */
     internal suspend fun snapshot(): BackupData = coroutineScope {
         val accounts = async { accountDao.getAll() }
         val transactions = async { transactionDao.getAllTransactionsSync() }
         val categories = async { categoryDao.getAllCategoriesSync() }
         val loans = async { loanDao.getAllLoansSync() }
+        val installmentPlans = async { installmentPlanDao.getAllSync() }
         val defaultAccountId = async { prefs.defaultAccountId.first() }
         BackupData(
             createdAt = System.currentTimeMillis(),
@@ -115,26 +120,43 @@ class BackupRepository @Inject constructor(
             transactions = transactions.await(),
             categories = categories.await(),
             loans = loans.await(),
+            installmentPlans = installmentPlans.await(),
             defaultAccountId = defaultAccountId.await(),
         )
     }
 
     /**
-     * Downloads and reads a backup. A v2 backup (no currencies) is restored in [device]; a v3/v4 backup
-     * with the same main currency is restored; otherwise [RestoreResult.CurrencyMismatch] is returned
-     * and nothing is written. [device] defaults to the stored main currency (onboarding passes the
-     * one being chosen).
+     * Downloads and reads a backup. Only the current format is accepted: any other file is
+     * [RestoreResult.Incompatible]. With the same main currency it is restored; otherwise
+     * [RestoreResult.CurrencyMismatch] is returned and nothing is written. [device] defaults to the
+     * stored main currency (onboarding passes the one being chosen).
      */
     suspend fun restoreBackup(fileId: String, device: Currency? = null): RestoreResult =
         restoreJson(googleDriveManager.downloadBackup(fileId), device)
 
     internal suspend fun restoreJson(json: String, device: Currency? = null): RestoreResult {
         val deviceCurrency = device ?: prefs.mainCurrency.first()
-        val accountName = context.getString(R.string.account_default_name)
-        val data = withContext(Dispatchers.Default) { LegacyBackupConverter.decode(json, deviceCurrency, accountName) }
-        val backupCurrency = Currency.getInstance(data.mainCurrencyCode)
+        val data = withContext(Dispatchers.Default) { parse(json) } ?: return RestoreResult.Incompatible
+        val backupCurrency = runCatching { Currency.getInstance(data.mainCurrencyCode) }.getOrNull()
+            ?: return RestoreResult.Incompatible
         if (backupCurrency != deviceCurrency) return RestoreResult.CurrencyMismatch(backupCurrency, deviceCurrency, data)
         return RestoreResult.Restored(restore(data))
+    }
+
+    /** The backup in [json], or null when it isn't one in the current format. */
+    private fun parse(json: String): BackupData? {
+        val data = try {
+            // Gson leaves non-null fields null when the file lacks them.
+            gson.fromJson(json, BackupData::class.java)
+        } catch (_: JsonParseException) {
+            null
+        }
+        return data?.takeIf {
+            it.version == BackupData.CURRENT_VERSION && (it.mainCurrencyCode as String?) != null &&
+                (it.accounts as List<*>?) != null && (it.transactions as List<*>?) != null &&
+                (it.categories as List<*>?) != null && (it.loans as List<*>?) != null &&
+                (it.installmentPlans as List<*>?) != null
+        }
     }
 
     /**
@@ -147,13 +169,15 @@ class BackupRepository @Inject constructor(
         withContext(NonCancellable) {
             database.withTransaction {
                 transactionDao.deleteAll()
+                installmentPlanDao.deleteAll()
                 loanDao.deleteAll()
                 categoryDao.deleteAll()
                 accountDao.deleteAll()
-                // FK order: accounts → categories → loans → transactions (recurrence parents first).
+                // FK order: accounts → categories → loans → installment plans → transactions (recurrence parents first).
                 accountDao.insertAll(sane.accounts)
                 categoryDao.insertAll(sane.categories)
                 loanDao.insertAll(sane.loans)
+                installmentPlanDao.insertAll(sane.installmentPlans)
                 transactionDao.insertAll(sane.transactions)
                 // Committed with the data: a crash before the DataStore writes is finished at startup.
                 appMetaDao.put(AppMetaEntity(META_MAIN_CURRENCY, sane.mainCurrencyCode))
@@ -189,15 +213,19 @@ class BackupRepository @Inject constructor(
         const val META_DEFAULT_ACCOUNT_ID = "restore_default_account_id"
 
         /**
-         * Old backups come from a schema without foreign keys: drop references to rows the backup
-         * doesn't contain and order recurrences so a parent is inserted before its occurrences.
-         * The default account is the backup's if it has that account, else the first one.
+         * Drops references to rows the backup doesn't contain and orders recurrences so a parent is
+         * inserted before its occurrences. The default account is the backup's if it has that account,
+         * else the first one.
          *
          * A movement whose account is missing goes to the first account in that account's currency.
          * The row doesn't store it, but with `accountRate == 1` and equal original and account
          * amounts it was the movement's own currency; otherwise (or with no account in it) the
          * movement goes to the default account. A loan has no account amount: its own currency is
          * used. With no accounts at all the insert fails and the restore rolls back.
+         *
+         * An installment plan whose account is missing is dropped with its installments (a card
+         * purchase isn't moved to another account); one whose category is missing loses the category.
+         * An installment whose plan is missing becomes a plain expense.
          *
          * A card keeps at most one second-currency child: a child whose parent is missing, is itself a
          * child or already has an earlier child (by id) becomes a plain account.
@@ -206,7 +234,12 @@ class BackupRepository @Inject constructor(
             val accountIds = data.accounts.mapTo(HashSet()) { it.id }
             val categoryIds = data.categories.mapTo(HashSet()) { it.id }
             val loanIds = data.loans.mapTo(HashSet()) { it.id }
-            val txIds = data.transactions.mapTo(HashSet()) { it.id }
+            val plans = data.installmentPlans.filter { it.accountId in accountIds }
+                .map { plan -> plan.copy(categoryId = plan.categoryId?.takeIf { it in categoryIds }) }
+            val planIds = plans.mapTo(HashSet()) { it.id }
+            val droppedPlanIds = data.installmentPlans.mapTo(HashSet()) { it.id } - planIds
+            val kept = data.transactions.filter { it.installmentPlanId !in droppedPlanIds }
+            val txIds = kept.mapTo(HashSet()) { it.id }
             val inOrder = data.accounts.sortedWith(compareBy({ it.sortOrder }, { it.id }))
             val firstByCurrency = inOrder.reversed().associate { it.currencyCode to it.id }
             val defaultAccount = data.defaultAccountId?.takeIf { it in accountIds } ?: inOrder.firstOrNull()?.id
@@ -218,20 +251,23 @@ class BackupRepository @Inject constructor(
                     accountId = loan.accountId?.let { existingAccount(it, loan.currencyCode) },
                 )
             }
-            val transactions = data.transactions.map { tx ->
+            val transactions = kept.map { tx ->
                 val loanKept = tx.loanId?.let { it in loanIds } ?: true
+                val planKept = tx.installmentPlanId?.let { it in planIds } ?: true
                 val inOwnCurrency = tx.accountRate.compareTo(BigDecimal.ONE) == 0 && tx.originalAmountMinor == tx.accountAmountMinor
                 tx.copy(
                     accountId = existingAccount(tx.accountId, tx.currencyCode.takeIf { inOwnCurrency }),
                     categoryId = tx.categoryId?.takeIf { it in categoryIds },
                     loanId = if (loanKept) tx.loanId else null,
-                    installmentNumber = if (loanKept) tx.installmentNumber else null,
+                    installmentPlanId = if (planKept) tx.installmentPlanId else null,
+                    installmentNumber = if (loanKept && planKept) tx.installmentNumber else null,
                     parentRecurrenceId = tx.parentRecurrenceId?.takeIf { it in txIds && it != tx.id },
                 )
             }
             return data.copy(
                 accounts = singleChildren(data.accounts),
                 loans = loans,
+                installmentPlans = plans,
                 transactions = parentsFirst(wholeTransfers(transactions)),
                 defaultAccountId = defaultAccount,
             )

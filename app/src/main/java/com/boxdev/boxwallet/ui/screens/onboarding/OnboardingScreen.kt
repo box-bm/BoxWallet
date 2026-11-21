@@ -493,7 +493,7 @@ private fun RestoreFromBackupDialog(
                     }
                 }
 
-                uiState.error?.let { error ->
+                (uiState.error ?: uiState.errorRes?.let { stringResource(it) })?.let { error ->
                     Text(
                         text = error,
                         style = MaterialTheme.typography.bodySmall,

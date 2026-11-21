@@ -69,6 +69,7 @@ fun HomeScreen(
     onOpenAccount: (Long) -> Unit = {},
     onSeeAccounts: () -> Unit = {},
     onOpenTransfer: (Long) -> Unit = {},
+    onOpenInstallmentPlan: (Long) -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var pendingAdjustment by remember { mutableStateOf<Transaction?>(null) }
@@ -152,9 +153,11 @@ fun HomeScreen(
                         index = index,
                         count = list.size,
                         transferTitle = transaction.transferId?.let { transferTitle(uiState.transferPairs[it], uiState.accountsById) },
+                        installmentCount = transaction.installmentPlanId?.let(uiState.installmentCounts::get),
                         onClick = {
                             when {
                                 transaction.type.isAdjustment -> pendingAdjustment = transaction
+                                transaction.installmentPlanId != null -> onOpenInstallmentPlan(transaction.installmentPlanId)
                                 transaction.type.isTransfer -> onOpenTransfer(transaction.id)
                                 else -> onEditTransaction(transaction.id)
                             }

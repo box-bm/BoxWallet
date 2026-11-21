@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.data.local.database.BoxWalletDatabase
 import com.boxdev.boxwallet.data.local.entity.AccountEntity
+import com.boxdev.boxwallet.data.local.entity.InstallmentPlanEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.data.rates.CurrencyChangeLock
 import com.boxdev.boxwallet.data.rates.MovementWriteGuard
@@ -24,6 +25,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -118,7 +120,7 @@ class TransactionRepositoryTest {
         val manualTemplate = saved(template(ExchangeRate(BigDecimal("1.2"), RateSource.MANUAL), 2400))
         repository.createNextRecurrence(manualTemplate)
 
-        val rows = db.transactionDao().getAllTransactions().first()
+        val rows = db.transactionDao().getAllTransactions(Long.MAX_VALUE).first()
             .filter { it.parentRecurrenceId != null }
             .sortedBy { it.parentRecurrenceId }
 
@@ -160,7 +162,7 @@ class TransactionRepositoryTest {
 
     /** €20 in November: 7.64 GTQ/USD × 1.0852 USD/EUR = 8.290928 GTQ/EUR → Q165.82. */
     private suspend fun assertOccurrenceInQuetzales(defaultId: Long) {
-        val occurrence = db.transactionDao().getAllTransactions().first().single { it.parentRecurrenceId != null }
+        val occurrence = db.transactionDao().getAllTransactions(Long.MAX_VALUE).first().single { it.parentRecurrenceId != null }
         assertEquals(defaultId, occurrence.accountId)
         assertEquals("EUR", occurrence.currencyCode)
         assertEquals(2000L, occurrence.originalAmountMinor)
@@ -227,5 +229,84 @@ class TransactionRepositoryTest {
 
         day.value = LocalDate.of(2026, 12, 1) // a new month starts empty
         assertEquals(0L, summaries.getFinancialSummary().first().monthlyExpense)
+    }
+
+    @Test
+    fun `an installment counts in its own month, not the purchase month`() = runTest {
+        val today = LocalDate.of(2026, 11, 20)
+        val day = MutableStateFlow(today)
+        val amounts = TransactionAmounts(ExchangeRateResolver(lookup) { today })
+        val guard = MovementWriteGuard(CurrencyChangeLock(), prefs, db.accountDao(), amounts)
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val summaries = TransactionRepository(
+            db.transactionDao(),
+            AccountRepository(db.accountDao(), prefs, lookup, context, db.transactionDao(), db, amounts, guard),
+            prefs, context, amounts, guard, CurrentDay(day),
+        )
+        val resolver = ExchangeRateResolver(lookup) { today }
+        val plans = InstallmentPlanRepository(
+            db, db.installmentPlanDao(), db.transactionDao(), db.accountDao(), amounts, resolver, guard, prefs, CurrentDay(day),
+        )
+        val card = db.accountDao().insert(
+            AccountEntity(
+                name = "Visa", type = "CREDIT_CARD", currencyCode = "GTQ", createdAt = 0L,
+                creditLimitMinor = 1_000_000, statementClosingDay = 15, paymentDueDay = 5,
+            )
+        )
+        plans.create(NewInstallmentPlan(card, "TV", null, Money(300_000, gtq), 3, LocalDate.of(2026, 11, 15).atTime(10, 0)))
+
+        assertEquals(100_000L, summaries.getFinancialSummary().first().monthlyExpense)
+        assertEquals(1, summaries.getAllTransactions().first().size)
+
+        day.value = LocalDate.of(2026, 12, 20)
+        assertEquals(100_000L, summaries.getFinancialSummary().first().monthlyExpense)
+        assertEquals(2, summaries.getAllTransactions().first().size)
+    }
+
+    /** One installment of a plan, stored directly: only its plan link matters here. */
+    private suspend fun storedInstallment(): Transaction {
+        val planId = db.installmentPlanDao().insert(
+            InstallmentPlanEntity(
+                accountId = accountId, description = "TV", categoryId = null, currencyCode = "USD",
+                originalMinor = 2000, accountTotalMinor = 2000, accountRate = BigDecimal.ONE,
+                accountRateSource = RateSource.AUTO, installments = 2, purchaseDate = 0L,
+            )
+        )
+        return saved(
+            template(ExchangeRate(BigDecimal.ONE, RateSource.AUTO), 1000).copy(
+                description = "TV", isRecurrent = false, recurrenceFrequency = null, recurrenceInterval = null,
+                installmentPlanId = planId, installmentNumber = 1,
+            )
+        )
+    }
+
+    private suspend fun assertRejected(block: suspend () -> Unit) {
+        try {
+            block()
+            fail("Expected IllegalArgumentException")
+        } catch (_: IllegalArgumentException) {
+        }
+    }
+
+    @Test
+    fun `a single installment of a plan cannot be updated`() = runTest {
+        val installment = storedInstallment()
+        val before = db.transactionDao().getById(installment.id)
+
+        assertRejected { repository.updateTransaction(installment.copy(description = "Other")) }
+        // Dropping the plan link from the incoming row doesn't get around it: the stored row decides too.
+        assertRejected { repository.updateTransaction(installment.copy(description = "Other", installmentPlanId = null)) }
+
+        assertEquals(before, db.transactionDao().getById(installment.id))
+    }
+
+    @Test
+    fun `a single installment of a plan cannot be deleted`() = runTest {
+        val installment = storedInstallment()
+        val before = db.transactionDao().getById(installment.id)
+
+        assertRejected { repository.deleteTransaction(installment.id) }
+
+        assertEquals(before, db.transactionDao().getById(installment.id))
     }
 }

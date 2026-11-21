@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.data.repository.CategoryRepository
+import com.boxdev.boxwallet.data.repository.InstallmentPlanRepository
 import com.boxdev.boxwallet.data.repository.TransactionRepository
 import com.boxdev.boxwallet.data.repository.TransferRepository
 import com.boxdev.boxwallet.domain.model.Account
@@ -45,6 +46,8 @@ data class TransactionsListUiState(
     val accounts: List<Account> = emptyList(),
     /** Each transfer's two accounts by transferId, for the "<from> → <to>" title. */
     val transferPairs: Map<String, TransferPair> = emptyMap(),
+    /** Each installment plan's installment count by plan id, for a listed installment's "k/N". */
+    val installmentCounts: Map<Long, Int> = emptyMap(),
     val isLoading: Boolean = true,
     val filterState: TransactionsFilterState = TransactionsFilterState()
 )
@@ -55,6 +58,7 @@ class TransactionsListViewModel @Inject constructor(
     private val categoryRepository: CategoryRepository,
     accountRepository: AccountRepository,
     transferRepository: TransferRepository,
+    installmentPlanRepository: InstallmentPlanRepository,
     private val filterRequest: MovementsFilterRequest,
 ) : ViewModel() {
 
@@ -64,15 +68,16 @@ class TransactionsListViewModel @Inject constructor(
         repository.getAllTransactions(),
         categoryRepository.getAllCategories(),
         accountRepository.observeAll(),
-        transferRepository.observePairs(),
+        combine(transferRepository.observePairs(), installmentPlanRepository.observeInstallmentCounts(), ::Pair),
         filterState,
-    ) { transactions, categories, accounts, pairs, filter ->
+    ) { transactions, categories, accounts, (pairs, counts), filter ->
         TransactionsListUiState(
             transactions = transactions,
             filteredTransactions = applyFilters(transactions, filter, accounts),
             availableCategories = categories,
             accounts = accounts,
             transferPairs = pairs,
+            installmentCounts = counts,
             isLoading = false,
             filterState = filter,
         )

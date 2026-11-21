@@ -2,8 +2,10 @@ package com.boxdev.boxwallet.ui.screens.settings
 
 import com.boxdev.boxwallet.analytics.AnalyticsHelper
 import android.content.Intent
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.data.remote.DriveBackupFile
 import com.boxdev.boxwallet.data.remote.GoogleAuthManager
 import com.boxdev.boxwallet.data.remote.GoogleDriveManager
@@ -26,6 +28,8 @@ data class BackupUiState(
     val accountDisplayName: String? = null,
     val backupFiles: List<DriveBackupFile> = emptyList(),
     val message: String? = null,
+    /** A message from string resources, for outcomes the view model has no context to word. */
+    @StringRes val messageRes: Int? = null,
     val isSuccess: Boolean = false,
     /** A backup with another main currency, waiting for the user to choose which one to keep. */
     val currencyMismatch: RestoreResult.CurrencyMismatch? = null,
@@ -116,6 +120,10 @@ class BackupViewModel @Inject constructor(
                 _uiState.update { it.copy(currencyMismatch = result) }
                 null
             }
+            RestoreResult.Incompatible -> {
+                _uiState.update { it.copy(messageRes = R.string.backup_error_incompatible, isSuccess = false) }
+                null
+            }
         }
     }
 
@@ -176,6 +184,6 @@ class BackupViewModel @Inject constructor(
     }
 
     fun clearMessage() {
-        _uiState.value = _uiState.value.copy(message = null)
+        _uiState.value = _uiState.value.copy(message = null, messageRes = null)
     }
 }

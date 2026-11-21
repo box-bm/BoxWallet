@@ -9,12 +9,15 @@ import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.data.repository.AccountRuleError
 import com.boxdev.boxwallet.data.repository.CategoryRepository
+import com.boxdev.boxwallet.data.repository.InstallmentPlanRepository
 import com.boxdev.boxwallet.data.repository.TransactionRepository
 import com.boxdev.boxwallet.data.repository.TransferRepository
 import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.AccountWithBalance
 import com.boxdev.boxwallet.domain.model.CardSummary
 import com.boxdev.boxwallet.domain.model.Category
+import com.boxdev.boxwallet.domain.model.InstallmentPlan
+import com.boxdev.boxwallet.domain.model.isFinished
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.domain.model.TransferPair
 import com.boxdev.boxwallet.domain.money.MissingRateException
@@ -59,6 +62,10 @@ data class AccountDetailUiState(
     val internalTransfers: Set<String> = emptySet(),
     /** Where a card payment comes from: the last account that paid it, else the default account. */
     val cardPayer: Long? = null,
+    /** A card's installment purchases (both currencies): the unfinished ones first, each group newest first. */
+    val installmentPlans: List<InstallmentPlan> = emptyList(),
+    /** Each of [installmentPlans]' installment count by plan id, for a listed installment's "k/N". */
+    val installmentCounts: Map<Long, Int> = emptyMap(),
     val isLoading: Boolean = true,
 )
 
@@ -95,6 +102,7 @@ class AccountDetailViewModel @Inject constructor(
     private val transactionRepository: TransactionRepository,
     categoryRepository: CategoryRepository,
     transferRepository: TransferRepository,
+    installmentPlanRepository: InstallmentPlanRepository,
     private val movementsFilter: MovementsFilterRequest,
 ) : ViewModel() {
 
@@ -134,9 +142,9 @@ class AccountDetailViewModel @Inject constructor(
             combine(accountRepository.observeAccountsWithBalance(), accountRepository.observeDefaultAccountId(), ::Pair),
             movementsOf(id),
             categoryRepository.getAllCategories(),
-            transferRepository.observePairs(),
+            combine(transferRepository.observePairs(), installmentPlanRepository.observePlansOfCard(id), ::Pair),
             accountRepository.observeCardSummaries(),
-        ) { (accounts, defaultId), movements, categories, pairs, cards ->
+        ) { (accounts, defaultId), movements, categories, (pairs, plans), cards ->
             val card = cards[id]
             val key = card?.let { cardPayerKey(id, it.second?.account?.id, movements, pairs, accounts) }
             if (key != payerKey) {
@@ -157,6 +165,9 @@ class AccountDetailViewModel @Inject constructor(
                     val family = setOf(id, childId)
                     pairs.values.filter { it.fromAccountId in family && it.toAccountId in family }.mapTo(HashSet()) { it.transferId }
                 }.orEmpty(),
+                // Only a card has plans; sortedBy is stable, so each group keeps the newest-first order.
+                installmentPlans = if (card != null) plans.sortedBy { it.isFinished } else emptyList(),
+                installmentCounts = if (card != null) plans.associate { it.id to it.installments } else emptyMap(),
                 isLoading = false,
             )
         }
@@ -259,5 +270,6 @@ class AccountDetailViewModel @Inject constructor(
         AccountRuleError.HasMovements -> R.string.account_error_has_movements
         AccountRuleError.SecondCurrencyHasMovements -> R.string.account_error_second_currency_has_movements
         AccountRuleError.RemoveSecondCurrencyFirst -> R.string.account_error_remove_second_currency_first
+        AccountRuleError.HasPendingInstallments -> R.string.account_error_has_pending_installments
     }
 }

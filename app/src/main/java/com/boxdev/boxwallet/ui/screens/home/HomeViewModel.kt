@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.data.repository.CategoryRepository
+import com.boxdev.boxwallet.data.repository.InstallmentPlanRepository
 import com.boxdev.boxwallet.data.repository.LoanRepository
 import com.boxdev.boxwallet.data.repository.TransactionRepository
 import com.boxdev.boxwallet.data.repository.TransferRepository
@@ -41,6 +42,8 @@ data class HomeUiState(
     val accountsById: Map<Long, Account> = emptyMap(),
     /** Each transfer's two accounts by transferId. */
     val transferPairs: Map<String, TransferPair> = emptyMap(),
+    /** Each installment plan's installment count by plan id, for a listed installment's "k/N". */
+    val installmentCounts: Map<Long, Int> = emptyMap(),
     val isLoading: Boolean = true
 )
 
@@ -51,6 +54,7 @@ class HomeViewModel @Inject constructor(
     private val categoryRepository: CategoryRepository,
     accountRepository: AccountRepository,
     transferRepository: TransferRepository,
+    installmentPlanRepository: InstallmentPlanRepository,
 ) : ViewModel() {
 
     private class Balances(
@@ -59,6 +63,7 @@ class HomeViewModel @Inject constructor(
         val byId: Map<Long, Account>,
         val pairs: Map<String, TransferPair>,
         val cards: Map<Long, CardSummary>,
+        val installmentCounts: Map<Long, Int>,
     )
 
     private val balances = combine(
@@ -66,7 +71,8 @@ class HomeViewModel @Inject constructor(
         accountRepository.observeAccountsWithBalance(),
         transferRepository.observePairs(),
         accountRepository.observeCardSummaries(),
-    ) { total, accounts, pairs, cards ->
+        installmentPlanRepository.observeInstallmentCounts(),
+    ) { total, accounts, pairs, cards, counts ->
         Balances(
             total = total,
             // A card's second currency belongs to its card, never a row of its own.
@@ -74,6 +80,7 @@ class HomeViewModel @Inject constructor(
             byId = accounts.associate { it.account.id to it.account },
             pairs = pairs,
             cards = cards,
+            installmentCounts = counts,
         )
     }
 
@@ -94,6 +101,7 @@ class HomeViewModel @Inject constructor(
             cards = balances.cards,
             accountsById = balances.byId,
             transferPairs = balances.pairs,
+            installmentCounts = balances.installmentCounts,
             isLoading = false
         )
     }.stateIn(

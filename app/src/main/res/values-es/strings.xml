@@ -646,6 +646,7 @@
     <string name="account_error_has_movements">Esta cuenta tiene movimientos; archívala en su lugar</string>
     <string name="account_error_second_currency_has_movements">La segunda moneda ya tiene movimientos</string>
     <string name="account_error_remove_second_currency_first">Quita primero la segunda moneda</string>
+    <string name="account_error_has_pending_installments">Esta tarjeta tiene cuotas por cobrar</string>
     <string name="account_error_missing_rate">No hay tasa de cambio para esta moneda todavía</string>
     <string name="account_balance_negative">Saldo negativo</string>
     <string name="account_error_generic">Algo salió mal. Inténtalo de nuevo.</string>
@@ -678,4 +679,26 @@
     <string name="card_credit_balance">Saldo a favor</string>
     <string name="card_pay_amount">Pagar %1$s</string>
     <string name="card_pay">Pagar tarjeta</string>
+    <string name="backup_error_incompatible">Este respaldo es de una versión anterior de BoxWallet y no se puede restaurar</string>
+    <string name="transaction_in_installments">A cuotas</string>
+    <string name="transaction_installments_preview">%1$s por corte · primera el %2$s</string>
+    <string name="transaction_installment_count">Número de cuotas</string>
+    <string name="card_installments_title">Compras a cuotas</string>
+    <string name="card_installments_pending">Cuotas por cobrar %1$s</string>
+    <string name="installment_progress">%1$d/%2$d · %3$s por corte · faltan %4$s</string>
+    <string name="installment_row_title">%1$s · cuota %2$d/%3$d</string>
+    <string name="installments_show_finished">Ver terminadas</string>
+    <string name="installments_hide_finished">Ocultar terminadas</string>
+    <string name="installment_charged">Cobrada</string>
+    <string name="installment_pending">Por cobrar</string>
+    <string name="installment_delete_confirm">¿Eliminar esta compra y sus %1$d cuotas? La deuda de la tarjeta baja %2$s y se liberan %3$s de crédito.</string>
+    <string name="installment_plan_title">Compra a cuotas</string>
+    <string name="installment_plan_not_found">Esta compra ya no existe</string>
+    <string name="installment_plan_edit">Editar compra</string>
+    <string name="installment_plan_delete">Eliminar compra</string>
+    <string name="installment_plan_bought_on">Comprada el %1$s</string>
+    <string name="installment_plan_number">Cuota %1$d/%2$d</string>
+    <string name="installment_plan_installments">Cuotas</string>
+    <string name="installment_plan_error_save">No se pudo guardar la compra. Inténtalo de nuevo.</string>
+    <string name="installment_plan_error_delete">No se pudo eliminar la compra. Inténtalo de nuevo.</string>
 </resources>

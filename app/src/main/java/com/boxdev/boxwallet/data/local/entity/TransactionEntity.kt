@@ -40,6 +40,12 @@ import java.math.BigDecimal
             childColumns = ["parentRecurrenceId"],
             onDelete = ForeignKey.SET_NULL,
         ),
+        ForeignKey(
+            entity = InstallmentPlanEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["installmentPlanId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
     ],
     indices = [
         Index("accountId"),
@@ -49,6 +55,7 @@ import java.math.BigDecimal
         Index("currencyCode"),
         Index("parentRecurrenceId"),
         Index("transferId"),
+        Index("installmentPlanId"),
     ],
 )
 data class TransactionEntity(
@@ -81,6 +88,8 @@ data class TransactionEntity(
     val parentRecurrenceId: Long? = null,
     /** Shared by the two legs of a transfer between accounts. */
     val transferId: String? = null,
+    /** The visacuotas plan this installment belongs to. */
+    val installmentPlanId: Long? = null,
 )
 
 enum class TransactionType {

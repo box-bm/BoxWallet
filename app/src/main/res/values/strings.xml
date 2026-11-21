@@ -659,6 +659,7 @@
     <string name="account_error_has_movements">This account has movements; archive it instead</string>
     <string name="account_error_second_currency_has_movements">The second currency already has movements</string>
     <string name="account_error_remove_second_currency_first">Remove the second currency first</string>
+    <string name="account_error_has_pending_installments">This card has installments still to be charged</string>
     <string name="account_error_missing_rate">There\'s no exchange rate for this currency yet</string>
     <string name="account_balance_negative">Negative balance</string>
     <string name="account_error_generic">Something went wrong. Try again.</string>
@@ -691,4 +692,26 @@
     <string name="card_credit_balance">Credit balance</string>
     <string name="card_pay_amount">Pay %1$s</string>
     <string name="card_pay">Pay card</string>
+    <string name="backup_error_incompatible">This backup is from an older version of BoxWallet and can\'t be restored</string>
+    <string name="transaction_in_installments">In installments</string>
+    <string name="transaction_installments_preview">%1$s per statement · first on %2$s</string>
+    <string name="transaction_installment_count">Number of installments</string>
+    <string name="card_installments_title">Installment purchases</string>
+    <string name="card_installments_pending">%1$s still to be charged</string>
+    <string name="installment_progress">%1$d/%2$d · %3$s per statement · %4$s left</string>
+    <string name="installment_row_title">%1$s · installment %2$d/%3$d</string>
+    <string name="installments_show_finished">Show finished</string>
+    <string name="installments_hide_finished">Hide finished</string>
+    <string name="installment_charged">Charged</string>
+    <string name="installment_pending">Pending</string>
+    <string name="installment_delete_confirm">Delete this purchase and its %1$d installments? The card\'s debt drops by %2$s and %3$s of credit is freed.</string>
+    <string name="installment_plan_title">Installment purchase</string>
+    <string name="installment_plan_not_found">This purchase no longer exists</string>
+    <string name="installment_plan_edit">Edit purchase</string>
+    <string name="installment_plan_delete">Delete purchase</string>
+    <string name="installment_plan_bought_on">Bought on %1$s</string>
+    <string name="installment_plan_number">Installment %1$d/%2$d</string>
+    <string name="installment_plan_installments">Installments</string>
+    <string name="installment_plan_error_save">Couldn\'t save the purchase. Try again.</string>
+    <string name="installment_plan_error_delete">Couldn\'t delete the purchase. Try again.</string>
 </resources>

@@ -7,16 +7,18 @@ import com.boxdev.boxwallet.data.local.dao.AccountDao
 import com.boxdev.boxwallet.data.local.dao.AppMetaDao
 import com.boxdev.boxwallet.data.local.dao.CategoryDao
 import com.boxdev.boxwallet.data.local.dao.ExchangeRateDao
+import com.boxdev.boxwallet.data.local.dao.InstallmentPlanDao
 import com.boxdev.boxwallet.data.local.dao.LoanDao
 import com.boxdev.boxwallet.data.local.dao.TransactionDao
 import com.boxdev.boxwallet.data.local.entity.AccountEntity
 import com.boxdev.boxwallet.data.local.entity.AppMetaEntity
 import com.boxdev.boxwallet.data.local.entity.CategoryEntity
 import com.boxdev.boxwallet.data.local.entity.ExchangeRateEntity
+import com.boxdev.boxwallet.data.local.entity.InstallmentPlanEntity
 import com.boxdev.boxwallet.data.local.entity.LoanEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 
-/** Every future version ships a `Migration` plus a test; there is no destructive fallback. */
+/** Not in production: one schema version (1) and a destructive fallback, so there are no migrations. */
 @Database(
     entities = [
         AccountEntity::class,
@@ -25,8 +27,9 @@ import com.boxdev.boxwallet.data.local.entity.TransactionEntity
         LoanEntity::class,
         ExchangeRateEntity::class,
         AppMetaEntity::class,
+        InstallmentPlanEntity::class,
     ],
-    version = 2,
+    version = 1,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -38,6 +41,7 @@ abstract class BoxWalletDatabase : RoomDatabase() {
     abstract fun loanDao(): LoanDao
     abstract fun exchangeRateDao(): ExchangeRateDao
     abstract fun appMetaDao(): AppMetaDao
+    abstract fun installmentPlanDao(): InstallmentPlanDao
 
     companion object {
         const val DATABASE_NAME = "boxwallet.db"

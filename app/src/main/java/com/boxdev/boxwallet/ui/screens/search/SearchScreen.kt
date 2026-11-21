@@ -93,6 +93,7 @@ fun SearchScreen(
     onOpenTransaction: (Long) -> Unit,
     onOpenLoan: (Long) -> Unit,
     onOpenTransfer: (Long) -> Unit = {},
+    onOpenInstallmentPlan: (Long) -> Unit = {},
     viewModel: SearchViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -220,9 +221,11 @@ fun SearchScreen(
                                 transferTitle = transaction.transferId?.let {
                                     transferTitle(uiState.transferPairs[it], uiState.accountsById)
                                 },
+                                installmentCount = transaction.installmentPlanId?.let(uiState.installmentCounts::get),
                                 onClick = {
                                     when {
                                         transaction.type.isAdjustment -> pendingAdjustment = transaction
+                                        transaction.installmentPlanId != null -> onOpenInstallmentPlan(transaction.installmentPlanId)
                                         transaction.type.isTransfer -> onOpenTransfer(transaction.id)
                                         else -> onOpenTransaction(transaction.id)
                                     }

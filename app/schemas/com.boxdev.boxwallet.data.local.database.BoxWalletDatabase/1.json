@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "d4f759b3b43c85a3cb66d74d4e2e5039",
+    "identityHash": "62ed224c2b71d27ce84f90a4a76e182b",
     "entities": [
       {
         "tableName": "accounts",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `type` TEXT NOT NULL, `currencyCode` TEXT NOT NULL, `isArchived` INTEGER NOT NULL, `sortOrder` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `type` TEXT NOT NULL, `currencyCode` TEXT NOT NULL, `isArchived` INTEGER NOT NULL, `sortOrder` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `description` TEXT NOT NULL DEFAULT '', `icon` TEXT NOT NULL DEFAULT 'AccountBalance', `color` TEXT NOT NULL DEFAULT 'DEFAULT', `includeInTotal` INTEGER NOT NULL DEFAULT 1, `parentAccountId` INTEGER, `creditLimitMinor` INTEGER, `statementClosingDay` INTEGER, `paymentDueDay` INTEGER, `dueReminderDaysBefore` INTEGER)",
         "fields": [
           {
             "fieldPath": "id",
@@ -49,6 +49,59 @@
             "columnName": "createdAt",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "icon",
+            "columnName": "icon",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'AccountBalance'"
+          },
+          {
+            "fieldPath": "color",
+            "columnName": "color",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'DEFAULT'"
+          },
+          {
+            "fieldPath": "includeInTotal",
+            "columnName": "includeInTotal",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "1"
+          },
+          {
+            "fieldPath": "parentAccountId",
+            "columnName": "parentAccountId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "creditLimitMinor",
+            "columnName": "creditLimitMinor",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "statementClosingDay",
+            "columnName": "statementClosingDay",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "paymentDueDay",
+            "columnName": "paymentDueDay",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "dueReminderDaysBefore",
+            "columnName": "dueReminderDaysBefore",
+            "affinity": "INTEGER"
           }
         ],
         "primaryKey": {
@@ -56,11 +109,22 @@
           "columnNames": [
             "id"
           ]
-        }
+        },
+        "indices": [
+          {
+            "name": "index_accounts_parentAccountId",
+            "unique": false,
+            "columnNames": [
+              "parentAccountId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_accounts_parentAccountId` ON `${TABLE_NAME}` (`parentAccountId`)"
+          }
+        ]
       },
       {
         "tableName": "transactions",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `accountId` INTEGER NOT NULL, `type` TEXT NOT NULL, `date` INTEGER NOT NULL, `description` TEXT NOT NULL, `categoryId` INTEGER, `loanId` INTEGER, `installmentNumber` INTEGER, `originalAmountMinor` INTEGER NOT NULL, `currencyCode` TEXT NOT NULL, `accountAmountMinor` INTEGER NOT NULL, `accountRate` TEXT NOT NULL, `accountRateSource` TEXT NOT NULL, `amountMinor` INTEGER NOT NULL, `mainRate` TEXT NOT NULL, `mainRateSource` TEXT NOT NULL, `isCleared` INTEGER NOT NULL, `hasReminder` INTEGER NOT NULL, `reminderDate` INTEGER, `reminderSecondsBefore` INTEGER, `isRecurrent` INTEGER NOT NULL, `recurrenceFrequency` TEXT, `recurrenceInterval` INTEGER, `nextOccurrenceDate` INTEGER, `parentRecurrenceId` INTEGER, FOREIGN KEY(`accountId`) REFERENCES `accounts`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`categoryId`) REFERENCES `categories`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`loanId`) REFERENCES `loans`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`parentRecurrenceId`) REFERENCES `transactions`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `accountId` INTEGER NOT NULL, `type` TEXT NOT NULL, `date` INTEGER NOT NULL, `description` TEXT NOT NULL, `categoryId` INTEGER, `loanId` INTEGER, `installmentNumber` INTEGER, `originalAmountMinor` INTEGER NOT NULL, `currencyCode` TEXT NOT NULL, `accountAmountMinor` INTEGER NOT NULL, `accountRate` TEXT NOT NULL, `accountRateSource` TEXT NOT NULL, `amountMinor` INTEGER NOT NULL, `mainRate` TEXT NOT NULL, `mainRateSource` TEXT NOT NULL, `isCleared` INTEGER NOT NULL, `hasReminder` INTEGER NOT NULL, `reminderDate` INTEGER, `reminderSecondsBefore` INTEGER, `isRecurrent` INTEGER NOT NULL, `recurrenceFrequency` TEXT, `recurrenceInterval` INTEGER, `nextOccurrenceDate` INTEGER, `parentRecurrenceId` INTEGER, `transferId` TEXT, `installmentPlanId` INTEGER, FOREIGN KEY(`accountId`) REFERENCES `accounts`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`categoryId`) REFERENCES `categories`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`loanId`) REFERENCES `loans`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`parentRecurrenceId`) REFERENCES `transactions`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`installmentPlanId`) REFERENCES `installment_plans`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -202,6 +266,16 @@
             "fieldPath": "parentRecurrenceId",
             "columnName": "parentRecurrenceId",
             "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "transferId",
+            "columnName": "transferId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "installmentPlanId",
+            "columnName": "installmentPlanId",
+            "affinity": "INTEGER"
           }
         ],
         "primaryKey": {
@@ -264,6 +338,24 @@
             ],
             "orders": [],
             "createSql": "CREATE INDEX IF NOT EXISTS `index_transactions_parentRecurrenceId` ON `${TABLE_NAME}` (`parentRecurrenceId`)"
+          },
+          {
+            "name": "index_transactions_transferId",
+            "unique": false,
+            "columnNames": [
+              "transferId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_transactions_transferId` ON `${TABLE_NAME}` (`transferId`)"
+          },
+          {
+            "name": "index_transactions_installmentPlanId",
+            "unique": false,
+            "columnNames": [
+              "installmentPlanId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_transactions_installmentPlanId` ON `${TABLE_NAME}` (`installmentPlanId`)"
           }
         ],
         "foreignKeys": [
@@ -310,6 +402,17 @@
             "referencedColumns": [
               "id"
             ]
+          },
+          {
+            "table": "installment_plans",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "installmentPlanId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
           }
         ]
       },
@@ -351,7 +454,7 @@
       },
       {
         "tableName": "loans",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `description` TEXT NOT NULL, `totalAmountMinor` INTEGER NOT NULL, `currencyCode` TEXT NOT NULL, `accountId` INTEGER, `totalInstallments` INTEGER NOT NULL, `categoryId` INTEGER, `startDate` INTEGER NOT NULL, `loanType` TEXT NOT NULL, `frequency` TEXT NOT NULL, `frequencyInterval` INTEGER NOT NULL, FOREIGN KEY(`accountId`) REFERENCES `accounts`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `description` TEXT NOT NULL, `totalAmountMinor` INTEGER NOT NULL, `currencyCode` TEXT NOT NULL, `accountId` INTEGER, `totalInstallments` INTEGER NOT NULL, `categoryId` INTEGER, `startDate` INTEGER NOT NULL, `loanType` TEXT NOT NULL, `frequency` TEXT NOT NULL, `frequencyInterval` INTEGER NOT NULL, `kind` TEXT NOT NULL, `expectedDate` INTEGER, FOREIGN KEY(`accountId`) REFERENCES `accounts`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
         "fields": [
           {
             "fieldPath": "id",
@@ -422,6 +525,17 @@
             "columnName": "frequencyInterval",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "expectedDate",
+            "columnName": "expectedDate",
+            "affinity": "INTEGER"
           }
         ],
         "primaryKey": {
@@ -509,11 +623,132 @@
             "key"
           ]
         }
+      },
+      {
+        "tableName": "installment_plans",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `accountId` INTEGER NOT NULL, `description` TEXT NOT NULL, `categoryId` INTEGER, `currencyCode` TEXT NOT NULL, `originalMinor` INTEGER NOT NULL, `accountTotalMinor` INTEGER NOT NULL, `accountRate` TEXT NOT NULL, `accountRateSource` TEXT NOT NULL, `installments` INTEGER NOT NULL, `purchaseDate` INTEGER NOT NULL, FOREIGN KEY(`accountId`) REFERENCES `accounts`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`categoryId`) REFERENCES `categories`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountId",
+            "columnName": "accountId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "categoryId",
+            "columnName": "categoryId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "currencyCode",
+            "columnName": "currencyCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "originalMinor",
+            "columnName": "originalMinor",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountTotalMinor",
+            "columnName": "accountTotalMinor",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountRate",
+            "columnName": "accountRate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountRateSource",
+            "columnName": "accountRateSource",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "installments",
+            "columnName": "installments",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "purchaseDate",
+            "columnName": "purchaseDate",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_installment_plans_accountId",
+            "unique": false,
+            "columnNames": [
+              "accountId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_installment_plans_accountId` ON `${TABLE_NAME}` (`accountId`)"
+          },
+          {
+            "name": "index_installment_plans_categoryId",
+            "unique": false,
+            "columnNames": [
+              "categoryId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_installment_plans_categoryId` ON `${TABLE_NAME}` (`categoryId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "accounts",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "accountId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "categories",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "categoryId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'd4f759b3b43c85a3cb66d74d4e2e5039')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '62ed224c2b71d27ce84f90a4a76e182b')"
     ]
   }
 }

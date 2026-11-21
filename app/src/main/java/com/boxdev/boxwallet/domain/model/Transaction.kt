@@ -37,7 +37,8 @@ data class Transaction(
     val recurrenceInterval: Int? = null,
     val nextOccurrenceDate: LocalDateTime? = null,
     val parentRecurrenceId: Long? = null,
-    val transferId: String? = null
+    val transferId: String? = null,
+    val installmentPlanId: Long? = null,
 ) {
     companion object {
         /** A movement whose currency, account currency and main currency are all [money]'s (identity rates). */
@@ -81,7 +82,8 @@ fun TransactionEntity.toDomain(accountCurrency: Currency, main: Currency): Trans
     recurrenceInterval = recurrenceInterval,
     nextOccurrenceDate = nextOccurrenceDate?.let { LocalDateTime.ofInstant(Instant.ofEpochMilli(it), ZoneOffset.UTC) },
     parentRecurrenceId = parentRecurrenceId,
-    transferId = transferId
+    transferId = transferId,
+    installmentPlanId = installmentPlanId,
 )
 
 fun Transaction.toEntity(): TransactionEntity {
@@ -119,6 +121,7 @@ fun Transaction.toEntity(): TransactionEntity {
         recurrenceInterval = recurrenceInterval,
         nextOccurrenceDate = nextOccurrenceDate?.toInstant(ZoneOffset.UTC)?.toEpochMilli(),
         parentRecurrenceId = parentRecurrenceId,
-        transferId = transferId
+        transferId = transferId,
+        installmentPlanId = installmentPlanId,
     )
 }

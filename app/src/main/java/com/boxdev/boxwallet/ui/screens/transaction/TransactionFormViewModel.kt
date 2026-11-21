@@ -9,12 +9,17 @@ import com.boxdev.boxwallet.data.local.dao.CurrencyUsage
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.data.repository.CategoryRepository
+import com.boxdev.boxwallet.data.repository.InstallmentPlanRepository
+import com.boxdev.boxwallet.data.repository.NewInstallmentPlan
 import com.boxdev.boxwallet.data.repository.TransactionRepository
 import com.boxdev.boxwallet.domain.model.Account
+import com.boxdev.boxwallet.domain.model.AccountType
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.domain.model.ReminderDuration
 import com.boxdev.boxwallet.domain.model.Transaction
+import com.boxdev.boxwallet.domain.model.firstClosingOnOrAfter
+import com.boxdev.boxwallet.domain.model.splitEvenly
 import com.boxdev.boxwallet.domain.money.AmountResult
 import com.boxdev.boxwallet.domain.money.ExchangeRate
 import com.boxdev.boxwallet.domain.money.MissingRateException
@@ -36,6 +41,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.Currency
 import javax.inject.Inject
@@ -51,6 +57,12 @@ sealed interface TransactionFormError {
     data object SaveFailed : TransactionFormError
     data object DeleteFailed : TransactionFormError
 }
+
+/** What an installment purchase looks like before saving: the first part and the closing it lands on. */
+data class InstallmentPreview(val perClosing: Money, val firstClosing: LocalDate)
+
+const val MIN_INSTALLMENTS = 2
+const val MAX_INSTALLMENTS = 60
 
 data class TransactionFormState(
     val id: Long = 0,
@@ -89,6 +101,8 @@ data class TransactionFormState(
     val isRecurrent: Boolean = false,
     val recurrenceFrequency: RecurrenceFrequency? = null,
     val recurrenceInterval: String = "1",
+    val inInstallments: Boolean = false,
+    val installmentCount: String = "3",
     val isEditing: Boolean = false,
     val isLoading: Boolean = false,
     val isSaved: Boolean = false,
@@ -103,8 +117,38 @@ data class TransactionFormState(
     val manualRateValue: BigDecimal?
         get() = manualRate?.takeIf { isForeign }?.trim()?.toBigDecimalOrNull()?.takeIf { it.signum() > 0 }
 
+    /** Closing day of the routed account (a child uses its parent's card), or null when it is not a card with one. */
+    private val closingDay: Int?
+        get() {
+            val account = accounts.firstOrNull { it.id == accountId } ?: return null
+            val card = if (account.parentAccountId != null) accounts.firstOrNull { it.id == account.parentAccountId } else account
+            return card?.takeIf { it.type == AccountType.CREDIT_CARD }?.statementClosingDay
+        }
+
+    /** Only a new, non-recurrent expense on a card with a closing day can be bought in installments. */
+    val canUseInstallments: Boolean
+        get() = !isEditing && !isRecurrent && type == TransactionType.EXPENSE && closingDay != null
+
+    /** The switch is on and still allowed for the current account and type. */
+    val installmentsActive: Boolean get() = inInstallments && canUseInstallments
+
+    private val installments: Int? get() = installmentCount.toIntOrNull()?.takeIf { it in MIN_INSTALLMENTS..MAX_INSTALLMENTS }
+
+    val installmentPreview: InstallmentPreview?
+        get() {
+            if (!installmentsActive) return null
+            val total = money ?: return null
+            val count = installments ?: return null
+            val day = closingDay ?: return null
+            return InstallmentPreview(
+                perClosing = Money(splitEvenly(total.minor, count).first(), total.currency),
+                firstClosing = firstClosingOnOrAfter(day, date.toLocalDate()),
+            )
+        }
+
     val isValid: Boolean
         get() = money != null &&
+                (!installmentsActive || installments != null) &&
                 (!isRecurrent || recurrenceFrequency != null) &&
                 (!isRecurrent || recurrenceFrequency != RecurrenceFrequency.CUSTOM_MONTHS || (recurrenceInterval.toIntOrNull() ?: 0) > 0)
 
@@ -156,7 +200,8 @@ class TransactionFormViewModel @Inject constructor(
     private val accountRepository: AccountRepository,
     private val userPreferences: UserPreferences,
     private val transactionAmounts: TransactionAmounts,
-    private val analyticsHelper: AnalyticsHelper
+    private val analyticsHelper: AnalyticsHelper,
+    private val installmentPlanRepository: InstallmentPlanRepository,
 ) : ViewModel() {
 
     /** The movement being edited, so fields the form doesn't show (account, recurrence parent) survive the save. */
@@ -374,9 +419,16 @@ class TransactionFormViewModel @Inject constructor(
         )
     }
     fun updateReminderDuration(duration: ReminderDuration?) = _formState.update { it.copy(reminderDuration = duration) }
+    fun updateInInstallments(value: Boolean) = _formState.update {
+        it.copy(inInstallments = value, isRecurrent = it.isRecurrent && !value, error = null)
+    }
+    fun updateInstallmentCount(value: String) {
+        if (value.matches(Regex("^\\d*$"))) _formState.update { it.copy(installmentCount = value, error = null) }
+    }
     fun updateIsRecurrent(value: Boolean) = _formState.update {
         it.copy(
             isRecurrent = value,
+            inInstallments = it.inInstallments && !value,
             recurrenceFrequency = if (value && it.recurrenceFrequency == null) RecurrenceFrequency.MONTHLY else it.recurrenceFrequency
         )
     }
@@ -411,6 +463,26 @@ class TransactionFormViewModel @Inject constructor(
                     s.recurrenceFrequency.advance(s.date, s.recurrenceInterval.toIntOrNull() ?: 1)
                 } else null
 
+                if (s.installmentsActive) {
+                    installmentPlanRepository.create(
+                        NewInstallmentPlan(
+                            accountId = s.accountId ?: accountRepository.defaultAccount().id,
+                            description = s.description,
+                            categoryId = s.categoryId,
+                            original = s.money!!,
+                            installments = s.installmentCount.toInt(),
+                            purchaseDate = s.date,
+                            manualAccountRate = s.manualRateValue,
+                        ),
+                    )
+                    analyticsHelper.logEvent(
+                        "installment_plan_created",
+                        mapOf("installments" to s.installmentCount.toInt(), "has_category" to (s.categoryId != null)),
+                    )
+                    _formState.update { it.copy(isLoading = false, isSaved = true) }
+                    return@launch
+                }
+
                 val previous = editing
                 val accountId = s.accountId ?: previous?.accountId ?: accountRepository.defaultAccount().id
                 val draft = Transaction.singleCurrency(accountId, s.type, s.date, s.money!!).copy(
@@ -418,6 +490,8 @@ class TransactionFormViewModel @Inject constructor(
                     description = s.description,
                     loanId = previous?.loanId,
                     installmentNumber = previous?.installmentNumber,
+                    // Kept so the repository refuses to change one installment of a plan on its own.
+                    installmentPlanId = previous?.installmentPlanId,
                     parentRecurrenceId = previous?.parentRecurrenceId,
                     isCleared = s.isCleared,
                     hasReminder = s.hasReminder,

@@ -83,4 +83,23 @@ class CardBlockTextTest {
         assertNull(summary.available)
         assertEquals(0.25f, usageFraction(summary)!!, 0.0001f)
     }
+
+    @Test
+    fun theUsageBarCountsPendingInstallments() {
+        val usd = Currency.getInstance("USD")
+        val limited = card.copy(creditLimitMinor = 10_000_00)
+        val single = cardSummary(
+            limited, cardBalance(limited, Money(-2_000_00, gtq), null, pendingInstallmentsMinor = 1_000_00), null,
+            rateSecondToPrimary = null, approximate = false,
+        )
+        assertEquals(0.30f, usageFraction(single)!!, 0.0001f)
+
+        // Without the second currency's rate the bar still counts the main currency's pending installments.
+        val child = card.copy(id = 4, currency = usd, parentAccountId = 3)
+        val noRate = cardSummary(
+            limited, cardBalance(limited, Money(-2_000_00, gtq), null, pendingInstallmentsMinor = 500_00),
+            cardBalance(child, Money(-100_00, usd), null), rateSecondToPrimary = null, approximate = false,
+        )
+        assertEquals(0.25f, usageFraction(noRate)!!, 0.0001f)
+    }
 }
