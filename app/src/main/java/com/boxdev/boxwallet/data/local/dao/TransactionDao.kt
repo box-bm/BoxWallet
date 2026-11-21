@@ -44,6 +44,20 @@ interface TransactionDao {
     @Query("DELETE FROM transactions WHERE accountId = :accountId AND type IN ('ADJUSTMENT_IN','ADJUSTMENT_OUT')")
     suspend fun deleteAdjustmentsByAccount(accountId: Long)
 
+    /** The installments of one visacuotas plan, in date order. */
+    @Query("SELECT * FROM transactions WHERE installmentPlanId = :planId ORDER BY date ASC, installmentNumber ASC")
+    suspend fun getByPlanId(planId: Long): List<TransactionEntity>
+
+    @Query("SELECT * FROM transactions WHERE installmentPlanId = :planId ORDER BY date ASC, installmentNumber ASC")
+    fun observeByPlanId(planId: Long): Flow<List<TransactionEntity>>
+
+    /** Every plan installment of the given accounts. */
+    @Query("SELECT * FROM transactions WHERE installmentPlanId IS NOT NULL AND accountId IN (:accountIds)")
+    fun observePlanInstallmentsOfAccounts(accountIds: List<Long>): Flow<List<TransactionEntity>>
+
+    @Query("UPDATE transactions SET description = :description, categoryId = :categoryId WHERE installmentPlanId = :planId")
+    suspend fun updateDetailsByPlanId(planId: Long, description: String, categoryId: Long?)
+
     /** Both legs of a transfer. */
     @Query("SELECT * FROM transactions WHERE transferId = :transferId")
     suspend fun getByTransferId(transferId: String): List<TransactionEntity>
