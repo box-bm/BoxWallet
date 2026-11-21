@@ -77,9 +77,22 @@ class UserPreferences @Inject constructor(
         context.userPreferencesDataStore.edit { it[DEFAULT_ACCOUNT_ID_KEY] = id }
     }
 
-    /** The pending main currency marker now lives in `app_meta`; drops the stale pre-v2 key. */
-    suspend fun clearLegacyPendingMainCurrency() {
-        context.userPreferencesDataStore.edit { it.remove(LEGACY_PENDING_MAIN_CURRENCY_KEY) }
+    /**
+     * The pending main currency marker now lives in `app_meta`. Returns the pre-v2 DataStore value
+     * (if any) and removes it; only for finishing a change started by v1.0.0.
+     */
+    suspend fun takeLegacyPendingMainCurrency(): String? {
+        var legacy: String? = null
+        context.userPreferencesDataStore.edit {
+            legacy = it[LEGACY_PENDING_MAIN_CURRENCY_KEY]
+            it.remove(LEGACY_PENDING_MAIN_CURRENCY_KEY)
+        }
+        return legacy
+    }
+
+    /** Test-only: writes the pre-v2 marker the way v1.0.0 did. */
+    internal suspend fun setLegacyPendingMainCurrencyForTest(code: String) {
+        context.userPreferencesDataStore.edit { it[LEGACY_PENDING_MAIN_CURRENCY_KEY] = code }
     }
 
     suspend fun setLastRateSyncAt(millis: Long) {

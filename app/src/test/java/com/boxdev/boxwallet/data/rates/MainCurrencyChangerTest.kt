@@ -290,6 +290,7 @@ class MainCurrencyChangerTest {
 
     @Test
     fun `completePending finishes a committed change with several accounts`() = runTest {
+        prefs.setMainCurrency("GTQ")
         account("GTQ")
         account("USD", makeDefault = false)
         // Committed: the marker rode in the data transaction; DataStore never got the new currency.
@@ -308,6 +309,30 @@ class MainCurrencyChangerTest {
         changer.completePending()
 
         assertEquals(usd, prefs.mainCurrency.first())
+    }
+
+    @Test
+    fun `legacy pending from v1 is finished with a single account`() = runTest {
+        prefs.setMainCurrency("GTQ")
+        account("EUR")
+        prefs.setLegacyPendingMainCurrencyForTest("EUR")
+
+        changer.completePending()
+
+        assertEquals(Currency.getInstance("EUR"), prefs.mainCurrency.first())
+        assertNull(prefs.takeLegacyPendingMainCurrency())
+    }
+
+    @Test
+    fun `legacy pending ignored when rolled back`() = runTest {
+        prefs.setMainCurrency("GTQ")
+        account("GTQ")
+        prefs.setLegacyPendingMainCurrencyForTest("EUR")
+
+        changer.completePending()
+
+        assertEquals(gtq, prefs.mainCurrency.first())
+        assertNull(prefs.takeLegacyPendingMainCurrency())
     }
 
     @Test

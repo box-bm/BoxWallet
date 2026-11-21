@@ -140,13 +140,30 @@ class MainCurrencyChanger internal constructor(
     /**
      * Finishes a change interrupted between the database commit and the DataStore write: the marker
      * is committed with the data, so while it exists the data is already in the pending currency.
-     * Also drops the pre-v2 DataStore marker. Call at startup, before other DB work.
+     * Call at startup, before other DB work.
      */
     suspend fun completePending(): Unit = lock.mutex.withLock {
-        prefs.clearLegacyPendingMainCurrency()
-        val pending = appMetaDao.get(META_PENDING_MAIN_CURRENCY) ?: return@withLock
+        val pending = appMetaDao.get(META_PENDING_MAIN_CURRENCY)
+        if (pending == null) {
+            finishChangeStartedByV1()
+            return@withLock
+        }
+        prefs.takeLegacyPendingMainCurrency()
         prefs.setMainCurrency(pending)
         appMetaDao.delete(listOf(META_PENDING_MAIN_CURRENCY))
+    }
+
+    /**
+     * Exists only to finish a change started by v1.0.0, which kept its marker in DataStore and
+     * recovered with "the only account already holds the pending currency". v1.0.0 always has one
+     * account, so the rule holds there; with more accounts the key is just dropped.
+     */
+    private suspend fun finishChangeStartedByV1() {
+        val legacy = prefs.takeLegacyPendingMainCurrency() ?: return
+        if (accountDao.count() > 1) return
+        val account = prefs.defaultAccountId.first()?.let { accountDao.getById(it) }
+            ?: accountDao.getAll().firstOrNull()
+        if (account?.currencyCode == legacy) prefs.setMainCurrency(legacy)
     }
 
     private suspend fun recalculate(to: Currency, onProgress: (Int, Int) -> Unit): ChangeSummary {
