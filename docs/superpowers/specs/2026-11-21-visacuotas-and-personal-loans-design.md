@@ -220,15 +220,17 @@ tarjeta, y el usuario puede cambiarla por una cuenta que no sea tarjeta, pero un
 puede volver a elegir una tarjeta. Un préstamo nuevo sin cuenta elegida usa la cuenta por defecto,
 salvo que sea tarjeta; en ese caso usa la primera cuenta activa que no sea tarjeta.
 
-## 7. Datos, migración y respaldo
+## 7. Datos y respaldo
 
-- **Room v2 → v3:**
-  - tabla `installment_plans`;
-  - en `transactions`, la columna `installmentPlanId` con su índice;
-  - en `loans`, las columnas `kind` (default `'SCHEDULED'`) y `expectedDate`.
-  - Los préstamos existentes quedan como `SCHEDULED`. Hay test de migración.
-- **Respaldo v4 → v5:** incluye `installment_plans` y las columnas nuevas. Un respaldo v4 se
-  restaura con `kind = SCHEDULED`.
+*(Decisión del usuario, 2026-11-21: la app no está en producción.)*
+
+- **Base de datos siempre en versión 1**, sin migraciones. Este PR junta en un solo esquema v1 lo que
+  agregó la migración del PR 1, la tabla `installment_plans`, `transactions.installmentPlanId` y, en
+  `loans`, `kind` (por defecto `'SCHEDULED'`) y `expectedDate`. Una instalación que todavía tenga la
+  v2 se borra al abrir la app (respaldo destructivo).
+- **Los respaldos viejos se descartan.** La restauración solo acepta el formato actual (versión 5);
+  cualquier otro archivo se rechaza con un mensaje y no se toca nada. Se elimina la conversión de
+  respaldos antiguos.
 - **Cambio de moneda principal:** las filas nuevas se recalculan como las demás. `installment_plans`
   guarda montos en moneda de la cuenta y no cambia.
 - **Eliminar una cuenta:** sigue bloqueado si tiene movimientos (RESTRICT). Eso ya cubre los planes
@@ -238,8 +240,8 @@ salvo que sea tarjeta; en ese caso usa la primera cuenta activa que no sea tarje
 
 Son dos partes independientes. Mi propuesta es enviarlas en **dos PRs**, en este orden:
 
-1. **`feat: compras a cuotas (Visacuotas) en tarjetas de crédito`**: migración v3 completa, con las
-   columnas de préstamos también para no migrar dos veces, respaldo v5 y todo §5.
+1. **`feat: compras a cuotas (Visacuotas) en tarjetas de crédito`**: esquema v1 completo (con las
+   columnas de préstamos), respaldo solo en el formato actual y todo §5.
 2. **`feat: préstamos entre personas con abonos libres`**: §6, incluido el chip de cuenta de las
    cuotas fijas.
 
@@ -254,7 +256,7 @@ Las dos van después de que se mergee el PR 3 (box-bm/BoxWallet#36).
 - **Totales del mes:** una cuota cuenta en su mes y no en el de compra.
 - **Préstamos entre personas:** el saldo cambia y los totales no cambian; abono en otra moneda; tope
   de sobrepago; "Liquidado".
-- **Datos:** migración v2→v3 y respaldo v4→v5.
+- **Datos:** esquema (CASCADE del plan, `kind` por defecto) y rechazo de respaldos viejos.
 
 ## 9. Lo que queda a criterio del constructor
 
