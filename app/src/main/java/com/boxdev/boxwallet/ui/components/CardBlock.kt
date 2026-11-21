@@ -101,11 +101,12 @@ fun CardUsageBar(fraction: Float, modifier: Modifier = Modifier, height: Dp = 4.
 /**
  * A card's detail block in place of the balance hero: used and available (with the limit bar), then each
  * currency's credit balance, statement line, Pay and Adjust. [tags] and [actions] fill the shared rows.
+ * Without [onPay] (an archived card) there is no Pay button.
  */
 @Composable
 fun CardBlock(
     summary: CardSummary,
-    onPay: (CardBalance) -> Unit,
+    onPay: ((CardBalance) -> Unit)?,
     onAdjust: (CardBalance) -> Unit,
     tags: @Composable () -> Unit,
     actions: @Composable ColumnScope.() -> Unit,
@@ -143,7 +144,7 @@ fun CardBlock(
             tags()
             balances.forEach { balance ->
                 HorizontalDivider(color = MaterialTheme.colorScheme.surfaceContainerHighest)
-                CurrencySection(balance, dual = balances.size > 1, formatter, onPay = { onPay(balance) }, onAdjust = { onAdjust(balance) })
+                CurrencySection(balance, dual = balances.size > 1, formatter, onPay = onPay?.let { pay -> { pay(balance) } }, onAdjust = { onAdjust(balance) })
             }
             Column(verticalArrangement = Arrangement.spacedBy(8.dp), content = actions)
         }
@@ -158,7 +159,7 @@ private fun CurrencySection(
     balance: CardBalance,
     dual: Boolean,
     formatter: CurrencyFormatter,
-    onPay: () -> Unit,
+    onPay: (() -> Unit)?,
     onAdjust: () -> Unit,
 ) {
     val resources = LocalContext.current.resources
@@ -180,14 +181,16 @@ private fun CurrencySection(
             ?: stringResource(R.string.card_no_statement_yet).takeIf { balance.statement?.noStatementYet == true }
         line?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            val toPay = toPayOf(balance)
-            Button(onClick = onPay, shapes = ButtonDefaults.shapes(), modifier = Modifier.weight(1f)) {
-                Icon(Icons.Outlined.Payments, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
-                Text(
-                    toPay?.let { stringResource(R.string.card_pay_amount, formatter.format(it)) } ?: stringResource(R.string.card_pay),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+            if (onPay != null) {
+                val toPay = toPayOf(balance)
+                Button(onClick = onPay, shapes = ButtonDefaults.shapes(), modifier = Modifier.weight(1f)) {
+                    Icon(Icons.Outlined.Payments, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+                    Text(
+                        toPay?.let { stringResource(R.string.card_pay_amount, formatter.format(it)) } ?: stringResource(R.string.card_pay),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
             OutlinedButton(onClick = onAdjust, shapes = ButtonDefaults.shapes(), modifier = Modifier.weight(1f)) {
                 Icon(Icons.Outlined.Tune, contentDescription = null, modifier = Modifier.padding(end = 8.dp))

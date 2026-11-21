@@ -171,7 +171,10 @@ fun AccountDetailScreen(
                 transferTitleOf = { tx -> tx.transferId?.let { transferTitle(uiState.transferPairs[it], uiState.accountsById) } },
                 onAdjust = { adjusting = item },
                 onAdjustCard = { adjusting = AccountWithBalance(it.account, it.balance) },
-                onPay = { balance -> uiState.card?.let { onNavigate(payRoute(it.card, balance, uiState.cardPayer)) } },
+                // An archived card takes no payments, like it takes no transfers.
+                onPay = if (!item.account.isArchived) {
+                    { balance -> uiState.card?.let { onNavigate(payRoute(it.card, balance, uiState.cardPayer)) } }
+                } else null,
                 onEdit = { onEditAccount(item.account.id) },
                 // An archived account can't take part in a new transfer; one account alone has nowhere to send.
                 onTransfer = if (uiState.canTransfer && !item.account.isArchived) {
@@ -227,7 +230,7 @@ private fun AccountDetailContent(
     transferTitleOf: (Transaction) -> String?,
     onAdjust: () -> Unit,
     onAdjustCard: (CardBalance) -> Unit,
-    onPay: (CardBalance) -> Unit,
+    onPay: ((CardBalance) -> Unit)?,
     onEdit: () -> Unit,
     onTransfer: (() -> Unit)?,
     onSetDefault: () -> Unit,

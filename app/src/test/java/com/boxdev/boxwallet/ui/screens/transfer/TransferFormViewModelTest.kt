@@ -296,4 +296,40 @@ class TransferFormViewModelTest {
         assertEquals("764.00", vm.formState.value.amount)
         assertFalse(vm.hasUnsavedChanges.value)
     }
+
+    /** Paying an archived card (a stale link) leaves the destination for the user instead of another account. */
+    @Test
+    fun anUnpickableDestinationIsLeftEmpty() = runTest {
+        val card = db.accountDao().insert(
+            AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "GTQ", createdAt = 0L, sortOrder = 2, isArchived = true)
+        )
+        val state = vm(mapOf("to" to card, "receive" to "50.00")).loaded()
+        assertEquals(banco, state.fromAccountId)
+        assertEquals(null, state.toAccountId)
+    }
+
+    /** A prefilled receive follows the source while the amount wasn't typed: same currency, then converted, then back. */
+    @Test
+    fun changingTheSourceReappliesTheReceive() = runTest {
+        val card = db.accountDao().insert(AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "GTQ", createdAt = 0L, sortOrder = 2))
+        val vm = vm(mapOf("from" to banco, "to" to card, "receive" to "100.00"))
+        backgroundScope.launch { vm.hasUnsavedChanges.collect {} }
+        assertEquals("100.00", vm.loaded().amount)
+
+        vm.setFrom(dolares)
+        val converted = vm.formState.first { it.fromAccountId == dolares && it.equivalent != null }
+        assertEquals("13.09", converted.amount)
+        assertTrue(BigDecimal(converted.equivalent) >= BigDecimal("100.00"))
+
+        vm.setFrom(banco)
+        settle()
+        assertEquals("100.00", vm.formState.value.amount)
+        assertFalse(vm.hasUnsavedChanges.value)
+
+        // Once typed, the amount is the user's.
+        vm.updateAmount("40")
+        vm.setFrom(dolares)
+        settle()
+        assertEquals("40", vm.formState.value.amount)
+    }
 }

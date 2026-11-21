@@ -85,6 +85,12 @@ class TransferFormViewModel @Inject constructor(
      */
     private var pendingReceive: String? = null
 
+    /**
+     * The `receive` argument while it still drives the amount: kept until the user types an amount or picks
+     * another destination, so changing the source re-applies it (in the new currency) through [pendingReceive].
+     */
+    private var receiveTarget: String? = null
+
     /** Rates resolved per currency pair and day, so typing an amount doesn't resolve (or download) again. */
     private val rateCache = FormRateCache(transactionAmounts, viewModelScope)
 
@@ -111,6 +117,7 @@ class TransferFormViewModel @Inject constructor(
     /** Shows the transfer that the row [transactionId] is a leg of. */
     fun open(transactionId: Long) {
         loadJob?.cancel()
+        dropReceive()
         initial.value = null
         _formState.value = TransferFormState(isLoading = true, accounts = pickable())
         loadJob = viewModelScope.launch {
@@ -142,7 +149,8 @@ class TransferFormViewModel @Inject constructor(
     }
 
     /**
-     * A new transfer: from [from] (else the default account) to [to] (else the first other active account).
+     * A new transfer: from [from] (else the default account) to [to] (else the first other active account; an
+     * explicit [to] that can't be picked, such as an archived card, leaves the destination empty for the user).
      * Without [from], a default that is [to] or another currency of the same card gives way to the first other
      * active account, so paying a card never starts as a transfer out of it. [receive] replaces [amount] when
      * given (see [amountToReceive]); without a rate yet it waits in [pendingReceive].
@@ -157,10 +165,11 @@ class TransferFormViewModel @Inject constructor(
                 ?: fallback.takeIf { it !in family }
                 ?: active.firstOrNull { it !in family }
                 ?: fallback
-            val destination = to?.takeIf { it in active && it != source } ?: active.firstOrNull { it != source }
+            val destination = if (to != null) to.takeIf { it in active && it != source } else active.firstOrNull { it != source }
             val start = TransferFormState(fromAccountId = source, toAccountId = destination, amount = amount, accounts = pickable())
             val prefilled = receive?.let { amountToReceive(start, it) }
             pendingReceive = receive.takeIf { prefilled == null }
+            receiveTarget = receive
             _formState.value = prefilled?.let { start.copy(amount = it) } ?: start
             initial.value = _formState.value
             refreshRate()
@@ -201,7 +210,7 @@ class TransferFormViewModel @Inject constructor(
 
     fun updateAmount(value: String) {
         if (value.isEmpty() || DECIMAL.matches(value)) {
-            pendingReceive = null
+            dropReceive()
             _formState.update { s ->
                 val updated = s.copy(amount = value, error = null)
                 updated.manualRate?.let { updated.withManualRate(it) } ?: updated
@@ -210,11 +219,17 @@ class TransferFormViewModel @Inject constructor(
         }
     }
 
-    /** Picking the account on the other side swaps the two instead. */
+    private fun dropReceive() {
+        pendingReceive = null
+        receiveTarget = null
+    }
+
+    /** Picking the account on the other side swaps the two instead; an untyped `receive` is re-applied. */
     fun setFrom(id: Long) {
         val s = _formState.value
         if (id == s.fromAccountId || s.fromOptions.none { it.account.id == id }) return
         if (id == s.toAccountId) return swap()
+        pendingReceive = receiveTarget
         _formState.update { it.copy(fromAccountId = id, manualRate = null, equivalent = null, error = null) }
         refreshRate()
     }
@@ -224,7 +239,7 @@ class TransferFormViewModel @Inject constructor(
         val s = _formState.value
         if (id == s.toAccountId || s.toOptions.none { it.account.id == id }) return
         if (id == s.fromAccountId) return swap()
-        pendingReceive = null
+        dropReceive()
         _formState.update { it.copy(toAccountId = id, manualRate = null, equivalent = null, error = null) }
         refreshRate()
     }
@@ -235,7 +250,7 @@ class TransferFormViewModel @Inject constructor(
      */
     fun swap() {
         if (!_formState.value.canSwap) return
-        pendingReceive = null
+        dropReceive()
         _formState.update {
             it.copy(fromAccountId = it.toAccountId, toAccountId = it.fromAccountId, manualRate = null, equivalent = null, error = null)
         }
@@ -268,7 +283,12 @@ class TransferFormViewModel @Inject constructor(
         val from = s.fromCurrency ?: return
         val to = s.toCurrency ?: return
         if (!s.isForeign) {
-            _formState.update { it.copy(rate = ExchangeRate.IDENTITY, needsManualRate = false, equivalent = null) }
+            // A pending `receive` arrives as typed in the same currency.
+            val pending = pendingReceive?.let { parseMajor(it, to) }?.toMajor()?.toPlainString()
+            if (pending != null) pendingReceive = null
+            _formState.update {
+                it.copy(amount = pending ?: it.amount, rate = ExchangeRate.IDENTITY, needsManualRate = false, equivalent = null)
+            }
             return
         }
         if (s.manualRate != null) return
@@ -298,8 +318,12 @@ class TransferFormViewModel @Inject constructor(
             }
             if (pending != null && _formState.value.amount == pending) {
                 pendingReceive = null
-                // The prefill is where the form starts, not an edit.
-                initial.update { base -> base?.copy(amount = pending) }
+                // The prefill is where the form starts, not an edit (only on the accounts it started with).
+                val now = _formState.value
+                initial.update { base ->
+                    base?.takeIf { it.fromAccountId == now.fromAccountId && it.toAccountId == now.toAccountId }
+                        ?.copy(amount = pending) ?: base
+                }
             }
         }
     }
