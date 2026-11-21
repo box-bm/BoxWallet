@@ -184,6 +184,22 @@ class BackupRepositoryTest {
     }
 
     @Test
+    fun strayTransferIdOnAnotherMovementIsDropped() = runTest {
+        val acc = db.accountDao().insert(AccountEntity(name = "USD", type = "CHECKING", currencyCode = "USD", createdAt = 1L))
+        db.transactionDao().insert(tx(id = 10, accountId = acc, amount = 500, code = "USD").copy(type = "EXPENSE", transferId = "x"))
+        db.transactionDao().insert(tx(id = 11, accountId = acc, amount = 700, code = "USD").copy(type = "TRANSFER_OUT", transferId = "x"))
+        val json = Gson().toJson(repo.snapshot())
+        db.transactionDao().deleteAll()
+        db.accountDao().deleteAll()
+
+        assertTrue(repo.restoreJson(json, usd) is RestoreResult.Restored)
+
+        val rows = db.transactionDao().getAllTransactionsSync().sortedBy { it.id }
+        assertEquals(listOf("EXPENSE", "ADJUSTMENT_OUT"), rows.map { it.type })
+        assertEquals(listOf(null, null), rows.map { it.transferId })
+    }
+
+    @Test
     fun `v3 with another main currency asks and writes nothing`() = runTest {
         seedLocalData()
         val backup = BackupData(

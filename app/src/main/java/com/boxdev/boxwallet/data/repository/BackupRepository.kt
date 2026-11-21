@@ -229,16 +229,18 @@ class BackupRepository @Inject constructor(
 
         /**
          * A transfer is one OUT row plus one IN row sharing a `transferId`. A group that isn't exactly
-         * that (a half-lost backup) keeps its rows as balance adjustments so no money vanishes.
+         * that (a half-lost backup) keeps its rows as balance adjustments so no money vanishes. Only
+         * transfer rows can carry a `transferId`; any other movement loses a stray one.
          */
         private fun wholeTransfers(rows: List<TransactionEntity>): List<TransactionEntity> {
-            val groups = rows.filter { it.transferId != null }.groupBy { it.transferId }
+            val groups = rows.filter { it.transferId != null && it.type.isTransferName() }.groupBy { it.transferId }
             val broken = groups.filterValues { group ->
                 group.size != 2 || group.count { it.type == TransactionType.TRANSFER_OUT.name } != 1 ||
                     group.count { it.type == TransactionType.TRANSFER_IN.name } != 1
             }.keys
             return rows.map { tx ->
-                if (!tx.type.isTransferName() || (tx.transferId != null && tx.transferId !in broken)) return@map tx
+                if (!tx.type.isTransferName()) return@map if (tx.transferId == null) tx else tx.copy(transferId = null)
+                if (tx.transferId != null && tx.transferId !in broken) return@map tx
                 val type = if (tx.type == TransactionType.TRANSFER_IN.name) {
                     TransactionType.ADJUSTMENT_IN
                 } else {
