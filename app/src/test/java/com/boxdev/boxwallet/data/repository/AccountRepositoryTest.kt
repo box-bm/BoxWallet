@@ -92,6 +92,16 @@ class AccountRepositoryTest {
         )
 
     @Test
+    fun balanceCountsTransferLegs() = runTest {
+        val id = db.accountDao().insert(AccountEntity(name = "Main", type = "CHECKING", currencyCode = "USD", createdAt = 0L))
+        move(id, TransactionType.INCOME, 10000, cleared = true)
+        move(id, TransactionType.TRANSFER_OUT, 3000, cleared = true)
+        move(id, TransactionType.TRANSFER_IN, 500, cleared = true)
+
+        assertEquals(Money(7500, usd), repository.observeAccountsWithBalance().first().single().balance)
+    }
+
+    @Test
     fun balanceCountsClearedInflowsMinusOutflows() = runTest {
         val id = db.accountDao().insert(AccountEntity(name = "Main", type = "CHECKING", currencyCode = "USD", createdAt = 0L))
         val empty = db.accountDao().insert(AccountEntity(name = "Empty", type = "CASH", currencyCode = "USD", createdAt = 0L, sortOrder = 1))

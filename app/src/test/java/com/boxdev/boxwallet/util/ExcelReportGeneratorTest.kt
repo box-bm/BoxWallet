@@ -101,6 +101,26 @@ class ExcelReportGeneratorTest {
     }
 
     @Test
+    fun `transfers are listed but not totaled`() {
+        val rows = listOf(
+            movement(10_000, LocalDateTime.of(2026, 1, 5, 9, 0), TransactionType.INCOME),
+            movement(5_000, LocalDateTime.of(2026, 1, 6, 9, 0), TransactionType.TRANSFER_OUT),
+            movement(5_000, LocalDateTime.of(2026, 1, 6, 9, 0), TransactionType.TRANSFER_IN),
+        )
+        val file = ExcelReportGenerator.create(
+            tmp.newFile("transfers.xlsx"), rows, emptyMap(), emptyMap(),
+            LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31), gtq
+        )
+
+        val movements = sheetXml(file, "Movements")
+        assertEquals(3, Regex("<row ").findAll(movements).count() - 1)
+        assertEquals(2, Regex(">Transfer<").findAll(movements).count())
+        val summary = sheetXml(file, "Summary")
+        assertTrue(summary.contains("<v>100.0</v>"))
+        assertTrue(!summary.contains("<v>50.0</v>"))
+    }
+
+    @Test
     fun `skips monthly and loan sheets when not applicable`() {
         val file = ExcelReportGenerator.create(
             tmp.newFile("report.xlsx"), transactions.take(1), mapOf(1L to "Salary"),
