@@ -472,6 +472,7 @@ class TransactionFormViewModel @Inject constructor(
                             original = s.money!!,
                             installments = s.installmentCount.toInt(),
                             purchaseDate = s.date,
+                            manualAccountRate = s.manualRateValue,
                         ),
                     )
                     analyticsHelper.logEvent(

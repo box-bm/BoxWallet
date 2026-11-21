@@ -134,6 +134,29 @@ class InstallmentPlanRepositoryTest {
     }
 
     @Test
+    fun `a manual account rate is used and marked MANUAL`() = runTest {
+        val noEur = object : RateLookup {
+            override suspend fun exact(day: LocalDate, code: String) = if (code == "EUR") null else units[code]
+            override suspend fun nearest(day: LocalDate, code: String) = if (code == "EUR") null else units[code]
+            override suspend fun download(day: LocalDate) = false
+        }
+        val resolver = ExchangeRateResolver(noEur) { today }
+        val amounts = TransactionAmounts(resolver)
+        val repo = InstallmentPlanRepository(
+            db, db.installmentPlanDao(), db.transactionDao(), db.accountDao(), amounts, resolver,
+            MovementWriteGuard(CurrencyChangeLock(), prefs, db.accountDao(), amounts), prefs, CurrentDay(flowOf(today)),
+        )
+        val id = repo.create(
+            plan(accountId = child, original = Money(50_000, eur)).copy(manualAccountRate = BigDecimal("1.2")),
+        )
+        assertEquals(60_000L, db.installmentPlanDao().getById(id)!!.accountTotalMinor)
+        val rows = db.transactionDao().getByPlanId(id)
+        assertEquals(3, rows.size)
+        assertTrue(rows.all { it.accountRate.compareTo(BigDecimal("1.2")) == 0 && it.accountRateSource == RateSource.MANUAL })
+        assertEquals(60_000L, rows.sumOf { it.accountAmountMinor })
+    }
+
+    @Test
     fun `future installment main leg is approximate`() = runTest {
         // USD card with GTQ as the main currency: the main leg needs a real rate.
         val id = repository.create(plan(accountId = child, original = Money(30_000, usd)))

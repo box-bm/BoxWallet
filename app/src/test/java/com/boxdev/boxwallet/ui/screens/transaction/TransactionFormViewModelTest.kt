@@ -419,4 +419,60 @@ class TransactionFormViewModelTest {
         vm.updateInstallmentCount("1a")
         assertEquals("12", vm.formState.value.installmentCount)
     }
+
+    private suspend fun TestScope.cardVm(): TransactionFormViewModel {
+        val c = Account(id = 7, name = "Gold", type = AccountType.CREDIT_CARD, currency = gtq, createdAt = 0, statementClosingDay = 15)
+        whenever(accountRepository.observeAll()).thenReturn(flowOf(listOf(cash, bank, c)))
+        val vm = vm(emptyMap())
+        advanceUntilIdle()
+        vm.setAccount(7L)
+        vm.updateAmount("1000")
+        vm.updateInInstallments(true)
+        advanceUntilIdle()
+        return vm
+    }
+
+    @Test
+    fun aPlanKeepsATypedRateWhenNoAutomaticOneExists() = runTest {
+        val c = Account(id = 7, name = "Gold", type = AccountType.CREDIT_CARD, currency = usd, createdAt = 0, statementClosingDay = 15)
+        whenever(accountRepository.observeAll()).thenReturn(flowOf(listOf(cash, c)))
+        val vm = vm(emptyMap())
+        advanceUntilIdle()
+        vm.setAccount(7L)
+        vm.updateCurrency(eur)
+        vm.updateAmount("1000")
+        vm.updateInInstallments(true)
+        vm.updateManualRate("1.2")
+        advanceUntilIdle()
+        vm.save()
+        advanceUntilIdle()
+        val plan = argumentCaptor<NewInstallmentPlan>()
+        verify(installmentPlans).create(plan.capture())
+        assertEquals(java.math.BigDecimal("1.2"), plan.firstValue.manualAccountRate)
+        assertTrue(vm.formState.value.isSaved)
+    }
+
+    @Test
+    fun leavingACardExpenseSavesAPlainMovement() = runTest {
+        val vm = cardVm()
+        assertTrue(vm.formState.value.installmentsActive)
+        vm.setAccount(2L)
+        advanceUntilIdle()
+        assertFalse(vm.formState.value.installmentsActive)
+        vm.save()
+        advanceUntilIdle()
+        verify(transactionRepository).insertTransaction(any())
+        verify(installmentPlans, never()).create(any())
+    }
+
+    @Test
+    fun anIncomeIsNotAPlan() = runTest {
+        val vm = cardVm()
+        vm.updateType(TransactionType.INCOME)
+        assertFalse(vm.formState.value.installmentsActive)
+        vm.save()
+        advanceUntilIdle()
+        verify(transactionRepository).insertTransaction(any())
+        verify(installmentPlans, never()).create(any())
+    }
 }

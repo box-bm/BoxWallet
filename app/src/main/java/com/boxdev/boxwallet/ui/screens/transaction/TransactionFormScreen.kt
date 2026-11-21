@@ -253,14 +253,14 @@ private fun TransactionFormFields(
             TimeRow(groupShape(1, 2), formState.date, pickers)
         }
 
-        val showReminder = !formState.isCleared
+        val showReminder = !formState.isCleared && !formState.installmentsActive
         val showReminderTime = showReminder && formState.hasReminder
         val showFrequency = formState.isRecurrent
         val showInstallments = formState.canUseInstallments
-        val count = 2 + (if (showInstallments) 1 else 0) + (if (showReminder) 1 else 0) + (if (showReminderTime) 1 else 0) + (if (showFrequency) 1 else 0)
+        val count = 1 + (if (formState.installmentsActive) 0 else 1) + (if (showInstallments) 1 else 0) + (if (showReminder) 1 else 0) + (if (showReminderTime) 1 else 0) + (if (showFrequency) 1 else 0)
         var i = 0
         OptionGroup(title = stringResource(R.string.form_options)) {
-            SwitchRow(
+            if (!formState.installmentsActive) SwitchRow(
                 groupShape(i++, count), Icons.Outlined.TaskAlt,
                 stringResource(
                     if (formState.type == TransactionType.INCOME) R.string.transaction_settled_income

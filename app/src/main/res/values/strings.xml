@@ -695,5 +695,5 @@
     <string name="backup_error_incompatible">This backup is from an older version of BoxWallet and can\'t be restored</string>
     <string name="transaction_in_installments">In installments</string>
     <string name="transaction_installments_preview">%1$s per statement · first on %2$s</string>
-    <string name="transaction_installment_count">Número de cuotas</string>
+    <string name="transaction_installment_count">Number of installments</string>
 </resources>

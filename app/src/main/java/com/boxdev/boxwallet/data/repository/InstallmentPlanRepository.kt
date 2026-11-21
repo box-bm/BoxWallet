@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -43,6 +44,8 @@ data class NewInstallmentPlan(
     val original: Money,
     val installments: Int,
     val purchaseDate: LocalDateTime,
+    /** A typed original → account rate; replaces the automatic one for the purchase leg. */
+    val manualAccountRate: BigDecimal? = null,
 )
 
 @Singleton
@@ -75,7 +78,7 @@ class InstallmentPlanRepository @Inject constructor(
 
         return guard.write { current ->
             val purchaseDay = input.purchaseDate.toLocalDate()
-            val purchase = amounts.compute(AmountInput(input.original, purchaseDay, accountCurrency, current.main))
+            val purchase = amounts.compute(AmountInput(input.original, purchaseDay, accountCurrency, current.main, input.manualAccountRate))
                 as? AmountResult.Ready ?: throw MissingRateException(input.original.currency, accountCurrency)
 
             val dates = installmentClosingDates(closingDay, purchaseDay, input.installments)
