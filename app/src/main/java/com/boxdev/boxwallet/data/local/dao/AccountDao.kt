@@ -13,7 +13,7 @@ data class AccountBalanceRow(val accountId: Long, val balanceMinor: Long)
 
 /** Cleared balance expression shared by the per-account query and the one-shot lookup. */
 private const val CLEARED_BALANCE =
-    "SUM(CASE WHEN type IN ('INCOME','ADJUSTMENT_IN') THEN accountAmountMinor ELSE -accountAmountMinor END)"
+    "SUM(CASE WHEN type IN ('INCOME','ADJUSTMENT_IN','TRANSFER_IN') THEN accountAmountMinor ELSE -accountAmountMinor END)"
 
 @Dao
 interface AccountDao {

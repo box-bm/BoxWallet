@@ -5,12 +5,17 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.domain.money.minorDigits
+import com.boxdev.boxwallet.data.local.entity.TransactionType
+import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.LoanRepository
 import com.boxdev.boxwallet.data.repository.TransactionRepository
+import com.boxdev.boxwallet.data.repository.TransferRepository
+import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Loan
 import com.boxdev.boxwallet.domain.model.Transaction
+import com.boxdev.boxwallet.domain.model.TransferPair
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,6 +37,10 @@ data class SearchUiState(
     val transactions: List<Transaction> = emptyList(),
     val loans: List<Loan> = emptyList(),
     val categories: List<Category> = emptyList(),
+    /** Every account by id, archived included, to name both sides of a transfer. */
+    val accountsById: Map<Long, Account> = emptyMap(),
+    /** Each transfer's two accounts by transferId. */
+    val transferPairs: Map<String, TransferPair> = emptyMap(),
     val isLoading: Boolean = true,
 ) {
     val hasQuery: Boolean get() = query.isNotBlank()
@@ -40,13 +49,16 @@ data class SearchUiState(
 
 /**
  * One search over everything the user records: movements and loans, matched on description,
- * name, category and amount. Every word in the query has to match somewhere in the record.
+ * name, category, amount and, for a transfer, both account names. Every word in the query has to
+ * match somewhere in the record.
  */
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val transactionRepository: TransactionRepository,
     loanRepository: LoanRepository,
     categoryRepository: CategoryRepository,
+    accountRepository: AccountRepository,
+    transferRepository: TransferRepository,
 ) : ViewModel() {
 
     private val query = MutableStateFlow("")
@@ -57,18 +69,35 @@ class SearchViewModel @Inject constructor(
         val transactions: List<Pair<Transaction, String>>,
         val loans: List<Pair<Loan, String>>,
         val categories: List<Category>,
+        val accountsById: Map<Long, Account>,
+        val pairs: Map<String, TransferPair>,
     )
 
     private val index = combine(
         transactionRepository.getAllTransactions(),
         loanRepository.getAllLoans(),
         categoryRepository.getAllCategories(),
-    ) { transactions, loans, categories ->
+        accountRepository.observeAll(),
+        transferRepository.observePairs(),
+    ) { transactions, loans, categories, accounts, pairs ->
         val categoryNames = categories.associate { it.id to it.name }
+        val accountsById = accounts.associateBy { it.id }
+        // A transfer is found once, by its TRANSFER_OUT row, and by either account's name.
+        fun transferNames(t: Transaction): String = t.transferId?.let(pairs::get)
+            ?.let { p -> listOfNotNull(accountsById[p.fromAccountId]?.name, accountsById[p.toAccountId]?.name) }
+            .orEmpty()
+            .joinToString(" ")
         Index(
-            transactions = transactions.map { t -> t to haystack(t.description, categoryNames[t.categoryId], t.original) },
+            transactions = transactions
+                .filter { it.type != TransactionType.TRANSFER_IN }
+                .map { t ->
+                    val text = if (t.transferId != null) t.description + " " + transferNames(t) else t.description
+                    t to haystack(text, categoryNames[t.categoryId], t.original)
+                },
             loans = loans.map { l -> l to haystack(l.name + " " + l.description, categoryNames[l.categoryId], l.totalAmount) },
             categories = categories,
+            accountsById = accountsById,
+            pairs = pairs,
         )
     }.flowOn(Dispatchers.Default)
 
@@ -76,7 +105,14 @@ class SearchViewModel @Inject constructor(
     val uiState: StateFlow<SearchUiState> = combine(index, query, scope) { idx, q, s ->
         val terms = q.trim().fold().split(WHITESPACE).filter { it.isNotEmpty() }
         if (terms.isEmpty()) {
-            return@combine SearchUiState(query = q, scope = s, categories = idx.categories, isLoading = false)
+            return@combine SearchUiState(
+                query = q,
+                scope = s,
+                categories = idx.categories,
+                accountsById = idx.accountsById,
+                transferPairs = idx.pairs,
+                isLoading = false,
+            )
         }
         fun <T> List<Pair<T, String>>.matching() = filter { (_, text) -> terms.all { text.contains(it) } }.map { it.first }
         SearchUiState(
@@ -85,6 +121,8 @@ class SearchViewModel @Inject constructor(
             transactions = if (s == SearchScope.LOANS) emptyList() else idx.transactions.matching(),
             loans = if (s == SearchScope.MOVEMENTS) emptyList() else idx.loans.matching(),
             categories = idx.categories,
+            accountsById = idx.accountsById,
+            transferPairs = idx.pairs,
             isLoading = false,
         )
     }

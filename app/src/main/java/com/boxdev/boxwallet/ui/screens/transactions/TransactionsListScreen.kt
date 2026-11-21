@@ -61,6 +61,7 @@ import androidx.compose.runtime.remember
 import com.boxdev.boxwallet.ui.components.AdjustmentDeleteDialog
 import com.boxdev.boxwallet.data.local.entity.countsInReports
 import com.boxdev.boxwallet.data.local.entity.isAdjustment
+import com.boxdev.boxwallet.data.local.entity.isTransfer
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -98,6 +99,7 @@ import com.boxdev.boxwallet.ui.components.EmptyState
 import com.boxdev.boxwallet.ui.components.FilterGroup
 import com.boxdev.boxwallet.ui.components.FilterToggleAction
 import com.boxdev.boxwallet.ui.components.TransactionItem
+import com.boxdev.boxwallet.ui.components.transferTitle
 import com.boxdev.boxwallet.ui.theme.BoxTheme
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -107,6 +109,7 @@ import java.time.format.FormatStyle
 fun TransactionsListScreen(
     onEditTransaction: (Long) -> Unit = {},
     onNavigateToSearch: () -> Unit = {},
+    onOpenTransfer: (Long) -> Unit = {},
     viewModel: TransactionsListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -277,7 +280,11 @@ fun TransactionsListScreen(
                     selectedId = if (twoPane) selectedId else null,
                     onEditTransaction = { id ->
                         val tapped = uiState.filteredTransactions.firstOrNull { it.id == id }
-                        if (tapped?.type?.isAdjustment == true) pendingAdjustment = tapped else openMovement(id)
+                        when {
+                            tapped?.type?.isAdjustment == true -> pendingAdjustment = tapped
+                            tapped?.type?.isTransfer == true -> onOpenTransfer(id)
+                            else -> openMovement(id)
+                        }
                     },
                 )
             }
@@ -354,6 +361,9 @@ private fun TransactionsByDay(
     selectedId: Long?,
     onEditTransaction: (Long) -> Unit,
 ) {
+    val accountsById = remember(uiState.accounts) { uiState.accounts.associateBy { it.id } }
+    // Scoped to one account, a transfer's leg reads as money in or out of it.
+    val signedTransfer = uiState.filterState.accountId != null
     val sortedByDate = uiState.filterState.sortBy == SortBy.DATE_DESC || uiState.filterState.sortBy == SortBy.DATE_ASC
     val groups: List<Pair<LocalDate?, List<Transaction>>> = remember(uiState.filteredTransactions, sortedByDate) {
         if (sortedByDate) {
@@ -433,6 +443,8 @@ private fun TransactionsByDay(
                     index = index,
                     count = transactions.size,
                     showDate = date == null,
+                    transferTitle = transaction.transferId?.let { transferTitle(uiState.transferPairs[it], accountsById) },
+                    signedTransfer = signedTransfer,
                     containerColor = if (transaction.id == selectedId) {
                         MaterialTheme.colorScheme.secondaryContainer
                     } else BoxTheme.cardColor,

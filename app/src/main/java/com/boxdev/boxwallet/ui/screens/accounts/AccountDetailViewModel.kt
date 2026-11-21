@@ -9,9 +9,12 @@ import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.data.repository.AccountRuleError
 import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.TransactionRepository
+import com.boxdev.boxwallet.data.repository.TransferRepository
+import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.AccountWithBalance
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Transaction
+import com.boxdev.boxwallet.domain.model.TransferPair
 import com.boxdev.boxwallet.domain.money.MissingRateException
 import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.ui.navigation.MovementsFilterRequest
@@ -35,6 +38,12 @@ data class AccountDetailUiState(
     val isDefault: Boolean = false,
     val movements: List<Transaction> = emptyList(),
     val categories: Map<Long, Category> = emptyMap(),
+    /** Every account by id, archived included, to name both sides of a transfer. */
+    val accountsById: Map<Long, Account> = emptyMap(),
+    /** Each transfer's two accounts by transferId. */
+    val transferPairs: Map<String, TransferPair> = emptyMap(),
+    /** At least two active accounts exist, so a transfer can be made. */
+    val canTransfer: Boolean = false,
     val isLoading: Boolean = true,
 )
 
@@ -44,6 +53,7 @@ class AccountDetailViewModel @Inject constructor(
     private val accountRepository: AccountRepository,
     private val transactionRepository: TransactionRepository,
     categoryRepository: CategoryRepository,
+    transferRepository: TransferRepository,
     private val movementsFilter: MovementsFilterRequest,
 ) : ViewModel() {
 
@@ -63,12 +73,16 @@ class AccountDetailViewModel @Inject constructor(
             accountRepository.observeDefaultAccountId(),
             transactionRepository.observeByAccount(id),
             categoryRepository.getAllCategories(),
-        ) { accounts, defaultId, movements, categories ->
+            transferRepository.observePairs(),
+        ) { accounts, defaultId, movements, categories, pairs ->
             AccountDetailUiState(
                 account = accounts.firstOrNull { it.account.id == id },
                 isDefault = defaultId == id,
                 movements = movements,
                 categories = categories.associateBy { it.id },
+                accountsById = accounts.associate { it.account.id to it.account },
+                transferPairs = pairs,
+                canTransfer = accounts.count { !it.account.isArchived } >= 2,
                 isLoading = false,
             )
         }

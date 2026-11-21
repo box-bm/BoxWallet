@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
+import androidx.navigation.NamedNavArgument
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
@@ -67,6 +68,7 @@ import com.boxdev.boxwallet.ui.screens.settings.SettingsSection
 import com.boxdev.boxwallet.ui.screens.settings.ThemeCustomizationScreen
 import com.boxdev.boxwallet.ui.screens.transaction.TransactionFormScreen
 import com.boxdev.boxwallet.ui.screens.transactions.TransactionsListScreen
+import com.boxdev.boxwallet.ui.screens.transfer.TransferFormScreen
 import com.boxdev.boxwallet.ui.theme.BoxTheme
 
 enum class Destination(
@@ -119,9 +121,13 @@ private fun fadeThrough() = fadeIn(animationSpec = tween(TRANSITION_DURATION - 9
 private fun fadeThroughExit() = fadeOut(animationSpec = tween(90))
 
 /** A create/edit form: rises slightly and fades in over its origin, and leaves the same way. */
-private fun NavGraphBuilder.formComposable(route: String, content: @Composable (NavBackStackEntry) -> Unit) = composable(
+private fun NavGraphBuilder.formComposable(
+    route: String,
+    arguments: List<NamedNavArgument> = listOf(navArgument("id") { type = NavType.LongType; defaultValue = -1L }),
+    content: @Composable (NavBackStackEntry) -> Unit,
+) = composable(
     route,
-    arguments = listOf(navArgument("id") { type = NavType.LongType; defaultValue = -1L }),
+    arguments = arguments,
     enterTransition = { slideInVertically { it / 8 } + fadeIn() },
     popExitTransition = { slideOutVertically { it / 8 } + fadeOut() },
 ) { content(it) }
@@ -161,6 +167,12 @@ fun NavGraph(
     }
     val onEditTransaction: (Long) -> Unit = { navController.navigate(NavRoutes.TransactionForm.createRoute(it)) { launchSingleTop = true } }
     val onEditAccount: (Long) -> Unit = { navController.navigate(NavRoutes.AccountForm.createRoute(it)) { launchSingleTop = true } }
+    val onOpenTransfer: (Long) -> Unit = {
+        navController.navigate(NavRoutes.TransferForm.createRoute(id = it)) { launchSingleTop = true }
+    }
+    val onNewTransferFrom: (Long) -> Unit = {
+        navController.navigate(NavRoutes.TransferForm.createRoute(from = it)) { launchSingleTop = true }
+    }
     val onEditLoan: (Long) -> Unit = { navController.navigate(NavRoutes.LoanForm.createRoute(it)) { launchSingleTop = true } }
     LaunchedEffect(navBackStackEntry) {
         navBackStackEntry?.destination?.route?.let { route ->
@@ -202,6 +214,7 @@ fun NavGraph(
                 onNavigateToSearch = onNavigateToSearch,
                 onOpenAccount = { navController.navigate(NavRoutes.AccountDetail.createRoute(it)) { launchSingleTop = true } },
                 onSeeAccounts = { navController.navigate(NavRoutes.Accounts.route) { launchSingleTop = true } },
+                onOpenTransfer = onOpenTransfer,
             )
         }
 
@@ -209,6 +222,7 @@ fun NavGraph(
             TransactionsListScreen(
                 onEditTransaction = onEditTransaction,
                 onNavigateToSearch = onNavigateToSearch,
+                onOpenTransfer = onOpenTransfer,
             )
         }
 
@@ -261,11 +275,24 @@ fun NavGraph(
                 onNavigateBack = { navController.popBackStack() },
                 onOpenTransaction = onEditTransaction,
                 onOpenLoan = openLoan,
+                onOpenTransfer = onOpenTransfer,
             )
         }
 
         formComposable(NavRoutes.TransactionForm.route) { entry ->
             TransactionFormScreen(onDone = { entry.ifResumed { navController.popBackStack() } })
+        }
+
+        formComposable(
+            NavRoutes.TransferForm.route,
+            arguments = listOf(
+                navArgument("id") { type = NavType.LongType; defaultValue = -1L },
+                navArgument("from") { type = NavType.LongType; defaultValue = -1L },
+                navArgument("to") { type = NavType.LongType; defaultValue = -1L },
+                navArgument("amount") { type = NavType.StringType; nullable = true; defaultValue = null },
+            ),
+        ) { entry ->
+            TransferFormScreen(onDone = { entry.ifResumed { navController.popBackStack() } })
         }
 
         formComposable(NavRoutes.LoanForm.route) { entry ->
@@ -308,6 +335,8 @@ fun NavGraph(
                 onEditAccount = onEditAccount,
                 onEditTransaction = onEditTransaction,
                 onSeeInMovements = { navController.switchToTab(NavRoutes.TransactionsList.route) },
+                onOpenTransfer = onOpenTransfer,
+                onNewTransfer = onNewTransferFrom,
             )
         }
 
@@ -330,6 +359,8 @@ fun NavGraph(
                     onEditTransaction = onEditTransaction,
                     onSeeInMovements = { navController.switchToTab(NavRoutes.TransactionsList.route) },
                     onDeleted = { entry.ifResumed { navController.popBackStack() } },
+                    onOpenTransfer = onOpenTransfer,
+                    onNewTransfer = onNewTransferFrom,
                 )
             }
         }

@@ -7,6 +7,7 @@ import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.data.local.dao.TransactionDao
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionType
+import com.boxdev.boxwallet.data.local.entity.isTransfer
 import com.boxdev.boxwallet.data.rates.MovementWriteGuard
 import com.boxdev.boxwallet.domain.model.FinancialSummary
 import com.boxdev.boxwallet.domain.model.Transaction
@@ -57,7 +58,12 @@ class TransactionRepository @Inject constructor(
         return saved.id
     }
 
+    /** Transfer legs are edited as a pair through [TransferRepository.update]. */
     suspend fun updateTransaction(transaction: Transaction) {
+        val stored = transactionDao.getById(transaction.id)
+        require(!transaction.type.isTransfer && transaction.transferId == null && stored?.transferId == null) {
+            "Transfer ${transaction.id} must be edited through TransferRepository"
+        }
         val saved = guard.write { current ->
             current.revalidate(transaction).also { transactionDao.update(it.toEntity()) }
         }
@@ -79,9 +85,11 @@ class TransactionRepository @Inject constructor(
         scheduleOrCancelReminder(saved)
     }
 
+    /** Deleting either leg of a transfer deletes both. */
     suspend fun deleteTransaction(id: Long) {
         ReminderWorker.cancel(context, id)
-        transactionDao.deleteById(id)
+        val transferId = transactionDao.getById(id)?.transferId
+        if (transferId != null) transactionDao.deleteByTransferId(transferId) else transactionDao.deleteById(id)
     }
 
     private fun scheduleOrCancelReminder(transaction: Transaction) {

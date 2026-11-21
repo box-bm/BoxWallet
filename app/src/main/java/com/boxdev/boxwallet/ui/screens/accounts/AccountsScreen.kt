@@ -99,6 +99,9 @@ fun AccountsScreen(
     onEditAccount: (Long) -> Unit,
     onEditTransaction: (Long) -> Unit,
     onSeeInMovements: () -> Unit,
+    onOpenTransfer: (Long) -> Unit = {},
+    /** Opens a new transfer from the given account. */
+    onNewTransfer: (Long) -> Unit = {},
     viewModel: AccountsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -160,6 +163,8 @@ fun AccountsScreen(
                         onEditTransaction = onEditTransaction,
                         onSeeInMovements = onSeeInMovements,
                         onDeleted = { selectedId = null },
+                        onOpenTransfer = onOpenTransfer,
+                        onNewTransfer = onNewTransfer,
                         accountId = id,
                         viewModel = hiltViewModel(key = "account_detail_pane"),
                     )

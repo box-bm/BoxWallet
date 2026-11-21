@@ -22,6 +22,7 @@ import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Unarchive
 import androidx.compose.material.icons.outlined.SearchOff
@@ -29,6 +30,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LoadingIndicator
@@ -61,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.data.local.entity.isAdjustment
+import com.boxdev.boxwallet.data.local.entity.isTransfer
 import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.AccountColor
 import com.boxdev.boxwallet.domain.model.AccountType
@@ -68,6 +71,7 @@ import com.boxdev.boxwallet.domain.model.AccountWithBalance
 import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.ui.components.AdjustmentDeleteDialog
+import com.boxdev.boxwallet.ui.components.transferTitle
 import com.boxdev.boxwallet.ui.components.AmountText
 import com.boxdev.boxwallet.ui.components.BackButton
 import com.boxdev.boxwallet.ui.components.ConfirmDeleteDialog
@@ -93,6 +97,9 @@ fun AccountDetailScreen(
     /** Switches to the Movements tab, which the view model has already asked to filter by this account. */
     onSeeInMovements: () -> Unit,
     onDeleted: () -> Unit,
+    onOpenTransfer: (Long) -> Unit = {},
+    /** Opens a new transfer from the given account. */
+    onNewTransfer: (Long) -> Unit = {},
     accountId: Long? = null,
     viewModel: AccountDetailViewModel = hiltViewModel(key = accountId?.let { "account_detail_$it" }),
 ) {
@@ -153,12 +160,23 @@ fun AccountDetailScreen(
                 isDefault = uiState.isDefault,
                 movements = uiState.movements,
                 categories = uiState.categories,
+                transferTitleOf = { tx -> tx.transferId?.let { transferTitle(uiState.transferPairs[it], uiState.accountsById) } },
                 onAdjust = { showAdjust = true },
                 onEdit = { onEditAccount(item.account.id) },
+                // An archived account can't take part in a new transfer; one account alone has nowhere to send.
+                onTransfer = if (uiState.canTransfer && !item.account.isArchived) {
+                    { onNewTransfer(item.account.id) }
+                } else null,
                 onSetDefault = viewModel::setDefault,
                 onArchive = { viewModel.setArchived(!item.account.isArchived) },
                 onDelete = viewModel::requestDelete,
-                onOpenMovement = { tx -> if (tx.type.isAdjustment) pendingAdjustment = tx else onEditTransaction(tx.id) },
+                onOpenMovement = { tx ->
+                    when {
+                        tx.type.isAdjustment -> pendingAdjustment = tx
+                        tx.type.isTransfer -> onOpenTransfer(tx.id)
+                        else -> onEditTransaction(tx.id)
+                    }
+                },
                 onSeeInMovements = { viewModel.seeInMovements(); onSeeInMovements() },
                 modifier = Modifier.padding(padding),
             )
@@ -195,8 +213,10 @@ private fun AccountDetailContent(
     isDefault: Boolean,
     movements: List<Transaction>,
     categories: Map<Long, com.boxdev.boxwallet.domain.model.Category>,
+    transferTitleOf: (Transaction) -> String?,
     onAdjust: () -> Unit,
     onEdit: () -> Unit,
+    onTransfer: (() -> Unit)?,
     onSetDefault: () -> Unit,
     onArchive: () -> Unit,
     onDelete: () -> Unit,
@@ -210,7 +230,7 @@ private fun AccountDetailContent(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        item(key = "hero") { BalanceHero(item, isDefault, onAdjust, onEdit) }
+        item(key = "hero") { BalanceHero(item, isDefault, onAdjust, onEdit, onTransfer) }
         item(key = "actions") {
             // Only what the account can do right now: the default can't become the default again,
             // an archived account must come back before it can be the default.
@@ -273,6 +293,9 @@ private fun AccountDetailContent(
                 category = tx.categoryId?.let(categories::get),
                 index = index,
                 count = movements.size,
+                transferTitle = transferTitleOf(tx),
+                // Only this account's movements: a transfer reads as money in or out of it.
+                signedTransfer = true,
                 onClick = { onOpenMovement(tx) },
             )
         }
@@ -281,9 +304,15 @@ private fun AccountDetailContent(
 
 private enum class ActionRow { Default, Archive, Delete }
 
-/** The account's balance with its two everyday actions. */
+/** The account's balance with its everyday actions; [onTransfer] is null when no transfer can be made. */
 @Composable
-private fun BalanceHero(item: AccountWithBalance, isDefault: Boolean, onAdjust: () -> Unit, onEdit: () -> Unit) {
+private fun BalanceHero(
+    item: AccountWithBalance,
+    isDefault: Boolean,
+    onAdjust: () -> Unit,
+    onEdit: () -> Unit,
+    onTransfer: (() -> Unit)?,
+) {
     Surface(
         color = BoxTheme.cardColor,
         shape = MaterialTheme.shapes.extraLargeIncreased,
@@ -302,14 +331,23 @@ private fun BalanceHero(item: AccountWithBalance, isDefault: Boolean, onAdjust: 
                 }
             }
             AccountTags(item.account, isDefault)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onAdjust, shapes = ButtonDefaults.shapes(), modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Outlined.Tune, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
-                    Text(stringResource(R.string.account_adjust_balance), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = onAdjust, shapes = ButtonDefaults.shapes(), modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Outlined.Tune, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+                        Text(stringResource(R.string.account_adjust_balance), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    OutlinedButton(onClick = onEdit, shapes = ButtonDefaults.shapes(), modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Outlined.Edit, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+                        Text(stringResource(R.string.account_edit), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 }
-                OutlinedButton(onClick = onEdit, shapes = ButtonDefaults.shapes(), modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Outlined.Edit, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
-                    Text(stringResource(R.string.account_edit), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (onTransfer != null) {
+                    // Its own row: three buttons side by side would truncate their labels on a phone.
+                    FilledTonalButton(onClick = onTransfer, shapes = ButtonDefaults.shapes(), modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Outlined.SwapHoriz, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+                        Text(stringResource(R.string.account_action_transfer), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 }
             }
         }
@@ -330,7 +368,8 @@ private fun AccountDetailPreviewContent() {
                 isDefault = false,
                 movements = emptyList(),
                 categories = emptyMap(),
-                onAdjust = {}, onEdit = {}, onSetDefault = {}, onArchive = {}, onDelete = {}, onOpenMovement = {}, onSeeInMovements = {},
+                transferTitleOf = { null },
+                onAdjust = {}, onEdit = {}, onTransfer = {}, onSetDefault = {}, onArchive = {}, onDelete = {}, onOpenMovement = {}, onSeeInMovements = {},
             )
         }
     }

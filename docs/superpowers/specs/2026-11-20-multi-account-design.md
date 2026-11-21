@@ -38,7 +38,7 @@ de otras apps, y lo que esta debe resolver:
 | Liquidado en tarjetas | Se ignora: la deuda cuenta todo movimiento con fecha ≤ hoy (§6) |
 | Excluir del total | Incluido: interruptor "Sumar al saldo total" por cuenta |
 | Enfoque técnico | **A**: todo vive en `accounts` y `transactions` (§4) |
-| Orden de entrega | 3 PRs: cuentas → transferencias → tarjeta de crédito (§11) |
+| Orden de entrega | 3 PRs: cuentas → transferencias → tarjeta de crédito (§11); préstamos por cuenta en un PR 4 |
 
 ### Anti-objetivos (sería un fracaso aunque funcione)
 
@@ -52,7 +52,8 @@ de otras apps, y lo que esta debe resolver:
 - Intereses, pago mínimo, cuotas sin intereses ("visacuotas") y estados de cuenta históricos.
 - Transferencias recurrentes o programadas (el pago de tarjeta se hace con un botón; ver §8.5).
 - Conciliación movimiento por movimiento (solo ajuste de saldo).
-- Cambiar préstamos (el usuario los iterará después); siguen usando la cuenta por defecto.
+- Cambiar préstamos en PR 1–3; siguen usando la cuenta por defecto. Su integración con cuentas y
+  tarjetas es el **PR 4** (§11), con diseño propio.
 - Captura de Google Pay (sub-proyecto aparte). Este modelo la permite: una notificación se podrá
   asociar a una cuenta/tarjeta.
 
@@ -301,6 +302,9 @@ cambios, borrado de ambas filas, cambio de moneda principal.
 Interruptor y campos, cálculos de §8 (lógica pura en `domain`, sin Android), subcuenta bimoneda,
 "Pagar", aviso. Tests: corte con días 29–31 y febrero, `D ≤ C`, sobrepago, sin corte aún, bimoneda
 (disponible con tasa, a pagar por moneda), aviso una vez por corte.
+
+**PR 4 — préstamos (créditos) integrados con cuentas y tarjetas.** Diseño aparte, después del PR 3:
+elegir la cuenta o tarjeta de cada préstamo, y cómo se relacionan sus cuotas con los saldos.
 
 Verificación manual por PR: crear cuenta USD y tarjeta bimoneda, transferir GTQ → USD, gastar en USD
 con la tarjeta, pagarla desde GTQ, revisar que Inicio y Análisis no cambian con transferencias.

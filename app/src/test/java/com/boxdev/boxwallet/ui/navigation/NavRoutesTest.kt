@@ -28,4 +28,12 @@ class NavRoutesTest {
         assertEquals("account_form", NavRoutes.AccountForm.createRoute())
         assertEquals("account_form?id=3", NavRoutes.AccountForm.createRoute(3))
     }
+
+    @Test
+    fun transferFormRoute() {
+        assertEquals("transfer_form?id={id}&from={from}&to={to}&amount={amount}", NavRoutes.TransferForm.route)
+        assertEquals("transfer_form", NavRoutes.TransferForm.createRoute())
+        assertEquals("transfer_form?from=2&amount=10.50", NavRoutes.TransferForm.createRoute(from = 2, amount = "10.50"))
+        assertEquals("transfer_form?id=7", NavRoutes.TransferForm.createRoute(id = 7))
+    }
 }

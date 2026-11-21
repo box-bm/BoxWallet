@@ -1,6 +1,7 @@
 package com.boxdev.boxwallet.util
 
 import com.boxdev.boxwallet.data.local.entity.TransactionType
+import com.boxdev.boxwallet.domain.model.AccountWithBalance
 import com.boxdev.boxwallet.domain.model.Loan
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.domain.model.inReports
@@ -11,7 +12,6 @@ import com.boxdev.boxwallet.util.XlsxWorkbook.Style
 import java.io.File
 import java.io.FileOutputStream
 import java.math.BigDecimal
-import java.math.MathContext
 import java.math.RoundingMode
 import java.util.Currency
 import java.time.LocalDate
@@ -43,16 +43,18 @@ object ExcelReportGenerator {
      * Generates a multi-sheet Excel report and writes it to [file].
      *
      * Sheets:
-     *  1. Transactions     — full detail with category, status, loan name, installment
+     *  1. Transactions     — full detail with account, category, status, loan name, installment
      *  2. Summary          — income/expense totals, averages, savings rate, top categories
      *  3. By Category      — per-category income/expense breakdown
      *  4. Monthly Overview — month-by-month summary (skipped for single-month ranges)
-     *  5. Loan Installments— only when loan transactions exist in the range
+     *  5. Accounts         — each account's cleared balance in its own currency, from [accounts]
+     *  6. Loan Installments— only when loan transactions exist in the range
      */
     fun create(
         file: File,
         transactions: List<Transaction>,
         categories: Map<Long, String>,
+        accounts: List<AccountWithBalance>,
         loans: Map<Long, Loan>,
         startDate: LocalDate,
         endDate: LocalDate,
@@ -69,12 +71,16 @@ object ExcelReportGenerator {
         val headerStyle = Style.HEADER
         val titleStyle = Style.TITLE
 
-        buildTransactionsSheet(wb, transactions, categories, loans, dateFmt, timeFmt, headerStyle, titles)
+        val accountNames = accounts.associate { it.account.id to it.account.name }
+        buildTransactionsSheet(wb, transactions, categories, accountNames, loans, dateFmt, timeFmt, headerStyle, titles)
         // Balance adjustments are listed on the Movements sheet only; every total and breakdown skips them.
         val reportable = transactions.inReports()
         buildSummarySheet(wb, reportable, categories, startDate, endDate, dateFmt, boldStyle, titleStyle)
         buildCategorySheet(wb, reportable, categories, headerStyle, boldStyle)
         buildMonthlySheet(wb, reportable, startDate, endDate, monthFmt, headerStyle, boldStyle)
+        if (accounts.isNotEmpty()) {
+            buildAccountsSheet(wb, accounts, headerStyle)
+        }
         if (loans.isNotEmpty()) {
             buildLoanOverviewSheet(wb, loans, mainCurrency, loanTitles, dateFmt, headerStyle, boldStyle, titleStyle)
         }
@@ -94,6 +100,7 @@ object ExcelReportGenerator {
         wb: XlsxWorkbook,
         transactions: List<Transaction>,
         categories: Map<Long, String>,
+        accountNames: Map<Long, String>,
         loans: Map<Long, Loan>,
         dateFmt: DateTimeFormatter,
         timeFmt: DateTimeFormatter,
@@ -102,7 +109,7 @@ object ExcelReportGenerator {
     ) {
         val sheet = wb.createSheet("Movements")
 
-        val headers = listOf("#", "Date", "Time", "Type", "Category", "Description", "Amount", "Status", "Loan", "Installment") +
+        val headers = listOf("#", "Date", "Time", "Account", "Type", "Category", "Description", "Amount", "Status", "Loan", "Installment") +
             listOf(titles.originalAmount, titles.currency, titles.rate, titles.mainAmount)
         sheet.header(headers, headerStyle)
 
@@ -116,24 +123,44 @@ object ExcelReportGenerator {
             row.createCell(0).setCellValue((idx + 1).toDouble())
             row.createCell(1).setCellValue(tx.date.format(dateFmt))
             row.createCell(2).setCellValue(tx.date.format(timeFmt))
-            row.createCell(3).setCellValue(when (tx.type) {
+            row.createCell(3).setCellValue(accountNames[tx.accountId] ?: "")
+            row.createCell(4).setCellValue(when (tx.type) {
                 TransactionType.INCOME -> "Income"
                 TransactionType.EXPENSE -> "Expense"
                 TransactionType.ADJUSTMENT_IN, TransactionType.ADJUSTMENT_OUT -> "Adjustment"
+                TransactionType.TRANSFER_OUT -> "Transfer out"
+                TransactionType.TRANSFER_IN -> "Transfer in"
             })
-            row.createCell(4).setCellValue(tx.categoryId?.let { categories[it] } ?: "Uncategorized")
-            row.createCell(5).setCellValue(tx.description)
-            row.createCell(6).setCellValue(tx.amount.cell())
-            row.createCell(7).setCellValue(if (tx.isCleared) "Cleared" else "Pending")
-            row.createCell(8).setCellValue(loan?.name ?: "")
-            row.createCell(9).setCellValue(installmentLabel)
-            row.createCell(10).setCellValue(tx.original.toMajor())
-            row.createCell(11).setCellValue(tx.original.currency.currencyCode)
-            effectiveRate(tx)?.let { row.createCell(12).setCellValue(it) }
-            row.createCell(13).setCellValue(tx.amount.toMajor())
+            row.createCell(5).setCellValue(tx.categoryId?.let { categories[it] } ?: "Uncategorized")
+            row.createCell(6).setCellValue(tx.description)
+            row.createCell(7).setCellValue(tx.amount.cell())
+            row.createCell(8).setCellValue(if (tx.isCleared) "Cleared" else "Pending")
+            row.createCell(9).setCellValue(loan?.name ?: "")
+            row.createCell(10).setCellValue(installmentLabel)
+            row.createCell(11).setCellValue(tx.original.toMajor())
+            row.createCell(12).setCellValue(tx.original.currency.currencyCode)
+            row.createCell(13).setCellValue(effectiveRate(tx))
+            row.createCell(14).setCellValue(tx.amount.toMajor())
         }
 
-        sheet.widths(4, 12, 7, 10, 20, 32, 14, 10, 24, 13, 16, 10, 12, 24)
+        sheet.widths(4, 12, 7, 20, 12, 20, 32, 14, 10, 24, 13, 16, 10, 12, 24)
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Sheet 5: Accounts
+    // ──────────────────────────────────────────────────────────────
+
+    /** One row per account; the balance is the app's cleared balance, in the account's own currency. */
+    private fun buildAccountsSheet(wb: XlsxWorkbook, accounts: List<AccountWithBalance>, headerStyle: Style) {
+        val sheet = wb.createSheet("Accounts")
+        sheet.header(listOf("Account", "Currency", "Cleared balance"), headerStyle)
+        accounts.forEachIndexed { idx, (account, balance) ->
+            val row = sheet.createRow(idx + 1)
+            row.createCell(0).setCellValue(account.name)
+            row.createCell(1).setCellValue(account.currency.currencyCode)
+            row.createCell(2).setCellValue(balance.toMajor())
+        }
+        sheet.widths(24, 10, 18)
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -468,12 +495,9 @@ object ExcelReportGenerator {
     private fun Sheet.widths(vararg chars: Int) =
         chars.forEachIndexed { i, c -> setColumnWidth(i, c) }
 
-    /** Effective original -> main rate: main amount / original amount, 6 decimals; null if original is zero. */
-    private fun effectiveRate(tx: Transaction): BigDecimal? {
-        val original = tx.original.toMajor()
-        if (original.signum() == 0) return null
-        return tx.amount.toMajor().divide(original, MathContext.DECIMAL64).setScale(6, RoundingMode.HALF_EVEN)
-    }
+    /** Effective original -> main rate: account rate × main rate, 6 decimals. */
+    private fun effectiveRate(tx: Transaction): BigDecimal =
+        tx.accountRate.value.multiply(tx.mainRate.value).setScale(6, RoundingMode.HALF_EVEN)
 
     // Amounts are exact until the cell: sums run on BigDecimal major units, then become a cell number.
     private fun Money.cell(): Double = toMajor().toDouble()

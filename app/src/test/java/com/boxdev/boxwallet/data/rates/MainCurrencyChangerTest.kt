@@ -213,6 +213,34 @@ class MainCurrencyChangerTest {
     }
 
     @Test
+    fun `transferInKeepsAccountLeg`() = runTest {
+        prefs.setMainCurrency("GTQ")
+        val gtqAcc = account("GTQ")
+        val usdAcc = account("USD", makeDefault = false)
+        val dao = db.transactionDao()
+        // 800 GTQ sent, 100 USD received at a manual 0.125; main is GTQ.
+        val out = dao.insert(
+            tx(gtqAcc, 80000, "GTQ", 80000, "1", 80000, "1").copy(type = "TRANSFER_OUT", transferId = "t1")
+        )
+        val inn = dao.insert(
+            tx(usdAcc, 80000, "GTQ", 10000, "0.125", 80000, "1", accountSource = RateSource.MANUAL)
+                .copy(type = "TRANSFER_IN", transferId = "t1")
+        )
+
+        changer.apply(usd)
+
+        val outRow = dao.getById(out)!!
+        val inRow = dao.getById(inn)!!
+        assertEquals(10000L, outRow.amountMinor)
+        assertEquals(10000L, inRow.amountMinor)
+        assertEquals(10000L, inRow.accountAmountMinor)
+        assertEquals(0, BigDecimal("0.125").compareTo(inRow.accountRate))
+        assertEquals(RateSource.MANUAL, inRow.accountRateSource)
+        assertEquals("t1", outRow.transferId)
+        assertEquals("t1", inRow.transferId)
+    }
+
+    @Test
     fun `multiple accounts keep their balances`() = runTest {
         val usdAcc = account("USD")
         val gtqAcc = account("GTQ", makeDefault = false)

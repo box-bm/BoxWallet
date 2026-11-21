@@ -12,6 +12,7 @@ import com.boxdev.boxwallet.data.local.dao.TransactionDao
 import com.boxdev.boxwallet.data.local.database.BoxWalletDatabase
 import com.boxdev.boxwallet.data.local.entity.AppMetaEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
+import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.data.rates.CurrencyChangeLock
 import com.boxdev.boxwallet.data.remote.GoogleDriveManager
 import com.boxdev.boxwallet.domain.model.BackupData
@@ -223,8 +224,34 @@ class BackupRepository @Inject constructor(
                     parentRecurrenceId = tx.parentRecurrenceId?.takeIf { it in txIds && it != tx.id },
                 )
             }
-            return data.copy(loans = loans, transactions = parentsFirst(transactions), defaultAccountId = defaultAccount)
+            return data.copy(loans = loans, transactions = parentsFirst(wholeTransfers(transactions)), defaultAccountId = defaultAccount)
         }
+
+        /**
+         * A transfer is one OUT row plus one IN row sharing a `transferId`. A group that isn't exactly
+         * that (a half-lost backup) keeps its rows as balance adjustments so no money vanishes. Only
+         * transfer rows can carry a `transferId`; any other movement loses a stray one.
+         */
+        private fun wholeTransfers(rows: List<TransactionEntity>): List<TransactionEntity> {
+            val groups = rows.filter { it.transferId != null && it.type.isTransferName() }.groupBy { it.transferId }
+            val broken = groups.filterValues { group ->
+                group.size != 2 || group.count { it.type == TransactionType.TRANSFER_OUT.name } != 1 ||
+                    group.count { it.type == TransactionType.TRANSFER_IN.name } != 1
+            }.keys
+            return rows.map { tx ->
+                if (!tx.type.isTransferName()) return@map if (tx.transferId == null) tx else tx.copy(transferId = null)
+                if (tx.transferId != null && tx.transferId !in broken) return@map tx
+                val type = if (tx.type == TransactionType.TRANSFER_IN.name) {
+                    TransactionType.ADJUSTMENT_IN
+                } else {
+                    TransactionType.ADJUSTMENT_OUT
+                }
+                tx.copy(type = type.name, transferId = null)
+            }
+        }
+
+        private fun String.isTransferName() =
+            this == TransactionType.TRANSFER_IN.name || this == TransactionType.TRANSFER_OUT.name
 
         private fun parentsFirst(rows: List<TransactionEntity>): List<TransactionEntity> {
             val ordered = ArrayList<TransactionEntity>(rows.size)

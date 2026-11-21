@@ -91,6 +91,9 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextOverflow
 import com.boxdev.boxwallet.domain.model.Account
+import com.boxdev.boxwallet.domain.money.Money
+import com.boxdev.boxwallet.ui.components.AmountText
+import com.boxdev.boxwallet.ui.theme.BoxTheme
 import com.boxdev.boxwallet.ui.components.SheetHeader
 import com.boxdev.boxwallet.ui.screens.accounts.AccountBadge
 import com.boxdev.boxwallet.util.accountIcon
@@ -353,19 +356,24 @@ private fun AccountChip(account: Account?, onClick: () -> Unit) {
     }
 }
 
-/** The accounts a movement can go to, each with its badge, name and currency. */
+/**
+ * The accounts a movement (or either side of a transfer) can go to, each with its badge, name and
+ * currency, and its balance when [balances] has one.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AccountPickerSheet(
+internal fun AccountPickerSheet(
     accounts: List<Account>,
     selectedId: Long?,
     onPick: (Long) -> Unit,
     onDismiss: () -> Unit,
+    title: String = stringResource(R.string.transaction_account_label),
+    balances: Map<Long, Money> = emptyMap(),
 ) {
     val locale = remember { Locale.getDefault() }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 24.dp)) {
-            SheetHeader(title = stringResource(R.string.transaction_account_label))
+            SheetHeader(title = title)
             LazyColumn(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 items(accounts, key = { it.id }) { account ->
                     val selected = account.id == selectedId
@@ -389,6 +397,7 @@ private fun AccountPickerSheet(
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
+                        balances[account.id]?.let { AmountText(amount = it, style = BoxTheme.moneyType.small) }
                         if (selected) Icon(Icons.Outlined.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     }
                 }
