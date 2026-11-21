@@ -18,6 +18,8 @@ import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.domain.money.RateLookup
 import com.boxdev.boxwallet.domain.money.RateSource
 import com.boxdev.boxwallet.domain.money.TransactionAmounts
+import com.boxdev.boxwallet.util.CurrentDay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -187,5 +189,43 @@ class TransactionRepositoryTest {
         repository.createNextRecurrence(template.copy(accountId = 999))
 
         assertOccurrenceInQuetzales(defaultId)
+    }
+
+    @Test
+    fun `month summary counts an uncleared card expense up to today and moves with the day`() = runTest {
+        val day = MutableStateFlow(LocalDate.of(2026, 11, 21))
+        val amounts = TransactionAmounts(ExchangeRateResolver(lookup) { LocalDate.of(2026, 11, 7) })
+        val summaries = TransactionRepository(
+            db.transactionDao(),
+            AccountRepository(db.accountDao(), prefs, lookup, ApplicationProvider.getApplicationContext(), db.transactionDao(), db, amounts, MovementWriteGuard(CurrencyChangeLock(), prefs, db.accountDao(), amounts)),
+            prefs,
+            ApplicationProvider.getApplicationContext(),
+            amounts,
+            MovementWriteGuard(CurrencyChangeLock(), prefs, db.accountDao(), amounts),
+            CurrentDay(day),
+        )
+        val card = db.accountDao().insert(AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "GTQ", createdAt = 0L))
+        fun expense(minor: Long, on: LocalDate, account: Long, cleared: Boolean) = Transaction(
+            accountId = account,
+            type = TransactionType.EXPENSE,
+            date = on.atTime(9, 0),
+            original = Money(minor, gtq),
+            accountAmount = Money(minor, gtq),
+            accountRate = ExchangeRate(BigDecimal.ONE, RateSource.AUTO),
+            amount = Money(minor, gtq),
+            mainRate = ExchangeRate(BigDecimal.ONE, RateSource.AUTO),
+            isCleared = cleared,
+        )
+        saved(expense(7641, LocalDate.of(2026, 11, 21), card, cleared = false))
+        saved(expense(5000, LocalDate.of(2026, 11, 22), card, cleared = false)) // tomorrow
+        saved(expense(900, LocalDate.of(2026, 11, 21), accountId, cleared = false)) // pending, not a card
+
+        assertEquals(7641L, summaries.getFinancialSummary().first().monthlyExpense)
+
+        day.value = LocalDate.of(2026, 11, 22)
+        assertEquals(12641L, summaries.getFinancialSummary().first().monthlyExpense)
+
+        day.value = LocalDate.of(2026, 12, 1) // a new month starts empty
+        assertEquals(0L, summaries.getFinancialSummary().first().monthlyExpense)
     }
 }

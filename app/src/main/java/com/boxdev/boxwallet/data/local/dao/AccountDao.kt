@@ -17,9 +17,10 @@ private const val BALANCE =
 
 /**
  * Which movements count: cards ignore the cleared flag and count everything dated before `:endOfToday`
- * (start of tomorrow); every other account type counts cleared movements only.
+ * (start of tomorrow); every other account type counts cleared movements only. Over `transactions t`
+ * joined to `accounts a`; shared with the income and expense totals in [TransactionDao].
  */
-private const val COUNTED =
+internal const val COUNTED =
     "((a.type = 'CREDIT_CARD' AND t.date < :endOfToday) OR (a.type <> 'CREDIT_CARD' AND t.isCleared = 1))"
 
 @Dao

@@ -104,17 +104,20 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE date >= :startDate AND date < :endDate AND loanId IS NOT NULL ORDER BY date ASC")
     fun getInstallmentsBetweenDates(startDate: Long, endDate: Long): Flow<List<TransactionEntity>>
 
-    @Query("SELECT SUM(amountMinor) FROM transactions WHERE type = 'INCOME' AND isCleared = 1")
-    fun getTotalIncome(): Flow<Long?>
+    // Income and expense totals count what the balances count (AccountDao's COUNTED): cleared movements,
+    // plus every card movement dated before :endOfToday, cleared or not.
 
-    @Query("SELECT SUM(amountMinor) FROM transactions WHERE type = 'EXPENSE' AND isCleared = 1")
-    fun getTotalExpense(): Flow<Long?>
+    @Query("SELECT SUM(t.amountMinor) FROM transactions t JOIN accounts a ON a.id = t.accountId WHERE t.type = 'INCOME' AND $COUNTED")
+    fun getTotalIncome(endOfToday: Long): Flow<Long?>
 
-    @Query("SELECT SUM(amountMinor) FROM transactions WHERE type = 'INCOME' AND isCleared = 1 AND date BETWEEN :startDate AND :endDate")
-    fun getTotalIncomeBetweenDates(startDate: Long, endDate: Long): Flow<Long?>
+    @Query("SELECT SUM(t.amountMinor) FROM transactions t JOIN accounts a ON a.id = t.accountId WHERE t.type = 'EXPENSE' AND $COUNTED")
+    fun getTotalExpense(endOfToday: Long): Flow<Long?>
 
-    @Query("SELECT SUM(amountMinor) FROM transactions WHERE type = 'EXPENSE' AND isCleared = 1 AND date BETWEEN :startDate AND :endDate")
-    fun getTotalExpenseBetweenDates(startDate: Long, endDate: Long): Flow<Long?>
+    @Query("SELECT SUM(t.amountMinor) FROM transactions t JOIN accounts a ON a.id = t.accountId WHERE t.type = 'INCOME' AND $COUNTED AND t.date BETWEEN :startDate AND :endDate")
+    fun getTotalIncomeBetweenDates(startDate: Long, endDate: Long, endOfToday: Long): Flow<Long?>
+
+    @Query("SELECT SUM(t.amountMinor) FROM transactions t JOIN accounts a ON a.id = t.accountId WHERE t.type = 'EXPENSE' AND $COUNTED AND t.date BETWEEN :startDate AND :endDate")
+    fun getTotalExpenseBetweenDates(startDate: Long, endDate: Long, endOfToday: Long): Flow<Long?>
 
     @Query("SELECT * FROM transactions WHERE hasReminder = 1 AND reminderDate > :currentTime ORDER BY reminderDate ASC")
     fun getUpcomingReminders(currentTime: Long): Flow<List<TransactionEntity>>
