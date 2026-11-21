@@ -26,6 +26,7 @@ import com.boxdev.boxwallet.util.CurrentDay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import java.math.BigDecimal
 import java.time.Instant
@@ -160,6 +161,10 @@ class InstallmentPlanRepository @Inject constructor(
         val currencies = accounts.associate { it.id to Currency.getInstance(it.currencyCode) }
         rows.map { it.toDomain(currencies[it.accountId] ?: main, main) }
     }
+
+    /** Every plan's installment count by plan id: the N of a listed installment's "k/N". */
+    fun observeInstallmentCounts(): Flow<Map<Long, Int>> =
+        planDao.observeAll().map { plans -> plans.associate { it.id to it.installments } }
 
     /** The plans of the card and of its second currency, newest purchase first. */
     @OptIn(ExperimentalCoroutinesApi::class)

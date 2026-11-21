@@ -41,6 +41,7 @@ import com.boxdev.boxwallet.ui.theme.BoxTheme
  *
  * A transfer row is titled [transferTitle] ("<from> → <to>") when it has no note, and shows its
  * amount in its own account's currency, signed only when [signedTransfer] (a list scoped to one account).
+ * A visacuotas installment is titled "<description> · installment k/N" once its plan's [installmentCount] (N) is known.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -56,6 +57,7 @@ fun TransactionItem(
     onLongClick: (() -> Unit)? = null,
     transferTitle: String? = null,
     signedTransfer: Boolean = false,
+    installmentCount: Int? = null,
 ) {
     val isAdjustment = transaction.type.isAdjustment
     val isTransfer = transaction.type.isTransfer
@@ -70,13 +72,17 @@ fun TransactionItem(
     // Short, locale-correct day ("6 nov" / "Nov 6"); the year only appears when it isn't this year.
     val dateFormatter = DateFormats.shortDay(withYear = transaction.date.year != java.time.LocalDate.now().year)
     val timeFormatter = DateFormats.shortTime
-    val title = transaction.description.ifBlank {
+    val baseTitle = transaction.description.ifBlank {
         when {
             isAdjustment -> stringResource(R.string.transaction_adjustment)
             isTransfer -> transferTitle ?: stringResource(R.string.transaction_transfer)
             else -> category?.name ?: stringResource(if (isIncome) R.string.transaction_type_income else R.string.transaction_type_expense)
         }
     }
+    val number = transaction.installmentNumber
+    val title = if (transaction.installmentPlanId != null && number != null && installmentCount != null) {
+        stringResource(R.string.installment_row_title, baseTitle, number, installmentCount)
+    } else baseTitle
 
     SegmentedListItem(
         onClick = onClick,

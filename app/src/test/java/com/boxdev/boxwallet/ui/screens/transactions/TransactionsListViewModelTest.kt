@@ -3,6 +3,7 @@ package com.boxdev.boxwallet.ui.screens.transactions
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.data.repository.CategoryRepository
+import com.boxdev.boxwallet.data.repository.InstallmentPlanRepository
 import com.boxdev.boxwallet.data.repository.TransactionRepository
 import com.boxdev.boxwallet.data.repository.TransferRepository
 import com.boxdev.boxwallet.domain.model.Account
@@ -39,6 +40,7 @@ class TransactionsListViewModelTest {
     private val categoryRepository = mock<CategoryRepository>()
     private val accountRepository = mock<AccountRepository>()
     private val transferRepository = mock<TransferRepository>()
+    private val installmentPlanRepository = mock<InstallmentPlanRepository>()
     private val filterRequest = MovementsFilterRequest()
     private val cash = Account(id = 1, name = "Cash", type = AccountType.CASH, currency = usd, createdAt = 0)
     private val bank = Account(id = 2, name = "Bank", type = AccountType.CHECKING, currency = usd, createdAt = 0)
@@ -72,12 +74,15 @@ class TransactionsListViewModelTest {
         whenever(categoryRepository.getAllCategories()).thenReturn(flowOf(emptyList()))
         whenever(accountRepository.observeAll()).thenReturn(flowOf(listOf(cash, bank)))
         whenever(transferRepository.observePairs()).thenReturn(flowOf(emptyMap()))
+        whenever(installmentPlanRepository.observeInstallmentCounts()).thenReturn(flowOf(emptyMap()))
     }
 
     @After
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun vm() = TransactionsListViewModel(repository, categoryRepository, accountRepository, transferRepository, filterRequest)
+    private fun vm() = TransactionsListViewModel(
+        repository, categoryRepository, accountRepository, transferRepository, installmentPlanRepository, filterRequest,
+    )
 
     @Test
     fun accountFilterKeepsOnlyThatAccountsMovements() = runTest {

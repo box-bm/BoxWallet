@@ -8,6 +8,7 @@ import com.boxdev.boxwallet.domain.money.minorDigits
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.data.repository.CategoryRepository
+import com.boxdev.boxwallet.data.repository.InstallmentPlanRepository
 import com.boxdev.boxwallet.data.repository.LoanRepository
 import com.boxdev.boxwallet.data.repository.TransactionRepository
 import com.boxdev.boxwallet.data.repository.TransferRepository
@@ -41,6 +42,8 @@ data class SearchUiState(
     val accountsById: Map<Long, Account> = emptyMap(),
     /** Each transfer's two accounts by transferId. */
     val transferPairs: Map<String, TransferPair> = emptyMap(),
+    /** Each installment plan's installment count by plan id, for a listed installment's "k/N". */
+    val installmentCounts: Map<Long, Int> = emptyMap(),
     val isLoading: Boolean = true,
 ) {
     val hasQuery: Boolean get() = query.isNotBlank()
@@ -59,6 +62,7 @@ class SearchViewModel @Inject constructor(
     categoryRepository: CategoryRepository,
     accountRepository: AccountRepository,
     transferRepository: TransferRepository,
+    installmentPlanRepository: InstallmentPlanRepository,
 ) : ViewModel() {
 
     private val query = MutableStateFlow("")
@@ -71,6 +75,7 @@ class SearchViewModel @Inject constructor(
         val categories: List<Category>,
         val accountsById: Map<Long, Account>,
         val pairs: Map<String, TransferPair>,
+        val installmentCounts: Map<Long, Int>,
     )
 
     private val index = combine(
@@ -78,8 +83,8 @@ class SearchViewModel @Inject constructor(
         loanRepository.getAllLoans(),
         categoryRepository.getAllCategories(),
         accountRepository.observeAll(),
-        transferRepository.observePairs(),
-    ) { transactions, loans, categories, accounts, pairs ->
+        combine(transferRepository.observePairs(), installmentPlanRepository.observeInstallmentCounts(), ::Pair),
+    ) { transactions, loans, categories, accounts, (pairs, counts) ->
         val categoryNames = categories.associate { it.id to it.name }
         val accountsById = accounts.associateBy { it.id }
         // A transfer is found once, by its TRANSFER_OUT row, and by either account's name.
@@ -98,6 +103,7 @@ class SearchViewModel @Inject constructor(
             categories = categories,
             accountsById = accountsById,
             pairs = pairs,
+            installmentCounts = counts,
         )
     }.flowOn(Dispatchers.Default)
 
@@ -111,6 +117,7 @@ class SearchViewModel @Inject constructor(
                 categories = idx.categories,
                 accountsById = idx.accountsById,
                 transferPairs = idx.pairs,
+                installmentCounts = idx.installmentCounts,
                 isLoading = false,
             )
         }
@@ -123,6 +130,7 @@ class SearchViewModel @Inject constructor(
             categories = idx.categories,
             accountsById = idx.accountsById,
             transferPairs = idx.pairs,
+            installmentCounts = idx.installmentCounts,
             isLoading = false,
         )
     }

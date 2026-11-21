@@ -30,6 +30,9 @@ interface InstallmentPlanDao {
     fun observeByAccounts(accountIds: List<Long>): Flow<List<InstallmentPlanEntity>>
 
     @Query("SELECT * FROM installment_plans")
+    fun observeAll(): Flow<List<InstallmentPlanEntity>>
+
+    @Query("SELECT * FROM installment_plans")
     suspend fun getAllSync(): List<InstallmentPlanEntity>
 
     @Query("DELETE FROM installment_plans WHERE id = :id")

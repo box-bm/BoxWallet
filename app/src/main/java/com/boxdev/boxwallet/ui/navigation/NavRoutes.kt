@@ -50,6 +50,9 @@ sealed class NavRoutes(val route: String) {
     data object AccountDetail : NavRoutes("account_detail/{accountId}") {
         fun createRoute(accountId: Long) = "account_detail/$accountId"
     }
+    data object InstallmentPlanDetail : NavRoutes("installment_plan/{planId}") {
+        fun createRoute(planId: Long) = "installment_plan/$planId"
+    }
     data object AccountForm : NavRoutes("account_form?id={id}") {
         fun createRoute(id: Long? = null) = if (id == null) "account_form" else "account_form?id=$id"
     }

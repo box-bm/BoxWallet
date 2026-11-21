@@ -70,6 +70,7 @@ import com.boxdev.boxwallet.domain.model.AccountType
 import com.boxdev.boxwallet.domain.model.AccountWithBalance
 import com.boxdev.boxwallet.domain.model.CardBalance
 import com.boxdev.boxwallet.domain.model.CardSummary
+import com.boxdev.boxwallet.domain.model.InstallmentPlan
 import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.ui.components.AdjustmentDeleteDialog
@@ -77,6 +78,7 @@ import com.boxdev.boxwallet.ui.components.transferTitle
 import com.boxdev.boxwallet.ui.components.AmountText
 import com.boxdev.boxwallet.ui.components.BackButton
 import com.boxdev.boxwallet.ui.components.CardBlock
+import com.boxdev.boxwallet.ui.components.CardInstallmentsSection
 import com.boxdev.boxwallet.ui.components.payRoute
 import com.boxdev.boxwallet.ui.components.ConfirmDeleteDialog
 import com.boxdev.boxwallet.ui.components.EmptyState
@@ -102,6 +104,8 @@ fun AccountDetailScreen(
     onSeeInMovements: () -> Unit,
     onDeleted: () -> Unit,
     onOpenTransfer: (Long) -> Unit = {},
+    /** Opens an installment purchase's detail, from the card's section or one of its listed installments. */
+    onOpenInstallmentPlan: (Long) -> Unit = {},
     /** Opens a new transfer from the given account. */
     onNewTransfer: (Long) -> Unit = {},
     /** Opens a route; a card's Pay opens its prefilled transfer ([payRoute]). */
@@ -168,6 +172,9 @@ fun AccountDetailScreen(
                 movements = uiState.movements,
                 categories = uiState.categories,
                 card = uiState.card,
+                installmentPlans = uiState.installmentPlans,
+                installmentCounts = uiState.installmentCounts,
+                onOpenInstallmentPlan = onOpenInstallmentPlan,
                 transferTitleOf = { tx -> tx.transferId?.let { transferTitle(uiState.transferPairs[it], uiState.accountsById) } },
                 internalTransfers = uiState.internalTransfers,
                 onAdjust = { adjusting = item },
@@ -187,6 +194,7 @@ fun AccountDetailScreen(
                 onOpenMovement = { tx ->
                     when {
                         tx.type.isAdjustment -> pendingAdjustment = tx
+                        tx.installmentPlanId != null -> onOpenInstallmentPlan(tx.installmentPlanId)
                         tx.type.isTransfer -> onOpenTransfer(tx.id)
                         else -> onEditTransaction(tx.id)
                     }
@@ -229,6 +237,9 @@ private fun AccountDetailContent(
     categories: Map<Long, com.boxdev.boxwallet.domain.model.Category>,
     card: CardSummary?,
     transferTitleOf: (Transaction) -> String?,
+    installmentPlans: List<InstallmentPlan>,
+    installmentCounts: Map<Long, Int>,
+    onOpenInstallmentPlan: (Long) -> Unit,
     onAdjust: () -> Unit,
     onAdjustCard: (CardBalance) -> Unit,
     onPay: ((CardBalance) -> Unit)?,
@@ -259,6 +270,16 @@ private fun AccountDetailContent(
                 )
             } else {
                 BalanceHero(item, isDefault, onAdjust, onEdit, onTransfer)
+            }
+        }
+        if (installmentPlans.isNotEmpty()) {
+            item(key = "installments") {
+                CardInstallmentsSection(
+                    plans = installmentPlans,
+                    categories = categories,
+                    onOpenPlan = onOpenInstallmentPlan,
+                    modifier = Modifier.padding(top = 20.dp),
+                )
             }
         }
         item(key = "actions") {
@@ -324,6 +345,7 @@ private fun AccountDetailContent(
                 index = index,
                 count = movements.size,
                 transferTitle = transferTitleOf(tx),
+                installmentCount = tx.installmentPlanId?.let(installmentCounts::get),
                 // Only this account's movements: a transfer reads as money in or out of it, except one between a
                 // card's two currencies, which stays inside the card.
                 signedTransfer = tx.transferId !in internalTransfers,
@@ -415,6 +437,9 @@ private fun AccountDetailPreviewContent() {
                 categories = emptyMap(),
                 card = null,
                 transferTitleOf = { null },
+                installmentPlans = emptyList(),
+                installmentCounts = emptyMap(),
+                onOpenInstallmentPlan = {},
                 onAdjust = {}, onAdjustCard = {}, onPay = {}, onEdit = {}, onTransfer = {}, onSetDefault = {}, onArchive = {}, onDelete = {}, onOpenMovement = {}, onSeeInMovements = {},
             )
         }

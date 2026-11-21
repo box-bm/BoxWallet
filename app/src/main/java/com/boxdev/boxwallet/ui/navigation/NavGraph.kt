@@ -52,6 +52,7 @@ import com.boxdev.boxwallet.ui.screens.accounts.AccountFormScreen
 import com.boxdev.boxwallet.ui.screens.accounts.AccountsScreen
 import com.boxdev.boxwallet.ui.screens.analytics.AnalyticsScreen
 import com.boxdev.boxwallet.ui.screens.home.HomeScreen
+import com.boxdev.boxwallet.ui.screens.installments.InstallmentPlanDetailScreen
 import com.boxdev.boxwallet.ui.screens.loans.LoanDetailScreen
 import com.boxdev.boxwallet.ui.screens.loans.LoanFormScreen
 import com.boxdev.boxwallet.ui.screens.loans.LoansScreen
@@ -170,6 +171,9 @@ fun NavGraph(
     val onOpenTransfer: (Long) -> Unit = {
         navController.navigate(NavRoutes.TransferForm.createRoute(id = it)) { launchSingleTop = true }
     }
+    val onOpenInstallmentPlan: (Long) -> Unit = {
+        navController.navigate(NavRoutes.InstallmentPlanDetail.createRoute(it)) { launchSingleTop = true }
+    }
     val onNewTransferFrom: (Long) -> Unit = {
         navController.navigate(NavRoutes.TransferForm.createRoute(from = it)) { launchSingleTop = true }
     }
@@ -216,6 +220,7 @@ fun NavGraph(
                 onOpenAccount = { navController.navigate(NavRoutes.AccountDetail.createRoute(it)) { launchSingleTop = true } },
                 onSeeAccounts = { navController.navigate(NavRoutes.Accounts.route) { launchSingleTop = true } },
                 onOpenTransfer = onOpenTransfer,
+                onOpenInstallmentPlan = onOpenInstallmentPlan,
             )
         }
 
@@ -224,6 +229,7 @@ fun NavGraph(
                 onEditTransaction = onEditTransaction,
                 onNavigateToSearch = onNavigateToSearch,
                 onOpenTransfer = onOpenTransfer,
+                onOpenInstallmentPlan = onOpenInstallmentPlan,
             )
         }
 
@@ -277,6 +283,7 @@ fun NavGraph(
                 onOpenTransaction = onEditTransaction,
                 onOpenLoan = openLoan,
                 onOpenTransfer = onOpenTransfer,
+                onOpenInstallmentPlan = onOpenInstallmentPlan,
             )
         }
 
@@ -338,6 +345,7 @@ fun NavGraph(
                 onEditTransaction = onEditTransaction,
                 onSeeInMovements = { navController.switchToTab(NavRoutes.TransactionsList.route) },
                 onOpenTransfer = onOpenTransfer,
+                onOpenInstallmentPlan = onOpenInstallmentPlan,
                 onNewTransfer = onNewTransferFrom,
                 onNavigate = onNavigateTo,
             )
@@ -363,8 +371,29 @@ fun NavGraph(
                     onSeeInMovements = { navController.switchToTab(NavRoutes.TransactionsList.route) },
                     onDeleted = { entry.ifResumed { navController.popBackStack() } },
                     onOpenTransfer = onOpenTransfer,
+                    onOpenInstallmentPlan = onOpenInstallmentPlan,
                     onNewTransfer = onNewTransferFrom,
                     onNavigate = onNavigateTo,
+                )
+            }
+        }
+
+        composable(
+            route = NavRoutes.InstallmentPlanDetail.route,
+            arguments = listOf(navArgument("planId") { type = NavType.LongType }),
+        ) { entry ->
+            // On its own, straight on the surface body like a standalone account or loan.
+            val margin = BoxTheme.layout.margin
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surface)
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
+                    .padding(start = margin - 16.dp, top = 8.dp, end = margin - 16.dp)
+            ) {
+                InstallmentPlanDetailScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onDeleted = { entry.ifResumed { navController.popBackStack() } },
                 )
             }
         }

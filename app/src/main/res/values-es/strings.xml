@@ -683,4 +683,19 @@
     <string name="transaction_in_installments">A cuotas</string>
     <string name="transaction_installments_preview">%1$s por corte · primera el %2$s</string>
     <string name="transaction_installment_count">Número de cuotas</string>
+    <string name="card_installments_title">Compras a cuotas</string>
+    <string name="card_installments_pending">Cuotas por cobrar %1$s</string>
+    <string name="installment_progress">%1$d/%2$d · %3$s por corte · faltan %4$s</string>
+    <string name="installment_row_title">%1$s · cuota %2$d/%3$d</string>
+    <string name="installments_show_finished">Ver terminadas</string>
+    <string name="installments_hide_finished">Ocultar terminadas</string>
+    <string name="installment_charged">Cobrada</string>
+    <string name="installment_pending">Por cobrar</string>
+    <string name="installment_delete_confirm">¿Eliminar esta compra y sus %1$d cuotas? La deuda de la tarjeta baja %2$s.</string>
+    <string name="installment_plan_title">Compra a cuotas</string>
+    <string name="installment_plan_not_found">Esta compra ya no existe</string>
+    <string name="installment_plan_edit">Editar compra</string>
+    <string name="installment_plan_delete">Eliminar compra</string>
+    <string name="installment_plan_bought_on">Comprada el %1$s</string>
+    <string name="installment_plan_number">Cuota %1$d/%2$d</string>
 </resources>
