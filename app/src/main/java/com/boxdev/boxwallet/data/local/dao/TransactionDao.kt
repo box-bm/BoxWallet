@@ -2,6 +2,7 @@ package com.boxdev.boxwallet.data.local.dao
 
 import androidx.room.*
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
+import com.boxdev.boxwallet.domain.model.TransferPair
 import kotlinx.coroutines.flow.Flow
 
 /** A local date (epoch day) and a currency that a movement on that day converts from. */
@@ -39,6 +40,21 @@ interface TransactionDao {
 
     @Query("DELETE FROM transactions WHERE accountId = :accountId AND type IN ('ADJUSTMENT_IN','ADJUSTMENT_OUT')")
     suspend fun deleteAdjustmentsByAccount(accountId: Long)
+
+    /** Both legs of a transfer. */
+    @Query("SELECT * FROM transactions WHERE transferId = :transferId")
+    suspend fun getByTransferId(transferId: String): List<TransactionEntity>
+
+    @Query("DELETE FROM transactions WHERE transferId = :transferId")
+    suspend fun deleteByTransferId(transferId: String)
+
+    /** Source and destination account of every transfer (its OUT row joined with its IN row). */
+    @Query(
+        "SELECT o.transferId AS transferId, o.accountId AS fromAccountId, i.accountId AS toAccountId " +
+            "FROM transactions o JOIN transactions i ON i.transferId = o.transferId AND i.type = 'TRANSFER_IN' " +
+            "WHERE o.type = 'TRANSFER_OUT'"
+    )
+    fun observeTransferPairs(): Flow<List<TransferPair>>
 
     @Query("DELETE FROM transactions WHERE loanId = :loanId")
     suspend fun deleteByLoanId(loanId: Long)
