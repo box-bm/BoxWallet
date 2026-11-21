@@ -126,7 +126,7 @@ class BackupRepositoryTest {
             )
         )
         val json = Gson().toJson(repo.snapshot())
-        assertEquals(3, JsonParser.parseString(json).asJsonObject.get("version").asInt)
+        assertEquals(4, JsonParser.parseString(json).asJsonObject.get("version").asInt)
         db.transactionDao().deleteAll()
         db.accountDao().deleteAll()
 
@@ -215,6 +215,108 @@ class BackupRepositoryTest {
     }
 
     @Test
+    fun roundTripKeepsAccountCustomizationAndDefault() = runTest {
+        prefs.setMainCurrency("GTQ")
+        val first = db.accountDao().insert(
+            AccountEntity(
+                name = "Main", type = "CHECKING", currencyCode = "GTQ", createdAt = 1L,
+                description = "Nómina", icon = "Wallet", color = "BLUE",
+            )
+        )
+        val second = db.accountDao().insert(
+            AccountEntity(
+                name = "Savings", type = "SAVINGS", currencyCode = "USD", createdAt = 2L, sortOrder = 1,
+                description = "Ahorro", icon = "Savings", color = "GREEN", includeInTotal = false,
+            )
+        )
+        prefs.setDefaultAccountId(second)
+        val before = db.accountDao().getAll()
+        val json = Gson().toJson(repo.snapshot())
+        assertEquals(second, JsonParser.parseString(json).asJsonObject.get("defaultAccountId").asLong)
+        db.accountDao().deleteAll()
+        prefs.setDefaultAccountId(first)
+
+        val result = repo.restoreJson(json, gtq)
+
+        assertTrue(result is RestoreResult.Restored)
+        assertEquals(before, db.accountDao().getAll())
+        assertEquals(second, result.data.defaultAccountId)
+        assertEquals(second, prefs.defaultAccountId.first())
+    }
+
+    @Test
+    fun `a backup default missing from its accounts falls back to the first account`() = runTest {
+        val backup = BackupData(
+            mainCurrencyCode = "USD",
+            defaultAccountId = 404,
+            accounts = listOf(
+                AccountEntity(id = 2, name = "B", type = "CASH", currencyCode = "USD", createdAt = 0L, sortOrder = 1),
+                AccountEntity(id = 1, name = "A", type = "CASH", currencyCode = "USD", createdAt = 0L),
+            ),
+        )
+
+        repo.restore(backup)
+
+        assertEquals(1L, prefs.defaultAccountId.first())
+    }
+
+    @Test
+    fun orphanMovementGoesToAccountOfItsAccountCurrency() = runTest {
+        // The backup's default (GTQ) is not its first account, so the fallback is the default, not the first.
+        val backup = BackupData(
+            mainCurrencyCode = "GTQ",
+            defaultAccountId = 1,
+            accounts = listOf(
+                AccountEntity(id = 2, name = "Dollars", type = "SAVINGS", currencyCode = "USD", createdAt = 0L),
+                AccountEntity(id = 1, name = "Quetzales", type = "CHECKING", currencyCode = "GTQ", createdAt = 0L, sortOrder = 1),
+            ),
+            transactions = listOf(
+                // Rate 1 and same amounts: its account was in USD.
+                tx(id = 1, accountId = 99, amount = 1000, code = "USD"),
+                // Converted at 7.71: its account was in another currency, unknown → the default account.
+                tx(id = 2, accountId = 99, amount = 1000, code = "EUR").copy(
+                    accountAmountMinor = 7710, accountRate = BigDecimal("7.71"), amountMinor = 7710,
+                ),
+            ),
+            loans = listOf(
+                LoanEntity(id = 1, name = "USD", totalAmountMinor = 1, currencyCode = "USD", accountId = 99, totalInstallments = 1, startDate = 0L),
+                LoanEntity(id = 2, name = "EUR", totalAmountMinor = 1, currencyCode = "EUR", accountId = 99, totalInstallments = 1, startDate = 0L),
+            ),
+        )
+
+        repo.restore(backup)
+
+        val rows = db.transactionDao().getAllTransactionsSync().associateBy { it.id }
+        assertEquals(2L, rows.getValue(1).accountId)
+        assertEquals(1L, rows.getValue(2).accountId)
+        val loans = db.loanDao().getAllLoansSync().associateBy { it.id }
+        assertEquals(2L, loans.getValue(1).accountId)
+        assertEquals(1L, loans.getValue(2).accountId)
+        assertEquals(1L, prefs.defaultAccountId.first())
+    }
+
+    @Test
+    fun `a v3 backup from v1 restores with default account customization`() = runTest {
+        val json = """
+            {"version":3,"mainCurrencyCode":"USD",
+             "accounts":[{"id":1,"name":"Main","type":"CHECKING","currencyCode":"USD","isArchived":false,"sortOrder":0,"createdAt":0}],
+             "transactions":[{"id":1,"accountId":1,"type":"EXPENSE","date":0,"description":"","originalAmountMinor":5,"currencyCode":"USD",
+               "accountAmountMinor":5,"accountRate":1,"accountRateSource":"AUTO","amountMinor":5,"mainRate":1,"mainRateSource":"AUTO",
+               "isCleared":false,"hasReminder":false,"isRecurrent":false}],
+             "categories":[],"loans":[]}
+        """.trimIndent()
+
+        val result = repo.restoreJson(json, usd)
+
+        assertTrue(result is RestoreResult.Restored)
+        val account = db.accountDao().getAll().single()
+        assertEquals(listOf("", "AccountBalance", "DEFAULT"), listOf(account.description, account.icon, account.color))
+        assertTrue(account.includeInTotal)
+        assertEquals(1L, db.transactionDao().getAllTransactionsSync().single().accountId)
+        assertEquals(1L, prefs.defaultAccountId.first())
+    }
+
+    @Test
     fun `a failing restore rolls back and keeps local data`() = runTest {
         seedLocalData()
         val broken = BackupData(
@@ -232,11 +334,11 @@ class BackupRepositoryTest {
     }
 
     @Test
-    fun `local snapshot is written in the v3 shape with accounts`() = runTest {
+    fun `local snapshot is written in the v4 shape with accounts`() = runTest {
         seedLocalData()
         val file: File = repo.writeLocalSnapshot()
         val root = JsonParser.parseString(file.readText()).asJsonObject
-        assertEquals(3, root.get("version").asInt)
+        assertEquals(4, root.get("version").asInt)
         assertEquals("USD", root.get("mainCurrencyCode").asString)
         assertEquals("Old", root.getAsJsonArray("accounts")[0].asJsonObject.get("name").asString)
     }

@@ -7,7 +7,8 @@ import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 
 /**
  * Backup file contents (spec 6.3). Version 3: accounts, minor-unit amounts, currencies and rates.
- * Exchange rates are not backed up; they are downloaded again.
+ * Version 4: account customization (description, icon, color, total inclusion, cards) and the
+ * default account. Exchange rates are not backed up; they are downloaded again.
  */
 data class BackupData(
     val version: Int = CURRENT_VERSION,
@@ -17,9 +18,11 @@ data class BackupData(
     val accounts: List<AccountEntity> = emptyList(),
     val transactions: List<TransactionEntity> = emptyList(),
     val categories: List<CategoryEntity> = emptyList(),
-    val loans: List<LoanEntity> = emptyList()
+    val loans: List<LoanEntity> = emptyList(),
+    /** Version 4: the account new movements default to; null in older backups. */
+    val defaultAccountId: Long? = null,
 ) {
     companion object {
-        const val CURRENT_VERSION = 3
+        const val CURRENT_VERSION = 4
     }
 }

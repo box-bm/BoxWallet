@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.math.BigDecimal
 import java.text.SimpleDateFormat
 import java.util.Currency
 import java.util.Date
@@ -97,24 +98,26 @@ class BackupRepository @Inject constructor(
     internal suspend fun consistentSnapshot(): BackupData =
         lock.mutex.withLock { database.withTransaction { snapshot() } }
 
-    /** The current data in the v3 shape; exchange rates are left out (spec 6.3). */
+    /** The current data in the v4 shape; exchange rates are left out (spec 6.3). */
     internal suspend fun snapshot(): BackupData = coroutineScope {
         val accounts = async { accountDao.getAll() }
         val transactions = async { transactionDao.getAllTransactionsSync() }
         val categories = async { categoryDao.getAllCategoriesSync() }
         val loans = async { loanDao.getAllLoansSync() }
+        val defaultAccountId = async { prefs.defaultAccountId.first() }
         BackupData(
             createdAt = System.currentTimeMillis(),
             mainCurrencyCode = prefs.mainCurrency.first().currencyCode,
             accounts = accounts.await(),
             transactions = transactions.await(),
             categories = categories.await(),
-            loans = loans.await()
+            loans = loans.await(),
+            defaultAccountId = defaultAccountId.await(),
         )
     }
 
     /**
-     * Downloads and reads a backup. A v2 backup (no currencies) is restored in [device]; a v3 backup
+     * Downloads and reads a backup. A v2 backup (no currencies) is restored in [device]; a v3/v4 backup
      * with the same main currency is restored; otherwise [RestoreResult.CurrencyMismatch] is returned
      * and nothing is written. [device] defaults to the stored main currency (onboarding passes the
      * one being chosen).
@@ -151,7 +154,7 @@ class BackupRepository @Inject constructor(
                 transactionDao.insertAll(sane.transactions)
                 // Committed with the data: a crash before the DataStore writes is finished at startup.
                 appMetaDao.put(AppMetaEntity(META_MAIN_CURRENCY, sane.mainCurrencyCode))
-                accountDao.getAll().firstOrNull()?.let { appMetaDao.put(AppMetaEntity(META_DEFAULT_ACCOUNT_ID, it.id.toString())) }
+                sane.defaultAccountId?.let { appMetaDao.put(AppMetaEntity(META_DEFAULT_ACCOUNT_ID, it.toString())) }
             }
             applyPendingRestore()
         }
@@ -185,19 +188,24 @@ class BackupRepository @Inject constructor(
         /**
          * Old backups come from a schema without foreign keys: drop references to rows the backup
          * doesn't contain and order recurrences so a parent is inserted before its occurrences.
-         * A movement or loan whose account is missing goes to an account in its own currency, or
-         * else the first one (the restored default); with no accounts at all the insert fails and
-         * the restore rolls back.
+         * The default account is the backup's if it has that account, else the first one.
+         *
+         * A movement whose account is missing goes to the first account in that account's currency.
+         * The row doesn't store it, but with `accountRate == 1` and equal original and account
+         * amounts it was the movement's own currency; otherwise (or with no account in it) the
+         * movement goes to the default account. A loan has no account amount: its own currency is
+         * used. With no accounts at all the insert fails and the restore rolls back.
          */
         private fun sanitized(data: BackupData): BackupData {
             val accountIds = data.accounts.mapTo(HashSet()) { it.id }
             val categoryIds = data.categories.mapTo(HashSet()) { it.id }
             val loanIds = data.loans.mapTo(HashSet()) { it.id }
             val txIds = data.transactions.mapTo(HashSet()) { it.id }
-            val fallbackByCurrency = data.accounts.reversed().associate { it.currencyCode to it.id }
-            val firstAccount = data.accounts.firstOrNull()?.id
-            fun existingAccount(id: Long, currencyCode: String): Long =
-                if (id in accountIds) id else fallbackByCurrency[currencyCode] ?: firstAccount ?: id
+            val inOrder = data.accounts.sortedWith(compareBy({ it.sortOrder }, { it.id }))
+            val firstByCurrency = inOrder.reversed().associate { it.currencyCode to it.id }
+            val defaultAccount = data.defaultAccountId?.takeIf { it in accountIds } ?: inOrder.firstOrNull()?.id
+            fun existingAccount(id: Long, accountCurrency: String?): Long =
+                if (id in accountIds) id else accountCurrency?.let { firstByCurrency[it] } ?: defaultAccount ?: id
             val loans = data.loans.map { loan ->
                 loan.copy(
                     categoryId = loan.categoryId?.takeIf { it in categoryIds },
@@ -206,15 +214,16 @@ class BackupRepository @Inject constructor(
             }
             val transactions = data.transactions.map { tx ->
                 val loanKept = tx.loanId?.let { it in loanIds } ?: true
+                val inOwnCurrency = tx.accountRate.compareTo(BigDecimal.ONE) == 0 && tx.originalAmountMinor == tx.accountAmountMinor
                 tx.copy(
-                    accountId = existingAccount(tx.accountId, tx.currencyCode),
+                    accountId = existingAccount(tx.accountId, tx.currencyCode.takeIf { inOwnCurrency }),
                     categoryId = tx.categoryId?.takeIf { it in categoryIds },
                     loanId = if (loanKept) tx.loanId else null,
                     installmentNumber = if (loanKept) tx.installmentNumber else null,
                     parentRecurrenceId = tx.parentRecurrenceId?.takeIf { it in txIds && it != tx.id },
                 )
             }
-            return data.copy(loans = loans, transactions = parentsFirst(transactions))
+            return data.copy(loans = loans, transactions = parentsFirst(transactions), defaultAccountId = defaultAccount)
         }
 
         private fun parentsFirst(rows: List<TransactionEntity>): List<TransactionEntity> {
