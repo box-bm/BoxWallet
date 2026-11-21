@@ -220,4 +220,13 @@ class InstallmentPlanRepositoryTest {
         val plans = repository.observePlansOfCard(card).first()
         assertEquals(listOf(second, own), plans.map { it.id })
     }
+
+    @Test
+    fun `observePlan emits null when the account's currency is unknown`() = runTest {
+        val id = repository.create(plan())
+        db.openHelper.writableDatabase.execSQL("PRAGMA foreign_keys=OFF")
+        db.openHelper.writableDatabase.execSQL("DELETE FROM accounts WHERE id = $card")
+        assertNull(repository.observePlan(id).first())
+        assertTrue(repository.observePlansOfCard(card).first().isEmpty())
+    }
 }

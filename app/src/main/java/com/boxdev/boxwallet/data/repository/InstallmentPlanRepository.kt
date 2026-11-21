@@ -171,7 +171,7 @@ class InstallmentPlanRepository @Inject constructor(
             ) { plans, rows, today ->
                 val byPlan = rows.groupBy { it.installmentPlanId }
                 plans.sortedByDescending { it.purchaseDate }
-                    .map { it.toPlan(byPlan[it.id].orEmpty(), currencies, today) }
+                    .mapNotNull { it.toPlan(byPlan[it.id].orEmpty(), currencies, today) }
             }
         }
 
@@ -179,8 +179,9 @@ class InstallmentPlanRepository @Inject constructor(
         rows: List<TransactionEntity>,
         currencies: Map<Long, String>,
         today: LocalDate,
-    ): InstallmentPlan {
-        val accountCurrency = Currency.getInstance(currencies.getValue(accountId))
+    ): InstallmentPlan? {
+        // The accounts flow can emit before a deleted account's plans disappear.
+        val accountCurrency = Currency.getInstance(currencies[accountId] ?: return null)
         val cutoff = today.plusDays(1).atStartOfDay().toStoredMillis()
         val pending = rows.filter { it.date >= cutoff }
         return InstallmentPlan(
