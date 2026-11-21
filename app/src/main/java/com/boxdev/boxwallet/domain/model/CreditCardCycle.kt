@@ -18,10 +18,10 @@ data class StatementStatus(
     val noStatementYet: Boolean,
 )
 
-/** [day] in [month], clamped to the month's last day. */
+/** [day] in [month], clamped into 1..the month's last day (a malformed backup may hold 0 or less). */
 fun clampDay(year: Int, month: Int, day: Int): LocalDate {
     val ym = YearMonth.of(year, month)
-    return ym.atDay(day.coerceAtMost(ym.lengthOfMonth()))
+    return ym.atDay(day.coerceIn(1, ym.lengthOfMonth()))
 }
 
 /** The latest closing date (day [closingDay], clamped) that is not after [today]. */

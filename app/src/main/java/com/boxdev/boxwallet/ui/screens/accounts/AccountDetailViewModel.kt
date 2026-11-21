@@ -82,7 +82,7 @@ class AccountDetailViewModel @Inject constructor(
                 transactionRepository.observeByAccount(id)
             } else {
                 combine(transactionRepository.observeByAccount(id), transactionRepository.observeByAccount(childId)) { own, child ->
-                    (own + child).sortedByDescending { it.date }
+                    (own + child).sortedWith(compareByDescending<Transaction> { it.date }.thenByDescending { it.id })
                 }
             }
         }

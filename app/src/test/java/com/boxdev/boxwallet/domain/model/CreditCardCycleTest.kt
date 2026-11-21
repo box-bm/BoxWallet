@@ -62,4 +62,11 @@ class CreditCardCycleTest {
         assertTrue(status.noStatementYet)
         assertEquals(0L, status.toPayMinor)
     }
+
+    @Test
+    fun clampDayLiftsDaysBelowOneToTheFirst() {
+        assertEquals(LocalDate.of(2026, 2, 1), clampDay(2026, 2, 0))
+        assertEquals(LocalDate.of(2026, 2, 1), clampDay(2026, 2, -3))
+        assertEquals(LocalDate.of(2026, 2, 28), clampDay(2026, 2, 31))
+    }
 }

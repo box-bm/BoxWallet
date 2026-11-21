@@ -135,6 +135,17 @@ class AccountDetailViewModelTest {
     }
 
     @Test
+    fun sameDayMovementsOfBothCurrenciesListNewestFirst() = runTest {
+        val first = expense(card, "GTQ", 1_00)
+        val second = expense(child, "USD", 2_00)
+        val third = expense(card, "GTQ", 3_00)
+
+        val state = vm(card).uiState.first { !it.isLoading && it.movements.size == 3 }
+
+        assertEquals(listOf(third, second, first), state.movements.map { it.id })
+    }
+
+    @Test
     fun deletingACardWhoseSecondCurrencyHasMovementsIsRefused() = runTest {
         expense(child, "USD", 20_00)
         val vm = vm(card)
