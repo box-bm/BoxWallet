@@ -10,6 +10,7 @@
     <!-- FAB Menu -->
     <string name="fab_add_transaction">Add Movement</string>
     <string name="fab_add_loan">Add Loan</string>
+    <string name="fab_add_transfer">Transfer</string>
     <string name="fab_receipt_icon">Receipt icon</string>
     <string name="fab_credit_card_icon">Credit Card icon</string>
 
@@ -510,6 +511,17 @@
     <string name="transaction_error_missing_rate">No exchange rate available for %1$s. Connect to the internet and try again.</string>
     <string name="transaction_error_save">Couldn\'t save the movement. Try again.</string>
     <string name="transaction_error_delete">Couldn\'t delete the movement. Try again.</string>
+
+    <!-- Transfer form -->
+    <string name="transfer_new_title">New Transfer</string>
+    <string name="transfer_edit_title">Edit Transfer</string>
+    <string name="transfer_from">From</string>
+    <string name="transfer_to">To</string>
+    <string name="transfer_swap">Swap accounts</string>
+    <string name="transfer_delete_title">Delete transfer</string>
+    <string name="transfer_delete_body">Both accounts will be updated.</string>
+    <string name="transfer_error_same_account">Choose two different accounts.</string>
+    <string name="transfer_error_not_found">This transfer no longer exists.</string>
     <string name="onboarding_country_title">Where do you live?</string>
     <string name="onboarding_country_description">We use your country to pick your main currency.</string>
     <string name="onboarding_country_search">Search country</string>
@@ -625,6 +637,7 @@
     <string name="account_adjust_balance">Adjust balance</string>
     <string name="account_adjust_help">Enter the real balance. An adjustment for the difference is added; it doesn\'t count as income or expense.</string>
     <string name="account_edit">Edit</string>
+    <string name="account_action_transfer">Transfer</string>
     <string name="account_set_default">Use as default</string>
     <string name="account_set_default_help">New movements start in this account</string>
     <string name="account_archive">Archive</string>

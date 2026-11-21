@@ -28,6 +28,7 @@ import com.boxdev.boxwallet.domain.money.withAmounts
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
@@ -118,6 +119,10 @@ class AccountRepository @Inject constructor(
     private fun offline(delegate: RateLookup) = object : RateLookup by delegate {
         override suspend fun download(day: LocalDate) = false
     }
+
+    /** How many accounts aren't archived; transfers need at least two. */
+    fun observeActiveCount(): Flow<Int> =
+        accountDao.observeAll().map { rows -> rows.count { !it.isArchived } }.distinctUntilChanged()
 
     fun observeAll(): Flow<List<Account>> = accountDao.observeAll().map { rows -> rows.map { it.toDomain() } }
 

@@ -42,6 +42,8 @@ data class AccountDetailUiState(
     val accountsById: Map<Long, Account> = emptyMap(),
     /** Each transfer's two accounts by transferId. */
     val transferPairs: Map<String, TransferPair> = emptyMap(),
+    /** At least two active accounts exist, so a transfer can be made. */
+    val canTransfer: Boolean = false,
     val isLoading: Boolean = true,
 )
 
@@ -80,6 +82,7 @@ class AccountDetailViewModel @Inject constructor(
                 categories = categories.associateBy { it.id },
                 accountsById = accounts.associate { it.account.id to it.account },
                 transferPairs = pairs,
+                canTransfer = accounts.count { !it.account.isArchived } >= 2,
                 isLoading = false,
             )
         }

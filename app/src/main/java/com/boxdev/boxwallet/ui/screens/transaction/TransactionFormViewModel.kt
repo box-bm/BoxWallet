@@ -36,7 +36,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
-import java.math.MathContext
 import java.time.LocalDateTime
 import java.util.Currency
 import javax.inject.Inject
@@ -109,25 +108,16 @@ data class TransactionFormState(
         get() = isValid && accountCurrency != null && (!needsManualRate || manualRateValue != null)
 
     /** Sets the manual rate and recomputes [equivalent] from it. */
-    fun withManualRate(value: String): TransactionFormState {
-        val rate = value.trim().toBigDecimalOrNull()?.takeIf { it.signum() > 0 }
-        val target = accountCurrency
-        val original = money
-        val equivalent = if (rate != null && target != null && original != null) {
-            original.convert(target, rate).toMajor().toPlainString()
-        } else equivalent
-        return copy(manualRate = value, equivalent = equivalent, error = null)
-    }
+    fun withManualRate(value: String): TransactionFormState = copy(
+        manualRate = value,
+        equivalent = ManualConversion.equivalentAt(value, money, accountCurrency) ?: equivalent,
+        error = null,
+    )
 
     /** Sets the equivalent in the account currency and derives the manual rate = equivalent / original. */
     fun withEquivalent(value: String): TransactionFormState {
         val target = accountCurrency ?: return copy(equivalent = value)
-        val converted = parseMajor(value, target)
-        val original = money
-        val rate = if (converted != null && original != null) {
-            converted.toMajor().divide(original.toMajor(), MathContext.DECIMAL64).toPlainString()
-        } else manualRate
-        return copy(equivalent = value, manualRate = rate, error = null)
+        return copy(equivalent = value, manualRate = ManualConversion.rateFor(value, money, target) ?: manualRate, error = null)
     }
 }
 

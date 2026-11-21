@@ -34,6 +34,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Handshake
+import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -57,6 +58,8 @@ import androidx.compose.material3.animateFloatingActionButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 import androidx.compose.runtime.getValue
@@ -148,6 +151,12 @@ fun NavigationTab(
         fabExpanded = false
         navController.navigate(NavRoutes.LoanForm.createRoute()) { launchSingleTop = true }
     }
+    val openTransferForm = {
+        fabExpanded = false
+        navController.navigate(NavRoutes.TransferForm.createRoute()) { launchSingleTop = true }
+    }
+    // A transfer needs two active accounts; with one, the menu stays as it was.
+    val canTransfer by hiltViewModel<TransferAvailabilityViewModel>().canTransfer.collectAsState()
     /** The primary action is contextual: Records adds a movement, Loans adds a loan, Home asks. */
     val primaryAction: ((Boolean) -> Unit) = { checked ->
         when (currentRoute) {
@@ -251,6 +260,13 @@ fun NavigationTab(
                                             leadingIcon = { Icon(Icons.Outlined.Handshake, contentDescription = null) },
                                             onClick = openLoanForm,
                                         )
+                                        if (canTransfer) {
+                                            DropdownMenuItem(
+                                                text = { Text(stringResource(R.string.fab_add_transfer)) },
+                                                leadingIcon = { Icon(Icons.Outlined.SwapHoriz, contentDescription = null) },
+                                                onClick = openTransferForm,
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -357,6 +373,13 @@ fun NavigationTab(
                                 text = { Text(stringResource(R.string.fab_add_loan)) },
                                 icon = { Icon(Icons.Outlined.Handshake, contentDescription = null) },
                             )
+                            if (canTransfer) {
+                                FloatingActionButtonMenuItem(
+                                    onClick = openTransferForm,
+                                    text = { Text(stringResource(R.string.fab_add_transfer)) },
+                                    icon = { Icon(Icons.Outlined.SwapHoriz, contentDescription = null) },
+                                )
+                            }
                         }
                     }
                 }
