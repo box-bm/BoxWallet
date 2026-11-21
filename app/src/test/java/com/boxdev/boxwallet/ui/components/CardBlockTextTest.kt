@@ -6,6 +6,7 @@ import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.AccountType
 import com.boxdev.boxwallet.domain.model.StatementStatus
 import com.boxdev.boxwallet.domain.model.cardBalance
+import com.boxdev.boxwallet.domain.model.cardSummary
 import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.util.CurrencyFormatter
 import org.junit.Assert.assertEquals
@@ -66,5 +67,20 @@ class CardBlockTextTest {
         assertEquals("transfer_form?from=5&to=3", payRoute(card, balance(null), payer = 5))
         assertEquals("transfer_form?to=3", payRoute(card, balance(statement(0, debt = 0, noStatementYet = true)), payer = null))
         assertEquals("transfer_form?from=5&to=3&receive=1980.00", payRoute(card, balance(statement(1_980_00)), payer = 5))
+    }
+
+    @Test
+    fun dualCardWithoutRateStillHasAUsageBar() {
+        val usd = Currency.getInstance("USD")
+        val limited = card.copy(creditLimitMinor = 10_000_00)
+        val child = card.copy(id = 4, currency = usd, parentAccountId = 3)
+        val summary = cardSummary(
+            limited, cardBalance(limited, Money(-2_500_00, gtq), null), cardBalance(child, Money(-100_00, usd), null),
+            rateSecondToPrimary = null, approximate = false,
+        )
+
+        // No Available without the rate, but the bar (main currency only) shows in the detail as on Home.
+        assertNull(summary.available)
+        assertEquals(0.25f, usageFraction(summary)!!, 0.0001f)
     }
 }

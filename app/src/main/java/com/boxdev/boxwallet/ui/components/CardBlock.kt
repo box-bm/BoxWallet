@@ -2,6 +2,7 @@
 
 package com.boxdev.boxwallet.ui.components
 
+import android.content.res.Configuration
 import android.content.res.Resources
 import android.text.format.DateFormat
 import androidx.compose.foundation.layout.Arrangement
@@ -30,20 +31,29 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.domain.model.Account
+import com.boxdev.boxwallet.domain.model.AccountColor
+import com.boxdev.boxwallet.domain.model.AccountType
 import com.boxdev.boxwallet.domain.model.CardBalance
 import com.boxdev.boxwallet.domain.model.CardSummary
+import com.boxdev.boxwallet.domain.model.StatementStatus
+import com.boxdev.boxwallet.domain.model.cardBalance
+import com.boxdev.boxwallet.domain.model.cardSummary
 import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.ui.navigation.NavRoutes
 import com.boxdev.boxwallet.ui.screens.accounts.AccountBadge
 import com.boxdev.boxwallet.ui.theme.BoxTheme
+import com.boxdev.boxwallet.ui.theme.BoxWalletTheme
 import com.boxdev.boxwallet.util.CurrencyFormatter
 import com.boxdev.boxwallet.util.rememberCurrencyFormatter
+import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.util.Currency
 import java.util.Locale
 
 /** What is left to pay of [balance]'s statement; null without a statement (or before the first one) or when paid. */
@@ -99,7 +109,7 @@ fun CardUsageBar(fraction: Float, modifier: Modifier = Modifier, height: Dp = 4.
 }
 
 /**
- * A card's detail block in place of the balance hero: used and available (with the limit bar), then each
+ * A card's detail block in place of the balance hero: used, the limit bar and available, then each
  * currency's credit balance, statement line, Pay and Adjust. [tags] and [actions] fill the shared rows.
  * Without [onPay] (an archived card) there is no Pay button.
  */
@@ -128,16 +138,20 @@ fun CardBlock(
                     summary.second?.let { AmountText(amount = it.usedMoney, style = BoxTheme.moneyType.small) }
                 }
             }
-            summary.available?.let { available ->
+            // The bar shows whenever there is a limit, as on Home and the accounts list; Available needs the rate.
+            val fraction = usageFraction(summary)
+            if (fraction != null || summary.available != null) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    usageFraction(summary)?.let { CardUsageBar(it, height = 8.dp) }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Label(stringResource(R.string.card_available), Modifier.weight(1f))
-                        Text(
-                            (if (summary.availableApproximate) "≈ " else "") + formatter.format(available),
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 1,
-                        )
+                    fraction?.let { CardUsageBar(it, height = 8.dp) }
+                    summary.available?.let { available ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Label(stringResource(R.string.card_available), Modifier.weight(1f))
+                            Text(
+                                (if (summary.availableApproximate) "≈ " else "") + formatter.format(available),
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 1,
+                            )
+                        }
                     }
                 }
             }
@@ -204,3 +218,49 @@ private fun CurrencySection(
 private fun Label(text: String, modifier: Modifier = Modifier) {
     Text(text, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = modifier)
 }
+
+@Composable
+private fun CardBlockPreviewContent(paid: Boolean) {
+    BoxWalletTheme(dynamicColor = false) {
+        Surface(color = MaterialTheme.colorScheme.surface) {
+            val gtq = Currency.getInstance("GTQ")
+            val usd = Currency.getInstance("USD")
+            val card = Account(
+                id = 1, name = "Visa BAC", type = AccountType.CREDIT_CARD, currency = gtq, createdAt = 0,
+                color = AccountColor.PINK, icon = "CreditCard",
+                creditLimitMinor = 15_000_00, statementClosingDay = 20, paymentDueDay = 5,
+            )
+            val child = card.copy(id = 2, currency = usd, parentAccountId = 1, creditLimitMinor = null)
+            fun statement(debt: Long) = StatementStatus(
+                lastClosing = LocalDate.of(2026, 11, 20),
+                dueDate = LocalDate.of(2026, 12, 5),
+                statementDebtMinor = debt,
+                paidSinceMinor = if (paid) debt else 0,
+                toPayMinor = if (paid) 0 else debt,
+                noStatementYet = false,
+            )
+            CardBlock(
+                summary = cardSummary(
+                    card,
+                    cardBalance(card, Money(if (paid) -420_50 else -2_500_00, gtq), statement(1_980_00)),
+                    cardBalance(child, Money(if (paid) 0 else -120_00, usd), statement(120_00)),
+                    BigDecimal("7.75"),
+                    approximate = false,
+                ),
+                onPay = {},
+                onAdjust = {},
+                tags = {},
+                actions = {},
+                modifier = Modifier.padding(16.dp),
+            )
+        }
+    }
+}
+
+@Preview(name = "Dual currency, statement due", widthDp = 411)
+@Composable
+private fun CardBlockDualPreview() = CardBlockPreviewContent(paid = false)
+
+@Preview(name = "Statement paid", widthDp = 411, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+private fun CardBlockPaidPreview() = CardBlockPreviewContent(paid = true)
