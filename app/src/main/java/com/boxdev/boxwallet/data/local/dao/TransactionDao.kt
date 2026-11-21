@@ -69,7 +69,8 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE accountId = :accountId AND loanId IS NULL ORDER BY date DESC")
     fun observeByAccount(accountId: Long): Flow<List<TransactionEntity>>
 
-    @Query("SELECT * FROM transactions WHERE loanId IS NULL ORDER BY date DESC LIMIT :limit")
+    /** Newest movements for Home; a transfer counts once, by its TRANSFER_OUT row. */
+    @Query("SELECT * FROM transactions WHERE loanId IS NULL AND type != 'TRANSFER_IN' ORDER BY date DESC LIMIT :limit")
     fun getLatestTransactions(limit: Int): Flow<List<TransactionEntity>>
 
     @Query("SELECT * FROM transactions WHERE date BETWEEN :startDate AND :endDate AND loanId IS NULL ORDER BY date DESC")

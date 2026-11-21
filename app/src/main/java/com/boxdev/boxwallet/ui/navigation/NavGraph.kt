@@ -202,6 +202,7 @@ fun NavGraph(
                 onNavigateToSearch = onNavigateToSearch,
                 onOpenAccount = { navController.navigate(NavRoutes.AccountDetail.createRoute(it)) { launchSingleTop = true } },
                 onSeeAccounts = { navController.navigate(NavRoutes.Accounts.route) { launchSingleTop = true } },
+                onOpenTransfer = {},
             )
         }
 
@@ -209,6 +210,7 @@ fun NavGraph(
             TransactionsListScreen(
                 onEditTransaction = onEditTransaction,
                 onNavigateToSearch = onNavigateToSearch,
+                onOpenTransfer = {},
             )
         }
 
@@ -261,6 +263,7 @@ fun NavGraph(
                 onNavigateBack = { navController.popBackStack() },
                 onOpenTransaction = onEditTransaction,
                 onOpenLoan = openLoan,
+                onOpenTransfer = {},
             )
         }
 
@@ -308,6 +311,7 @@ fun NavGraph(
                 onEditAccount = onEditAccount,
                 onEditTransaction = onEditTransaction,
                 onSeeInMovements = { navController.switchToTab(NavRoutes.TransactionsList.route) },
+                onOpenTransfer = {},
             )
         }
 
@@ -330,6 +334,7 @@ fun NavGraph(
                     onEditTransaction = onEditTransaction,
                     onSeeInMovements = { navController.switchToTab(NavRoutes.TransactionsList.route) },
                     onDeleted = { entry.ifResumed { navController.popBackStack() } },
+                    onOpenTransfer = {},
                 )
             }
         }

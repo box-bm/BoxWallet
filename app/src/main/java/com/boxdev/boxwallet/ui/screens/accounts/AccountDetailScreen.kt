@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.data.local.entity.isAdjustment
+import com.boxdev.boxwallet.data.local.entity.isTransfer
 import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.AccountColor
 import com.boxdev.boxwallet.domain.model.AccountType
@@ -68,6 +69,7 @@ import com.boxdev.boxwallet.domain.model.AccountWithBalance
 import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.ui.components.AdjustmentDeleteDialog
+import com.boxdev.boxwallet.ui.components.transferTitle
 import com.boxdev.boxwallet.ui.components.AmountText
 import com.boxdev.boxwallet.ui.components.BackButton
 import com.boxdev.boxwallet.ui.components.ConfirmDeleteDialog
@@ -93,6 +95,7 @@ fun AccountDetailScreen(
     /** Switches to the Movements tab, which the view model has already asked to filter by this account. */
     onSeeInMovements: () -> Unit,
     onDeleted: () -> Unit,
+    onOpenTransfer: (Long) -> Unit = {},
     accountId: Long? = null,
     viewModel: AccountDetailViewModel = hiltViewModel(key = accountId?.let { "account_detail_$it" }),
 ) {
@@ -153,12 +156,19 @@ fun AccountDetailScreen(
                 isDefault = uiState.isDefault,
                 movements = uiState.movements,
                 categories = uiState.categories,
+                transferTitleOf = { tx -> tx.transferId?.let { transferTitle(uiState.transferPairs[it], uiState.accountsById) } },
                 onAdjust = { showAdjust = true },
                 onEdit = { onEditAccount(item.account.id) },
                 onSetDefault = viewModel::setDefault,
                 onArchive = { viewModel.setArchived(!item.account.isArchived) },
                 onDelete = viewModel::requestDelete,
-                onOpenMovement = { tx -> if (tx.type.isAdjustment) pendingAdjustment = tx else onEditTransaction(tx.id) },
+                onOpenMovement = { tx ->
+                    when {
+                        tx.type.isAdjustment -> pendingAdjustment = tx
+                        tx.type.isTransfer -> onOpenTransfer(tx.id)
+                        else -> onEditTransaction(tx.id)
+                    }
+                },
                 onSeeInMovements = { viewModel.seeInMovements(); onSeeInMovements() },
                 modifier = Modifier.padding(padding),
             )
@@ -195,6 +205,7 @@ private fun AccountDetailContent(
     isDefault: Boolean,
     movements: List<Transaction>,
     categories: Map<Long, com.boxdev.boxwallet.domain.model.Category>,
+    transferTitleOf: (Transaction) -> String?,
     onAdjust: () -> Unit,
     onEdit: () -> Unit,
     onSetDefault: () -> Unit,
@@ -273,6 +284,9 @@ private fun AccountDetailContent(
                 category = tx.categoryId?.let(categories::get),
                 index = index,
                 count = movements.size,
+                transferTitle = transferTitleOf(tx),
+                // Only this account's movements: a transfer reads as money in or out of it.
+                signedTransfer = true,
                 onClick = { onOpenMovement(tx) },
             )
         }
@@ -330,6 +344,7 @@ private fun AccountDetailPreviewContent() {
                 isDefault = false,
                 movements = emptyList(),
                 categories = emptyMap(),
+                transferTitleOf = { null },
                 onAdjust = {}, onEdit = {}, onSetDefault = {}, onArchive = {}, onDelete = {}, onOpenMovement = {}, onSeeInMovements = {},
             )
         }

@@ -59,6 +59,7 @@ import androidx.compose.runtime.mutableStateOf
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.ui.components.AdjustmentDeleteDialog
 import com.boxdev.boxwallet.data.local.entity.isAdjustment
+import com.boxdev.boxwallet.data.local.entity.isTransfer
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -79,6 +80,7 @@ import com.boxdev.boxwallet.ui.components.CategoryBadge
 import com.boxdev.boxwallet.ui.components.EmptyState
 import com.boxdev.boxwallet.ui.components.LoanCard
 import com.boxdev.boxwallet.ui.components.TransactionItem
+import com.boxdev.boxwallet.ui.components.transferTitle
 import com.boxdev.boxwallet.ui.components.readableWidth
 
 /**
@@ -90,6 +92,7 @@ fun SearchScreen(
     onNavigateBack: () -> Unit,
     onOpenTransaction: (Long) -> Unit,
     onOpenLoan: (Long) -> Unit,
+    onOpenTransfer: (Long) -> Unit = {},
     viewModel: SearchViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -214,8 +217,15 @@ fun SearchScreen(
                                 index = index,
                                 count = list.size,
                                 showDate = true,
+                                transferTitle = transaction.transferId?.let {
+                                    transferTitle(uiState.transferPairs[it], uiState.accountsById)
+                                },
                                 onClick = {
-                                    if (transaction.type.isAdjustment) pendingAdjustment = transaction else onOpenTransaction(transaction.id)
+                                    when {
+                                        transaction.type.isAdjustment -> pendingAdjustment = transaction
+                                        transaction.type.isTransfer -> onOpenTransfer(transaction.id)
+                                        else -> onOpenTransaction(transaction.id)
+                                    }
                                 },
                                 modifier = Modifier
                                     .padding(bottom = ListItemDefaults.SegmentedGap)

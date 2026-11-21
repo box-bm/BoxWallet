@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -29,6 +30,7 @@ import com.boxdev.boxwallet.util.DateFormats
 import com.boxdev.boxwallet.util.rememberCurrencyFormatter
 import com.boxdev.boxwallet.data.local.entity.isAdjustment
 import com.boxdev.boxwallet.data.local.entity.isInflow
+import com.boxdev.boxwallet.data.local.entity.isTransfer
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.ui.theme.BoxTheme
@@ -36,6 +38,9 @@ import com.boxdev.boxwallet.ui.theme.BoxTheme
 /**
  * One movement in a connected list group. [index] / [count] give the group position so the
  * outer corners round and the inner ones stay tight.
+ *
+ * A transfer row is titled [transferTitle] ("<from> → <to>") when it has no note, and shows its
+ * amount in its own account's currency, signed only when [signedTransfer] (a list scoped to one account).
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -49,12 +54,16 @@ fun TransactionItem(
     containerColor: Color = BoxTheme.cardColor,
     onClick: () -> Unit = {},
     onLongClick: (() -> Unit)? = null,
+    transferTitle: String? = null,
+    signedTransfer: Boolean = false,
 ) {
     val isAdjustment = transaction.type.isAdjustment
+    val isTransfer = transaction.type.isTransfer
+    val isNeutral = isAdjustment || isTransfer
     val isIncome = transaction.type.isInflow
     val kind = amountKind(isIncome)
-    // An adjustment only corrects the balance, so it stays neutral instead of reading as income or expense.
-    val (badgeContainer, badgeContent) = if (isAdjustment) {
+    // Adjustments and transfers only move money around, so they stay neutral instead of reading as income or expense.
+    val (badgeContainer, badgeContent) = if (isNeutral) {
         MaterialTheme.colorScheme.surfaceContainerHighest to MaterialTheme.colorScheme.onSurfaceVariant
     } else directionColors(isIncome)
     val interaction = remember { MutableInteractionSource() }
@@ -64,6 +73,7 @@ fun TransactionItem(
     val title = transaction.description.ifBlank {
         when {
             isAdjustment -> stringResource(R.string.transaction_adjustment)
+            isTransfer -> transferTitle ?: stringResource(R.string.transaction_transfer)
             else -> category?.name ?: stringResource(if (isIncome) R.string.transaction_type_income else R.string.transaction_type_expense)
         }
     }
@@ -78,7 +88,11 @@ fun TransactionItem(
         leadingContent = {
             CategoryBadge(
                 category = category,
-                fallbackIcon = if (isAdjustment) Icons.Outlined.Tune else trendIcon(isIncome),
+                fallbackIcon = when {
+                    isAdjustment -> Icons.Outlined.Tune
+                    isTransfer -> Icons.Outlined.SwapHoriz
+                    else -> trendIcon(isIncome)
+                },
                 fallbackContainer = badgeContainer,
                 fallbackContent = badgeContent,
                 interactionSource = interaction,
@@ -124,12 +138,15 @@ fun TransactionItem(
         },
         trailingContent = {
             val formatter = rememberCurrencyFormatter()
-            val equivalent = formatter.withEquivalent(transaction.original, transaction.amount).second
+            // A transfer reads in the currency of the account its row belongs to.
+            val shown = if (isTransfer) transaction.accountAmount else transaction.original
+            val equivalent = formatter.withEquivalent(shown, transaction.amount).second
             Column(horizontalAlignment = Alignment.End) {
                 AmountText(
-                    amount = transaction.original,
+                    amount = shown,
                     kind = kind,
-                    color = if (isAdjustment) MaterialTheme.colorScheme.onSurfaceVariant else kind.color(),
+                    signed = !isTransfer || signedTransfer,
+                    color = if (isNeutral) MaterialTheme.colorScheme.onSurfaceVariant else kind.color(),
                 )
                 if (equivalent != null) EquivalentText(equivalent)
             }

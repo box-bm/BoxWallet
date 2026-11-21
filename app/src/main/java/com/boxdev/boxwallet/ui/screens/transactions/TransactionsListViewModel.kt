@@ -6,9 +6,11 @@ import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.TransactionRepository
+import com.boxdev.boxwallet.data.repository.TransferRepository
 import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Transaction
+import com.boxdev.boxwallet.domain.model.TransferPair
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -41,6 +43,8 @@ data class TransactionsListUiState(
     val availableCategories: List<Category> = emptyList(),
     /** Every account, archived included, so a filter on an archived one still shows its name. */
     val accounts: List<Account> = emptyList(),
+    /** Each transfer's two accounts by transferId, for the "<from> → <to>" title. */
+    val transferPairs: Map<String, TransferPair> = emptyMap(),
     val isLoading: Boolean = true,
     val filterState: TransactionsFilterState = TransactionsFilterState()
 )
@@ -50,6 +54,7 @@ class TransactionsListViewModel @Inject constructor(
     private val repository: TransactionRepository,
     private val categoryRepository: CategoryRepository,
     accountRepository: AccountRepository,
+    transferRepository: TransferRepository,
     private val filterRequest: MovementsFilterRequest,
 ) : ViewModel() {
 
@@ -59,13 +64,15 @@ class TransactionsListViewModel @Inject constructor(
         repository.getAllTransactions(),
         categoryRepository.getAllCategories(),
         accountRepository.observeAll(),
+        transferRepository.observePairs(),
         filterState,
-    ) { transactions, categories, accounts, filter ->
+    ) { transactions, categories, accounts, pairs, filter ->
         TransactionsListUiState(
             transactions = transactions,
             filteredTransactions = applyFilters(transactions, filter),
             availableCategories = categories,
             accounts = accounts,
+            transferPairs = pairs,
             isLoading = false,
             filterState = filter,
         )
@@ -103,6 +110,8 @@ class TransactionsListViewModel @Inject constructor(
     private fun applyFilters(transactions: List<Transaction>, f: TransactionsFilterState): List<Transaction> {
         val filtered = transactions.filter { tx ->
             val date = tx.date.toLocalDate()
+            // Unscoped, a transfer is one row: its OUT leg. Scoped to an account, that account's own leg.
+            (f.accountId != null || tx.type != TransactionType.TRANSFER_IN) &&
             when (f.transactionType) {
                 TransactionTypeFilter.INCOME -> tx.type == TransactionType.INCOME
                 TransactionTypeFilter.EXPENSE -> tx.type == TransactionType.EXPENSE
