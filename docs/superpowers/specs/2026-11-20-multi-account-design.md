@@ -157,7 +157,7 @@ Se eligió **A** porque la base multimoneda ya resolvió montos y tasas por fila
 | `icon` | TEXT NOT NULL DEFAULT 'AccountBalance' | Nombre de un set cerrado de íconos (como `CategoryIcons`) |
 | `color` | TEXT NOT NULL DEFAULT 'DEFAULT' | Clave de una paleta cerrada con variante clara/oscura, no un ARGB libre (respeta `DESIGN.md` y el tema dinámico) |
 | `includeInTotal` | INTEGER NOT NULL DEFAULT 1 | |
-| `parentAccountId` | INTEGER NULL | FK → `accounts` (RESTRICT), índice. Solo la subcuenta de segunda moneda de una tarjeta |
+| `parentAccountId` | INTEGER NULL | Índice, sin FK de SQLite (agregarla obligaría a recrear `accounts` en la migración); la integridad la valida el repositorio. Solo la subcuenta de segunda moneda de una tarjeta |
 | `creditLimitMinor` | INTEGER NULL | Solo tarjetas (padre); en la moneda del padre |
 | `statementClosingDay` | INTEGER NULL | 1–31 |
 | `paymentDueDay` | INTEGER NULL | 1–31 |
