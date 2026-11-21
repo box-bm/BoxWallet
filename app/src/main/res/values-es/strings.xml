@@ -668,6 +668,7 @@
     <string name="transactions_filter_account">Cuenta</string>
     <string name="transactions_filter_account_remove">Quitar el filtro de la cuenta %1$s</string>
     <string name="account_see_in_movements">Ver en Movimientos</string>
+    <string name="card_reminder_text">%1$s: paga %2$s antes del %3$s</string>
     <string name="card_statement_due">Este corte: %1$s · pagar antes del %2$s</string>
     <string name="card_statement_paid">Corte pagado ✓</string>
     <string name="card_no_statement_yet">Aún no hay corte</string>
