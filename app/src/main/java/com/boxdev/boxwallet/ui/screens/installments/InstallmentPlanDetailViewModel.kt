@@ -39,10 +39,18 @@ data class InstallmentPlanDetailUiState(
     val debtDrop: Money? get() = plan?.let { p ->
         Money(installments.filter { it.charged }.sumOf { it.installment.accountAmount.minor }, p.accountTotal.currency)
     }
+
+    /** What deleting the plan frees of the card's credit: the installments still to be charged. */
+    val creditFreed: Money? get() = plan?.let { p ->
+        Money(installments.filterNot { it.charged }.sumOf { it.installment.accountAmount.minor }, p.accountTotal.currency)
+    }
 }
 
-/** What the delete confirmation states: how many installments go, and how much the card's debt drops. */
-data class PlanDeleteConfirmation(val installments: Int, val debtDrop: Money)
+/**
+ * What the delete confirmation states: how many installments go, how much the card's debt drops
+ * (the charged ones) and how much credit is freed (the pending ones).
+ */
+data class PlanDeleteConfirmation(val installments: Int, val debtDrop: Money, val creditFreed: Money)
 
 /** A visacuotas purchase: its installments, its description and category (the only editable parts) and its delete. */
 @HiltViewModel
@@ -93,7 +101,7 @@ class InstallmentPlanDetailViewModel @Inject constructor(
     fun requestDelete() {
         val state = uiState.value
         val plan = state.plan ?: return
-        _confirmDelete.value = PlanDeleteConfirmation(plan.installments, state.debtDrop ?: return)
+        _confirmDelete.value = PlanDeleteConfirmation(plan.installments, state.debtDrop ?: return, state.creditFreed ?: return)
     }
 
     fun dismissDelete() {

@@ -691,7 +691,7 @@
     <string name="installments_hide_finished">Ocultar terminadas</string>
     <string name="installment_charged">Cobrada</string>
     <string name="installment_pending">Por cobrar</string>
-    <string name="installment_delete_confirm">¿Eliminar esta compra y sus %1$d cuotas? La deuda de la tarjeta baja %2$s.</string>
+    <string name="installment_delete_confirm">¿Eliminar esta compra y sus %1$d cuotas? La deuda de la tarjeta baja %2$s y se liberan %3$s de crédito.</string>
     <string name="installment_plan_title">Compra a cuotas</string>
     <string name="installment_plan_not_found">Esta compra ya no existe</string>
     <string name="installment_plan_edit">Editar compra</string>

@@ -187,12 +187,14 @@ fun InstallmentPlanDetailScreen(
         )
     }
     confirmDelete?.let { confirmation ->
+        val formatter = rememberCurrencyFormatter()
         ConfirmDeleteDialog(
             title = stringResource(R.string.installment_plan_delete),
             message = stringResource(
                 R.string.installment_delete_confirm,
                 confirmation.installments,
-                rememberCurrencyFormatter().format(confirmation.debtDrop),
+                formatter.format(confirmation.debtDrop),
+                formatter.format(confirmation.creditFreed),
             ),
             onConfirm = viewModel::delete,
             onDismiss = viewModel::dismissDelete,

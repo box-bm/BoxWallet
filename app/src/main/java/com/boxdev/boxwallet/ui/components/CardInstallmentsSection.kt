@@ -38,7 +38,8 @@ import java.time.LocalDateTime
 import java.util.Currency
 
 /**
- * A card's installment purchases under its statement, as one connected group. Finished plans fold away
+ * A card's installment purchases under its statement, as one connected group; the header shows what is
+ * still to be charged (spec 5.3). Finished plans fold away
  * behind "Show finished"; nothing shows without any plan. Tapping a plan opens its detail.
  */
 @Composable
@@ -52,9 +53,17 @@ fun CardInstallmentsSection(
     var showFinished by rememberSaveable { mutableStateOf(false) }
     val hasFinished = plans.any { it.isFinished }
     val shown = if (showFinished) plans else plans.filterNot { it.isFinished }
+    val formatter = rememberCurrencyFormatter()
+    // What is still to be charged, per currency (the card's and its second one's).
+    val pending = plans.filter { it.pendingMinor > 0 }
+        .groupBy { it.accountTotal.currency }
+        .map { (currency, rows) -> formatter.format(Money(rows.sumOf { it.pendingMinor }, currency)) }
+        .takeIf { it.isNotEmpty() }
+        ?.joinToString(" + ")
     Column(modifier) {
         SectionHeader(
             title = stringResource(R.string.card_installments_title),
+            trailing = pending,
             actionLabel = if (hasFinished) {
                 stringResource(if (showFinished) R.string.installments_hide_finished else R.string.installments_show_finished)
             } else null,

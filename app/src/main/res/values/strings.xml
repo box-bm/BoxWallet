@@ -704,7 +704,7 @@
     <string name="installments_hide_finished">Hide finished</string>
     <string name="installment_charged">Charged</string>
     <string name="installment_pending">Pending</string>
-    <string name="installment_delete_confirm">Delete this purchase and its %1$d installments? The card\'s debt drops by %2$s.</string>
+    <string name="installment_delete_confirm">Delete this purchase and its %1$d installments? The card\'s debt drops by %2$s and %3$s of credit is freed.</string>
     <string name="installment_plan_title">Installment purchase</string>
     <string name="installment_plan_not_found">This purchase no longer exists</string>
     <string name="installment_plan_edit">Edit purchase</string>

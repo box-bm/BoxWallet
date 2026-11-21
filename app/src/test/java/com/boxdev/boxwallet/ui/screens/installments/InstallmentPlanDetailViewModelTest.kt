@@ -132,7 +132,7 @@ class InstallmentPlanDetailViewModelTest {
     }
 
     @Test
-    fun `delete reports the charged amount`() = runTest {
+    fun `delete reports the charged amount and the credit freed`() = runTest {
         val vm = vm()
         backgroundScope.launch { vm.uiState.collect {} }
         vm.uiState.first { !it.isLoading && it.installments.size == 3 }
@@ -141,6 +141,7 @@ class InstallmentPlanDetailViewModelTest {
         val confirmation = vm.confirmDelete.value!!
         assertEquals(3, confirmation.installments)
         assertEquals(Money(66_666, gtq), confirmation.debtDrop)
+        assertEquals(Money(33_334, gtq), confirmation.creditFreed)
 
         vm.delete()
 

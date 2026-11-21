@@ -130,4 +130,33 @@ class CardSummaryTest {
 
         assertNull(summary.pendingInstallments)
     }
+
+    @Test
+    fun secondPendingWithoutRateStillShowsPrimaryPending() {
+        val card = card(limitMinor = 500000)
+        val summary = cardSummary(
+            card,
+            cardBalance(card, Money(0, gtq), null, pendingInstallmentsMinor = 20000),
+            cardBalance(child, Money(0, usd), null, pendingInstallmentsMinor = 10000),
+            null,
+            approximate = false,
+        )
+
+        assertNull(summary.available)
+        assertEquals(Money(20000, gtq), summary.pendingInstallments)
+    }
+
+    @Test
+    fun onlySecondPendingWithoutRateShowsNothing() {
+        val card = card(limitMinor = 500000)
+        val summary = cardSummary(
+            card,
+            cardBalance(card, Money(0, gtq), null),
+            cardBalance(child, Money(0, usd), null, pendingInstallmentsMinor = 10000),
+            null,
+            approximate = false,
+        )
+
+        assertNull(summary.pendingInstallments)
+    }
 }

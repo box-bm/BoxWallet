@@ -262,6 +262,8 @@ fun SectionHeader(
     modifier: Modifier = Modifier,
     actionLabel: String? = null,
     onAction: () -> Unit = {},
+    /** A short figure beside the title, such as a total. */
+    trailing: String? = null,
 ) {
     Row(
         modifier = modifier
@@ -278,6 +280,14 @@ fun SectionHeader(
                 .weight(1f)
                 .semantics { heading() },
         )
+        if (trailing != null) {
+            Text(
+                text = trailing,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 8.dp, end = if (actionLabel == null) 4.dp else 0.dp),
+            )
+        }
         if (actionLabel != null) {
             TextButton(onClick = onAction) { Text(actionLabel) }
         }

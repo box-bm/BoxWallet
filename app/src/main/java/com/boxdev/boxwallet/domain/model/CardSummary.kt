@@ -32,8 +32,8 @@ data class CardSummary(
     /** The second currency was converted at an approximate rate. */
     val availableApproximate: Boolean,
     /**
-     * Pending installments in the card's currency (the second currency's converted); null when none, or when the
-     * second currency has some but no rate.
+     * Pending installments in the card's currency (the second currency's converted); null when none. Without a
+     * rate for the second currency, only the card currency's part (null when that part is zero).
      */
     val pendingInstallments: Money? = null,
 )
@@ -72,7 +72,8 @@ fun cardSummary(
     val pendingSecond = second?.let { Money(it.pendingInstallmentsMinor, it.balance.currency) }
     val pending = when {
         pendingSecond == null || pendingSecond.minor == 0L -> primary.pendingInstallmentsMinor
-        rateSecondToPrimary == null -> null
+        // Without a rate the second currency's part can't be added; the known part still shows.
+        rateSecondToPrimary == null -> primary.pendingInstallmentsMinor
         else -> primary.pendingInstallmentsMinor + pendingSecond.convert(card.currency, rateSecondToPrimary).minor
     }
     return CardSummary(
