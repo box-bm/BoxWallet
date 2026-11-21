@@ -75,7 +75,7 @@ class TransactionRepositoryTest {
         val amounts = TransactionAmounts(ExchangeRateResolver(lookup) { LocalDate.of(2026, 11, 7) })
         repository = TransactionRepository(
             db.transactionDao(),
-            AccountRepository(db.accountDao(), prefs, context),
+            AccountRepository(db.accountDao(), prefs, lookup, context),
             prefs,
             context,
             amounts,

@@ -1,5 +1,8 @@
 package com.boxdev.boxwallet.ui.screens.onboarding
 
+import java.time.LocalDate
+import java.math.BigDecimal
+import com.boxdev.boxwallet.domain.money.RateLookup
 import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -46,7 +49,15 @@ class OnboardingViewModelTest {
         )
         vm = OnboardingViewModel(
             prefs, GoogleAuthManager(context), GoogleDriveManager(context), backup,
-            AccountRepository(db.accountDao(), prefs, context),
+            AccountRepository(
+                db.accountDao(), prefs,
+                object : RateLookup {
+                    override suspend fun exact(day: LocalDate, code: String): BigDecimal? = null
+                    override suspend fun nearest(day: LocalDate, code: String): BigDecimal? = null
+                    override suspend fun download(day: LocalDate) = false
+                },
+                context,
+            ),
         )
         vm.overrideCurrency(eur)
     }
