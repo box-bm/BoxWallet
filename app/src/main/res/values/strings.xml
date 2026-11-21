@@ -711,4 +711,7 @@
     <string name="installment_plan_delete">Delete purchase</string>
     <string name="installment_plan_bought_on">Bought on %1$s</string>
     <string name="installment_plan_number">Installment %1$d/%2$d</string>
+    <string name="installment_plan_installments">Installments</string>
+    <string name="installment_plan_error_save">Couldn\'t save the purchase. Try again.</string>
+    <string name="installment_plan_error_delete">Couldn\'t delete the purchase. Try again.</string>
 </resources>

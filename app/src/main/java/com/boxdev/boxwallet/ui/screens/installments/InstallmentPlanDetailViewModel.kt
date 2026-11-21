@@ -1,8 +1,10 @@
 package com.boxdev.boxwallet.ui.screens.installments
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.InstallmentPlanRepository
 import com.boxdev.boxwallet.domain.model.Category
@@ -11,6 +13,7 @@ import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.util.CurrentDay
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -74,9 +77,17 @@ class InstallmentPlanDetailViewModel @Inject constructor(
     /** True once the plan is gone, so the screen can leave. */
     val deleted: StateFlow<Boolean> = _deleted.asStateFlow()
 
+    /** A one-off message for the snackbar; cleared with [messageShown]. */
+    private val _message = MutableStateFlow<Int?>(null)
+    val message: StateFlow<Int?> = _message.asStateFlow()
+
+    fun messageShown() {
+        _message.value = null
+    }
+
     /** Changes the description and category of the plan and every installment. */
-    fun save(description: String, categoryId: Long?) {
-        viewModelScope.launch { repository.updateDetails(planId, description.trim(), categoryId) }
+    fun save(description: String, categoryId: Long?) = attempt(R.string.installment_plan_error_save) {
+        repository.updateDetails(planId, description.trim(), categoryId)
     }
 
     fun requestDelete() {
@@ -92,9 +103,22 @@ class InstallmentPlanDetailViewModel @Inject constructor(
     /** Removes the plan and all its installments, charged ones included. */
     fun delete() {
         _confirmDelete.value = null
-        viewModelScope.launch {
+        attempt(R.string.installment_plan_error_delete) {
             repository.delete(planId)
             _deleted.value = true
+        }
+    }
+
+    /** Runs [action], turning a failure into [error] on the snackbar instead of a crash. */
+    private fun attempt(@StringRes error: Int, action: suspend () -> Unit) {
+        viewModelScope.launch {
+            try {
+                action()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                _message.value = error
+            }
         }
     }
 }

@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.boxdev.boxwallet.data.datastore.UserPreferences
 import com.boxdev.boxwallet.data.local.database.BoxWalletDatabase
 import com.boxdev.boxwallet.data.local.entity.AccountEntity
+import com.boxdev.boxwallet.data.local.entity.InstallmentPlanEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.data.rates.CurrencyChangeLock
 import com.boxdev.boxwallet.data.rates.MovementWriteGuard
@@ -24,6 +25,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -259,5 +261,52 @@ class TransactionRepositoryTest {
         day.value = LocalDate.of(2026, 12, 20)
         assertEquals(100_000L, summaries.getFinancialSummary().first().monthlyExpense)
         assertEquals(2, summaries.getAllTransactions().first().size)
+    }
+
+    /** One installment of a plan, stored directly: only its plan link matters here. */
+    private suspend fun storedInstallment(): Transaction {
+        val planId = db.installmentPlanDao().insert(
+            InstallmentPlanEntity(
+                accountId = accountId, description = "TV", categoryId = null, currencyCode = "USD",
+                originalMinor = 2000, accountTotalMinor = 2000, accountRate = BigDecimal.ONE,
+                accountRateSource = RateSource.AUTO, installments = 2, purchaseDate = 0L,
+            )
+        )
+        return saved(
+            template(ExchangeRate(BigDecimal.ONE, RateSource.AUTO), 1000).copy(
+                description = "TV", isRecurrent = false, recurrenceFrequency = null, recurrenceInterval = null,
+                installmentPlanId = planId, installmentNumber = 1,
+            )
+        )
+    }
+
+    private suspend fun assertRejected(block: suspend () -> Unit) {
+        try {
+            block()
+            fail("Expected IllegalArgumentException")
+        } catch (_: IllegalArgumentException) {
+        }
+    }
+
+    @Test
+    fun `a single installment of a plan cannot be updated`() = runTest {
+        val installment = storedInstallment()
+        val before = db.transactionDao().getById(installment.id)
+
+        assertRejected { repository.updateTransaction(installment.copy(description = "Other")) }
+        // Dropping the plan link from the incoming row doesn't get around it: the stored row decides too.
+        assertRejected { repository.updateTransaction(installment.copy(description = "Other", installmentPlanId = null)) }
+
+        assertEquals(before, db.transactionDao().getById(installment.id))
+    }
+
+    @Test
+    fun `a single installment of a plan cannot be deleted`() = runTest {
+        val installment = storedInstallment()
+        val before = db.transactionDao().getById(installment.id)
+
+        assertRejected { repository.deleteTransaction(installment.id) }
+
+        assertEquals(before, db.transactionDao().getById(installment.id))
     }
 }

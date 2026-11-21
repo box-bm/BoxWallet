@@ -698,4 +698,7 @@
     <string name="installment_plan_delete">Eliminar compra</string>
     <string name="installment_plan_bought_on">Comprada el %1$s</string>
     <string name="installment_plan_number">Cuota %1$d/%2$d</string>
+    <string name="installment_plan_installments">Cuotas</string>
+    <string name="installment_plan_error_save">No se pudo guardar la compra. Inténtalo de nuevo.</string>
+    <string name="installment_plan_error_delete">No se pudo eliminar la compra. Inténtalo de nuevo.</string>
 </resources>

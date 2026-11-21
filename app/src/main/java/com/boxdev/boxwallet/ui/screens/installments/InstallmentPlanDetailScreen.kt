@@ -43,6 +43,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -64,6 +66,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
@@ -108,6 +111,15 @@ fun InstallmentPlanDetailScreen(
     val uiState by viewModel.uiState.collectAsState()
     val confirmDelete by viewModel.confirmDelete.collectAsState()
     val deleted by viewModel.deleted.collectAsState()
+    val message by viewModel.message.collectAsState()
+    val snackbar = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    LaunchedEffect(message) {
+        message?.let {
+            snackbar.showSnackbar(context.getString(it))
+            viewModel.messageShown()
+        }
+    }
     val currentOnDeleted by rememberUpdatedState(onDeleted)
     var editing by rememberSaveable { mutableStateOf(false) }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
@@ -118,6 +130,7 @@ fun InstallmentPlanDetailScreen(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             LargeFlexibleTopAppBar(
                 scrollBehavior = scrollBehavior,
@@ -202,7 +215,7 @@ private fun InstallmentPlanDetailContent(
         item(key = "hero") { PlanHero(plan, category) }
         item(key = "installments_header") {
             SectionHeader(
-                title = stringResource(R.string.loan_installments_section),
+                title = stringResource(R.string.installment_plan_installments),
                 modifier = Modifier.padding(top = 20.dp),
             )
         }

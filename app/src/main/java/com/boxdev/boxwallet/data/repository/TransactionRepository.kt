@@ -68,6 +68,9 @@ class TransactionRepository @Inject constructor(
         require(!transaction.type.isTransfer && transaction.transferId == null && stored?.transferId == null) {
             "Transfer ${transaction.id} must be edited through TransferRepository"
         }
+        require(transaction.installmentPlanId == null && stored?.installmentPlanId == null) {
+            "Installment ${transaction.id} must be changed through its plan"
+        }
         val saved = guard.write { current ->
             current.revalidate(transaction).also { transactionDao.update(it.toEntity()) }
         }
@@ -89,10 +92,12 @@ class TransactionRepository @Inject constructor(
         scheduleOrCancelReminder(saved)
     }
 
-    /** Deleting either leg of a transfer deletes both. */
+    /** Deleting either leg of a transfer deletes both. A plan installment only goes with its plan. */
     suspend fun deleteTransaction(id: Long) {
+        val stored = transactionDao.getById(id)
+        require(stored?.installmentPlanId == null) { "Installment $id must be changed through its plan" }
         ReminderWorker.cancel(context, id)
-        val transferId = transactionDao.getById(id)?.transferId
+        val transferId = stored?.transferId
         if (transferId != null) transactionDao.deleteByTransferId(transferId) else transactionDao.deleteById(id)
     }
 

@@ -268,6 +268,7 @@ fun NavGraph(
                 onOpenLoan = openLoan,
                 onNavigateToLoans = { navController.navigateToTab(NavRoutes.Loans.route) },
                 onNavigateToMovements = { navController.navigateToTab(NavRoutes.TransactionsList.route) },
+                onOpenInstallmentPlan = onOpenInstallmentPlan,
             )
         }
 

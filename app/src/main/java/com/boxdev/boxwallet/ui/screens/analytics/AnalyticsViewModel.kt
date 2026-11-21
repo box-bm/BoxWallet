@@ -8,6 +8,7 @@ import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.data.repository.CategoryRepository
+import com.boxdev.boxwallet.data.repository.InstallmentPlanRepository
 import com.boxdev.boxwallet.data.repository.LoanRepository
 import com.boxdev.boxwallet.data.repository.TransactionRepository
 import com.boxdev.boxwallet.data.datastore.UserPreferences
@@ -155,6 +156,8 @@ data class AnalyticsUiState(
     /** Every movement of the day, newest first (Daily view only). */
     val dayMovements: List<Transaction> = emptyList(),
     val categories: Map<Long, Category> = emptyMap(),
+    /** Each installment plan's installment count by plan id, for a listed installment's "k/N". */
+    val installmentCounts: Map<Long, Int> = emptyMap(),
     /** Null when no installment falls due in the period. */
     val installments: InstallmentSummary? = null,
     val categoryExpenses: List<CategoryExpenseData> = emptyList(),
@@ -181,6 +184,7 @@ class AnalyticsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val analyticsHelper: AnalyticsHelper,
     private val movementsFilter: MovementsFilterRequest,
+    installmentPlanRepository: InstallmentPlanRepository,
 ) : ViewModel() {
 
     private val filterState = MutableStateFlow(FilterState())
@@ -281,6 +285,7 @@ class AnalyticsViewModel @Inject constructor(
         .combine(_exportState) { state, export ->
             state.copy(isExporting = export.isExporting, exportFile = export.file, exportError = export.error)
         }
+        .combine(installmentPlanRepository.observeInstallmentCounts()) { state, counts -> state.copy(installmentCounts = counts) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AnalyticsUiState())
 
     /** Asks the Movements tab to open filtered to [categoryId] in the period on screen; the screen then switches tabs. */

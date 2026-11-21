@@ -144,6 +144,7 @@ fun AnalyticsScreen(
     onOpenLoan: (Long) -> Unit = {},
     onNavigateToLoans: () -> Unit = {},
     onNavigateToMovements: () -> Unit = {},
+    onOpenInstallmentPlan: (Long) -> Unit = {},
     viewModel: AnalyticsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -294,7 +295,11 @@ fun AnalyticsScreen(
                                 count = list.size,
                                 showDate = !daily,
                                 containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                onClick = { onEditTransaction(transaction.id) },
+                                installmentCount = transaction.installmentPlanId?.let(uiState.installmentCounts::get),
+                                onClick = {
+                                    val planId = transaction.installmentPlanId
+                                    if (planId != null) onOpenInstallmentPlan(planId) else onEditTransaction(transaction.id)
+                                },
                                 modifier = Modifier.padding(bottom = ListItemDefaults.SegmentedGap),
                             )
                         }

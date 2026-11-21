@@ -28,6 +28,11 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import com.boxdev.boxwallet.R
+import org.mockito.kotlin.doThrow
+import org.mockito.kotlin.spy
+import org.mockito.kotlin.whenever
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -92,9 +97,9 @@ class InstallmentPlanDetailViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun vm() = InstallmentPlanDetailViewModel(
+    private fun vm(repository: InstallmentPlanRepository = plans) = InstallmentPlanDetailViewModel(
         SavedStateHandle(mapOf("planId" to planId)),
-        plans,
+        repository,
         CategoryRepository(db.categoryDao()),
         CurrentDay(flowOf(today)),
     )
@@ -142,5 +147,31 @@ class InstallmentPlanDetailViewModelTest {
         assertTrue(vm.deleted.first { it })
         assertNull(plans.observePlan(planId).first())
         assertTrue(db.transactionDao().getByPlanId(planId).isEmpty())
+    }
+
+    @Test
+    fun `a failed delete shows a message instead of crashing`() = runTest {
+        val failing = spy(plans)
+        doThrow(IllegalStateException("disk full")).whenever(failing).delete(planId)
+        val vm = vm(failing)
+        backgroundScope.launch { vm.uiState.collect {} }
+        vm.uiState.first { !it.isLoading && it.plan != null }
+
+        vm.delete()
+
+        assertEquals(R.string.installment_plan_error_delete, vm.message.first { it != null })
+        assertFalse(vm.deleted.value)
+    }
+
+    @Test
+    fun `a failed save shows a message instead of crashing`() = runTest {
+        val failing = spy(plans)
+        doThrow(IllegalStateException("disk full")).whenever(failing).updateDetails(planId, "X", null)
+        val vm = vm(failing)
+        backgroundScope.launch { vm.uiState.collect {} }
+
+        vm.save("X", null)
+
+        assertEquals(R.string.installment_plan_error_save, vm.message.first { it != null })
     }
 }

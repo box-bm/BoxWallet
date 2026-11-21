@@ -490,6 +490,8 @@ class TransactionFormViewModel @Inject constructor(
                     description = s.description,
                     loanId = previous?.loanId,
                     installmentNumber = previous?.installmentNumber,
+                    // Kept so the repository refuses to change one installment of a plan on its own.
+                    installmentPlanId = previous?.installmentPlanId,
                     parentRecurrenceId = previous?.parentRecurrenceId,
                     isCleared = s.isCleared,
                     hasReminder = s.hasReminder,
