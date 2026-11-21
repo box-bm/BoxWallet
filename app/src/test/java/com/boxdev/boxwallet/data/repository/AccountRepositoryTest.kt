@@ -20,7 +20,15 @@ import com.boxdev.boxwallet.domain.money.ExchangeRateResolver
 import com.boxdev.boxwallet.domain.money.MissingRateException
 import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.domain.money.TransactionAmounts
+import com.boxdev.boxwallet.util.CurrentDay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -67,13 +75,14 @@ class AccountRepositoryTest {
         runBlocking { prefs.setMainCurrency("USD") }
     }
 
-    private fun repositoryWith(lookup: RateLookup): AccountRepository {
+    private fun repositoryWith(lookup: RateLookup, days: Flow<LocalDate>? = null): AccountRepository {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val amounts = TransactionAmounts(ExchangeRateResolver(lookup) { LocalDate.of(2026, 11, 7) })
         return AccountRepository(
             db.accountDao(), prefs, lookup, context,
             db.transactionDao(), db, amounts,
             MovementWriteGuard(CurrencyChangeLock(), prefs, db.accountDao(), amounts),
+            days?.let(::CurrentDay) ?: CurrentDay(),
         )
     }
 
@@ -418,6 +427,49 @@ class AccountRepositoryTest {
         val rows = repository.observeAccountsWithBalance().first()
         assertEquals(Money(-9000, usd), rows.first { it.account.id == card }.balance)
         assertEquals(Money(0, usd), rows.first { it.account.id == checking }.balance)
+    }
+
+    @Test
+    fun aNewDayRequeriesBalancesWithItsCutoff() = runBlocking {
+        val today = LocalDate.now()
+        val day = MutableStateFlow(today)
+        val repo = repositoryWith(noRates, day)
+        val card = db.accountDao().insert(AccountEntity(name = "Visa", type = "CREDIT_CARD", currencyCode = "USD", createdAt = 0L))
+        move(card, TransactionType.EXPENSE, 500, cleared = false, date = startOfDay(1))
+
+        val balances = Channel<Pair<Long, Long>>(Channel.UNLIMITED)
+        val job = launch(Dispatchers.Default) {
+            combine(repo.observeAccountsWithBalance(), repo.observeCardSummaries()) { rows, cards ->
+                rows.single().balance.minor to cards.getValue(card).primary.balance.minor
+            }.collect { balances.send(it) }
+        }
+        try {
+            withTimeout(5_000) { assertEquals(0L to 0L, balances.receive()) }
+            day.value = today.plusDays(1)
+            // Both flows pick up the movement dated "tomorrow" without re-subscribing (times out otherwise).
+            withTimeout(5_000) { while (balances.receive() != -500L to -500L) Unit }
+        } finally {
+            job.cancel()
+        }
+    }
+
+    @Test
+    fun statementUsesTheSameDayAsTheCutoff() = runTest {
+        val day = LocalDate.of(2026, 3, 10)
+        val repo = repositoryWith(noRates, MutableStateFlow(day))
+        val card = db.accountDao().insert(
+            AccountEntity(
+                name = "Visa", type = "CREDIT_CARD", currencyCode = "USD", createdAt = 0L,
+                statementClosingDay = 15, paymentDueDay = 5,
+            )
+        )
+        val feb1 = LocalDate.of(2026, 2, 1).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+        move(card, TransactionType.EXPENSE, 700, cleared = false, date = feb1)
+
+        val statement = repo.observeCardSummaries().first().getValue(card).primary.statement!!
+        assertEquals(LocalDate.of(2026, 2, 15), statement.lastClosing)
+        assertEquals(LocalDate.of(2026, 3, 5), statement.dueDate)
+        assertEquals(700L, statement.toPayMinor)
     }
 
     private val gtq = Currency.getInstance("GTQ")

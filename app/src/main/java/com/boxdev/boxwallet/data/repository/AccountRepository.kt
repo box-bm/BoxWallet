@@ -35,11 +35,14 @@ import com.boxdev.boxwallet.domain.money.RateLookup
 import com.boxdev.boxwallet.domain.money.RateSource
 import com.boxdev.boxwallet.domain.money.TransactionAmounts
 import com.boxdev.boxwallet.domain.money.withAmounts
+import com.boxdev.boxwallet.util.CurrentDay
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -79,6 +82,7 @@ sealed interface SecondCurrencyChange {
     data object Remove : SecondCurrencyChange
 }
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
 class AccountRepository @Inject constructor(
     private val accountDao: AccountDao,
@@ -89,6 +93,7 @@ class AccountRepository @Inject constructor(
     private val database: BoxWalletDatabase,
     private val amounts: TransactionAmounts,
     private val guard: MovementWriteGuard,
+    private val currentDay: CurrentDay = CurrentDay(),
 ) {
     private val mutex = Mutex()
 
@@ -124,13 +129,20 @@ class AccountRepository @Inject constructor(
     fun observeCurrencies(): Flow<Map<Long, Currency>> =
         accountDao.observeAll().map { rows -> rows.associate { it.id to Currency.getInstance(it.currencyCode) } }
 
-    /** Start of tomorrow as stored dates (local wall-clock as UTC millis): cards count movements before it. */
-    private fun endOfToday(): Long =
-        LocalDate.now().plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+    /** Start of the day after [day] as stored dates (local wall-clock as UTC millis): cards count movements before it. */
+    private fun cutoffAfter(day: LocalDate): Long =
+        day.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
 
-    /** Accounts (by `sortOrder, id`) with their balance (cleared only, except cards); accounts without movements read 0. */
-    fun observeAccountsWithBalance(): Flow<List<AccountWithBalance>> =
-        combine(accountDao.observeAll(), accountDao.observeBalances(endOfToday())) { accounts, balances ->
+    private fun endOfToday(): Long = cutoffAfter(LocalDate.now())
+
+    /**
+     * Accounts (by `sortOrder, id`) with their balance (cleared only, except cards); accounts without movements
+     * read 0. Re-queried when the day changes, so a card's movement dated tomorrow counts from midnight.
+     */
+    fun observeAccountsWithBalance(): Flow<List<AccountWithBalance>> = currentDay.days.flatMapLatest(::accountsWithBalanceOn)
+
+    private fun accountsWithBalanceOn(today: LocalDate): Flow<List<AccountWithBalance>> =
+        combine(accountDao.observeAll(), accountDao.observeBalances(cutoffAfter(today))) { accounts, balances ->
             val byAccount = balances.associate { it.accountId to it.balanceMinor }
             accounts.map {
                 val account = it.toDomain()
@@ -139,28 +151,30 @@ class AccountRepository @Inject constructor(
         }
 
     /** Total in the main currency at today's rates, from local data only (nearest rate as fallback, never downloads). */
-    fun observeTotalBalance(): Flow<TotalBalance> =
-        combine(observeAccountsWithBalance(), userPreferences.mainCurrency) { accounts, main -> accounts to main }
+    fun observeTotalBalance(): Flow<TotalBalance> = currentDay.days.flatMapLatest { today ->
+        combine(accountsWithBalanceOn(today), userPreferences.mainCurrency) { accounts, main -> accounts to main }
             .map { (accounts, main) ->
                 val resolver = ExchangeRateResolver(offline(rates))
-                val today = LocalDate.now()
                 totalBalance(accounts, main) { currency -> resolver.resolve(today, currency, main) }
             }
+    }
 
     /**
      * Each top-level card (archived ones too) by id, with its second currency: balances from the same source
      * as the accounts list, statements when the card has both days, and available converted at today's
-     * offline rate (second → card currency).
+     * offline rate (second → card currency). Recomputed when the day changes.
      */
-    fun observeCardSummaries(): Flow<Map<Long, CardSummary>> {
-        val endOfToday = endOfToday()
+    fun observeCardSummaries(): Flow<Map<Long, CardSummary>> = currentDay.days.flatMapLatest(::cardSummariesOn)
+
+    /** [observeCardSummaries] as of [today]: its cutoff and statement math both use that day. */
+    fun cardSummariesOn(today: LocalDate): Flow<Map<Long, CardSummary>> {
+        val cutoff = cutoffAfter(today)
         return combine(
             accountDao.observeAll(),
-            accountDao.observeBalances(endOfToday),
-            transactionDao.observeCardMovements(endOfToday),
+            accountDao.observeBalances(cutoff),
+            transactionDao.observeCardMovements(cutoff),
         ) { accounts, balances, movements -> Triple(accounts, balances, movements) }
             .map { (entities, balances, movements) ->
-                val today = LocalDate.now()
                 val resolver = ExchangeRateResolver(offline(rates))
                 val balanceOf = balances.associate { it.accountId to it.balanceMinor }
                 val movementsOf = movements.groupBy { it.accountId }
