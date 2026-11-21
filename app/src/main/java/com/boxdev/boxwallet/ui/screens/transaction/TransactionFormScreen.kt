@@ -48,11 +48,11 @@ import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.domain.model.ReminderDuration
+import com.boxdev.boxwallet.domain.model.accountLabel
+import com.boxdev.boxwallet.domain.model.withChildrenAfterParents
 import com.boxdev.boxwallet.domain.money.CurrencyCatalog
 import com.boxdev.boxwallet.domain.money.pickerSections
 import com.boxdev.boxwallet.ui.components.AmountField
-import com.boxdev.boxwallet.ui.components.accountLabel
-import com.boxdev.boxwallet.ui.components.withChildrenAfterParents
 import com.boxdev.boxwallet.ui.components.CategoryPicker
 import com.boxdev.boxwallet.ui.components.ConfirmDeleteDialog
 import com.boxdev.boxwallet.ui.components.ConnectedChoiceRow

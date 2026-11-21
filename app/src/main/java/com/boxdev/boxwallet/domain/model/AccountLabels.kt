@@ -1,6 +1,4 @@
-package com.boxdev.boxwallet.ui.components
-
-import com.boxdev.boxwallet.domain.model.Account
+package com.boxdev.boxwallet.domain.model
 
 /**
  * How pickers name [account]: a card's second currency reads "<card name> · <ISO code>" (e.g.

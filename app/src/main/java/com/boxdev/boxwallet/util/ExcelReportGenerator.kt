@@ -4,10 +4,10 @@ import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.domain.model.AccountWithBalance
 import com.boxdev.boxwallet.domain.model.Loan
 import com.boxdev.boxwallet.domain.model.Transaction
+import com.boxdev.boxwallet.domain.model.accountLabel
 import com.boxdev.boxwallet.domain.model.inReports
 import com.boxdev.boxwallet.domain.model.monthsBetween
 import com.boxdev.boxwallet.domain.money.Money
-import com.boxdev.boxwallet.ui.components.accountLabel
 import com.boxdev.boxwallet.util.XlsxWorkbook.Sheet
 import com.boxdev.boxwallet.util.XlsxWorkbook.Style
 import java.io.File

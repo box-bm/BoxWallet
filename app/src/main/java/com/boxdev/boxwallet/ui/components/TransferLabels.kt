@@ -2,6 +2,7 @@ package com.boxdev.boxwallet.ui.components
 
 import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.TransferPair
+import com.boxdev.boxwallet.domain.model.accountLabel
 
 /**
  * "<from> → <to>" for a transfer's row, each end named like the pickers ([accountLabel]: a card's second

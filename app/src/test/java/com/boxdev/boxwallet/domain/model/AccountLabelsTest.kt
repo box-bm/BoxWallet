@@ -1,7 +1,5 @@
-package com.boxdev.boxwallet.ui.components
+package com.boxdev.boxwallet.domain.model
 
-import com.boxdev.boxwallet.domain.model.Account
-import com.boxdev.boxwallet.domain.model.AccountType
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.util.Currency

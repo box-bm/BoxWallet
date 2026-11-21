@@ -47,6 +47,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.currentStateAsState
 import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.domain.model.AccountWithBalance
+import com.boxdev.boxwallet.domain.model.accountLabel
 import com.boxdev.boxwallet.domain.money.CurrencyCatalog
 import com.boxdev.boxwallet.ui.components.AmountField
 import com.boxdev.boxwallet.ui.components.AmountKind
@@ -60,7 +61,6 @@ import com.boxdev.boxwallet.ui.components.OptionGroup
 import com.boxdev.boxwallet.ui.components.TimeRow
 import com.boxdev.boxwallet.ui.components.groupShape
 import com.boxdev.boxwallet.ui.components.rememberDateTimePickerState
-import com.boxdev.boxwallet.ui.components.accountLabel
 import com.boxdev.boxwallet.ui.screens.accounts.AccountBadge
 import com.boxdev.boxwallet.ui.screens.transaction.AccountPickerSheet
 import com.boxdev.boxwallet.ui.theme.BoxTheme
