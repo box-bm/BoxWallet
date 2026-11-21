@@ -10,9 +10,10 @@ data class DayCurrency(val day: Long, val code: String)
 
 data class CurrencyUsage(val currencyCode: String, val uses: Int, val lastUsed: Long)
 
-/** One movement of a card account; [accountAmountMinor] is unsigned, in the account's currency. */
+/** Installments still to come on one account, in the account's currency. */
 data class PendingInstallmentsRow(val accountId: Long, val pendingMinor: Long)
 
+/** One movement of a card account; [accountAmountMinor] is unsigned, in the account's currency. */
 data class CardMovementRow(val accountId: Long, val date: Long, val type: String, val accountAmountMinor: Long)
 
 @Dao

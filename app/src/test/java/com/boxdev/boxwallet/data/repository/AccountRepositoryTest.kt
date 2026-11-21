@@ -791,6 +791,29 @@ class AccountRepositoryTest {
         assertEquals(Money(500000 - 300000, gtq), s.available)
     }
 
+    @Test
+    fun secondCurrencyPlanPendingCountsInAvailable() = runTest {
+        val today = LocalDate.of(2026, 11, 20)
+        val repo = repositoryWith(withGtq, flowOf(today))
+        val cardId = repo.create(card(closingDay = 15), null, SecondCurrencyInput(usd, null))
+        val childId = childOf(cardId).id
+        val amounts = TransactionAmounts(ExchangeRateResolver(withGtq) { today })
+        val resolver = ExchangeRateResolver(withGtq) { today }
+        val plans = InstallmentPlanRepository(
+            db, db.installmentPlanDao(), db.transactionDao(), db.accountDao(), amounts, resolver,
+            MovementWriteGuard(CurrencyChangeLock(), prefs, db.accountDao(), amounts), prefs, CurrentDay(flowOf(today)),
+        )
+        plans.create(NewInstallmentPlan(childId, "Phone", null, Money(30000, usd), 3, LocalDateTime.of(2026, 11, 15, 10, 0)))
+
+        val s = repo.cardSummariesOn(today).first().getValue(cardId)
+
+        assertEquals(0L, s.primary.pendingInstallmentsMinor)
+        assertEquals(20000L, s.second?.pendingInstallmentsMinor)
+        assertEquals(10000L, s.second?.usedMinor)
+        // Q5,000.00 − US$300.00 × 7.80.
+        assertEquals(Money(500000 - 234000, gtq), s.available)
+    }
+
     private suspend fun transfer(from: Long, to: Long, minor: Long, date: Long) {
         val id = UUID.randomUUID().toString()
         val out = move(from, TransactionType.TRANSFER_OUT, minor, cleared = true, date = date)

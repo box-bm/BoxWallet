@@ -45,7 +45,7 @@ val CardSummary.primaryUsed: Money get() = Money(primary.usedMinor, primary.bala
 val CardSummary.secondUsed: Money? get() = second?.takeIf { it.usedMinor > 0 }?.let { Money(it.usedMinor, it.balance.currency) }
 
 /**
- * Available = limit − (used₁ + pending₁) − (used₂ + pending₂) × [rateSecondToPrimary] × [rateSecondToPrimary], rounded HALF_EVEN. Null without a limit, or
+ * Available = limit − (used₁ + pending₁) − (used₂ + pending₂) × [rateSecondToPrimary], rounded HALF_EVEN. Null without a limit, or
  * when there is a [second] currency but no rate.
  */
 fun cardSummary(
