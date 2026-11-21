@@ -228,4 +228,16 @@ class TransactionFormViewModelTest {
         advanceUntilIdle()
         assertTrue(vm.hasUnsavedChanges.value)
     }
+
+    @Test
+    fun aDoubleTapOnSaveInsertsOnce() = runTest {
+        val vm = vm(emptyMap())
+        advanceUntilIdle()
+        vm.updateAmount("12")
+        advanceUntilIdle()
+        vm.save()
+        vm.save()
+        advanceUntilIdle()
+        verify(transactionRepository).insertTransaction(any())
+    }
 }

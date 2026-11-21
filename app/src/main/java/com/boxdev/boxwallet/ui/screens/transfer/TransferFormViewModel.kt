@@ -230,6 +230,8 @@ class TransferFormViewModel @Inject constructor(
 
     fun save() {
         val s = _formState.value
+        // A second tap while saving (or after) must not write the transfer again.
+        if (s.isLoading || s.isSaved) return
         val error = when {
             s.fromAccount == null || s.toAccount == null -> TransferFormError.AccountLoading
             s.isSameAccount -> TransferFormError.SameAccount
@@ -249,8 +251,8 @@ class TransferFormViewModel @Inject constructor(
             note = s.note.trim(),
             manualRate = s.manualRateValue,
         )
+        _formState.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
-            _formState.update { it.copy(isLoading = true, error = null) }
             try {
                 val transferId = s.transferId
                 if (s.isEditing && transferId != null) transferRepository.update(transferId, draft)
@@ -287,9 +289,11 @@ class TransferFormViewModel @Inject constructor(
 
     /** Deletes both rows of the edited transfer. */
     fun delete() {
-        val transferId = _formState.value.transferId ?: return
+        val s = _formState.value
+        val transferId = s.transferId ?: return
+        if (s.isLoading || s.isSaved) return
+        _formState.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
-            _formState.update { it.copy(isLoading = true, error = null) }
             try {
                 transferRepository.delete(transferId)
                 analyticsHelper.logEvent("transfer_deleted", emptyMap())

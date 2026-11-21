@@ -357,6 +357,8 @@ class TransactionFormViewModel @Inject constructor(
 
     fun save() {
         val s = _formState.value
+        // A second tap while saving (or after) must not write the movement again.
+        if (s.isLoading || s.isSaved) return
         if (!s.isValid) {
             _formState.update { it.copy(error = TransactionFormError.InvalidAmount) }
             return
@@ -370,8 +372,8 @@ class TransactionFormViewModel @Inject constructor(
             return
         }
         val accountCurrency = s.accountCurrency!!
+        _formState.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
-            _formState.update { it.copy(isLoading = true, error = null) }
             try {
                 val nextOccurrenceDate = if (s.isRecurrent && s.recurrenceFrequency != null) {
                     s.recurrenceFrequency.advance(s.date, s.recurrenceInterval.toIntOrNull() ?: 1)

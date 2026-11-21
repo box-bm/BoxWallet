@@ -22,6 +22,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -31,7 +34,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.any
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.math.BigDecimal
@@ -93,6 +100,12 @@ class TransferFormViewModelTest {
     private suspend fun TransferFormViewModel.loaded() =
         formState.first { !it.isLoading && it.fromAccountId != null && it.accounts.isNotEmpty() }
 
+    /** Lets every launched save or delete finish; Room runs them on its own threads. */
+    private suspend fun TestScope.settle() = repeat(10) {
+        advanceUntilIdle()
+        withContext(Dispatchers.IO) { Thread.sleep(50) }
+    }
+
     @Test
     fun saveCreatesPair() = runTest {
         val vm = vm(emptyMap())
@@ -151,5 +164,29 @@ class TransferFormViewModelTest {
         val state = vm.formState.first { it.error != null }
         assertEquals(TransferFormError.MissingRate(Currency.getInstance("EUR")), state.error)
         assertEquals(0, db.transactionDao().countAll())
+    }
+
+    @Test
+    fun aDoubleTapOnSaveCreatesOnePair() = runTest {
+        val vm = vm(emptyMap())
+        vm.loaded()
+        vm.updateAmount("771")
+        vm.save()
+        vm.save()
+        settle()
+        assertTrue(vm.formState.value.isSaved)
+        assertEquals(2, db.transactionDao().countAll())
+    }
+
+    @Test
+    fun aDoubleTapOnDeleteDeletesOnce() = runTest {
+        val id = transfers.create(TransferDraft(banco, dolares, Money(771_00, gtq), november.atTime(10, 0)))
+        val vm = vm(mapOf("id" to transfers.get(id)!!.outLegId))
+        vm.formState.first { it.isEditing && !it.isLoading }
+        vm.delete()
+        vm.delete()
+        settle()
+        assertTrue(vm.formState.value.isSaved)
+        verify(analytics, times(1)).logEvent(eq("transfer_deleted"), any())
     }
 }
