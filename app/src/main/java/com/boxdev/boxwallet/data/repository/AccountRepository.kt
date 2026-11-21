@@ -8,7 +8,9 @@ import com.boxdev.boxwallet.data.local.dao.AccountDao
 import com.boxdev.boxwallet.data.local.dao.TransactionDao
 import com.boxdev.boxwallet.data.local.database.BoxWalletDatabase
 import com.boxdev.boxwallet.data.local.entity.AccountEntity
+import com.boxdev.boxwallet.data.local.dao.AccountBalanceRow
 import com.boxdev.boxwallet.data.local.dao.CardMovementRow
+import com.boxdev.boxwallet.data.local.dao.PendingInstallmentsRow
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.data.local.entity.isInflow
 import com.boxdev.boxwallet.data.rates.MovementWriteGuard
@@ -173,8 +175,10 @@ class AccountRepository @Inject constructor(
             accountDao.observeAll(),
             accountDao.observeBalances(cutoff),
             transactionDao.observeCardMovements(cutoff),
-        ) { accounts, balances, movements -> Triple(accounts, balances, movements) }
-            .map { (entities, balances, movements) ->
+            transactionDao.observePendingInstallments(cutoff),
+        ) { accounts, balances, movements, pending -> CardInputs(accounts, balances, movements, pending) }
+            .map { (entities, balances, movements, pending) ->
+                val pendingOf = pending.associate { it.accountId to it.pendingMinor }
                 val resolver = ExchangeRateResolver(offline(rates))
                 val balanceOf = balances.associate { it.accountId to it.balanceMinor }
                 val movementsOf = movements.groupBy { it.accountId }
@@ -185,6 +189,7 @@ class AccountRepository @Inject constructor(
                         account,
                         Money(balanceOf[account.id] ?: 0L, account.currency),
                         statementOf(card, movementsOf[account.id].orEmpty(), today),
+                        pendingOf[account.id] ?: 0L,
                     )
                     val child = childOf[card.id]
                     val rate = child?.let { resolver.resolve(today, it.currency, card.currency) }
@@ -198,6 +203,13 @@ class AccountRepository @Inject constructor(
                 }
             }
     }
+
+    private data class CardInputs(
+        val accounts: List<AccountEntity>,
+        val balances: List<AccountBalanceRow>,
+        val movements: List<CardMovementRow>,
+        val pending: List<PendingInstallmentsRow>,
+    )
 
     /** [card]'s closing and due days applied to [rows] (the card's or its child's); null without both days. */
     private fun statementOf(card: Account, rows: List<CardMovementRow>, today: LocalDate) =

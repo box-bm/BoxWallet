@@ -35,6 +35,7 @@ import org.junit.Assert.assertTrue
 import com.boxdev.boxwallet.domain.money.RateLookup
 import com.boxdev.boxwallet.domain.money.RateSource
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -767,6 +768,27 @@ class AccountRepositoryTest {
         // Q5,000.00 − Q150.00 − US$40.00 × 7.80.
         assertEquals(Money(500000 - 15000 - 31200, gtq), s.available)
         assertFalse(s.availableApproximate)
+    }
+
+    @Test
+    fun statementToPayIncludesOnlyTheInstallmentOfThatClosing() = runTest {
+        val today = LocalDate.of(2026, 11, 20)
+        val repo = repositoryWith(withGtq, flowOf(today))
+        val cardId = repo.create(card(closingDay = 15), null, null)
+        val amounts = TransactionAmounts(ExchangeRateResolver(withGtq) { today })
+        val resolver = ExchangeRateResolver(withGtq) { today }
+        val plans = InstallmentPlanRepository(
+            db, db.installmentPlanDao(), db.transactionDao(), db.accountDao(), amounts, resolver,
+            MovementWriteGuard(CurrencyChangeLock(), prefs, db.accountDao(), amounts), prefs, CurrentDay(flowOf(today)),
+        )
+        plans.create(NewInstallmentPlan(cardId, "TV", null, Money(300000, gtq), 3, LocalDateTime.of(2026, 11, 15, 10, 0)))
+
+        val s = repo.cardSummariesOn(today).first().getValue(cardId)
+
+        assertEquals(100000L, s.primary.statement?.toPayMinor)
+        assertEquals(100000L, s.primary.usedMinor)
+        assertEquals(200000L, s.primary.pendingInstallmentsMinor)
+        assertEquals(Money(500000 - 300000, gtq), s.available)
     }
 
     private suspend fun transfer(from: Long, to: Long, minor: Long, date: Long) {

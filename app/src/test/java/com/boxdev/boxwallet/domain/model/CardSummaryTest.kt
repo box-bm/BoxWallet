@@ -96,4 +96,38 @@ class CardSummaryTest {
         assertNull(summary(500).secondUsed)
         assertEquals(Money(1000, usd), summary(-1000).secondUsed)
     }
+
+    @Test
+    fun availableSubtractsPendingInstallments() {
+        val card = card(limitMinor = 500000)
+        val summary = cardSummary(
+            card, cardBalance(card, Money(-100000, gtq), null, pendingInstallmentsMinor = 66667), null, null, approximate = false,
+        )
+
+        assertEquals(Money(333333, gtq), summary.available)
+        assertEquals(Money(66667, gtq), summary.pendingInstallments)
+    }
+
+    @Test
+    fun secondCurrencyPendingConvertsIntoAvailable() {
+        val card = card(limitMinor = 500000)
+        val summary = cardSummary(
+            card,
+            cardBalance(card, Money(0, gtq), null),
+            cardBalance(child, Money(0, usd), null, pendingInstallmentsMinor = 10000),
+            BigDecimal("7.7"),
+            approximate = false,
+        )
+
+        assertEquals(Money(500000 - 77000, gtq), summary.available)
+        assertEquals(Money(77000, gtq), summary.pendingInstallments)
+    }
+
+    @Test
+    fun noPendingMeansNullPendingInstallments() {
+        val card = card()
+        val summary = cardSummary(card, cardBalance(card, Money(0, gtq), null), null, null, approximate = false)
+
+        assertNull(summary.pendingInstallments)
+    }
 }
