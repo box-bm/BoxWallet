@@ -10,6 +10,7 @@ import com.boxdev.boxwallet.data.repository.NewInstallmentPlan
 import com.boxdev.boxwallet.data.repository.TransactionRepository
 import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.AccountType
+import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.domain.money.AmountResult
@@ -28,6 +29,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -66,6 +68,7 @@ class TransactionFormViewModelTest {
         whenever(accountRepository.defaultAccount()).thenReturn(cash)
         whenever(accountRepository.observeAll()).thenReturn(flowOf(listOf(cash, bank, archived)))
         whenever(userPreferences.mainCurrency).thenReturn(flowOf(gtq))
+        whenever(userPreferences.defaultCategoryId).thenReturn(flowOf(null))
         whenever(amounts.compute(any())).thenReturn(AmountResult.NeedsManualRate)
         whenever(amounts.forSave(any(), anyOrNull(), any(), any(), anyOrNull())).thenAnswer { it.arguments[0] as Transaction }
         whenever(transactionRepository.getTransactionById(3L)).thenReturn(
@@ -92,6 +95,52 @@ class TransactionFormViewModelTest {
         advanceUntilIdle()
         verify(transactionRepository).getTransactionById(3L)
         assertTrue(vm.formState.value.isEditing)
+    }
+
+    @Test
+    fun aNewMovementStartsWithTheDefaultCategory() = runTest {
+        whenever(userPreferences.defaultCategoryId).thenReturn(flowOf(7L))
+        whenever(categoryRepository.getAllCategories()).thenReturn(flowOf(listOf(Category(id = 7, name = "Food"))))
+        val vm = vm(emptyMap())
+        backgroundScope.launch { vm.hasUnsavedChanges.collect {} }
+        advanceUntilIdle()
+        assertEquals(7L, vm.formState.value.categoryId)
+        assertFalse(vm.hasUnsavedChanges.value)
+    }
+
+    @Test
+    fun aDefaultCategoryThatNoLongerExistsIsIgnored() = runTest {
+        whenever(userPreferences.defaultCategoryId).thenReturn(flowOf(7L))
+        val vm = vm(emptyMap())
+        advanceUntilIdle()
+        assertEquals(null, vm.formState.value.categoryId)
+    }
+
+    @Test
+    fun editingKeepsTheMovementsOwnCategory() = runTest {
+        whenever(userPreferences.defaultCategoryId).thenReturn(flowOf(7L))
+        whenever(categoryRepository.getAllCategories()).thenReturn(flowOf(listOf(Category(id = 7, name = "Food"))))
+        whenever(transactionRepository.getTransactionById(3L)).thenReturn(
+            Transaction.singleCurrency(1, TransactionType.EXPENSE, LocalDateTime.of(2026, 1, 1, 0, 0), Money(5_00, gtq))
+                .copy(id = 3, categoryId = 1),
+        )
+        val vm = vm(mapOf("id" to 3L))
+        advanceUntilIdle()
+        vm.open(3L)
+        advanceUntilIdle()
+        assertEquals(1L, vm.formState.value.categoryId)
+    }
+
+    @Test
+    fun editingAMovementWithoutCategoryDoesNotTakeTheDefault() = runTest {
+        whenever(userPreferences.defaultCategoryId).thenReturn(flowOf(7L))
+        whenever(categoryRepository.getAllCategories()).thenReturn(flowOf(listOf(Category(id = 7, name = "Food"))))
+        val vm = vm(mapOf("id" to 3L))
+        advanceUntilIdle()
+        vm.open(3L)
+        advanceUntilIdle()
+        assertTrue(vm.formState.value.isEditing)
+        assertNull(vm.formState.value.categoryId)
     }
 
     @Test

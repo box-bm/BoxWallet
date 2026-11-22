@@ -4,7 +4,6 @@ package com.boxdev.boxwallet.ui.screens.accounts
 
 import android.content.res.Configuration
 import androidx.annotation.StringRes
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,8 +15,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
@@ -31,7 +28,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -45,11 +41,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
@@ -63,8 +56,10 @@ import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.domain.model.AccountColor
 import com.boxdev.boxwallet.domain.money.CurrencyCatalog
 import com.boxdev.boxwallet.domain.money.pickerSections
+import com.boxdev.boxwallet.ui.components.ChoiceToken
 import com.boxdev.boxwallet.ui.components.CurrencyPickerSheet
 import com.boxdev.boxwallet.ui.components.FullScreenForm
+import com.boxdev.boxwallet.ui.components.LabeledBlock
 import com.boxdev.boxwallet.ui.components.OptionGroup
 import com.boxdev.boxwallet.ui.components.SwitchRow
 import com.boxdev.boxwallet.ui.components.ValueRow
@@ -437,42 +432,6 @@ private fun HelpText(text: String) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(horizontal = 4.dp),
     )
-}
-
-@Composable
-private fun LabeledBlock(title: String, content: @Composable () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            title,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 4.dp),
-        )
-        content()
-    }
-}
-
-/** A 48dp round choice in a grid; the chosen one gets the 2dp primary ring the category picker uses. */
-@Composable
-private fun ChoiceToken(
-    selected: Boolean,
-    container: Color,
-    description: String,
-    onClick: () -> Unit,
-    content: @Composable () -> Unit,
-) {
-    Surface(
-        shape = CircleShape,
-        color = Color.Transparent,
-        border = BorderStroke(2.dp, if (selected) MaterialTheme.colorScheme.primary else Color.Transparent),
-        modifier = Modifier
-            .selectable(selected = selected, onClick = onClick, role = Role.RadioButton)
-            .semantics { this.contentDescription = description },
-    ) {
-        Surface(shape = CircleShape, color = container, modifier = Modifier.padding(3.dp).size(46.dp)) {
-            Box(contentAlignment = Alignment.Center) { content() }
-        }
-    }
 }
 
 @Composable

@@ -193,9 +193,6 @@
     <string name="settings_title">Settings</string>
     <string name="settings_select_hint">Choose a section</string>
     <string name="settings_preferences_section">Preferences</string>
-    <string name="settings_general_section">General</string>
-    <string name="settings_general_title">General Settings</string>
-    <string name="settings_general_subtitle">Currency, language, and regional settings</string>
     <string name="settings_categories_section">Categories</string>
     <string name="settings_categories_title">Manage Categories</string>
     <string name="settings_categories_subtitle">Organize your movement categories</string>
@@ -227,25 +224,27 @@
     <string name="settings_buy_coffee">Buy Me a Coffee</string>
     <string name="settings_buy_coffee_subtitle">Support the development!</string>
 
-    <!-- General Settings Screen -->
-    <string name="general_settings_title">General Settings</string>
-    <string name="general_settings_transactions">Movements</string>
-    <string name="general_settings_default_category">Default Category</string>
-    <string name="general_settings_current_currency">Current Currency</string>
-    <string name="general_settings_select_default_category">Select Default Category</string>
-    <string name="general_settings_no_default_category">No default category</string>
-
     <!-- Categories Screen -->
     <string name="categories_title">Categories</string>
-    <string name="categories_add">Add Category</string>
     <string name="categories_no_categories">No categories yet</string>
     <string name="categories_tap_to_create">Tap + to create your first category</string>
     <string name="categories_delete_title">Delete Category</string>
     <string name="categories_delete_message">Are you sure you want to delete \"%1$s\"? Movements with this category will not be deleted.</string>
-    <string name="categories_edit_title">Edit Category</string>
-    <string name="categories_add_title">Add Category</string>
+    <string name="categories_edit_title">Edit category</string>
+    <string name="categories_save_failed">Couldn\'t save the category</string>
+    <string name="categories_delete_failed">Couldn\'t delete the category</string>
+    <string name="categories_default_failed">Couldn\'t change the default category</string>
+    <string name="categories_default_change_description">Change default category</string>
     <string name="categories_name_label">Name</string>
     <string name="categories_icon_label">Icon</string>
+    <string name="categories_new">New category</string>
+    <string name="categories_create">Create</string>
+    <string name="categories_color_label">Color</string>
+    <string name="categories_color_automatic">Automatic color</string>
+    <string name="categories_default_title">Default category</string>
+    <string name="categories_default_none">None</string>
+    <string name="categories_default_help">Selected automatically on every new movement</string>
+    <string name="categories_default_change">Change</string>
 
     <!-- Theme Screen -->
     <string name="theme_title">Theme</string>
@@ -362,8 +361,6 @@
     <string name="action_clear">Clear</string>
     <string name="action_clear_all">Clear All</string>
     <string name="action_filter">Filter</string>
-    <string name="action_none">None</string>
-    <string name="action_selected">Selected</string>
     <string name="description_optional">Description (Optional)</string>
     <string name="nav_analytics">Reports</string>
 

@@ -196,7 +196,7 @@ fun routedAccount(selected: Account, currency: Currency, accounts: List<Account>
 class TransactionFormViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val transactionRepository: TransactionRepository,
-    categoryRepository: CategoryRepository,
+    private val categoryRepository: CategoryRepository,
     private val accountRepository: AccountRepository,
     private val userPreferences: UserPreferences,
     private val transactionAmounts: TransactionAmounts,
@@ -261,8 +261,12 @@ class TransactionFormViewModel @Inject constructor(
             _formState.value = TransactionFormState(isLoading = true, accounts = accounts)
             loadJob = viewModelScope.launch {
                 val account = accountRepository.defaultAccount()
+                // The default is used only while it still exists; a deleted one is ignored.
+                val defaultCategoryId = userPreferences.defaultCategoryId.first()
+                    ?.takeIf { id -> categoryRepository.getAllCategories().first().any { it.id == id } }
                 _formState.update {
                     it.copy(
+                        categoryId = defaultCategoryId,
                         currency = account.currency,
                         accountCurrency = account.currency,
                         accountId = account.id,

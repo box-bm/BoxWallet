@@ -100,13 +100,14 @@ class BackupRepositoryTest {
         prefs.setMainCurrency("GTQ")
         val main = db.accountDao().insert(AccountEntity(name = "Main", type = "CHECKING", currencyCode = "GTQ", createdAt = 1L))
         val savings = db.accountDao().insert(AccountEntity(name = "USD savings", type = "SAVINGS", currencyCode = "USD", createdAt = 2L, sortOrder = 1))
+        db.categoryDao().insert(CategoryEntity(id = 51, name = "Teal one", color = "TEAL"))
         db.transactionDao().insert(
             tx(id = 10, accountId = savings, amount = 1000, code = "USD").copy(
                 amountMinor = 7712, mainRate = BigDecimal("7.712345678901"), mainRateSource = RateSource.MANUAL,
             )
         )
         val json = Gson().toJson(repo.snapshot())
-        assertEquals(6, JsonParser.parseString(json).asJsonObject.get("version").asInt)
+        assertEquals(7, JsonParser.parseString(json).asJsonObject.get("version").asInt)
         db.transactionDao().deleteAll()
         db.accountDao().deleteAll()
 
@@ -120,6 +121,18 @@ class BackupRepositoryTest {
         assertEquals(BigDecimal("7.712345678901"), row.mainRate)
         assertEquals(RateSource.MANUAL, row.mainRateSource)
         assertEquals(main, prefs.defaultAccountId.first())
+        assertEquals("TEAL", db.categoryDao().getAllCategoriesSync().first { it.id == 51L }.color)
+    }
+
+    @Test
+    fun `a category without color in the file restores as DEFAULT`() = runTest {
+        val root = JsonParser.parseString(Gson().toJson(repo.snapshot().copy(categories = listOf(CategoryEntity(id = 60, name = "Old file"))))).asJsonObject
+        root.getAsJsonArray("categories").forEach { it.asJsonObject.remove("color") }
+
+        val result = repo.restoreJson(root.toString(), usd)
+
+        assertTrue(result is RestoreResult.Restored)
+        assertEquals("DEFAULT", db.categoryDao().getAllCategoriesSync().single { it.id == 60L }.color)
     }
 
     @Test
@@ -484,11 +497,11 @@ class BackupRepositoryTest {
     }
 
     @Test
-    fun `local snapshot is written in the v6 shape with accounts`() = runTest {
+    fun `local snapshot is written in the v7 shape with accounts`() = runTest {
         seedLocalData()
         val file: File = repo.writeLocalSnapshot()
         val root = JsonParser.parseString(file.readText()).asJsonObject
-        assertEquals(6, root.get("version").asInt)
+        assertEquals(7, root.get("version").asInt)
         assertEquals("USD", root.get("mainCurrencyCode").asString)
         assertEquals("Old", root.getAsJsonArray("accounts")[0].asJsonObject.get("name").asString)
     }
@@ -522,6 +535,60 @@ class BackupRepositoryTest {
         assertEquals(acc, prefs.defaultAccountId.first())
         assertNull(db.appMetaDao().get(BackupRepository.META_MAIN_CURRENCY))
         assertNull(db.appMetaDao().get(BackupRepository.META_DEFAULT_ACCOUNT_ID))
+    }
+
+    @Test
+    fun `the default category round-trips through a backup`() = runTest {
+        db.categoryDao().insert(CategoryEntity(id = 51, name = "A"))
+        db.categoryDao().insert(CategoryEntity(id = 52, name = "B"))
+        prefs.setDefaultCategory(52)
+        val json = Gson().toJson(repo.snapshot())
+        assertEquals(52L, JsonParser.parseString(json).asJsonObject.get("defaultCategoryId").asLong)
+        prefs.setDefaultCategory(null)
+
+        val result = repo.restoreJson(json, usd)
+
+        assertTrue(result is RestoreResult.Restored)
+        assertEquals(52L, prefs.defaultCategoryId.first())
+        assertNull(db.appMetaDao().get(BackupRepository.META_DEFAULT_CATEGORY_ID))
+        prefs.setDefaultCategory(null)
+    }
+
+    @Test
+    fun `a backup without a default category clears the device one`() = runTest {
+        prefs.setDefaultCategory(3)
+        val backup = BackupData(mainCurrencyCode = "USD", categories = listOf(CategoryEntity(id = 3, name = "Other")))
+
+        repo.restoreJson(Gson().toJson(backup), usd)
+
+        assertNull(prefs.defaultCategoryId.first())
+    }
+
+    @Test
+    fun `a backup default category missing from its categories gives none`() = runTest {
+        val backup = BackupData(
+            mainCurrencyCode = "USD", defaultCategoryId = 404,
+            categories = listOf(CategoryEntity(id = 3, name = "Other")),
+        )
+
+        val result = repo.restoreJson(Gson().toJson(backup), usd) as RestoreResult.Restored
+
+        assertNull(result.data.defaultCategoryId)
+        assertNull(prefs.defaultCategoryId.first())
+    }
+
+    @Test
+    fun `startup finishes the default category of a restore committed before a crash`() = runTest {
+        prefs.setDefaultCategory(1)
+        db.appMetaDao().put(AppMetaEntity(BackupRepository.META_DEFAULT_CATEGORY_ID, "7"))
+        repo.completePendingRestore()
+        assertEquals(7L, prefs.defaultCategoryId.first())
+        assertNull(db.appMetaDao().get(BackupRepository.META_DEFAULT_CATEGORY_ID))
+
+        db.appMetaDao().put(AppMetaEntity(BackupRepository.META_DEFAULT_CATEGORY_ID, ""))
+        repo.completePendingRestore()
+        assertNull(prefs.defaultCategoryId.first())
+        assertNull(db.appMetaDao().get(BackupRepository.META_DEFAULT_CATEGORY_ID))
     }
 
     @Test
@@ -603,9 +670,19 @@ class BackupRepositoryTest {
     }
 
     @Test
+    fun `version 6 backups are refused`() = runTest {
+        seedLocalData()
+        val json = Gson().toJson(BackupData(version = 6, mainCurrencyCode = "USD"))
+
+        assertEquals(RestoreResult.Incompatible, repo.restoreJson(json, usd))
+
+        assertEquals(99L, db.transactionDao().getAllTransactionsSync().single().id)
+    }
+
+    @Test
     fun `a file that isn't a backup is refused`() = runTest {
         seedLocalData()
-        listOf("{}", "not json", """{"version":6}""", """{"version":6,"mainCurrencyCode":"USD"}""", "[]", "").forEach {
+        listOf("{}", "not json", """{"version":7}""", """{"version":7,"mainCurrencyCode":"USD"}""", "[]", "").forEach {
             assertEquals(it, RestoreResult.Incompatible, repo.restoreJson(it, usd))
         }
         assertEquals(99L, db.transactionDao().getAllTransactionsSync().single().id)

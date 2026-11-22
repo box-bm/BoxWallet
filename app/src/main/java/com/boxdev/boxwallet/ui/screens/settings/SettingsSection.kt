@@ -4,7 +4,6 @@ import com.boxdev.boxwallet.ui.navigation.NavRoutes
 
 /** A settings page that opens from the Settings list: its own route on phones, the detail pane on wide windows. */
 enum class SettingsSection(val route: String) {
-    GENERAL(NavRoutes.GeneralSettings.route),
     CURRENCIES(NavRoutes.Currencies.route),
     CATEGORIES(NavRoutes.Categories.route),
     THEME(NavRoutes.ThemeCustomization.route),

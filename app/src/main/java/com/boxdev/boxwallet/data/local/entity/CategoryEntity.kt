@@ -9,5 +9,7 @@ data class CategoryEntity(
     val id: Long = 0,
     val name: String,
     val description: String = "",
-    val icon: String = "Category"
+    val icon: String = "Category",
+    /** An [com.boxdev.boxwallet.domain.model.AccountColor] key; DEFAULT keeps the seeded tone. */
+    val color: String = "DEFAULT"
 )

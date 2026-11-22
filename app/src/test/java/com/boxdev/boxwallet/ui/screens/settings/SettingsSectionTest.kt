@@ -9,7 +9,6 @@ class SettingsSectionTest {
 
     @Test
     fun `each section maps to its settings route`() {
-        assertEquals(NavRoutes.GeneralSettings.route, SettingsSection.GENERAL.route)
         assertEquals(NavRoutes.Currencies.route, SettingsSection.CURRENCIES.route)
         assertEquals(NavRoutes.Categories.route, SettingsSection.CATEGORIES.route)
         assertEquals(NavRoutes.ThemeCustomization.route, SettingsSection.THEME.route)

@@ -42,7 +42,6 @@ sealed class NavRoutes(val route: String) {
     data object Analytics : NavRoutes("analytics")
     data object Search : NavRoutes("search")
     data object Settings : NavRoutes("settings")
-    data object GeneralSettings : NavRoutes("general_settings")
     data object Currencies : NavRoutes("currencies")
     data object CurrencyDetail : NavRoutes("currency_detail/{code}") {
         fun createRoute(code: String) = "currency_detail/$code"
