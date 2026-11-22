@@ -950,6 +950,29 @@ class AccountRepositoryTest {
     }
 
     @Test
+    fun `an account with loans can't become a card`() = runTest {
+        val id = repository.create(account("Cash"), null)
+        db.loanDao().insert(
+            com.boxdev.boxwallet.data.local.entity.LoanEntity(
+                name = "Juan", totalAmountMinor = 1000, currencyCode = "USD", accountId = id, startDate = 0L,
+            )
+        )
+        val stored = repository.observeAll().first().single { it.id == id }
+
+        assertThrows(AccountRuleError.HasLoans::class.java) {
+            runBlocking {
+                repository.update(
+                    stored.copy(type = AccountType.CREDIT_CARD, creditLimitMinor = 500000, statementClosingDay = 15, paymentDueDay = 5)
+                )
+            }
+        }
+        assertEquals(stored, repository.observeAll().first().single { it.id == id })
+        // Other edits still go through.
+        repository.update(stored.copy(name = "Wallet", type = AccountType.SAVINGS))
+        assertEquals("Wallet", repository.observeAll().first().single { it.id == id }.name)
+    }
+
+    @Test
     fun `turning off the card with pending installments is refused`() = runTest {
         val (repo, stored) = pendingCard(LocalDate.of(2026, 11, 20))
 

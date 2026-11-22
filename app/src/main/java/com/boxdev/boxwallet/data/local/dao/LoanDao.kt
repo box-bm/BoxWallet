@@ -71,4 +71,7 @@ interface LoanDao {
 
     @Query("SELECT COUNT(*) FROM loans")
     suspend fun countAll(): Int
+
+    @Query("SELECT COUNT(*) FROM loans WHERE accountId = :accountId")
+    suspend fun countByAccount(accountId: Long): Int
 }

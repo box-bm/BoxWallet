@@ -77,6 +77,9 @@ sealed class AccountRuleError : Exception() {
 
     /** A card with installments still to be charged keeps its closing day, its card type and its plans' currency. */
     data object HasPendingInstallments : AccountRuleError()
+
+    /** Loans can't live in a card, so an account with loans can't become one. */
+    data object HasLoans : AccountRuleError()
 }
 
 /** A card's second currency: [currentBalance] is signed like the card's (a debt is negative). */
@@ -292,6 +295,9 @@ class AccountRepository @Inject constructor(
             require(stored.parentAccountId == null) { "Account ${account.id} is a second currency; update its card" }
             require(stored.isArchived == account.isArchived) { "use archive()" }
             validateCardFields(account)
+            if (account.type == AccountType.CREDIT_CARD && stored.type != AccountType.CREDIT_CARD.name &&
+                database.loanDao().countByAccount(account.id) > 0
+            ) throw AccountRuleError.HasLoans
             val child = accountDao.getChildOf(account.id)
             val today = currentDay.days.first()
             val pending = transactionDao.getPendingInstallments(listOfNotNull(account.id, child?.id), cutoffAfter(today))

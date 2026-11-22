@@ -290,5 +290,6 @@ class AccountDetailViewModel @Inject constructor(
         AccountRuleError.SecondCurrencyHasMovements -> R.string.account_error_second_currency_has_movements
         AccountRuleError.RemoveSecondCurrencyFirst -> R.string.account_error_remove_second_currency_first
         AccountRuleError.HasPendingInstallments -> R.string.account_error_has_pending_installments
+        AccountRuleError.HasLoans -> R.string.account_error_has_loans
     }
 }
