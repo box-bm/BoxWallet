@@ -1,5 +1,9 @@
 package com.boxdev.boxwallet.ui.screens.loans
 
+import com.boxdev.boxwallet.domain.model.LoanType
+import com.boxdev.boxwallet.domain.model.LoanPlan
+import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
+import java.time.LocalDate
 import androidx.lifecycle.SavedStateHandle
 import com.boxdev.boxwallet.analytics.AnalyticsHelper
 import com.boxdev.boxwallet.data.repository.AccountRepository
@@ -50,8 +54,9 @@ class LoanFormViewModelTest {
         whenever(accountRepository.defaultAccount())
             .thenReturn(Account(id = 1, name = "Cash", type = AccountType.CASH, currency = usd, createdAt = 0))
         whenever(loanRepository.getLoanById(7L)).thenReturn(
-            Loan(id = 7, name = "Car", totalAmount = Money(100_00, usd), totalInstallments = 10,
-                startDate = LocalDateTime.of(2026, 1, 1, 0, 0)),
+            Loan(id = 7, name = "Car", loanType = LoanType.EXPENSE, total = Money(100_00, usd), accountId = 1,
+                date = LocalDateTime.of(2026, 1, 1, 0, 0),
+                plan = LoanPlan(10, RecurrenceFrequency.MONTHLY, 1, LocalDate.of(2026, 1, 1))),
         )
     }
 

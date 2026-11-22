@@ -183,7 +183,6 @@ fun HomeScreen(
                         loan = loan,
                         index = index,
                         count = uiState.activeLoans.size,
-                        category = loan.categoryId?.let { categoryMap[it] },
                         onClick = { onNavigateToLoanDetail(loan.id) },
                     )
                 }

@@ -198,7 +198,6 @@ fun SearchScreen(
                         itemsIndexed(uiState.loans, key = { _, l -> "l_${l.id}" }) { _, loan ->
                             LoanCard(
                                 loan = loan,
-                                category = loan.categoryId?.let { categoryMap[it] },
                                 onClick = { onOpenLoan(loan.id) },
                                 modifier = Modifier
                                     .padding(bottom = 8.dp)

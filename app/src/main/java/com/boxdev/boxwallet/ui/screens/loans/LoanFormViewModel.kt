@@ -10,7 +10,9 @@ import com.boxdev.boxwallet.data.repository.LoanRepository
 import com.boxdev.boxwallet.data.repository.TransactionRepository
 import com.boxdev.boxwallet.data.local.dao.CurrencyUsage
 import com.boxdev.boxwallet.domain.model.Category
+import com.boxdev.boxwallet.domain.model.InstallmentState
 import com.boxdev.boxwallet.domain.model.Loan
+import com.boxdev.boxwallet.domain.model.LoanPlan
 import com.boxdev.boxwallet.domain.model.LoanType
 import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.domain.money.MissingRateException
@@ -129,17 +131,16 @@ class LoanFormViewModel @Inject constructor(
                     id = loan.id,
                     name = loan.name,
                     description = loan.description,
-                    totalAmount = loan.totalAmount.toMajor().toPlainString(),
-                    currency = loan.totalAmount.currency,
-                    installments = loan.totalInstallments.toString(),
-                    startDate = loan.startDate,
-                    categoryId = loan.categoryId,
+                    totalAmount = loan.total.toMajor().toPlainString(),
+                    currency = loan.total.currency,
+                    installments = (loan.plan?.installments ?: 0).toString(),
+                    startDate = loan.date,
                     loanType = loan.loanType,
-                    frequency = loan.frequency,
-                    frequencyInterval = loan.frequencyInterval.toString(),
+                    frequency = loan.plan?.frequency ?: RecurrenceFrequency.MONTHLY,
+                    frequencyInterval = (loan.plan?.interval ?: 1).toString(),
                     isEditing = true,
                     isLoading = false,
-                    paidInstallments = loan.paidInstallments,
+                    paidInstallments = loan.schedule().count { it.state == InstallmentState.PAID },
                 )
                 initial.value = _formState.value
             } else {
@@ -189,14 +190,16 @@ class LoanFormViewModel @Inject constructor(
                     id = if (s.isEditing) s.id else 0,
                     name = s.name,
                     description = s.description,
-                    totalAmount = s.total!!,
-                    totalInstallments = s.installments.toInt(),
-                    accountId = editing?.accountId,
-                    categoryId = s.categoryId,
-                    startDate = s.startDate,
+                    total = s.total!!,
+                    accountId = editing?.accountId ?: accountRepository.defaultAccount().id,
+                    date = s.startDate,
                     loanType = s.loanType,
-                    frequency = s.frequency,
-                    frequencyInterval = s.frequencyInterval.toIntOrNull() ?: 1
+                    plan = LoanPlan(
+                        installments = s.installments.toInt(),
+                        frequency = s.frequency,
+                        interval = s.frequencyInterval.toIntOrNull() ?: 1,
+                        firstDue = s.startDate.toLocalDate(),
+                    ),
                 )
                 if (s.isEditing) loanRepository.updateLoan(loan)
                 else loanRepository.insertLoanWithInstallments(loan)

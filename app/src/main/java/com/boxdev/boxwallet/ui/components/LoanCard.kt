@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.util.DateFormats
+import com.boxdev.boxwallet.domain.model.InstallmentState
 import com.boxdev.boxwallet.domain.model.LoanStatus
 import java.time.LocalDate
 import com.boxdev.boxwallet.domain.model.Category
@@ -53,7 +54,7 @@ fun LoanCard(
     val status = loan.status(LocalDate.now())
     val interaction = remember { MutableInteractionSource() }
     val progress by animateFloatAsState(
-        targetValue = loan.progressFraction,
+        targetValue = if (loan.total.minor <= 0) 0f else (loan.paid.minor.toFloat() / loan.total.minor).coerceIn(0f, 1f),
         animationSpec = MaterialTheme.motionScheme.slowSpatialSpec(),
         label = "loanProgress",
     )
@@ -111,11 +112,11 @@ fun LoanCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     AmountText(
-                        amount = loan.remainingAmount,
+                        amount = loan.remaining,
                         style = BoxTheme.moneyType.large,
                         autoSize = true,
                     )
-                    if (!loan.isComplete) LoanEquivalentText(loan)
+                    if (!loan.isSettled) LoanEquivalentText(loan)
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
@@ -124,7 +125,7 @@ fun LoanCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     AmountText(
-                        amount = loan.totalAmount,
+                        amount = loan.total,
                         style = BoxTheme.moneyType.small,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -140,20 +141,22 @@ fun LoanCard(
             )
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                val due = loan.nextDueDate
+                val due = loan.nextDue()?.due
                 Text(
-                    text = if (!loan.isComplete && due != null) {
+                    text = if (!loan.isSettled && due != null) {
                         stringResource(R.string.loan_next_due, due.format(dateFormatter))
                     } else "",
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (status == LoanStatus.OVERDUE) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
                 )
-                Text(
-                    text = stringResource(R.string.loan_paid_progress, loan.paidInstallments, loan.totalInstallments),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
+                if (loan.plan != null) {
+                    Text(
+                        text = stringResource(R.string.loan_paid_progress, loan.schedule().count { it.state == InstallmentState.PAID }, loan.plan?.installments ?: 0),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
             }
         }
     }
@@ -179,7 +182,7 @@ fun LoanRow(
     val status = loan.status(LocalDate.now())
     val isIncome = loan.loanType == LoanType.INCOME
     val (badgeContainer, badgeContent) = directionColors(isIncome)
-    val due = loan.nextDueDate
+    val due = loan.nextDue()?.due
     SegmentedListItem(
         onClick = onClick,
         shapes = segmentShapes(index, count),
@@ -207,10 +210,10 @@ fun LoanRow(
         },
         supportingContent = {
             val line = when {
-                loan.isComplete -> stringResource(R.string.loan_status_paid)
+                loan.isSettled -> stringResource(R.string.loan_status_paid)
                 status == LoanStatus.OVERDUE && due != null ->
                     stringResource(R.string.loan_row_overdue, stringResource(loan.loanType.remainingLabelRes), due.format(dateFormatter))
-                due != null && !loan.isComplete ->
+                due != null && !loan.isSettled ->
                     stringResource(R.string.loan_row_next, stringResource(loan.loanType.remainingLabelRes), due.format(dateFormatter))
                 else -> stringResource(loan.loanType.remainingLabelRes)
             }
@@ -223,16 +226,16 @@ fun LoanRow(
         },
         trailingContent = {
             // A paid-off loan shows what it came to; an open one, what is still left in its direction.
-            if (loan.isComplete) {
+            if (loan.isSettled) {
                 AmountText(
-                    amount = loan.totalAmount,
+                    amount = loan.total,
                     style = BoxTheme.moneyType.small,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
                 Column(horizontalAlignment = Alignment.End) {
                     AmountText(
-                        amount = loan.remainingAmount,
+                        amount = loan.remaining,
                         kind = amountKind(isIncome),
                         style = BoxTheme.moneyType.small,
                     )

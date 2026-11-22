@@ -2,6 +2,7 @@ package com.boxdev.boxwallet.util
 
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.domain.model.AccountWithBalance
+import com.boxdev.boxwallet.domain.model.InstallmentState
 import com.boxdev.boxwallet.domain.model.Loan
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.domain.model.accountLabel
@@ -122,7 +123,7 @@ object ExcelReportGenerator {
             val row = sheet.createRow(idx + 1)
             val loan = tx.loanId?.let { loans[it] }
             val installmentLabel = if (tx.installmentNumber != null && loan != null) {
-                "${tx.installmentNumber}/${loan.totalInstallments}"
+                "${tx.installmentNumber}/${loan.plan?.installments ?: 0}"
             } else ""
 
             row.createCell(0).setCellValue((idx + 1).toDouble())
@@ -396,17 +397,17 @@ object ExcelReportGenerator {
             row.createCell(0).setCellValue(loan.name)
             row.createCell(1).setCellValue(loan.description)
             row.createCell(2).setCellValue(loan.loanType.name.lowercase().replaceFirstChar { it.uppercase() })
-            row.createCell(3).setCellValue(loan.totalAmount.cell())
-            row.createCell(4).setCellValue("${loan.paidInstallments}/${loan.totalInstallments}")
-            row.createCell(5).setCellValue(loan.settledAmount.cell())
-            row.createCell(6).setCellValue(loan.remainingAmount.cell())
-            row.createCell(7).setCellValue(String.format("%.1f%%", loan.progressFraction * 100))
-            row.createCell(8).setCellValue(loan.installmentAmount(1).cell())
-            row.createCell(9).setCellValue(loan.startDate.format(dateFmt))
-            row.createCell(10).setCellValue(loan.nextDueDate?.format(dateFmt) ?: "—")
-            row.createCell(11).setCellValue(if (loan.isComplete) "Complete" else "In Progress")
-            row.createCell(12).setCellValue(loan.totalAmount.currency.currencyCode)
-            row.createCell(13).setCellValue(Money(if (loan.isComplete) 0 else loan.remainingMainMinor, mainCurrency).cell())
+            row.createCell(3).setCellValue(loan.total.cell())
+            row.createCell(4).setCellValue("${loan.schedule().count { it.state == InstallmentState.PAID }}/${loan.plan?.installments ?: 0}")
+            row.createCell(5).setCellValue(loan.paid.cell())
+            row.createCell(6).setCellValue(loan.remaining.cell())
+            row.createCell(7).setCellValue(String.format("%.1f%%", (if (loan.total.minor <= 0) 0f else loan.paid.minor.toFloat() / loan.total.minor) * 100))
+            row.createCell(8).setCellValue((loan.schedule().firstOrNull()?.amount ?: Money(0, loan.total.currency)).cell())
+            row.createCell(9).setCellValue(loan.date.format(dateFmt))
+            row.createCell(10).setCellValue(loan.nextDue()?.due?.format(dateFmt) ?: "—")
+            row.createCell(11).setCellValue(if (loan.isSettled) "Complete" else "In Progress")
+            row.createCell(12).setCellValue(loan.total.currency.currencyCode)
+            row.createCell(13).setCellValue(Money(if (loan.isSettled) 0 else loan.remainingMainMinor, mainCurrency).cell())
         }
 
         // Portfolio summary section
@@ -417,12 +418,12 @@ object ExcelReportGenerator {
 
         // Loan amounts are in each loan's own currency, so Borrowed/Paid only add up loans already in the
         // main currency; Remaining uses the main-currency figure carried by every loan.
-        val inMain = sortedLoans.filter { it.totalAmount.currency == mainCurrency }
-        val totalBorrowed = inMain.sumOf { it.totalAmount.toMajor() }.toDouble()
-        val totalPaid = inMain.sumOf { it.settledAmount.toMajor() }.toDouble()
-        val totalRemaining = Money(sortedLoans.sumOf { if (it.isComplete) 0L else it.remainingMainMinor }, mainCurrency).cell()
-        val activeCount = sortedLoans.count { !it.isComplete }
-        val completedCount = sortedLoans.count { it.isComplete }
+        val inMain = sortedLoans.filter { it.total.currency == mainCurrency }
+        val totalBorrowed = inMain.sumOf { it.total.toMajor() }.toDouble()
+        val totalPaid = inMain.sumOf { it.paid.toMajor() }.toDouble()
+        val totalRemaining = Money(sortedLoans.sumOf { if (it.isSettled) 0L else it.remainingMainMinor }, mainCurrency).cell()
+        val activeCount = sortedLoans.count { !it.isSettled }
+        val completedCount = sortedLoans.count { it.isSettled }
 
         sheet.createRow(r++).apply {
             createCell(0).setCellValue(loanTitles.totalBorrowed(mainCurrency.currencyCode))
@@ -478,7 +479,7 @@ object ExcelReportGenerator {
             val row = sheet.createRow(idx + 1)
             row.createCell(0).setCellValue(loan?.name ?: "Unknown")
             row.createCell(1).setCellValue((tx.installmentNumber ?: 0).toDouble())
-            row.createCell(2).setCellValue((loan?.totalInstallments ?: 0).toDouble())
+            row.createCell(2).setCellValue((loan?.plan?.installments ?: 0).toDouble())
             row.createCell(3).setCellValue(tx.amount.cell())
             row.createCell(4).setCellValue(tx.date.format(dateFmt))
             row.createCell(5).setCellValue(if (tx.isCleared) "Paid" else "Pending")

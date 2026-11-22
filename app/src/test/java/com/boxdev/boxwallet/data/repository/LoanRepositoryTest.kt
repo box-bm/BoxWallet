@@ -1,5 +1,8 @@
 package com.boxdev.boxwallet.data.repository
 
+import com.boxdev.boxwallet.domain.model.LoanType
+import com.boxdev.boxwallet.domain.model.LoanPlan
+import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -74,10 +77,11 @@ class LoanRepositoryTest {
 
     private fun loan() = Loan(
         name = "Car",
-        totalAmount = Money(20000, eur),
-        totalInstallments = 2,
+        loanType = LoanType.EXPENSE,
+        total = Money(20000, eur),
         accountId = accountId,
-        startDate = start.atStartOfDay(),
+        date = start.atStartOfDay(),
+        plan = LoanPlan(2, RecurrenceFrequency.MONTHLY, 1, start),
     )
 
     @Test
@@ -106,10 +110,10 @@ class LoanRepositoryTest {
     @Test
     fun `editing an unpaid loan regenerates installments in the new currency and split`() = runTest {
         val usd = Currency.getInstance("USD")
-        val loanId = repository.insertLoanWithInstallments(loan().copy(totalAmount = Money(20000, usd)))
+        val loanId = repository.insertLoanWithInstallments(loan().copy(total = Money(20000, usd)))
         assertEquals(listOf("USD", "USD"), db.transactionDao().getInstallmentsByLoanId(loanId).map { it.currencyCode })
         // Switch to EUR with an odd split: 30001 / 2 -> 15000 + 15001.
-        val edited = loan().copy(id = loanId, totalAmount = Money(30001, eur))
+        val edited = loan().copy(id = loanId, total = Money(30001, eur))
         repository.updateLoan(edited)
 
         val rows = db.transactionDao().getInstallmentsByLoanId(loanId).sortedBy { it.installmentNumber }
@@ -128,7 +132,7 @@ class LoanRepositoryTest {
 
         val gbp = Currency.getInstance("GBP")
         val error = runCatching {
-            repository.updateLoan(loan().copy(id = loanId, totalAmount = Money(50000, gbp)))
+            repository.updateLoan(loan().copy(id = loanId, total = Money(50000, gbp)))
         }.exceptionOrNull()
 
         assertTrue(error is MissingRateException)

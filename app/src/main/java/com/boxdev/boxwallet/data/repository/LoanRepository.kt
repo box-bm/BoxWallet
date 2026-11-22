@@ -37,17 +37,17 @@ class LoanRepository @Inject constructor(
 ) {
 
     fun getAllLoans(): Flow<List<Loan>> =
-        loanDao.getAllLoansWithPaidCount().map { rows -> rows.map { it.loan.toDomain(it.paidCount, it.remainingMainMinor) } }
+        loanDao.getAllLoansWithPaidCount().map { rows -> rows.map { it.loan.toDomain(paidMinor = 0, remainingMainMinor = it.remainingMainMinor) } }
 
     fun observeLoan(id: Long): Flow<Loan?> =
-        loanDao.getLoanWithPaidCount(id).map { it?.let { row -> row.loan.toDomain(row.paidCount, row.remainingMainMinor) } }
+        loanDao.getLoanWithPaidCount(id).map { it?.let { row -> row.loan.toDomain(paidMinor = 0, remainingMainMinor = row.remainingMainMinor) } }
 
     suspend fun getLoanById(id: Long): Loan? = observeLoan(id).first()
 
     /** Installment writes hold [guard], so their conversions use the currencies current at write time. */
     suspend fun insertLoanWithInstallments(loan: Loan): Long = guard.write { current ->
         val installments = buildInstallments(loan, current)
-        val loanId = loanDao.insert(loan.withAccount().toEntity())
+        val loanId = loanDao.insert(loan.toEntity())
         transactionDao.insertAll(installments.map { it.copy(loanId = loanId).toEntity() })
         loanId
     }
@@ -57,13 +57,13 @@ class LoanRepository @Inject constructor(
      * re-resolved when it is marked paid. Computed before any write so a missing rate saves nothing.
      */
     private suspend fun buildInstallments(loan: Loan, current: MovementWriteGuard.Current): List<Transaction> {
-        val accountId = loan.accountId ?: accountRepository.defaultAccount().id
+        val accountId = loan.accountId
         val main = current.main
-        // A just-created default account isn't in [current] yet; it is in the main currency.
         val accountCurrency = current.accountCurrency(accountId)
-        return (1..loan.totalInstallments).map { number ->
-            val date = loan.installmentDate(number).atStartOfDay()
-            val original = loan.installmentAmount(number)
+        return loan.schedule().map { scheduled ->
+            val number = scheduled.number
+            val date = scheduled.due.atStartOfDay()
+            val original = scheduled.amount
             val input = AmountInput(original, date.toLocalDate(), accountCurrency, main)
             val ready = transactionAmounts.compute(input) as? AmountResult.Ready
                 ?: throw MissingRateException(original.currency, accountCurrency)
@@ -71,8 +71,7 @@ class LoanRepository @Inject constructor(
                 accountId = accountId,
                 type = loan.loanType.toTransactionType(),
                 date = date,
-                description = "${loan.name} - Installment $number/${loan.totalInstallments}",
-                categoryId = loan.categoryId,
+                description = "${loan.name} - Installment $number/${loan.plan?.installments}",
                 installmentNumber = number,
                 original = original,
                 accountAmount = original,
@@ -83,12 +82,7 @@ class LoanRepository @Inject constructor(
         }
     }
 
-    /** Provisional until the loan form always picks an account. */
-    private suspend fun Loan.withAccount(): Loan =
-        if (accountId != null) this else copy(accountId = accountRepository.defaultAccount().id)
-
-    suspend fun updateLoan(loanInput: Loan): Unit = guard.write { current ->
-        val loan = loanInput.withAccount()
+    suspend fun updateLoan(loan: Loan): Unit = guard.write { current ->
         val existingLoan = loanDao.getById(loan.id)
         val installmentRows = transactionDao.getInstallmentsByLoanId(loan.id)
         if (existingLoan != null && installmentRows.none { it.isCleared } && existingLoan.termsDiffer(loan)) {
@@ -106,8 +100,9 @@ class LoanRepository @Inject constructor(
 
         if (existingLoan != null) {
             val oldStartDate = LocalDateTime.ofInstant(Instant.ofEpochMilli(existingLoan.startDate), ZoneOffset.UTC).toLocalDate()
-            if (oldStartDate != loan.startDate.toLocalDate()) {
-                updateInstallmentDates(loan.id, loan.startDate.toLocalDate(), loan.frequency, loan.frequencyInterval, current)
+            val plan = loan.plan
+            if (plan != null && oldStartDate != loan.date.toLocalDate()) {
+                updateInstallmentDates(loan.id, loan.date.toLocalDate(), plan.frequency, plan.interval, current)
             }
         }
     }

@@ -1,6 +1,7 @@
 package com.boxdev.boxwallet.domain.model
 
 import com.boxdev.boxwallet.data.local.entity.LoanEntity
+import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.domain.money.Money
 import java.time.Instant
 import java.time.LocalDate
@@ -8,58 +9,58 @@ import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.util.Currency
 
+data class LoanPlan(
+    val installments: Int,
+    val frequency: RecurrenceFrequency,
+    val interval: Int,
+    val firstDue: LocalDate,
+)
+
+/**
+ * A loan lives inside one account: [total] is in that account's currency, the disbursement and
+ * every payment are movements of [accountId]. [paid] is the sum of the payments so far.
+ */
 data class Loan(
     val id: Long = 0,
     val name: String,
     val description: String = "",
-    /** In the loan's own currency. */
-    val totalAmount: Money,
-    val totalInstallments: Int,
-    val accountId: Long? = null,
-    val categoryId: Long? = null,
-    val startDate: LocalDateTime,
-    val paidInstallments: Int = 0,
-    val loanType: LoanType = LoanType.EXPENSE,
-    val frequency: RecurrenceFrequency = RecurrenceFrequency.MONTHLY,
-    val frequencyInterval: Int = 1,
-    /** Unpaid installments' real `amount`, in minor units of the main currency. */
+    /** [LoanType.INCOME] = I lent it, [LoanType.EXPENSE] = I borrowed it. */
+    val loanType: LoanType,
+    val total: Money,
+    val accountId: Long,
+    /** Disbursement date. */
+    val date: LocalDateTime,
+    val plan: LoanPlan? = null,
+    val expectedDate: LocalDate? = null,
+    val paid: Money = Money(0, total.currency),
+    /** Still outstanding, in minor units of the main currency. */
     val remainingMainMinor: Long = 0,
 ) {
-    private val baseInstallmentMinor: Long
-        get() = if (totalInstallments > 0) totalAmount.minor / totalInstallments else 0L
+    val remaining: Money get() = Money((total.minor - paid.minor).coerceAtLeast(0), total.currency)
+    val isSettled: Boolean get() = paid.minor >= total.minor
 
-    /** Installment [number] (1-based): an even share, with the last one absorbing the remainder. */
-    fun installmentAmount(number: Int): Money {
-        if (totalInstallments <= 0 || number !in 1..totalInstallments) return Money(0, totalAmount.currency)
-        val base = baseInstallmentMinor
-        val minor = if (number == totalInstallments) totalAmount.minor - base * (totalInstallments - 1) else base
-        return Money(minor, totalAmount.currency)
-    }
+    fun schedule(today: LocalDate = LocalDate.now()): List<ScheduledInstallment> =
+        plan?.let { allocate(total, it, paid, today) } ?: emptyList()
 
-    val remainingInstallments: Int get() = totalInstallments - paidInstallments
-    val progressFraction: Float get() = if (totalInstallments == 0) 0f else paidInstallments.toFloat() / totalInstallments
-    val isComplete: Boolean get() = paidInstallments >= totalInstallments
-    /** Money still to move on this loan: to pay for [LoanType.EXPENSE], to collect for [LoanType.INCOME]. */
-    val remainingAmount: Money get() = Money(totalAmount.minor - settledAmount.minor, totalAmount.currency)
-    /** Money already moved on this loan: paid for [LoanType.EXPENSE], collected for [LoanType.INCOME]. */
-    val settledAmount: Money
-        get() = when {
-            totalInstallments <= 0 -> Money(0, totalAmount.currency)
-            isComplete -> totalAmount
-            else -> Money(paidInstallments.coerceAtLeast(0) * baseInstallmentMinor, totalAmount.currency)
-        }
-    /** Due date of the first unpaid installment, or null once the loan is complete. */
-    val nextDueDate: LocalDate? get() = if (isComplete) null else installmentDate(paidInstallments + 1)
-
-    /** Scheduled due date of installment [number] (1-based). */
-    fun installmentDate(number: Int): LocalDate =
-        frequency.advance(startDate.toLocalDate(), frequencyInterval, (number - 1).toLong())
+    /** First installment not fully paid, or null without a plan or once settled. */
+    fun nextDue(today: LocalDate = LocalDate.now()): ScheduledInstallment? =
+        schedule(today).firstOrNull { it.state != InstallmentState.PAID }
 
     fun status(today: LocalDate): LoanStatus = when {
-        isComplete -> LoanStatus.PAID
-        nextDueDate?.isBefore(today) == true -> LoanStatus.OVERDUE
+        isSettled -> LoanStatus.PAID
+        plan != null ->
+            if (schedule(today).any { it.state == InstallmentState.OVERDUE }) LoanStatus.OVERDUE else LoanStatus.ACTIVE
+        expectedDate?.isBefore(today) == true -> LoanStatus.OVERDUE
         else -> LoanStatus.ACTIVE
     }
+
+    /** Movement that hands the money over: lending sends it out, borrowing brings it in. */
+    val disbursementType: TransactionType
+        get() = if (loanType == LoanType.INCOME) TransactionType.LOAN_OUT else TransactionType.LOAN_IN
+
+    /** Movement for each payment: the opposite direction of the disbursement. */
+    val paymentType: TransactionType
+        get() = if (loanType == LoanType.INCOME) TransactionType.LOAN_IN else TransactionType.LOAN_OUT
 }
 
 enum class LoanStatus { PAID, OVERDUE, ACTIVE }
@@ -71,36 +72,52 @@ enum class LoanStatus { PAID, OVERDUE, ACTIVE }
 data class LoanTotals(val toPay: Long, val toCollect: Long)
 
 fun List<Loan>.outstandingTotals(): LoanTotals = LoanTotals(
-    toPay = filter { it.loanType == LoanType.EXPENSE && !it.isComplete }.sumOf { it.remainingMainMinor },
-    toCollect = filter { it.loanType == LoanType.INCOME && !it.isComplete }.sumOf { it.remainingMainMinor },
+    toPay = filter { it.loanType == LoanType.EXPENSE && !it.isSettled }.sumOf { it.remainingMainMinor },
+    toCollect = filter { it.loanType == LoanType.INCOME && !it.isSettled }.sumOf { it.remainingMainMinor },
 )
 
-fun LoanEntity.toDomain(paidInstallments: Int = 0, remainingMainMinor: Long = 0): Loan = Loan(
-    id = id,
-    name = name,
-    description = description,
-    totalAmount = Money(totalAmountMinor, Currency.getInstance(currencyCode)),
-    totalInstallments = totalInstallments,
-    accountId = accountId,
-    categoryId = null,
-    startDate = LocalDateTime.ofInstant(Instant.ofEpochMilli(startDate), ZoneOffset.UTC),
-    paidInstallments = paidInstallments,
-    loanType = LoanType.valueOf(loanType),
-    frequency = RecurrenceFrequency.valueOf(frequency),
-    frequencyInterval = frequencyInterval,
-    remainingMainMinor = remainingMainMinor,
-)
+private fun Long.toLocalDate(): LocalDate =
+    Instant.ofEpochMilli(this).atZone(ZoneOffset.UTC).toLocalDate()
+
+private fun LocalDate.toEpochMilli(): Long = atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+
+fun LoanEntity.toDomain(paidMinor: Long, remainingMainMinor: Long): Loan {
+    val currency = Currency.getInstance(currencyCode)
+    val start = LocalDateTime.ofInstant(Instant.ofEpochMilli(startDate), ZoneOffset.UTC)
+    return Loan(
+        id = id,
+        name = name,
+        description = description,
+        loanType = LoanType.valueOf(loanType),
+        total = Money(totalAmountMinor, currency),
+        accountId = accountId,
+        date = start,
+        plan = if (totalInstallments > 0) {
+            LoanPlan(
+                installments = totalInstallments,
+                frequency = RecurrenceFrequency.valueOf(frequency),
+                interval = frequencyInterval,
+                firstDue = firstDueDate?.toLocalDate() ?: start.toLocalDate(),
+            )
+        } else null,
+        expectedDate = expectedDate?.toLocalDate(),
+        paid = Money(paidMinor, currency),
+        remainingMainMinor = remainingMainMinor,
+    )
+}
 
 fun Loan.toEntity(): LoanEntity = LoanEntity(
     id = id,
     name = name,
     description = description,
-    totalAmountMinor = totalAmount.minor,
-    currencyCode = totalAmount.currency.currencyCode,
-    accountId = requireNotNull(accountId) { "A loan needs an account" },
-    totalInstallments = totalInstallments,
-    startDate = startDate.toInstant(ZoneOffset.UTC).toEpochMilli(),
+    totalAmountMinor = total.minor,
+    currencyCode = total.currency.currencyCode,
+    accountId = accountId,
+    startDate = date.toInstant(ZoneOffset.UTC).toEpochMilli(),
     loanType = loanType.name,
-    frequency = frequency.name,
-    frequencyInterval = frequencyInterval
+    totalInstallments = plan?.installments ?: 0,
+    frequency = plan?.frequency?.name ?: RecurrenceFrequency.MONTHLY.name,
+    frequencyInterval = plan?.interval ?: 1,
+    firstDueDate = plan?.firstDue?.toEpochMilli(),
+    expectedDate = expectedDate?.toEpochMilli(),
 )

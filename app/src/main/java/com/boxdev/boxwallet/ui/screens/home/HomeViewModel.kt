@@ -94,7 +94,7 @@ class HomeViewModel @Inject constructor(
         HomeUiState(
             financialSummary = summary,
             latestTransactions = latest,
-            activeLoans = loans.filter { !it.isComplete },
+            activeLoans = loans.filter { !it.isSettled },
             categories = categories,
             totalBalance = balances.total,
             accounts = balances.active,

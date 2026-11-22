@@ -1,5 +1,8 @@
 package com.boxdev.boxwallet.util
 
+import com.boxdev.boxwallet.domain.model.LoanType
+import com.boxdev.boxwallet.domain.model.LoanPlan
+import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.domain.model.Loan
 import com.boxdev.boxwallet.domain.model.Transaction
@@ -40,10 +43,12 @@ class ExcelReportGeneratorTest {
     private val loan = Loan(
         id = 7,
         name = "Car",
-        totalAmount = Money(120_000, gtq),
-        totalInstallments = 12,
-        startDate = LocalDateTime.of(2026, 1, 1, 0, 0),
-        paidInstallments = 1
+        loanType = LoanType.EXPENSE,
+        total = Money(120_000, gtq),
+        accountId = 1,
+        date = LocalDateTime.of(2026, 1, 1, 0, 0),
+        plan = LoanPlan(12, RecurrenceFrequency.MONTHLY, 1, LocalDate.of(2026, 1, 1)),
+        paid = Money(10_000, gtq),
     )
 
     private val transactions = listOf(
@@ -163,8 +168,8 @@ class ExcelReportGeneratorTest {
     @Test
     fun `loan portfolio remaining total uses main currency figures`() {
         val usdLoan = loan.copy(
-            id = 8, name = "Abroad", totalAmount = Money(100_000, Currency.getInstance("USD")),
-            paidInstallments = 0, remainingMainMinor = 770_000
+            id = 8, name = "Abroad", total = Money(100_000, Currency.getInstance("USD")),
+            paid = Money(0, Currency.getInstance("USD")), remainingMainMinor = 770_000
         )
         val file = ExcelReportGenerator.create(
             tmp.newFile("report.xlsx"), emptyList(), emptyMap(), emptyList(),
@@ -186,8 +191,8 @@ class ExcelReportGeneratorTest {
 
     @Test
     fun `loan totals note counts loans in other currencies only when there are some`() {
-        val usdLoan = loan.copy(id = 8, name = "Abroad", totalAmount = Money(100_000, Currency.getInstance("USD")))
-        val eurLoan = loan.copy(id = 9, name = "Euro", totalAmount = Money(50_000, Currency.getInstance("EUR")))
+        val usdLoan = loan.copy(id = 8, name = "Abroad", total = Money(100_000, Currency.getInstance("USD")))
+        val eurLoan = loan.copy(id = 9, name = "Euro", total = Money(50_000, Currency.getInstance("EUR")))
         val range = LocalDate.of(2026, 1, 1) to LocalDate.of(2026, 1, 31)
 
         val mixed = ExcelReportGenerator.create(

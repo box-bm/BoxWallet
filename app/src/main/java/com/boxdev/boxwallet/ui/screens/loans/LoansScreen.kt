@@ -120,7 +120,6 @@ fun LoansScreen(
     val activeFilters = listOf(
         filter.loanTypeFilter != null,
         filter.statusFilter != null,
-        filter.categoryId != null,
         filter.sortBy != LoanSortBy.DATE_DESC,
     ).count { it }
 
@@ -288,11 +287,6 @@ private fun LoansList(
                         },
                     )
                 }
-                if (uiState.categories.isNotEmpty()) {
-                    FilterGroup(stringResource(R.string.loans_filter_category)) {
-                        CategoryFilterChips(uiState.categories, filter.categoryId, viewModel::updateCategoryFilter)
-                    }
-                }
                 FilterGroup(stringResource(R.string.loans_filter_sort_by)) {
                     ConnectedChoiceRow(
                         options = listOf(LoanSortBy.DATE_DESC, LoanSortBy.DATE_ASC, LoanSortBy.AMOUNT_DESC, LoanSortBy.AMOUNT_ASC),
@@ -346,11 +340,10 @@ private fun LoansList(
                 if (totals.toPay > 0 || totals.toCollect > 0) {
                     item(key = "totals") { LoanTotalsHeader(totals, Modifier.padding(bottom = 8.dp)) }
                 }
-                val (completed, active) = uiState.filteredLoans.partition { it.isComplete }
+                val (completed, active) = uiState.filteredLoans.partition { it.isSettled }
                 items(active, key = { it.id }) { loan ->
                     LoanCard(
                         loan = loan,
-                        category = loan.categoryId?.let { categoryMap[it] },
                         selected = loan.id == selectedLoanId,
                         onClick = { onLoanClick(loan.id) },
                         modifier = Modifier.animateItem(),
@@ -376,7 +369,6 @@ private fun LoansList(
                                 loan = loan,
                                 index = index,
                                 count = completed.size,
-                                category = loan.categoryId?.let { categoryMap[it] },
                                 selected = loan.id == selectedLoanId,
                                 onClick = { onLoanClick(loan.id) },
                                 modifier = Modifier.animateItem(),

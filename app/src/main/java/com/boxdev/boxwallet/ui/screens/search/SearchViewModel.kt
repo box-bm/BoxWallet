@@ -99,7 +99,7 @@ class SearchViewModel @Inject constructor(
                     val text = if (t.transferId != null) t.description + " " + transferNames(t) else t.description
                     t to haystack(text, categoryNames[t.categoryId], t.original)
                 },
-            loans = loans.map { l -> l to haystack(l.name + " " + l.description, categoryNames[l.categoryId], l.totalAmount) },
+            loans = loans.map { l -> l to haystack(l.name + " " + l.description, null, l.total) },
             categories = categories,
             accountsById = accountsById,
             pairs = pairs,

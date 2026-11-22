@@ -189,7 +189,7 @@ private fun LoanHero(
     val status = loan.status(today)
     val dateFormatter = DateFormats.mediumDate
     val progress by animateFloatAsState(
-        targetValue = loan.progressFraction,
+        targetValue = if (loan.total.minor <= 0) 0f else (loan.paid.minor.toFloat() / loan.total.minor).coerceIn(0f, 1f),
         animationSpec = MaterialTheme.motionScheme.slowSpatialSpec(),
         label = "loanHeroProgress",
     )
@@ -240,13 +240,13 @@ private fun LoanHero(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     AmountText(
-                        amount = loan.remainingAmount,
+                        amount = loan.remaining,
                         style = BoxTheme.moneyType.large,
                         autoSize = true,
                     )
-                    if (!loan.isComplete) LoanEquivalentText(loan)
+                    if (!loan.isSettled) LoanEquivalentText(loan)
                     Text(
-                        stringResource(R.string.loan_paid_progress, loan.paidInstallments, loan.totalInstallments),
+                        stringResource(R.string.loan_paid_progress, loan.schedule().count { it.state == com.boxdev.boxwallet.domain.model.InstallmentState.PAID }, loan.plan?.installments ?: 0),
                         style = MaterialTheme.typography.titleSmall,
                         color = status.accent(),
                     )
@@ -259,7 +259,7 @@ private fun LoanHero(
                     modifier = Modifier.weight(1f),
                 ) {
                     AmountText(
-                        amount = loan.settledAmount,
+                        amount = loan.paid,
                         kind = AmountKind.Income,
                         signed = false,
                         style = BoxTheme.moneyType.medium,
@@ -270,17 +270,17 @@ private fun LoanHero(
                     label = stringResource(R.string.loan_total_amount),
                     modifier = Modifier.weight(1f),
                 ) {
-                    AmountText(amount = loan.totalAmount, style = BoxTheme.moneyType.medium, autoSize = true)
+                    AmountText(amount = loan.total, style = BoxTheme.moneyType.medium, autoSize = true)
                 }
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Stat(label = stringResource(R.string.loan_detail_start_date), modifier = Modifier.weight(1f)) {
-                    Text(loan.startDate.toLocalDate().format(dateFormatter), style = MaterialTheme.typography.titleMedium)
+                    Text(loan.date.toLocalDate().format(dateFormatter), style = MaterialTheme.typography.titleMedium)
                 }
                 Stat(label = stringResource(R.string.loan_next_payment), modifier = Modifier.weight(1f)) {
-                    val due = loan.nextDueDate
-                    if (due == null || loan.isComplete) {
+                    val due = loan.nextDue()?.due
+                    if (due == null || loan.isSettled) {
                         Text("—", style = MaterialTheme.typography.titleMedium)
                     } else {
                         val days = ChronoUnit.DAYS.between(today, due).toInt()

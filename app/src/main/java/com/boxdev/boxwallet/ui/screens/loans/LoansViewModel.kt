@@ -91,14 +91,13 @@ class LoansViewModel @Inject constructor(
         val today = LocalDate.now()
         val filtered = loans.filter { loan ->
             (filter.loanTypeFilter == null || loan.loanType == filter.loanTypeFilter) &&
-                (filter.statusFilter == null || loan.status(today) == filter.statusFilter) &&
-                (filter.categoryId == null || loan.categoryId == filter.categoryId)
+                (filter.statusFilter == null || loan.status(today) == filter.statusFilter)
         }
         return when (filter.sortBy) {
-            LoanSortBy.DATE_DESC -> filtered.sortedByDescending { it.startDate }
-            LoanSortBy.DATE_ASC -> filtered.sortedBy { it.startDate }
-            LoanSortBy.AMOUNT_DESC -> filtered.sortedByDescending { it.totalAmount.toMajor() }
-            LoanSortBy.AMOUNT_ASC -> filtered.sortedBy { it.totalAmount.toMajor() }
+            LoanSortBy.DATE_DESC -> filtered.sortedByDescending { it.date }
+            LoanSortBy.DATE_ASC -> filtered.sortedBy { it.date }
+            LoanSortBy.AMOUNT_DESC -> filtered.sortedByDescending { it.total.toMajor() }
+            LoanSortBy.AMOUNT_ASC -> filtered.sortedBy { it.total.toMajor() }
         }
     }
 }

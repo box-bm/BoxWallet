@@ -55,7 +55,7 @@ class LoanDetailViewModel @Inject constructor(
             LoanDetailUiState(
                 loan = loan,
                 installments = installments,
-                category = categories.find { it.id == loan?.categoryId },
+                category = null,
                 isLoading = false
             )
         }
