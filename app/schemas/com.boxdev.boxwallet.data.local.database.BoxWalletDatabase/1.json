@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "62ed224c2b71d27ce84f90a4a76e182b",
+    "identityHash": "4f5d31b4e2820106561ad59f0c4eeb1e",
     "entities": [
       {
         "tableName": "accounts",
@@ -454,7 +454,7 @@
       },
       {
         "tableName": "loans",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `description` TEXT NOT NULL, `totalAmountMinor` INTEGER NOT NULL, `currencyCode` TEXT NOT NULL, `accountId` INTEGER, `totalInstallments` INTEGER NOT NULL, `categoryId` INTEGER, `startDate` INTEGER NOT NULL, `loanType` TEXT NOT NULL, `frequency` TEXT NOT NULL, `frequencyInterval` INTEGER NOT NULL, `kind` TEXT NOT NULL, `expectedDate` INTEGER, FOREIGN KEY(`accountId`) REFERENCES `accounts`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `description` TEXT NOT NULL, `totalAmountMinor` INTEGER NOT NULL, `currencyCode` TEXT NOT NULL, `accountId` INTEGER NOT NULL, `startDate` INTEGER NOT NULL, `loanType` TEXT NOT NULL, `totalInstallments` INTEGER NOT NULL, `frequency` TEXT NOT NULL, `frequencyInterval` INTEGER NOT NULL, `firstDueDate` INTEGER, `expectedDate` INTEGER, FOREIGN KEY(`accountId`) REFERENCES `accounts`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
         "fields": [
           {
             "fieldPath": "id",
@@ -489,18 +489,8 @@
           {
             "fieldPath": "accountId",
             "columnName": "accountId",
-            "affinity": "INTEGER"
-          },
-          {
-            "fieldPath": "totalInstallments",
-            "columnName": "totalInstallments",
             "affinity": "INTEGER",
             "notNull": true
-          },
-          {
-            "fieldPath": "categoryId",
-            "columnName": "categoryId",
-            "affinity": "INTEGER"
           },
           {
             "fieldPath": "startDate",
@@ -512,6 +502,12 @@
             "fieldPath": "loanType",
             "columnName": "loanType",
             "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalInstallments",
+            "columnName": "totalInstallments",
+            "affinity": "INTEGER",
             "notNull": true
           },
           {
@@ -527,10 +523,9 @@
             "notNull": true
           },
           {
-            "fieldPath": "kind",
-            "columnName": "kind",
-            "affinity": "TEXT",
-            "notNull": true
+            "fieldPath": "firstDueDate",
+            "columnName": "firstDueDate",
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "expectedDate",
@@ -558,7 +553,7 @@
         "foreignKeys": [
           {
             "table": "accounts",
-            "onDelete": "SET NULL",
+            "onDelete": "RESTRICT",
             "onUpdate": "NO ACTION",
             "columns": [
               "accountId"
@@ -748,7 +743,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '62ed224c2b71d27ce84f90a4a76e182b')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '4f5d31b4e2820106561ad59f0c4eeb1e')"
     ]
   }
 }

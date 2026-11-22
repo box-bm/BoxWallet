@@ -146,7 +146,7 @@ class TransactionRepositoryTest {
         saved(mine.copy(id = 0, accountId = other))
         val loanId = db.loanDao().insert(
             com.boxdev.boxwallet.data.local.entity.LoanEntity(
-                name = "Loan", totalAmountMinor = 1000, currencyCode = "USD", totalInstallments = 1,
+                name = "Loan", totalAmountMinor = 1000, currencyCode = "USD", accountId = accountId, totalInstallments = 1,
                 startDate = 0L, loanType = "EXPENSE", frequency = "MONTHLY",
             )
         )

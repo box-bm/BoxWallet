@@ -135,6 +135,8 @@ object ExcelReportGenerator {
                 TransactionType.ADJUSTMENT_IN, TransactionType.ADJUSTMENT_OUT -> "Adjustment"
                 TransactionType.TRANSFER_OUT -> "Transfer out"
                 TransactionType.TRANSFER_IN -> "Transfer in"
+                TransactionType.LOAN_IN -> "Loan in"
+                TransactionType.LOAN_OUT -> "Loan out"
             })
             row.createCell(5).setCellValue(tx.categoryId?.let { categories[it] } ?: "Uncategorized")
             row.createCell(6).setCellValue(tx.description)

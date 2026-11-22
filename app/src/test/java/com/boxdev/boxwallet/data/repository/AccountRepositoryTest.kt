@@ -109,6 +109,16 @@ class AccountRepositoryTest {
         )
 
     @Test
+    fun `loan movements move the balance`() = runTest {
+        val id = db.accountDao().insert(AccountEntity(name = "Cash", type = "CASH", currencyCode = "USD", createdAt = 0L))
+        move(id, TransactionType.LOAN_IN, 10000, cleared = true)
+        move(id, TransactionType.LOAN_OUT, 1100, cleared = true)
+
+        val balance = repository.observeAccountsWithBalance().first().single { it.account.id == id }.balance
+        assertEquals(Money(8900, usd), balance)
+    }
+
+    @Test
     fun balanceCountsTransferLegs() = runTest {
         val id = db.accountDao().insert(AccountEntity(name = "Main", type = "CHECKING", currencyCode = "USD", createdAt = 0L))
         move(id, TransactionType.INCOME, 10000, cleared = true)

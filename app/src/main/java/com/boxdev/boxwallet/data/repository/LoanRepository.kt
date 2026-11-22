@@ -47,7 +47,7 @@ class LoanRepository @Inject constructor(
     /** Installment writes hold [guard], so their conversions use the currencies current at write time. */
     suspend fun insertLoanWithInstallments(loan: Loan): Long = guard.write { current ->
         val installments = buildInstallments(loan, current)
-        val loanId = loanDao.insert(loan.toEntity())
+        val loanId = loanDao.insert(loan.withAccount().toEntity())
         transactionDao.insertAll(installments.map { it.copy(loanId = loanId).toEntity() })
         loanId
     }
@@ -83,7 +83,12 @@ class LoanRepository @Inject constructor(
         }
     }
 
-    suspend fun updateLoan(loan: Loan): Unit = guard.write { current ->
+    /** Provisional until the loan form always picks an account. */
+    private suspend fun Loan.withAccount(): Loan =
+        if (accountId != null) this else copy(accountId = accountRepository.defaultAccount().id)
+
+    suspend fun updateLoan(loanInput: Loan): Unit = guard.write { current ->
+        val loan = loanInput.withAccount()
         val existingLoan = loanDao.getById(loan.id)
         val installmentRows = transactionDao.getInstallmentsByLoanId(loan.id)
         if (existingLoan != null && installmentRows.none { it.isCleared } && existingLoan.termsDiffer(loan)) {

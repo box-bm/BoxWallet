@@ -98,13 +98,17 @@ enum class TransactionType {
     ADJUSTMENT_IN,
     ADJUSTMENT_OUT,
     TRANSFER_OUT,
-    TRANSFER_IN
+    TRANSFER_IN,
+    /** Money lent to the user enters the account; never income. */
+    LOAN_IN,
+    /** Money leaving the account to pay or lend on a loan; never an expense. */
+    LOAN_OUT
 }
 
 /** Money enters the account (adds to its balance). */
 val TransactionType.isInflow: Boolean
     get() = this == TransactionType.INCOME || this == TransactionType.ADJUSTMENT_IN ||
-        this == TransactionType.TRANSFER_IN
+        this == TransactionType.TRANSFER_IN || this == TransactionType.LOAN_IN
 
 /** Only real income/expense feeds categories, charts, reports and exports. */
 val TransactionType.countsInReports: Boolean
@@ -117,3 +121,7 @@ val TransactionType.isAdjustment: Boolean
 /** One leg of a transfer between two accounts; never income or expense. */
 val TransactionType.isTransfer: Boolean
     get() = this == TransactionType.TRANSFER_OUT || this == TransactionType.TRANSFER_IN
+
+/** Disbursement or payment of a loan; moves the balance but never counts as income or expense. */
+val TransactionType.isLoan: Boolean
+    get() = this == TransactionType.LOAN_IN || this == TransactionType.LOAN_OUT

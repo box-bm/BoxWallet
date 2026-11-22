@@ -246,10 +246,7 @@ class BackupRepository @Inject constructor(
             fun existingAccount(id: Long, accountCurrency: String?): Long =
                 if (id in accountIds) id else accountCurrency?.let { firstByCurrency[it] } ?: defaultAccount ?: id
             val loans = data.loans.map { loan ->
-                loan.copy(
-                    categoryId = loan.categoryId?.takeIf { it in categoryIds },
-                    accountId = loan.accountId?.let { existingAccount(it, loan.currencyCode) },
-                )
+                loan.copy(accountId = existingAccount(loan.accountId, loan.currencyCode))
             }
             val transactions = kept.map { tx ->
                 val loanKept = tx.loanId?.let { it in loanIds } ?: true

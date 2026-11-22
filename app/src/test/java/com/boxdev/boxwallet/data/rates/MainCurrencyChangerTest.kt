@@ -437,7 +437,7 @@ class MainCurrencyChangerTest {
     fun `preview counts movements and loans`() = runTest {
         val acc = account("USD")
         val loan = db.loanDao().insert(
-            LoanEntity(name = "Car", totalAmountMinor = 100000, currencyCode = "USD", totalInstallments = 10, startDate = 0L)
+            LoanEntity(name = "Car", totalAmountMinor = 100000, currencyCode = "USD", accountId = acc, totalInstallments = 10, startDate = 0L)
         )
         db.transactionDao().insert(tx(acc, 1000, "USD", 1000, "1", 1000, "1"))
         db.transactionDao().insert(tx(acc, 1000, "USD", 1000, "1", 1000, "1", loanId = loan))

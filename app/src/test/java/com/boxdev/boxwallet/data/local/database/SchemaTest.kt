@@ -1,6 +1,7 @@
 package com.boxdev.boxwallet.data.local.database
 
 import android.content.Context
+import android.database.sqlite.SQLiteConstraintException
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.boxdev.boxwallet.data.local.entity.AccountEntity
@@ -9,11 +10,13 @@ import com.boxdev.boxwallet.data.local.entity.LoanEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 import com.boxdev.boxwallet.domain.money.RateSource
 import java.math.BigDecimal
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -77,12 +80,19 @@ class SchemaTest {
     }
 
     @Test
-    fun `a new loan defaults to SCHEDULED`() = runTest {
-        val id = db.loanDao().insert(
-            LoanEntity(name = "Car", totalAmountMinor = 1_000_00, currencyCode = "GTQ", totalInstallments = 10, startDate = 0L),
+    fun `loan rows need an account and block deleting it`() = runTest {
+        val account = db.accountDao().insert(
+            AccountEntity(name = "Cash", type = "CASH", currencyCode = "GTQ", createdAt = 0L),
         )
-        val loan = db.loanDao().getById(id)!!
-        assertEquals("SCHEDULED", loan.kind)
-        assertNull(loan.expectedDate)
+        db.loanDao().insert(
+            LoanEntity(
+                name = "Car", totalAmountMinor = 1_000_00, currencyCode = "GTQ", accountId = account,
+                startDate = 0L, loanType = "EXPENSE",
+            ),
+        )
+
+        assertThrows(SQLiteConstraintException::class.java) {
+            runBlocking { db.accountDao().deleteById(account) }
+        }
     }
 }
