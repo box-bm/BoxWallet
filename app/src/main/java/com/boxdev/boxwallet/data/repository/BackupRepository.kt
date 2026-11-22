@@ -220,8 +220,11 @@ class BackupRepository @Inject constructor(
          * A movement whose account is missing goes to the first account in that account's currency.
          * The row doesn't store it, but with `accountRate == 1` and equal original and account
          * amounts it was the movement's own currency; otherwise (or with no account in it) the
-         * movement goes to the default account. A loan has no account amount: its own currency is
-         * used. With no accounts at all the insert fails and the restore rolls back.
+         * movement goes to the default account. With no accounts at all the insert fails and the restore rolls back.
+         *
+         * A loan whose account is missing is dropped together with every movement that points to it
+         * (a loan is never moved to another account), and so is a movement pointing to a loan the
+         * backup doesn't have.
          *
          * An installment plan whose account is missing is dropped with its installments (a card
          * purchase isn't moved to another account); one whose category is missing loses the category.
@@ -233,31 +236,29 @@ class BackupRepository @Inject constructor(
         private fun sanitized(data: BackupData): BackupData {
             val accountIds = data.accounts.mapTo(HashSet()) { it.id }
             val categoryIds = data.categories.mapTo(HashSet()) { it.id }
-            val loanIds = data.loans.mapTo(HashSet()) { it.id }
+            val loans = data.loans.filter { it.accountId in accountIds }
+            val loanIds = loans.mapTo(HashSet()) { it.id }
             val plans = data.installmentPlans.filter { it.accountId in accountIds }
                 .map { plan -> plan.copy(categoryId = plan.categoryId?.takeIf { it in categoryIds }) }
             val planIds = plans.mapTo(HashSet()) { it.id }
             val droppedPlanIds = data.installmentPlans.mapTo(HashSet()) { it.id } - planIds
-            val kept = data.transactions.filter { it.installmentPlanId !in droppedPlanIds }
+            val kept = data.transactions.filter {
+                it.installmentPlanId !in droppedPlanIds && (it.loanId == null || it.loanId in loanIds)
+            }
             val txIds = kept.mapTo(HashSet()) { it.id }
             val inOrder = data.accounts.sortedWith(compareBy({ it.sortOrder }, { it.id }))
             val firstByCurrency = inOrder.reversed().associate { it.currencyCode to it.id }
             val defaultAccount = data.defaultAccountId?.takeIf { it in accountIds } ?: inOrder.firstOrNull()?.id
             fun existingAccount(id: Long, accountCurrency: String?): Long =
                 if (id in accountIds) id else accountCurrency?.let { firstByCurrency[it] } ?: defaultAccount ?: id
-            val loans = data.loans.map { loan ->
-                loan.copy(accountId = existingAccount(loan.accountId, loan.currencyCode))
-            }
             val transactions = kept.map { tx ->
-                val loanKept = tx.loanId?.let { it in loanIds } ?: true
                 val planKept = tx.installmentPlanId?.let { it in planIds } ?: true
                 val inOwnCurrency = tx.accountRate.compareTo(BigDecimal.ONE) == 0 && tx.originalAmountMinor == tx.accountAmountMinor
                 tx.copy(
                     accountId = existingAccount(tx.accountId, tx.currencyCode.takeIf { inOwnCurrency }),
                     categoryId = tx.categoryId?.takeIf { it in categoryIds },
-                    loanId = if (loanKept) tx.loanId else null,
                     installmentPlanId = if (planKept) tx.installmentPlanId else null,
-                    installmentNumber = if (loanKept && planKept) tx.installmentNumber else null,
+                    installmentNumber = if (planKept) tx.installmentNumber else null,
                     parentRecurrenceId = tx.parentRecurrenceId?.takeIf { it in txIds && it != tx.id },
                 )
             }
