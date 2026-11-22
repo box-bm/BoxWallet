@@ -113,6 +113,7 @@ class BackupRepository @Inject constructor(
         val loans = async { loanDao.getAllLoansSync() }
         val installmentPlans = async { installmentPlanDao.getAllSync() }
         val defaultAccountId = async { prefs.defaultAccountId.first() }
+        val defaultCategoryId = async { prefs.defaultCategoryId.first() }
         BackupData(
             createdAt = System.currentTimeMillis(),
             mainCurrencyCode = prefs.mainCurrency.first().currencyCode,
@@ -122,6 +123,7 @@ class BackupRepository @Inject constructor(
             loans = loans.await(),
             installmentPlans = installmentPlans.await(),
             defaultAccountId = defaultAccountId.await(),
+            defaultCategoryId = defaultCategoryId.await(),
         )
     }
 
@@ -182,6 +184,8 @@ class BackupRepository @Inject constructor(
                 // Committed with the data: a crash before the DataStore writes is finished at startup.
                 appMetaDao.put(AppMetaEntity(META_MAIN_CURRENCY, sane.mainCurrencyCode))
                 sane.defaultAccountId?.let { appMetaDao.put(AppMetaEntity(META_DEFAULT_ACCOUNT_ID, it.toString())) }
+                // Always written: an empty value tells the startup step to clear the device's old default.
+                appMetaDao.put(AppMetaEntity(META_DEFAULT_CATEGORY_ID, sane.defaultCategoryId?.toString().orEmpty()))
             }
             applyPendingRestore()
         }
@@ -189,7 +193,7 @@ class BackupRepository @Inject constructor(
     }
 
     /**
-     * Finishes a restore whose transaction committed but whose main currency and default account
+     * Finishes a restore whose transaction committed but whose main currency, default account and default category
      * never reached DataStore (the process died in between). Call at startup.
      */
     suspend fun completePendingRestore(): Unit = lock.mutex.withLock {
@@ -200,10 +204,12 @@ class BackupRepository @Inject constructor(
     private suspend fun applyPendingRestore() {
         val currency = appMetaDao.get(META_MAIN_CURRENCY)
         val accountId = appMetaDao.get(META_DEFAULT_ACCOUNT_ID)?.toLongOrNull()
-        if (currency == null && accountId == null) return
+        val category = appMetaDao.get(META_DEFAULT_CATEGORY_ID)
+        if (currency == null && accountId == null && category == null) return
         currency?.let { prefs.setMainCurrency(it) }
         accountId?.let { prefs.setDefaultAccountId(it) }
-        appMetaDao.delete(listOf(META_MAIN_CURRENCY, META_DEFAULT_ACCOUNT_ID))
+        category?.let { prefs.setDefaultCategory(it.toLongOrNull()) }
+        appMetaDao.delete(listOf(META_MAIN_CURRENCY, META_DEFAULT_ACCOUNT_ID, META_DEFAULT_CATEGORY_ID))
     }
 
     internal companion object {
@@ -211,6 +217,8 @@ class BackupRepository @Inject constructor(
         private const val PRE_CURRENCY_CHANGE_FILE = "pre-currency-change.json"
         const val META_MAIN_CURRENCY = "restore_main_currency"
         const val META_DEFAULT_ACCOUNT_ID = "restore_default_account_id"
+        /** The restored default category id; an empty value means the backup has none (clear the preference). */
+        const val META_DEFAULT_CATEGORY_ID = "restore_default_category_id"
 
         /**
          * Drops references to rows the backup doesn't contain and orders recurrences so a parent is
@@ -273,6 +281,7 @@ class BackupRepository @Inject constructor(
                 installmentPlans = plans,
                 transactions = parentsFirst(wholeTransfers(transactions)),
                 defaultAccountId = defaultAccount,
+                defaultCategoryId = data.defaultCategoryId?.takeIf { it in categoryIds },
             )
         }
 

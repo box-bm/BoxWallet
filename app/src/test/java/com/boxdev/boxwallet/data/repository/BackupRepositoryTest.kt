@@ -538,6 +538,60 @@ class BackupRepositoryTest {
     }
 
     @Test
+    fun `the default category round-trips through a backup`() = runTest {
+        db.categoryDao().insert(CategoryEntity(id = 51, name = "A"))
+        db.categoryDao().insert(CategoryEntity(id = 52, name = "B"))
+        prefs.setDefaultCategory(52)
+        val json = Gson().toJson(repo.snapshot())
+        assertEquals(52L, JsonParser.parseString(json).asJsonObject.get("defaultCategoryId").asLong)
+        prefs.setDefaultCategory(null)
+
+        val result = repo.restoreJson(json, usd)
+
+        assertTrue(result is RestoreResult.Restored)
+        assertEquals(52L, prefs.defaultCategoryId.first())
+        assertNull(db.appMetaDao().get(BackupRepository.META_DEFAULT_CATEGORY_ID))
+        prefs.setDefaultCategory(null)
+    }
+
+    @Test
+    fun `a backup without a default category clears the device one`() = runTest {
+        prefs.setDefaultCategory(3)
+        val backup = BackupData(mainCurrencyCode = "USD", categories = listOf(CategoryEntity(id = 3, name = "Other")))
+
+        repo.restoreJson(Gson().toJson(backup), usd)
+
+        assertNull(prefs.defaultCategoryId.first())
+    }
+
+    @Test
+    fun `a backup default category missing from its categories gives none`() = runTest {
+        val backup = BackupData(
+            mainCurrencyCode = "USD", defaultCategoryId = 404,
+            categories = listOf(CategoryEntity(id = 3, name = "Other")),
+        )
+
+        val result = repo.restoreJson(Gson().toJson(backup), usd) as RestoreResult.Restored
+
+        assertNull(result.data.defaultCategoryId)
+        assertNull(prefs.defaultCategoryId.first())
+    }
+
+    @Test
+    fun `startup finishes the default category of a restore committed before a crash`() = runTest {
+        prefs.setDefaultCategory(1)
+        db.appMetaDao().put(AppMetaEntity(BackupRepository.META_DEFAULT_CATEGORY_ID, "7"))
+        repo.completePendingRestore()
+        assertEquals(7L, prefs.defaultCategoryId.first())
+        assertNull(db.appMetaDao().get(BackupRepository.META_DEFAULT_CATEGORY_ID))
+
+        db.appMetaDao().put(AppMetaEntity(BackupRepository.META_DEFAULT_CATEGORY_ID, ""))
+        repo.completePendingRestore()
+        assertNull(prefs.defaultCategoryId.first())
+        assertNull(db.appMetaDao().get(BackupRepository.META_DEFAULT_CATEGORY_ID))
+    }
+
+    @Test
     fun `without marks the startup step changes nothing`() = runTest {
         prefs.setDefaultAccountId(42)
         repo.completePendingRestore()
@@ -628,7 +682,7 @@ class BackupRepositoryTest {
     @Test
     fun `a file that isn't a backup is refused`() = runTest {
         seedLocalData()
-        listOf("{}", "not json", """{"version":6}""", """{"version":6,"mainCurrencyCode":"USD"}""", "[]", "").forEach {
+        listOf("{}", "not json", """{"version":7}""", """{"version":7,"mainCurrencyCode":"USD"}""", "[]", "").forEach {
             assertEquals(it, RestoreResult.Incompatible, repo.restoreJson(it, usd))
         }
         assertEquals(99L, db.transactionDao().getAllTransactionsSync().single().id)

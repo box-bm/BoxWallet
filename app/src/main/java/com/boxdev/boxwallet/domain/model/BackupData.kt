@@ -22,6 +22,8 @@ data class BackupData(
     val installmentPlans: List<InstallmentPlanEntity> = emptyList(),
     /** The account new movements default to. */
     val defaultAccountId: Long? = null,
+    /** The category new movements are pre-selected with, if any. */
+    val defaultCategoryId: Long? = null,
 ) {
     companion object {
         const val CURRENT_VERSION = 7
