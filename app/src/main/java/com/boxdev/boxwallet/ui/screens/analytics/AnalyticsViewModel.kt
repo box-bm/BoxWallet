@@ -28,7 +28,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.shareIn
@@ -97,37 +96,6 @@ data class SpendingInsight(
     val kind: InsightKind,
 )
 
-enum class InstallmentState { PAID, OPEN, OVERDUE }
-
-/** A loan's unpaid installments in the period, grouped so each loan appears once. */
-data class LoanInstallmentsDue(
-    val loanId: Long,
-    val loanName: String,
-    val type: TransactionType,
-    val count: Int,
-    val overdueCount: Int,
-    val amount: Long,
-    /** Oldest unpaid due date: the overdue-since date when [overdueCount] > 0, otherwise the next due date. */
-    val firstDue: LocalDate,
-)
-
-/** Loan installments that fall due inside the selected period. */
-data class InstallmentSummary(
-    val dueCount: Int,
-    val paidCount: Int,
-    val overdueCount: Int,
-    /** Installments the user pays (expense loans): total due and what is still open. */
-    val toPayDue: Long,
-    val toPayOpen: Long,
-    /** Installments owed to the user (income loans). Never added to [toPayDue]. */
-    val toCollectDue: Long,
-    val toCollectOpen: Long,
-    /** One state per installment in due-date order, for the count bar. */
-    val states: List<InstallmentState>,
-    /** Loans with unpaid installments, overdue loans first, then by oldest due date. */
-    val pending: List<LoanInstallmentsDue>,
-)
-
 enum class InsightType {
     POSITIVE, WARNING, NEUTRAL, ALERT
 }
@@ -159,8 +127,8 @@ data class AnalyticsUiState(
     val categories: Map<Long, Category> = emptyMap(),
     /** Each installment plan's installment count by plan id, for a listed installment's "k/N". */
     val installmentCounts: Map<Long, Int> = emptyMap(),
-    /** Null when no installment falls due in the period. */
-    val installments: InstallmentSummary? = null,
+    /** Null when no loan moved in the period and none is open. */
+    val loans: LoanFlows? = null,
     val categoryExpenses: List<CategoryExpenseData> = emptyList(),
     val monthlyTrendData: List<MonthlyData> = emptyList(),
     val yearlyMonthlySummary: List<MonthlyData> = emptyList(),
@@ -214,16 +182,22 @@ class AnalyticsViewModel @Inject constructor(
             val trendStart = LocalDate.now().minusMonths(11).withDayOfMonth(1)
             val trendEnd = LocalDate.now()
 
-            // Loans no longer store installment rows; Reports rebuilds this section from the loans (Task 10).
-            val installmentsFlow = flowOf<InstallmentSummary?>(null)
+            val loansFlow = combine(
+                loanRepository.observeMovementsBetween(startDate, endDate),
+                loanRepository.observeAll(),
+            ) { movements, loans ->
+                val flows = loanFlows(movements, loans.associateBy { it.id })
+                // Shown only when something moved in the period or a loan is still open.
+                flows.takeIf { movements.isNotEmpty() || loans.any { !it.isSettled } }
+            }
 
             combine(
                 transactionRepository.getTransactionsBetweenDates(startDate, endDate),
                 transactionRepository.getTransactionsBetweenDates(prevStart, prevEnd),
                 transactionRepository.getTransactionsBetweenDates(trendStart, trendEnd),
                 categoriesFlow,
-                installmentsFlow,
-            ) { allPeriodTx, allPreviousTx, allTrendTx, categories, installments ->
+                loansFlow,
+            ) { allPeriodTx, allPreviousTx, allTrendTx, categories, loans ->
                 // Balance adjustments never count as income or expense in any report.
                 val periodTx = allPeriodTx.inReports()
                 val previousTx = allPreviousTx.inReports()
@@ -266,7 +240,7 @@ class AnalyticsViewModel @Inject constructor(
                     topExpenses = expenses.sortedByDescending { it.amount.minor }.take(5),
                     dayMovements = if (filter.frequency == AnalyticsFrequency.DAILY) periodTx.sortedByDescending { it.date } else emptyList(),
                     categories = categoryMap,
-                    installments = installments,
+                    loans = loans,
                     categoryExpenses = categoryExpenses,
                     monthlyTrendData = monthlyTrendData,
                     yearlyMonthlySummary = yearlyMonthlySummary,

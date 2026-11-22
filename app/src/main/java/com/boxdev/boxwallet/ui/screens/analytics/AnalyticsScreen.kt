@@ -307,10 +307,8 @@ fun AnalyticsScreen(
                 }
             }
         }
-        val installments: @Composable () -> Unit = {
-            uiState.installments?.let { summary ->
-                InstallmentsSection(summary, onOpenLoan = onOpenLoan, onSeeLoans = onNavigateToLoans)
-            }
+        val loans: @Composable () -> Unit = {
+            uiState.loans?.let { flows -> LoansSection(flows, onSeeLoans = onNavigateToLoans) }
         }
 
         // ---- Always the last 12 months ----
@@ -349,7 +347,7 @@ fun AnalyticsScreen(
                     BalancedColumns(
                         listOf(
                             { controls(); summary(); emptyPeriod() },
-                            pattern, categories, installments, topExpenses,
+                            pattern, categories, loans, topExpenses,
                         )
                     )
                     yearHeader()
@@ -361,7 +359,7 @@ fun AnalyticsScreen(
                 }
             } else {
                 Column(scroll.padding(vertical = 8.dp), verticalArrangement = gap) {
-                    controls(); summary(); emptyPeriod(); categories(); pattern(); topExpenses(); installments()
+                    controls(); summary(); emptyPeriod(); categories(); pattern(); topExpenses(); loans()
                     yearHeader(); cashFlow(); health()
                     Spacer(Modifier.height(24.dp))
                 }
@@ -606,179 +604,49 @@ private fun TwelveMonthHeader() {
     }
 }
 
-/** Installments that fall due in the period: how many are paid, and the ones still open. */
-@Composable
-private fun InstallmentsSection(
-    summary: InstallmentSummary,
-    onOpenLoan: (Long) -> Unit,
-    onSeeLoans: () -> Unit,
-) {
-    val formatter = rememberCurrencyFormatter()
-    val dateFormatter = remember { DateTimeFormatter.ofPattern("MMM d", Locale.getDefault()) }
-    val visible = summary.pending.take(3)
-    ReportSection(stringResource(R.string.analytics_installments_title)) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    stringResource(R.string.analytics_installments_paid, summary.paidCount, summary.dueCount),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f),
-                )
-                if (summary.overdueCount > 0) {
-                    Surface(color = MaterialTheme.colorScheme.errorContainer, shape = CircleShape) {
-                        Text(
-                            pluralStringResource(R.plurals.analytics_installments_overdue, summary.overdueCount, summary.overdueCount),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        )
-                    }
-                }
-            }
-            InstallmentCountBar(summary.states)
-            // Money the user owes and money owed to them are never added together.
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                if (summary.toPayDue > 0) {
-                    DirectionAmount(
-                        label = stringResource(R.string.analytics_installments_to_pay),
-                        open = summary.toPayOpen,
-                        due = summary.toPayDue,
-                        kind = AmountKind.Expense,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-                if (summary.toCollectDue > 0) {
-                    DirectionAmount(
-                        label = stringResource(R.string.analytics_installments_to_collect),
-                        open = summary.toCollectOpen,
-                        due = summary.toCollectDue,
-                        kind = AmountKind.Income,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-            }
-            if (summary.pending.isEmpty()) {
-                Text(
-                    stringResource(R.string.analytics_installments_all_paid),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = BoxTheme.money.income,
-                )
-            } else {
-                Column {
-                    visible.forEachIndexed { index, due ->
-                        InstallmentRow(
-                            due = due,
-                            dateText = due.firstDue.format(dateFormatter),
-                            index = index,
-                            count = visible.size,
-                            onClick = { onOpenLoan(due.loanId) },
-                        )
-                    }
-                }
-                if (summary.pending.size > visible.size) {
-                    TextButton(onClick = onSeeLoans, modifier = Modifier.align(Alignment.End)) {
-                        Text(stringResource(R.string.analytics_see_loans))
-                    }
-                }
-            }
-        }
-    }
-}
-
 /**
- * One pill per installment due in the period, in due-date order: filled when paid, error when
- * overdue, the track colour while still open. Progress reads as a count, never a mixed amount.
+ * Loans: what moved in the period (received and paid for loans the user borrowed, lent and collected
+ * for the ones lent), then what is outstanding now. The two directions are never added together.
  */
 @Composable
-private fun InstallmentCountBar(states: List<InstallmentState>) {
-    val colors = mapOf(
-        InstallmentState.PAID to MaterialTheme.colorScheme.primary,
-        InstallmentState.OVERDUE to MaterialTheme.colorScheme.error,
-        InstallmentState.OPEN to MaterialTheme.colorScheme.surfaceContainerHighest,
-    )
-    // Past 24 the pills get too thin; show one bar split into paid, overdue and open runs instead.
-    val segments: List<Pair<InstallmentState, Int>> = if (states.size > 24) {
-        listOf(InstallmentState.PAID, InstallmentState.OVERDUE, InstallmentState.OPEN)
-            .map { st -> st to states.count { it == st } }
-            .filter { it.second > 0 }
-    } else {
-        states.map { it to 1 }
-    }
-    Row(Modifier.fillMaxWidth().clearAndSetSemantics { }, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        segments.forEach { (state, weight) ->
-            Box(
-                Modifier
-                    .weight(weight.toFloat())
-                    .height(8.dp)
-                    .clip(CircleShape)
-                    .background(colors.getValue(state))
-            )
+private fun LoansSection(flows: LoanFlows, onSeeLoans: () -> Unit) {
+    ReportSection(stringResource(R.string.analytics_loans_title)) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            val borrowed = listOf(
+                Triple(R.string.analytics_loans_received, flows.received, AmountKind.Income),
+                Triple(R.string.analytics_loans_paid, flows.paid, AmountKind.Expense),
+            ).filter { it.second > 0 }
+            val lent = listOf(
+                Triple(R.string.analytics_loans_lent, flows.lent, AmountKind.Expense),
+                Triple(R.string.analytics_loans_collected, flows.collected, AmountKind.Income),
+            ).filter { it.second > 0 }
+            // A pair whose both values are zero is hidden.
+            for (pair in listOf(borrowed, lent)) {
+                if (pair.isEmpty()) continue
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    pair.forEach { (label, amount, kind) ->
+                        LoanAmount(stringResource(label), amount, kind, Modifier.weight(1f))
+                    }
+                    if (pair.size == 1) Spacer(Modifier.weight(1f))
+                }
+            }
+            if (borrowed.isNotEmpty() || lent.isNotEmpty()) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                LoanAmount(stringResource(R.string.loans_group_i_owe), flows.owe, AmountKind.Expense, Modifier.weight(1f))
+                LoanAmount(stringResource(R.string.loans_group_owed_to_me), flows.owed, AmountKind.Income, Modifier.weight(1f))
+            }
+            TextButton(onClick = onSeeLoans, modifier = Modifier.align(Alignment.End)) {
+                Text(stringResource(R.string.analytics_see_loans))
+            }
         }
     }
 }
 
-/** Still-open amount in one direction (to pay or to collect), with the period's total beneath. */
 @Composable
-private fun DirectionAmount(label: String, open: Long, due: Long, kind: AmountKind, modifier: Modifier = Modifier) {
-    val formatter = rememberCurrencyFormatter()
+private fun LoanAmount(label: String, amount: Long, kind: AmountKind, modifier: Modifier = Modifier) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        AmountText(mainMoney(open), kind = kind, style = BoxTheme.moneyType.medium, autoSize = true)
-        Text(
-            stringResource(R.string.analytics_installments_of_due, formatter.formatMain(due)),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun InstallmentRow(
-    due: LoanInstallmentsDue,
-    dateText: String,
-    index: Int,
-    count: Int,
-    onClick: () -> Unit,
-) {
-    val isIncome = due.type == TransactionType.INCOME
-    val isOverdue = due.overdueCount > 0
-    SegmentedListItem(
-        onClick = onClick,
-        shapes = segmentShapes(index, count),
-        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-        modifier = Modifier.padding(bottom = ListItemDefaults.SegmentedGap),
-        leadingContent = {
-            Icon(
-                if (isOverdue) Icons.Outlined.ErrorOutline else Icons.Outlined.Schedule,
-                contentDescription = null,
-                tint = if (isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        },
-        supportingContent = {
-            // One row per loan: a count leads when several installments are open.
-            val status = if (isOverdue) stringResource(R.string.analytics_installment_overdue, dateText)
-            else stringResource(R.string.analytics_installment_due, dateText)
-            val counted = when {
-                due.count == 1 -> status
-                isOverdue -> pluralStringResource(R.plurals.analytics_installments_open, due.count, due.count) + " · " +
-                    pluralStringResource(R.plurals.analytics_installments_overdue_since, due.overdueCount, due.overdueCount, dateText)
-                else -> pluralStringResource(R.plurals.analytics_installments_open, due.count, due.count) + " · " + status
-            }
-            Text(
-                counted,
-                color = if (isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        },
-        trailingContent = {
-            AmountText(
-                mainMoney(due.amount),
-                kind = amountKind(isIncome),
-                style = BoxTheme.moneyType.small,
-            )
-        },
-    ) {
-        Text(due.loanName, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        AmountText(mainMoney(amount), kind = kind, style = BoxTheme.moneyType.medium, autoSize = true)
     }
 }
 

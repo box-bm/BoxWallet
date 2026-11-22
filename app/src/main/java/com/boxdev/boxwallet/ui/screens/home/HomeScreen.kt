@@ -2,6 +2,15 @@
 
 package com.boxdev.boxwallet.ui.screens.home
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import com.boxdev.boxwallet.ui.components.AmountKind
+import com.boxdev.boxwallet.ui.components.AmountText
+import com.boxdev.boxwallet.ui.components.mainMoney
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -180,6 +189,15 @@ fun HomeScreen(
                         modifier = Modifier.padding(top = 16.dp),
                     )
                 }
+                item(key = "loans_totals") {
+                    Row(
+                        Modifier.fillMaxWidth().padding(start = 4.dp, bottom = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        LoanTotal(stringResource(R.string.loans_group_i_owe), uiState.loanTotals.toPay, AmountKind.Expense, Modifier.weight(1f))
+                        LoanTotal(stringResource(R.string.loans_group_owed_to_me), uiState.loanTotals.toCollect, AmountKind.Income, Modifier.weight(1f))
+                    }
+                }
                 // One line per loan here; the full cards live on the Loans tab.
                 itemsIndexed(uiState.activeLoans, key = { _, l -> "loan_${l.id}" }) { index, loan ->
                     LoanRow(
@@ -230,5 +248,13 @@ fun HomeScreen(
                 }
             } else null,
         )
+    }
+}
+
+@Composable
+private fun LoanTotal(label: String, amount: Long, kind: AmountKind, modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        AmountText(mainMoney(amount), kind = kind, style = BoxTheme.moneyType.medium, autoSize = true)
     }
 }

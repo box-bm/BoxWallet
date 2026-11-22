@@ -141,6 +141,10 @@ interface TransactionDao {
     @Query("SELECT SUM(t.amountMinor) FROM transactions t JOIN accounts a ON a.id = t.accountId WHERE t.type = 'EXPENSE' AND $COUNTED")
     fun getTotalExpense(endOfToday: Long): Flow<Long?>
 
+    /** Disbursements and payments of every loan dated in the range. */
+    @Query("SELECT * FROM transactions WHERE loanId IS NOT NULL AND date BETWEEN :startDate AND :endDate ORDER BY date ASC, id ASC")
+    fun getLoanMovementsBetweenDates(startDate: Long, endDate: Long): Flow<List<TransactionEntity>>
+
     @Query("SELECT SUM(t.amountMinor) FROM transactions t JOIN accounts a ON a.id = t.accountId WHERE t.type = 'INCOME' AND $COUNTED AND t.date BETWEEN :startDate AND :endDate")
     fun getTotalIncomeBetweenDates(startDate: Long, endDate: Long, endOfToday: Long): Flow<Long?>
 

@@ -23,7 +23,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.util.Currency
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -61,6 +63,20 @@ class LoanRepository @Inject constructor(
     ) { rows, accounts, main ->
         val currencies = accounts.associate { it.id to Currency.getInstance(it.currencyCode) }
         rows.map { it.toDomain(currencies[it.accountId] ?: main, main) }
+    }
+
+    /** Every loan movement dated from [start] to [end] inclusive, oldest first. */
+    fun observeMovementsBetween(start: LocalDate, end: LocalDate): Flow<List<Transaction>> {
+        val startMillis = start.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+        val endMillis = end.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+        return combine(
+            transactionDao.getLoanMovementsBetweenDates(startMillis, endMillis),
+            accountDao.observeAll(),
+            userPreferences.mainCurrency,
+        ) { rows, accounts, main ->
+            val currencies = accounts.associate { it.id to Currency.getInstance(it.currencyCode) }
+            rows.map { it.toDomain(currencies[it.accountId] ?: main, main) }
+        }
     }
 
     /** Saves [loan] and its disbursement; returns the loan's id. A missing rate saves nothing. */

@@ -427,17 +427,6 @@
     <string name="analytics_verdict_over">Gastaste %1$s más de lo que ingresó</string>
     <string name="analytics_verdict_no_income">Aún no hay ingresos en este periodo</string>
     <string name="analytics_twelve_month_caption">No depende del periodo que elijas arriba</string>
-    <string name="analytics_installments_title">Cuotas del periodo</string>
-    <string name="analytics_installments_paid">%1$d de %2$d pagadas</string>
-    <string name="analytics_installments_amount">%1$s de %2$s</string>
-    <plurals name="analytics_installments_overdue">
-        <item quantity="one">%1$d vencida</item>
-        <item quantity="other">%1$d vencidas</item>
-    </plurals>
-    <string name="analytics_installment_due">Vence %1$s</string>
-    <string name="analytics_installment_overdue">Vencida desde %1$s</string>
-    <string name="analytics_installments_all_paid">Todas las cuotas del periodo están pagadas</string>
-    <string name="analytics_see_loans">Ver todos los préstamos</string>
     <string name="analytics_not_enough_history">Historial insuficiente</string>
     <string name="chart_a11y_previous">Anterior</string>
     <string name="chart_a11y_next">Siguiente</string>
@@ -446,20 +435,7 @@
     <string name="analytics_net_by_month">Neto por mes</string>
     <string name="analytics_day_movements">Movimientos del día</string>
     <string name="analytics_see_category_movements">Ver movimientos de %1$s</string>
-    <string name="analytics_installments_to_pay">Por pagar</string>
-    <string name="analytics_installments_to_collect">Por cobrar</string>
-    <string name="analytics_installments_of_due">de %1$s en el período</string>
     <string name="analytics_trend_caption">Últimos 6 meses comparados con los 6 anteriores</string>
-    <plurals name="analytics_installments_open">
-        <item quantity="one">%1$d pendiente</item>
-        <item quantity="many">%1$d pendientes</item>
-        <item quantity="other">%1$d pendientes</item>
-    </plurals>
-    <plurals name="analytics_installments_overdue_since">
-        <item quantity="one">%1$d vencida desde %2$s</item>
-        <item quantity="many">%1$d vencidas desde %2$s</item>
-        <item quantity="other">%1$d vencidas desde %2$s</item>
-    </plurals>
     <string name="analytics_vs_same_point_week">%1$s vs mismo día de la semana pasada</string>
     <string name="analytics_vs_same_point_month">%1$s vs misma fecha del mes pasado</string>
     <string name="analytics_vs_same_point_year">%1$s vs misma fecha del año pasado</string>
@@ -714,4 +690,10 @@
     <string name="account_loans_new">Nuevo préstamo</string>
     <string name="account_loans_show_settled">Ver liquidados (%1$d)</string>
     <string name="account_loans_hide_settled">Ocultar liquidados</string>
+    <string name="analytics_loans_title">Préstamos</string>
+    <string name="analytics_loans_received">Recibido</string>
+    <string name="analytics_loans_paid">Pagado</string>
+    <string name="analytics_loans_lent">Prestado</string>
+    <string name="analytics_loans_collected">Cobrado</string>
+    <string name="analytics_see_loans">Ver préstamos</string>
 </resources>

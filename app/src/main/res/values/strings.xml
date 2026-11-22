@@ -443,17 +443,6 @@
     <string name="analytics_verdict_over">You spent %1$s more than came in</string>
     <string name="analytics_verdict_no_income">No income recorded in this period yet</string>
     <string name="analytics_twelve_month_caption">Not affected by the period you pick above</string>
-    <string name="analytics_installments_title">Installments due</string>
-    <string name="analytics_installments_paid">%1$d of %2$d paid</string>
-    <string name="analytics_installments_amount">%1$s of %2$s</string>
-    <plurals name="analytics_installments_overdue">
-        <item quantity="one">%1$d overdue</item>
-        <item quantity="other">%1$d overdue</item>
-    </plurals>
-    <string name="analytics_installment_due">Due %1$s</string>
-    <string name="analytics_installment_overdue">Overdue since %1$s</string>
-    <string name="analytics_installments_all_paid">Every installment for this period is paid</string>
-    <string name="analytics_see_loans">See all loans</string>
     <string name="analytics_not_enough_history">Not enough history</string>
     <string name="chart_a11y_previous">Previous</string>
     <string name="chart_a11y_next">Next</string>
@@ -462,18 +451,7 @@
     <string name="analytics_net_by_month">Net by month</string>
     <string name="analytics_day_movements">Movements this day</string>
     <string name="analytics_see_category_movements">See %1$s movements</string>
-    <string name="analytics_installments_to_pay">To pay</string>
-    <string name="analytics_installments_to_collect">To collect</string>
-    <string name="analytics_installments_of_due">of %1$s due</string>
     <string name="analytics_trend_caption">Last 6 months compared with the 6 before</string>
-    <plurals name="analytics_installments_open">
-        <item quantity="one">%1$d open</item>
-        <item quantity="other">%1$d open</item>
-    </plurals>
-    <plurals name="analytics_installments_overdue_since">
-        <item quantity="one">%1$d overdue since %2$s</item>
-        <item quantity="other">%1$d overdue since %2$s</item>
-    </plurals>
     <string name="analytics_vs_same_point_week">%1$s vs same point last week</string>
     <string name="analytics_vs_same_point_month">%1$s vs same point last month</string>
     <string name="analytics_vs_same_point_year">%1$s vs same point last year</string>
@@ -727,4 +705,10 @@
     <string name="account_loans_new">New loan</string>
     <string name="account_loans_show_settled">Show settled (%1$d)</string>
     <string name="account_loans_hide_settled">Hide settled</string>
+    <string name="analytics_loans_title">Loans</string>
+    <string name="analytics_loans_received">Received</string>
+    <string name="analytics_loans_paid">Paid</string>
+    <string name="analytics_loans_lent">Lent</string>
+    <string name="analytics_loans_collected">Collected</string>
+    <string name="analytics_see_loans">See loans</string>
 </resources>
