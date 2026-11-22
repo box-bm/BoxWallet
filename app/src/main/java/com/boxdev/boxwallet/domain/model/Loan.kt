@@ -39,6 +39,10 @@ data class Loan(
     val remaining: Money get() = Money((total.minor - paid.minor).coerceAtLeast(0), total.currency)
     val isSettled: Boolean get() = paid.minor >= total.minor
 
+    /** How much of the total has been paid, from 0 to 1 (0 when the total is not positive). */
+    val progressFraction: Float
+        get() = if (total.minor <= 0) 0f else (paid.minor.toFloat() / total.minor).coerceIn(0f, 1f)
+
     fun schedule(today: LocalDate = LocalDate.now()): List<ScheduledInstallment> =
         plan?.let { allocate(total, it, paid, today) } ?: emptyList()
 

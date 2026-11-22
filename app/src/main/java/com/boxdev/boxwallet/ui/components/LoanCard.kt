@@ -28,13 +28,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.util.DateFormats
-import com.boxdev.boxwallet.domain.model.InstallmentState
 import com.boxdev.boxwallet.domain.model.LoanStatus
 import java.time.LocalDate
-import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Loan
 import com.boxdev.boxwallet.domain.model.LoanType
 import com.boxdev.boxwallet.ui.theme.BoxTheme
+import com.boxdev.boxwallet.util.rememberCurrencyFormatter
 import java.time.format.DateTimeFormatter
 
 /**
@@ -45,7 +44,6 @@ import java.time.format.DateTimeFormatter
 fun LoanCard(
     loan: Loan,
     modifier: Modifier = Modifier,
-    category: Category? = null,
     selected: Boolean = false,
     containerColor: Color = BoxTheme.cardColor,
     onClick: () -> Unit = {},
@@ -54,7 +52,7 @@ fun LoanCard(
     val status = loan.status(LocalDate.now())
     val interaction = remember { MutableInteractionSource() }
     val progress by animateFloatAsState(
-        targetValue = if (loan.total.minor <= 0) 0f else (loan.paid.minor.toFloat() / loan.total.minor).coerceIn(0f, 1f),
+        targetValue = loan.progressFraction,
         animationSpec = MaterialTheme.motionScheme.slowSpatialSpec(),
         label = "loanProgress",
     )
@@ -77,7 +75,7 @@ fun LoanCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 CategoryBadge(
-                    category = category,
+                    category = null,
                     fallbackIcon = trendIcon(isIncome),
                     fallbackContainer = badgeContainer,
                     fallbackContent = badgeContent,
@@ -90,10 +88,9 @@ fun LoanCard(
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    val sub = loan.description.ifBlank { category?.name.orEmpty() }
-                    if (sub.isNotBlank()) {
+                    if (loan.description.isNotBlank()) {
                         Text(
-                            text = sub,
+                            text = loan.description,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
@@ -118,18 +115,11 @@ fun LoanCard(
                     )
                     if (!loan.isSettled) LoanEquivalentText(loan)
                 }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = stringResource(R.string.loan_total_amount),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    AmountText(
-                        amount = loan.total,
-                        style = BoxTheme.moneyType.small,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                Text(
+                    text = stringResource(R.string.loan_of_total, rememberCurrencyFormatter().format(loan.total)),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
 
             LinearWavyProgressIndicator(
@@ -141,7 +131,7 @@ fun LoanCard(
             )
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                val due = loan.nextDue()?.due
+                val due = loan.nextDue()?.due ?: loan.expectedDate
                 Text(
                     text = if (!loan.isSettled && due != null) {
                         stringResource(R.string.loan_next_due, due.format(dateFormatter))
@@ -150,13 +140,6 @@ fun LoanCard(
                     color = if (status == LoanStatus.OVERDUE) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
                 )
-                if (loan.plan != null) {
-                    Text(
-                        text = stringResource(R.string.loan_paid_progress, loan.schedule().count { it.state == InstallmentState.PAID }, loan.plan?.installments ?: 0),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                }
             }
         }
     }
@@ -172,7 +155,6 @@ fun LoanRow(
     index: Int,
     count: Int,
     modifier: Modifier = Modifier,
-    category: Category? = null,
     /** Highlights the loan open in the detail pane beside the list, like [LoanCard]. */
     selected: Boolean = false,
     onClick: () -> Unit = {},
@@ -182,7 +164,7 @@ fun LoanRow(
     val status = loan.status(LocalDate.now())
     val isIncome = loan.loanType == LoanType.INCOME
     val (badgeContainer, badgeContent) = directionColors(isIncome)
-    val due = loan.nextDue()?.due
+    val due = loan.nextDue()?.due ?: loan.expectedDate
     SegmentedListItem(
         onClick = onClick,
         shapes = segmentShapes(index, count),
@@ -202,7 +184,7 @@ fun LoanRow(
         modifier = modifier.padding(bottom = ListItemDefaults.SegmentedGap),
         leadingContent = {
             CategoryBadge(
-                category = category,
+                category = null,
                 fallbackIcon = trendIcon(isIncome),
                 fallbackContainer = badgeContainer,
                 fallbackContent = badgeContent,

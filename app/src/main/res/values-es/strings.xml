@@ -633,7 +633,7 @@
     <string name="account_not_found">No se encontró la cuenta</string>
     <string name="account_error_is_default">No puedes borrar ni archivar la cuenta por defecto</string>
     <string name="account_error_last">Necesitas al menos una cuenta</string>
-    <string name="account_error_has_movements">Esta cuenta tiene movimientos; archívala en su lugar</string>
+    <string name="account_error_has_movements">Esta cuenta tiene movimientos o préstamos; archívala en su lugar</string>
     <string name="account_error_second_currency_has_movements">La segunda moneda ya tiene movimientos</string>
     <string name="account_error_remove_second_currency_first">Quita primero la segunda moneda</string>
     <string name="account_error_has_pending_installments">Esta tarjeta tiene cuotas por cobrar</string>
@@ -695,4 +695,19 @@
     <string name="loans_group_i_owe">Debo</string>
     <string name="loans_group_settled">Liquidados</string>
     <string name="loans_add_from_account">Agrega un pr\u00e9stamo desde una cuenta o con el bot\u00f3n +</string>
+    <string name="loan_payment_new_title">Registrar abono</string>
+    <string name="loan_payment_edit_title">Editar pago</string>
+    <string name="loan_payment_amount_label">Monto</string>
+    <string name="loan_payment_date_label">Fecha</string>
+    <string name="loan_payment_max">Hasta %1$s</string>
+    <string name="loan_payment_refused">El pago no puede pasar de lo que falta ni ser anterior al préstamo.</string>
+    <string name="loan_record_payment">Registrar abono</string>
+    <string name="loan_payments_section">Pagos</string>
+    <string name="loan_payments_empty">Aún no hay pagos</string>
+    <string name="loan_left_of">Faltan %1$s de %2$s</string>
+    <string name="loan_installment_covered">%1$s de %2$s cubiertos</string>
+    <string name="loan_installment_paid_label">Pagada</string>
+    <string name="loan_account_label">Cuenta</string>
+    <string name="action_more">Más opciones</string>
+    <string name="loan_of_total">de %1$s</string>
 </resources>
