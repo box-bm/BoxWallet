@@ -48,6 +48,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.boxdev.boxwallet.ui.components.BackButton
 import com.boxdev.boxwallet.ui.components.readableWidth
@@ -79,7 +80,16 @@ fun SettingsScaffold(
         contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
         topBar = {
             LargeFlexibleTopAppBar(
-                title = { Text(title) },
+                // Long titles ("Respaldo y Restauración") wrap to a second line with a gap before the
+                // screen edge instead of running into it.
+                title = {
+                    Text(
+                        title,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(end = 16.dp),
+                    )
+                },
                 subtitle = subtitle?.let { { Text(it) } },
                 navigationIcon = { if (showBack && onNavigateBack != null) BackButton(onNavigateBack) },
                 actions = actions,
