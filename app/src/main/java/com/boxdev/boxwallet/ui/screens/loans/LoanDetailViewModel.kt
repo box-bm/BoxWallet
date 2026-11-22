@@ -128,7 +128,7 @@ class LoanDetailViewModel @Inject constructor(
         val loan = uiState.value.loan ?: return
         val sheet = local.value.payment?.takeIf { it.isValid } ?: return
         val amount = sheet.parsed ?: return
-        attempt(closesSheet = true) {
+        attempt(closesSheet = true, refused = R.string.loan_payment_refused) {
             if (sheet.editingId == null) {
                 loanRepository.addPayment(loan.id, amount, sheet.date)
                 analyticsHelper.logEvent("loan_payment_added")
@@ -141,31 +141,42 @@ class LoanDetailViewModel @Inject constructor(
 
     fun deleteOpenPayment() {
         val id = local.value.payment?.editingId ?: return
-        attempt(closesSheet = true) {
+        attempt(closesSheet = true, refused = R.string.loan_payment_delete_failed) {
             loanRepository.deletePayment(id)
             analyticsHelper.logEvent("loan_payment_deleted")
         }
     }
 
-    /** "Mark as paid": pays what installment [number] lacks, dated now. */
+    /**
+     * "Mark as paid": opens the payment sheet with what installment [number] still lacks, dated
+     * now; the amount and date can be changed before saving.
+     */
     fun markPaid(number: Int) {
         val loan = uiState.value.loan ?: return
-        attempt(closesSheet = false) {
-            loanRepository.payInstallment(loan.id, number, LocalDateTime.now())
-            analyticsHelper.logEvent("loan_installment_paid")
-        }
+        val lacking = loan.schedule().firstOrNull { it.number == number }?.uncovered ?: return
+        if (lacking.minor <= 0) return
+        local.update { it.copy(payment = LoanPaymentState.forNew(loan, lacking, LocalDateTime.now()), error = null) }
     }
 
     fun deleteLoan() {
         val loan = uiState.value.loan ?: return
-        attempt(closesSheet = false) {
+        attempt(closesSheet = false, refused = R.string.loan_delete_failed, failed = R.string.loan_delete_failed) {
             loanRepository.delete(loan.id)
             analyticsHelper.logEvent("loan_deleted")
             local.update { it.copy(deleted = true) }
         }
     }
 
-    private fun attempt(closesSheet: Boolean, block: suspend () -> Unit) {
+    /**
+     * Runs [block], reporting a repository refusal (IllegalArgumentException) with [refused], a
+     * missing rate with its own message, and anything else with [failed].
+     */
+    private fun attempt(
+        closesSheet: Boolean,
+        @StringRes refused: Int,
+        @StringRes failed: Int = R.string.account_error_generic,
+        block: suspend () -> Unit,
+    ) {
         viewModelScope.launch {
             try {
                 block()
@@ -175,8 +186,9 @@ class LoanDetailViewModel @Inject constructor(
             } catch (_: MissingRateException) {
                 local.update { it.copy(error = R.string.account_error_missing_rate) }
             } catch (_: IllegalArgumentException) {
-                // The repository refuses a payment over what is left or before the disbursement.
-                local.update { it.copy(error = R.string.loan_payment_refused) }
+                local.update { it.copy(error = refused) }
+            } catch (_: Exception) {
+                local.update { it.copy(error = failed) }
             }
         }
     }

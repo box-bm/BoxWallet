@@ -1,6 +1,9 @@
 package com.boxdev.boxwallet.ui.screens.loans
 
 import androidx.lifecycle.SavedStateHandle
+import com.boxdev.boxwallet.R
+import com.boxdev.boxwallet.data.local.entity.TransactionType
+import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.analytics.AnalyticsHelper
 import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.data.repository.LoanRepository
@@ -20,6 +23,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Before
@@ -27,6 +31,7 @@ import org.junit.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.time.LocalDate
@@ -76,15 +81,70 @@ class LoanDetailViewModelTest {
     }
 
     @Test
-    fun `mark paid pays the installment`() = runTest {
-        val vm = viewModel(loan(paid = 0, plan = monthly))
+    fun `mark paid opens the payment sheet with what the installment lacks, dated today`() = runTest {
+        val vm = viewModel(loan(paid = 130_000, plan = monthly))
         val job = backgroundCollect(vm)
         advanceUntilIdle()
-        vm.markPaid(1)
+        vm.markPaid(2)
         advanceUntilIdle()
-        verify(repository).payInstallment(eq(5L), eq(1), any())
+        val sheet = vm.uiState.value.payment!!
+        assertEquals(Money(70_000, usd), sheet.parsed)
+        assertNull(sheet.editingId)
+        assertEquals(LocalDate.now(), sheet.date.toLocalDate())
+        verify(repository, never()).payInstallment(any(), any(), any())
+        // The date stays editable before saving.
+        val chosen = LocalDateTime.of(2026, 3, 1, 9, 0)
+        vm.updatePaymentDate(chosen)
+        vm.savePayment()
+        advanceUntilIdle()
+        verify(repository).addPayment(eq(5L), eq(Money(70_000, usd)), eq(chosen))
         job.cancel()
     }
+
+    @Test
+    fun `a refused payment delete has its own message`() = runTest {
+        val vm = viewModel(loan(paid = 10_000, plan = null))
+        whenever(repository.observeMovements(5)).thenReturn(flowOf(listOf(payment(9))))
+        val job = backgroundCollect(vm)
+        advanceUntilIdle()
+        whenever(repository.deletePayment(9)).thenThrow(IllegalArgumentException("no"))
+        vm.openPayment(9)
+        vm.deleteOpenPayment()
+        advanceUntilIdle()
+        assertEquals(R.string.loan_payment_delete_failed, vm.uiState.value.error)
+        job.cancel()
+    }
+
+    @Test
+    fun `a failed loan delete has its own message`() = runTest {
+        val vm = viewModel(loan(paid = 0, plan = null))
+        val job = backgroundCollect(vm)
+        advanceUntilIdle()
+        whenever(repository.delete(5)).thenThrow(IllegalStateException("db"))
+        vm.deleteLoan()
+        advanceUntilIdle()
+        assertEquals(R.string.loan_delete_failed, vm.uiState.value.error)
+        assertFalse(vm.uiState.value.deleted)
+        job.cancel()
+    }
+
+    @Test
+    fun `any other failure is reported with the generic message`() = runTest {
+        val vm = viewModel(loan(paid = 0, plan = null))
+        val job = backgroundCollect(vm)
+        advanceUntilIdle()
+        whenever(repository.addPayment(eq(5L), any(), any())).thenThrow(IllegalStateException("db"))
+        vm.openNewPayment()
+        vm.savePayment()
+        advanceUntilIdle()
+        assertEquals(R.string.account_error_generic, vm.uiState.value.error)
+        assertNotNull(vm.uiState.value.payment)
+        job.cancel()
+    }
+
+    private fun payment(id: Long) = Transaction.singleCurrency(
+        1, TransactionType.LOAN_OUT, LocalDateTime.of(2026, 1, 5, 0, 0), Money(10_000, usd),
+    ).copy(id = id, loanId = 5)
 
     @Test
     fun `a refused payment is reported and the sheet stays open`() = runTest {
@@ -95,7 +155,7 @@ class LoanDetailViewModelTest {
         vm.openNewPayment()
         vm.savePayment()
         advanceUntilIdle()
-        assertNotNull(vm.uiState.value.error)
+        assertEquals(R.string.loan_payment_refused, vm.uiState.value.error)
         assertNotNull(vm.uiState.value.payment)
         vm.dismissError()
         advanceUntilIdle()

@@ -682,6 +682,7 @@
     <string name="loan_error_required">Fill in the name, the amount and the account.</string>
     <string name="loan_save_refused">Couldn\'t save the loan with these details.</string>
     <string name="loan_delete_failed">Couldn\'t delete the loan. Try again.</string>
+    <string name="loan_payment_delete_failed">Couldn\'t delete the payment. Try again.</string>
     <string name="loan_record_payment">Record payment</string>
     <string name="loan_payments_section">Payments</string>
     <string name="loan_payments_empty">No payments yet</string>

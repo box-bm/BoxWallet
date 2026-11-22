@@ -667,6 +667,7 @@
     <string name="loan_error_required">Completa el nombre, el monto y la cuenta.</string>
     <string name="loan_save_refused">No se pudo guardar el préstamo con estos datos.</string>
     <string name="loan_delete_failed">No se pudo eliminar el préstamo. Inténtalo de nuevo.</string>
+    <string name="loan_payment_delete_failed">No se pudo eliminar el pago. Inténtalo de nuevo.</string>
     <string name="loan_record_payment">Registrar abono</string>
     <string name="loan_payments_section">Pagos</string>
     <string name="loan_payments_empty">Aún no hay pagos</string>
