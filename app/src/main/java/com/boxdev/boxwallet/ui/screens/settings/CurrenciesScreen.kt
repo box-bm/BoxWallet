@@ -164,7 +164,9 @@ fun CurrenciesScreen(
 
     if (showPicker || showMainPicker) {
         var query by remember { mutableStateOf("") }
-        val all = remember(locale) { CurrencyCatalog.all(locale) }
+        val all = remember(locale, state.recent, state.main) {
+            CurrencyCatalog.all(locale, state.recent.map { it.currencyCode } + state.main.currencyCode)
+        }
         val sections = remember(query, state.recent, all) { pickerSections(all, state.recent, query, locale) }
         val forMain = showMainPicker
         CurrencyPickerSheet(

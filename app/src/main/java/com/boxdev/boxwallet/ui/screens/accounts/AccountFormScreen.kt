@@ -138,7 +138,10 @@ fun AccountFormScreen(
     if (showCurrencyPicker) {
         var query by remember { mutableStateOf("") }
         // The card's second currency can't also be its first.
-        val all = remember(locale, form.secondCurrency) { CurrencyCatalog.all(locale).filter { it != form.secondCurrency } }
+        val all = remember(locale, form.secondCurrency, recentCurrencies, form.currency) {
+            CurrencyCatalog.all(locale, recentCurrencies.map { it.currencyCode } + form.currency.currencyCode)
+                .filter { it != form.secondCurrency }
+        }
         val sections = remember(query, recentCurrencies, all) { pickerSections(all, recentCurrencies, query, locale) }
         CurrencyPickerSheet(
             selected = form.currency,
@@ -151,7 +154,10 @@ fun AccountFormScreen(
 
     if (showSecondCurrencyPicker) {
         var query by remember { mutableStateOf("") }
-        val all = remember(locale, form.currency) { CurrencyCatalog.all(locale).filter { it != form.currency } }
+        val all = remember(locale, form.currency, recentCurrencies, form.secondCurrency) {
+            CurrencyCatalog.all(locale, recentCurrencies.map { it.currencyCode } + listOfNotNull(form.secondCurrency?.currencyCode))
+                .filter { it != form.currency }
+        }
         val sections = remember(query, recentCurrencies, all) { pickerSections(all, recentCurrencies, query, locale) }
         CurrencyPickerSheet(
             // Nothing is checked until one is picked.

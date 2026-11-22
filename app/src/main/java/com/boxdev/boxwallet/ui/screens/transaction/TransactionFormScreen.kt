@@ -349,7 +349,9 @@ private fun TransactionFormFields(
 
     if (showCurrencyPicker) {
         var query by remember { mutableStateOf("") }
-        val allCurrencies = remember(locale) { CurrencyCatalog.all(locale) }
+        val allCurrencies = remember(locale, recentCurrencies, formState.currency) {
+            CurrencyCatalog.all(locale, recentCurrencies.map { it.currencyCode } + formState.currency.currencyCode)
+        }
         val sections = remember(query, recentCurrencies, allCurrencies) {
             pickerSections(allCurrencies, recentCurrencies, query, locale)
         }

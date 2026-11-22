@@ -603,7 +603,7 @@ private fun CountryStep(
 
     if (showPicker && currency != null) {
         var pickerQuery by remember { mutableStateOf("") }
-        val allCurrencies = remember(locale) { CurrencyCatalog.all(locale) }
+        val allCurrencies = remember(locale, currency) { CurrencyCatalog.all(locale, listOf(currency.currencyCode)) }
         val sections = remember(pickerQuery, allCurrencies) {
             pickerSections(allCurrencies, emptyList(), pickerQuery, locale)
         }
