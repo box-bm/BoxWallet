@@ -47,6 +47,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -61,12 +62,12 @@ import com.boxdev.boxwallet.ui.components.CategoryBadge
 import com.boxdev.boxwallet.ui.components.ChoiceToken
 import com.boxdev.boxwallet.ui.components.ConfirmDeleteDialog
 import com.boxdev.boxwallet.ui.components.LabeledBlock
-import com.boxdev.boxwallet.ui.components.polygon
 import com.boxdev.boxwallet.ui.components.tone
 import com.boxdev.boxwallet.ui.theme.BoxWalletTheme
 import com.boxdev.boxwallet.ui.theme.container
 import com.boxdev.boxwallet.ui.theme.onContainer
 import com.boxdev.boxwallet.util.categoryIconOptions
+import com.boxdev.boxwallet.util.categoryIconVector
 import kotlinx.coroutines.launch
 
 /** Editable copy of a category in the sheet; [preview] feeds the live badge. */
@@ -81,6 +82,15 @@ data class CategoryFormState(
 
     /** The category as it would be saved; an edit keeps its real id, so it keeps its silhouette. */
     fun preview(): Category = Category(id = id ?: 0, name = name, description = description, icon = icon, color = color)
+
+    /**
+     * A new category has no id yet, so its seeded silhouette would follow the typed name; it previews
+     * as a steady circle instead. An edit keeps its real silhouette.
+     */
+    val previewIsCircle: Boolean get() = id == null
+
+    /** A new category with the automatic color has no tone until it is saved, so it previews neutral. */
+    val previewIsNeutral: Boolean get() = previewIsCircle && color == AccountColor.DEFAULT
 
     companion object {
         fun from(category: Category?): CategoryFormState =
@@ -142,7 +152,10 @@ fun CategoryFormSheet(
             title = stringResource(R.string.categories_delete_title),
             message = stringResource(R.string.categories_delete_message, category?.name.orEmpty()),
             // Delete once the sheet is gone, so it never redraws without its category.
-            onConfirm = { if (!closing) closeThen(onDelete) },
+            onConfirm = {
+                confirmDelete = false
+                if (!closing) closeThen(onDelete)
+            },
             onDismiss = { confirmDelete = false },
         )
     }
@@ -157,8 +170,7 @@ private fun CategoryFormContent(
     onDelete: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
-    val preview = form.preview()
-    val (toneContainer, toneContent) = preview.tone()
+    val (toneContainer, toneContent) = form.previewTone()
     Column(modifier) {
         Column(
             Modifier
@@ -180,7 +192,7 @@ private fun CategoryFormContent(
                 }
             }
 
-            BadgePreview(preview)
+            BadgePreview(form)
 
             OutlinedTextField(
                 value = form.name,
@@ -203,8 +215,8 @@ private fun CategoryFormContent(
 
             LabeledBlock(stringResource(R.string.categories_color_label)) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // DEFAULT shows the tone the category gets on its own, so it reads as "automatic".
-                    val (autoContainer, autoContent) = preview.copy(color = AccountColor.DEFAULT).tone()
+                    // DEFAULT shows the tone the category gets on its own (neutral while new), so it reads as "automatic".
+                    val (autoContainer, autoContent) = form.copy(color = AccountColor.DEFAULT).previewTone()
                     AccountColor.entries.forEachIndexed { index, color ->
                         val selected = color == form.color
                         val isAuto = color == AccountColor.DEFAULT
@@ -259,25 +271,49 @@ private fun CategoryFormContent(
 }
 
 /**
- * The large live badge with the name under it. A new silhouette, icon or color springs in
- * (fast spatial scale, default effects fade) so each choice is felt, not just seen.
+ * Container / content pair the preview shows: neutral for a new category on the automatic color,
+ * the chosen color's pair for a new one with a color, and the category's own tone when editing.
  */
 @Composable
-private fun BadgePreview(preview: Category) {
+private fun CategoryFormState.previewTone(): Pair<Color, Color> = when {
+    previewIsNeutral -> MaterialTheme.colorScheme.surfaceContainerHighest to MaterialTheme.colorScheme.onSurfaceVariant
+    previewIsCircle -> color.container() to color.onContainer()
+    else -> preview().tone()
+}
+
+/**
+ * The large live badge with the name under it. A new icon or color springs in (fast spatial
+ * scale, default effects fade) so each choice is felt; typing the name never moves it.
+ */
+@Composable
+private fun BadgePreview(form: CategoryFormState) {
     val motion = MaterialTheme.motionScheme
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         AnimatedContent(
-            targetState = preview,
-            contentKey = { Triple(it.polygon(), it.icon, it.color) },
+            targetState = form,
+            // Never the name: a new form is a steady circle, and an edit's silhouette follows its id.
+            contentKey = { it.icon to it.color },
             transitionSpec = {
                 (scaleIn(motion.fastSpatialSpec(), initialScale = 0.6f) + fadeIn(motion.defaultEffectsSpec())) togetherWith
                     (scaleOut(motion.fastSpatialSpec(), targetScale = 0.6f) + fadeOut(motion.fastEffectsSpec()))
             },
             contentAlignment = Alignment.Center,
             label = "categoryPreview",
-        ) { category ->
-            CategoryBadge(category = category, size = 72.dp)
+        ) { state ->
+            if (state.previewIsCircle) {
+                val (container, content) = state.previewTone()
+                CategoryBadge(
+                    category = null,
+                    fallbackIcon = categoryIconVector(state.icon),
+                    fallbackContainer = container,
+                    fallbackContent = content,
+                    size = 72.dp,
+                )
+            } else {
+                CategoryBadge(category = state.preview(), size = 72.dp)
+            }
         }
+        val preview = form.preview()
         val named = preview.name.isNotBlank()
         Text(
             if (named) preview.name else stringResource(R.string.categories_name_label),

@@ -52,4 +52,17 @@ class CategoryFormStateTest {
 
         assertEquals(groceries.copy(name = "Food"), preview)
     }
+    @Test
+    fun `a new form previews as a steady circle whatever its name`() {
+        assertTrue(CategoryFormState(name = "S").previewIsCircle)
+        assertTrue(CategoryFormState(name = "Super", color = AccountColor.PINK).previewIsCircle)
+        assertFalse(CategoryFormState.from(groceries).previewIsCircle)
+    }
+
+    @Test
+    fun `only a new form with the automatic color previews in the neutral tone`() {
+        assertTrue(CategoryFormState(name = "Super").previewIsNeutral)
+        assertFalse(CategoryFormState(name = "Super", color = AccountColor.PINK).previewIsNeutral)
+        assertFalse(CategoryFormState.from(groceries.copy(color = AccountColor.DEFAULT)).previewIsNeutral)
+    }
 }
