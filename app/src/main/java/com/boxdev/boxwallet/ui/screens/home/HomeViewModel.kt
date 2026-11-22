@@ -15,6 +15,9 @@ import com.boxdev.boxwallet.domain.model.CardSummary
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.FinancialSummary
 import com.boxdev.boxwallet.domain.model.Loan
+import com.boxdev.boxwallet.domain.model.LoanTotals
+import com.boxdev.boxwallet.domain.model.LoanType
+import com.boxdev.boxwallet.domain.model.outstandingTotals
 import com.boxdev.boxwallet.domain.model.TotalBalance
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.domain.model.TransferPair
@@ -31,6 +34,8 @@ data class HomeUiState(
     val financialSummary: FinancialSummary = FinancialSummary(),
     val latestTransactions: List<Transaction> = emptyList(),
     val activeLoans: List<Loan> = emptyList(),
+    /** What is outstanding across open loans, by direction, in the main currency. */
+    val loanTotals: LoanTotals = LoanTotals(0, 0),
     val categories: List<Category> = emptyList(),
     /** Total of the accounts counted in the total, in the main currency; replaces the summary's balance. */
     val totalBalance: TotalBalance = TotalBalance(Money(0, Currency.getInstance("USD")), approximate = false),
@@ -44,6 +49,8 @@ data class HomeUiState(
     val transferPairs: Map<String, TransferPair> = emptyMap(),
     /** Each installment plan's installment count by plan id, for a listed installment's "k/N". */
     val installmentCounts: Map<Long, Int> = emptyMap(),
+    /** Each loan's direction by loan id, for a loan movement's label. */
+    val loanTypes: Map<Long, LoanType> = emptyMap(),
     val isLoading: Boolean = true
 )
 
@@ -87,14 +94,16 @@ class HomeViewModel @Inject constructor(
     val uiState: StateFlow<HomeUiState> = combine(
         transactionRepository.getFinancialSummary(),
         transactionRepository.getLatestTransactions(5),
-        loanRepository.getAllLoans(),
+        loanRepository.observeAll(),
         categoryRepository.getAllCategories(),
         balances,
     ) { summary, latest, loans, categories, balances ->
         HomeUiState(
             financialSummary = summary,
             latestTransactions = latest,
-            activeLoans = loans.filter { !it.isComplete },
+            activeLoans = loans.filter { !it.isSettled },
+            loanTotals = loans.outstandingTotals(),
+            loanTypes = loans.associate { it.id to it.loanType },
             categories = categories,
             totalBalance = balances.total,
             accounts = balances.active,

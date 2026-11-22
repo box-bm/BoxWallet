@@ -121,8 +121,8 @@ class DemoDataReceiver : BroadcastReceiver() {
             val loanId = loanDao.insert(
                 LoanEntity(
                     name = l.name, description = l.desc, totalAmountMinor = Money.of(BigDecimal.valueOf(l.total), currency).minor,
-                    currencyCode = currency.currencyCode, totalInstallments = l.n,
-                    categoryId = l.cat?.let { ids[it] }, startDate = start.ms(),
+                    currencyCode = currency.currencyCode, accountId = account.id, totalInstallments = l.n,
+                    startDate = start.ms(),
                     loanType = if (l.income) "INCOME" else "EXPENSE", frequency = "MONTHLY", frequencyInterval = 1,
                 )
             )

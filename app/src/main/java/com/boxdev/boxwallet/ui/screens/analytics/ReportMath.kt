@@ -1,6 +1,9 @@
 package com.boxdev.boxwallet.ui.screens.analytics
 
+import com.boxdev.boxwallet.domain.model.Loan
+import com.boxdev.boxwallet.domain.model.LoanType
 import com.boxdev.boxwallet.domain.model.Transaction
+import com.boxdev.boxwallet.domain.model.outstandingTotals
 import com.boxdev.boxwallet.domain.model.inReports
 import com.boxdev.boxwallet.domain.model.total
 import java.time.YearMonth
@@ -40,51 +43,38 @@ fun comparisonRange(
     return ComparisonRange(prevStart, clipped, toDate = true)
 }
 
-/** Paid, still open, or past its due date and unpaid. The one rule Reports and Loan detail share. */
-fun installmentState(isCleared: Boolean, due: LocalDate, today: LocalDate): InstallmentState = when {
-    isCleared -> InstallmentState.PAID
-    due.isBefore(today) -> InstallmentState.OVERDUE
-    else -> InstallmentState.OPEN
-}
-
 /**
- * Loan installments falling due in a period: counts, money to pay and to collect kept apart, one
- * state per installment for the count bar, and unpaid installments grouped once per loan.
+ * What loans did in a period, in minor units of the main currency. [received] and [paid] belong to
+ * loans the user borrowed (disbursement and payments); [lent] and [collected] to loans the user
+ * lent. [owe] and [owed] are what is outstanding now, not bound to the period.
  */
-fun summarizeInstallments(
-    installments: List<Transaction>,
-    loanNames: Map<Long, String>,
-    today: LocalDate,
-): InstallmentSummary? {
-    if (installments.isEmpty()) return null
-    val paid = installments.filter { it.isCleared }
-    fun overdue(tx: Transaction) = installmentState(tx.isCleared, tx.date.toLocalDate(), today) == InstallmentState.OVERDUE
-    val pending = installments.filter { !it.isCleared }
-        .groupBy { it.loanId ?: -it.id }
-        .map { (_, txs) ->
-            val first = txs.minBy { it.date }
-            LoanInstallmentsDue(
-                loanId = first.loanId ?: 0L,
-                loanName = first.loanId?.let { loanNames[it] } ?: first.description,
-                type = first.type,
-                count = txs.size,
-                overdueCount = txs.count(::overdue),
-                amount = txs.sumOf { it.amount.minor },
-                firstDue = first.date.toLocalDate(),
-            )
+data class LoanFlows(
+    val received: Long,
+    val paid: Long,
+    val lent: Long,
+    val collected: Long,
+    val owe: Long,
+    val owed: Long,
+)
+
+/** Splits the period's loan [movements] by loan direction and role; movements of unknown loans are ignored. */
+fun loanFlows(movements: List<Transaction>, loans: Map<Long, Loan>): LoanFlows {
+    var received = 0L
+    var paid = 0L
+    var lent = 0L
+    var collected = 0L
+    for (tx in movements) {
+        val loan = tx.loanId?.let(loans::get) ?: continue
+        val amount = tx.amount.minor
+        val borrowed = loan.loanType == LoanType.EXPENSE
+        when (tx.type) {
+            loan.disbursementType -> if (borrowed) received += amount else lent += amount
+            loan.paymentType -> if (borrowed) paid += amount else collected += amount
+            else -> Unit
         }
-        .sortedWith(compareByDescending<LoanInstallmentsDue> { it.overdueCount > 0 }.thenBy { it.firstDue })
-    return InstallmentSummary(
-        dueCount = installments.size,
-        paidCount = paid.size,
-        overdueCount = installments.count(::overdue),
-        toPayDue = installments.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount.minor },
-        toPayOpen = installments.filter { it.type == TransactionType.EXPENSE && !it.isCleared }.sumOf { it.amount.minor },
-        toCollectDue = installments.filter { it.type == TransactionType.INCOME }.sumOf { it.amount.minor },
-        toCollectOpen = installments.filter { it.type == TransactionType.INCOME && !it.isCleared }.sumOf { it.amount.minor },
-        states = installments.sortedBy { it.date }.map { installmentState(it.isCleared, it.date.toLocalDate(), today) },
-        pending = pending,
-    )
+    }
+    val outstanding = loans.values.toList().outstandingTotals()
+    return LoanFlows(received, paid, lent, collected, owe = outstanding.toPay, owed = outstanding.toCollect)
 }
 
 /**

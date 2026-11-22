@@ -14,7 +14,16 @@ import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 import com.boxdev.boxwallet.data.rates.CurrencyChangeLock
 import com.boxdev.boxwallet.data.remote.GoogleDriveManager
 import com.boxdev.boxwallet.domain.model.BackupData
+import com.boxdev.boxwallet.data.rates.MovementWriteGuard
+import com.boxdev.boxwallet.domain.model.Loan
+import com.boxdev.boxwallet.domain.model.LoanPlan
+import com.boxdev.boxwallet.domain.model.LoanType
+import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
+import com.boxdev.boxwallet.domain.money.ExchangeRateResolver
+import com.boxdev.boxwallet.domain.money.Money
+import com.boxdev.boxwallet.domain.money.RateLookup
 import com.boxdev.boxwallet.domain.money.RateSource
+import com.boxdev.boxwallet.domain.money.TransactionAmounts
 import com.google.gson.Gson
 import com.google.gson.JsonParser
 import kotlinx.coroutines.async
@@ -34,6 +43,8 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.File
 import java.math.BigDecimal
+import java.time.LocalDate
+import java.time.LocalDateTime
 import java.util.Currency
 
 @RunWith(RobolectricTestRunner::class)
@@ -95,7 +106,7 @@ class BackupRepositoryTest {
             )
         )
         val json = Gson().toJson(repo.snapshot())
-        assertEquals(5, JsonParser.parseString(json).asJsonObject.get("version").asInt)
+        assertEquals(6, JsonParser.parseString(json).asJsonObject.get("version").asInt)
         db.transactionDao().deleteAll()
         db.accountDao().deleteAll()
 
@@ -214,7 +225,7 @@ class BackupRepositoryTest {
     }
 
     @Test
-    fun `movements and loans of an account missing from the backup go to an existing account`() = runTest {
+    fun `movements of an account missing from the backup go to an existing account`() = runTest {
         val backup = BackupData(
             mainCurrencyCode = "USD",
             accounts = listOf(
@@ -226,9 +237,6 @@ class BackupRepositoryTest {
                 tx(id = 2, accountId = 404, amount = 2, code = "GTQ"),
                 tx(id = 3, accountId = 2, amount = 3, code = "GTQ"),
             ),
-            loans = listOf(
-                LoanEntity(id = 1, name = "L", totalAmountMinor = 1, currencyCode = "USD", accountId = 404, totalInstallments = 1, startDate = 0L),
-            ),
         )
 
         repo.restore(backup)
@@ -237,7 +245,89 @@ class BackupRepositoryTest {
         assertEquals(1L, rows.getValue(1).accountId)
         assertEquals(2L, rows.getValue(2).accountId) // the account in the movement's own currency
         assertEquals(2L, rows.getValue(3).accountId)
-        assertEquals(1L, db.loanDao().getAllLoansSync().single().accountId)
+    }
+
+    @Test
+    fun `a loan whose account is missing is dropped with its movements`() = runTest {
+        val backup = BackupData(
+            mainCurrencyCode = "USD",
+            accounts = listOf(AccountEntity(id = 1, name = "Main", type = "CHECKING", currencyCode = "USD", createdAt = 0L)),
+            loans = listOf(
+                LoanEntity(id = 1, name = "Kept", totalAmountMinor = 1, currencyCode = "USD", accountId = 1, startDate = 0L),
+                LoanEntity(id = 2, name = "Lost", totalAmountMinor = 1, currencyCode = "USD", accountId = 404, startDate = 0L),
+            ),
+            transactions = listOf(
+                tx(id = 1, accountId = 1, amount = 1, code = "USD").copy(type = "LOAN_OUT", loanId = 1),
+                tx(id = 2, accountId = 404, amount = 1, code = "USD").copy(type = "LOAN_OUT", loanId = 2),
+                tx(id = 3, accountId = 1, amount = 1, code = "USD").copy(type = "LOAN_IN", loanId = 2),
+                tx(id = 4, accountId = 1, amount = 1, code = "USD"),
+            ),
+        )
+
+        repo.restore(backup)
+
+        assertEquals(listOf(1L), db.loanDao().getAllLoansSync().map { it.id })
+        assertEquals(listOf(1L, 4L), db.transactionDao().getAllTransactionsSync().map { it.id }.sorted())
+    }
+
+    @Test
+    fun `a loan movement goes to its loan's account`() = runTest {
+        val backup = BackupData(
+            mainCurrencyCode = "USD",
+            accounts = listOf(
+                AccountEntity(id = 1, name = "Main", type = "CHECKING", currencyCode = "USD", createdAt = 0L),
+                AccountEntity(id = 2, name = "Other", type = "CASH", currencyCode = "USD", createdAt = 0L, sortOrder = 1),
+            ),
+            loans = listOf(LoanEntity(id = 1, name = "Juan", totalAmountMinor = 1, currencyCode = "USD", accountId = 1, startDate = 0L)),
+            transactions = listOf(
+                tx(id = 1, accountId = 1, amount = 1, code = "USD").copy(type = "LOAN_OUT", loanId = 1),
+                tx(id = 2, accountId = 2, amount = 1, code = "USD").copy(type = "LOAN_IN", loanId = 1),
+                tx(id = 3, accountId = 404, amount = 1, code = "USD").copy(type = "LOAN_IN", loanId = 1),
+            ),
+        )
+
+        repo.restore(backup)
+
+        assertEquals(listOf(1L, 1L, 1L), db.transactionDao().getAllTransactionsSync().sortedBy { it.id }.map { it.accountId })
+    }
+
+    @Test
+    fun `backup round-trips a loan with its payments`() = runTest {
+        val acc = db.accountDao().insert(AccountEntity(name = "Main", type = "CHECKING", currencyCode = "USD", createdAt = 0L))
+        val noRates = object : RateLookup {
+            override suspend fun exact(day: LocalDate, code: String): BigDecimal? = null
+            override suspend fun nearest(day: LocalDate, code: String): BigDecimal? = null
+            override suspend fun download(day: LocalDate) = false
+        }
+        val amounts = TransactionAmounts(ExchangeRateResolver(noRates) { LocalDate.of(2026, 11, 21) })
+        val loans = LoanRepository(
+            db, db.loanDao(), db.transactionDao(), db.accountDao(), prefs, amounts,
+            MovementWriteGuard(lock, prefs, db.accountDao(), amounts),
+        )
+        val usdMoney = { major: Long -> Money(major * 100, usd) }
+        val id = loans.create(
+            Loan(
+                name = "Juan", loanType = LoanType.INCOME, total = usdMoney(1100), disbursed = usdMoney(1000), accountId = acc,
+                date = LocalDateTime.of(2026, 11, 5, 10, 0),
+                plan = LoanPlan(4, RecurrenceFrequency.MONTHLY, 1, LocalDate.of(2026, 12, 5)),
+                expectedDate = LocalDate.of(2027, 3, 5),
+            )
+        )
+        loans.addPayment(id, usdMoney(250), LocalDateTime.of(2026, 11, 10, 9, 30))
+        loans.addPayment(id, usdMoney(100), LocalDateTime.of(2026, 11, 12, 9, 30))
+        val loanBefore = loans.observe(id).first()
+        val movementsBefore = db.transactionDao().getAllTransactionsSync().sortedBy { it.id }
+        val json = Gson().toJson(repo.snapshot())
+        db.transactionDao().deleteAll()
+        db.loanDao().deleteAll()
+
+        assertTrue(repo.restoreJson(json, usd) is RestoreResult.Restored)
+
+        assertEquals(loanBefore, loans.observe(id).first())
+        assertEquals(usdMoney(1000), loans.observe(id).first()!!.disbursed)
+        assertEquals(usdMoney(1100), loans.observe(id).first()!!.total)
+        assertEquals(3, movementsBefore.size)
+        assertEquals(movementsBefore, db.transactionDao().getAllTransactionsSync().sortedBy { it.id })
     }
 
     @Test
@@ -366,10 +456,6 @@ class BackupRepositoryTest {
                     accountAmountMinor = 7710, accountRate = BigDecimal("7.71"), amountMinor = 7710,
                 ),
             ),
-            loans = listOf(
-                LoanEntity(id = 1, name = "USD", totalAmountMinor = 1, currencyCode = "USD", accountId = 99, totalInstallments = 1, startDate = 0L),
-                LoanEntity(id = 2, name = "EUR", totalAmountMinor = 1, currencyCode = "EUR", accountId = 99, totalInstallments = 1, startDate = 0L),
-            ),
         )
 
         repo.restore(backup)
@@ -377,9 +463,6 @@ class BackupRepositoryTest {
         val rows = db.transactionDao().getAllTransactionsSync().associateBy { it.id }
         assertEquals(2L, rows.getValue(1).accountId)
         assertEquals(1L, rows.getValue(2).accountId)
-        val loans = db.loanDao().getAllLoansSync().associateBy { it.id }
-        assertEquals(2L, loans.getValue(1).accountId)
-        assertEquals(1L, loans.getValue(2).accountId)
         assertEquals(1L, prefs.defaultAccountId.first())
     }
 
@@ -401,11 +484,11 @@ class BackupRepositoryTest {
     }
 
     @Test
-    fun `local snapshot is written in the v5 shape with accounts`() = runTest {
+    fun `local snapshot is written in the v6 shape with accounts`() = runTest {
         seedLocalData()
         val file: File = repo.writeLocalSnapshot()
         val root = JsonParser.parseString(file.readText()).asJsonObject
-        assertEquals(5, root.get("version").asInt)
+        assertEquals(6, root.get("version").asInt)
         assertEquals("USD", root.get("mainCurrencyCode").asString)
         assertEquals("Old", root.getAsJsonArray("accounts")[0].asJsonObject.get("name").asString)
     }
@@ -509,9 +592,20 @@ class BackupRepositoryTest {
     }
 
     @Test
+    fun `version 5 backups are refused`() = runTest {
+        seedLocalData()
+        val json = Gson().toJson(BackupData(version = 5, mainCurrencyCode = "USD"))
+
+        assertEquals(RestoreResult.Incompatible, repo.restoreJson(json, usd))
+
+        assertEquals(99L, db.transactionDao().getAllTransactionsSync().single().id)
+        assertEquals("Old", db.accountDao().getAll().single().name)
+    }
+
+    @Test
     fun `a file that isn't a backup is refused`() = runTest {
         seedLocalData()
-        listOf("{}", "not json", """{"version":5}""", """{"version":5,"mainCurrencyCode":"USD"}""", "[]", "").forEach {
+        listOf("{}", "not json", """{"version":6}""", """{"version":6,"mainCurrencyCode":"USD"}""", "[]", "").forEach {
             assertEquals(it, RestoreResult.Incompatible, repo.restoreJson(it, usd))
         }
         assertEquals(99L, db.transactionDao().getAllTransactionsSync().single().id)

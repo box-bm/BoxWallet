@@ -24,6 +24,6 @@ data class BackupData(
     val defaultAccountId: Long? = null,
 ) {
     companion object {
-        const val CURRENT_VERSION = 5
+        const val CURRENT_VERSION = 6
     }
 }

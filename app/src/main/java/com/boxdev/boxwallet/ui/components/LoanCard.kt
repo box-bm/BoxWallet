@@ -30,10 +30,10 @@ import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.util.DateFormats
 import com.boxdev.boxwallet.domain.model.LoanStatus
 import java.time.LocalDate
-import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Loan
 import com.boxdev.boxwallet.domain.model.LoanType
 import com.boxdev.boxwallet.ui.theme.BoxTheme
+import com.boxdev.boxwallet.util.rememberCurrencyFormatter
 import java.time.format.DateTimeFormatter
 
 /**
@@ -44,7 +44,6 @@ import java.time.format.DateTimeFormatter
 fun LoanCard(
     loan: Loan,
     modifier: Modifier = Modifier,
-    category: Category? = null,
     selected: Boolean = false,
     containerColor: Color = BoxTheme.cardColor,
     onClick: () -> Unit = {},
@@ -76,7 +75,7 @@ fun LoanCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 CategoryBadge(
-                    category = category,
+                    category = null,
                     fallbackIcon = trendIcon(isIncome),
                     fallbackContainer = badgeContainer,
                     fallbackContent = badgeContent,
@@ -89,10 +88,9 @@ fun LoanCard(
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    val sub = loan.description.ifBlank { category?.name.orEmpty() }
-                    if (sub.isNotBlank()) {
+                    if (loan.description.isNotBlank()) {
                         Text(
-                            text = sub,
+                            text = loan.description,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
@@ -111,24 +109,17 @@ fun LoanCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     AmountText(
-                        amount = loan.remainingAmount,
+                        amount = loan.remaining,
                         style = BoxTheme.moneyType.large,
                         autoSize = true,
                     )
-                    if (!loan.isComplete) LoanEquivalentText(loan)
+                    if (!loan.isSettled) LoanEquivalentText(loan)
                 }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = stringResource(R.string.loan_total_amount),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    AmountText(
-                        amount = loan.totalAmount,
-                        style = BoxTheme.moneyType.small,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                Text(
+                    text = stringResource(R.string.loan_of_total, rememberCurrencyFormatter().format(loan.total)),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
 
             LinearWavyProgressIndicator(
@@ -140,19 +131,14 @@ fun LoanCard(
             )
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                val due = loan.nextDueDate
+                val due = loan.nextDue()?.due ?: loan.expectedDate
                 Text(
-                    text = if (!loan.isComplete && due != null) {
+                    text = if (!loan.isSettled && due != null) {
                         stringResource(R.string.loan_next_due, due.format(dateFormatter))
                     } else "",
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (status == LoanStatus.OVERDUE) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
-                )
-                Text(
-                    text = stringResource(R.string.loan_paid_progress, loan.paidInstallments, loan.totalInstallments),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
                 )
             }
         }
@@ -169,7 +155,6 @@ fun LoanRow(
     index: Int,
     count: Int,
     modifier: Modifier = Modifier,
-    category: Category? = null,
     /** Highlights the loan open in the detail pane beside the list, like [LoanCard]. */
     selected: Boolean = false,
     onClick: () -> Unit = {},
@@ -179,7 +164,7 @@ fun LoanRow(
     val status = loan.status(LocalDate.now())
     val isIncome = loan.loanType == LoanType.INCOME
     val (badgeContainer, badgeContent) = directionColors(isIncome)
-    val due = loan.nextDueDate
+    val due = loan.nextDue()?.due ?: loan.expectedDate
     SegmentedListItem(
         onClick = onClick,
         shapes = segmentShapes(index, count),
@@ -199,7 +184,7 @@ fun LoanRow(
         modifier = modifier.padding(bottom = ListItemDefaults.SegmentedGap),
         leadingContent = {
             CategoryBadge(
-                category = category,
+                category = null,
                 fallbackIcon = trendIcon(isIncome),
                 fallbackContainer = badgeContainer,
                 fallbackContent = badgeContent,
@@ -207,10 +192,10 @@ fun LoanRow(
         },
         supportingContent = {
             val line = when {
-                loan.isComplete -> stringResource(R.string.loan_status_paid)
+                loan.isSettled -> stringResource(R.string.loan_status_paid)
                 status == LoanStatus.OVERDUE && due != null ->
                     stringResource(R.string.loan_row_overdue, stringResource(loan.loanType.remainingLabelRes), due.format(dateFormatter))
-                due != null && !loan.isComplete ->
+                due != null && !loan.isSettled ->
                     stringResource(R.string.loan_row_next, stringResource(loan.loanType.remainingLabelRes), due.format(dateFormatter))
                 else -> stringResource(loan.loanType.remainingLabelRes)
             }
@@ -223,16 +208,16 @@ fun LoanRow(
         },
         trailingContent = {
             // A paid-off loan shows what it came to; an open one, what is still left in its direction.
-            if (loan.isComplete) {
+            if (loan.isSettled) {
                 AmountText(
-                    amount = loan.totalAmount,
+                    amount = loan.total,
                     style = BoxTheme.moneyType.small,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
                 Column(horizontalAlignment = Alignment.End) {
                     AmountText(
-                        amount = loan.remainingAmount,
+                        amount = loan.remaining,
                         kind = amountKind(isIncome),
                         style = BoxTheme.moneyType.small,
                     )

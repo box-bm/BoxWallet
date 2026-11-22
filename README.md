@@ -3,7 +3,7 @@ It's an app to make your budget, track expenses and schedule incomes.
 
 ## Features
 
-- Budgets, expenses, scheduled incomes and loans in installments.
+- Budgets, expenses, scheduled incomes and loans (lent or borrowed) that move the balance of the account they live in.
 - Multi-currency: pick a main currency during onboarding (suggested from your country) and record each movement in any ISO currency. The exchange rate for the movement date is frozen with it, so past totals never change.
 - Excel report export and optional Google Drive backup/restore.
 

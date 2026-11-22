@@ -13,8 +13,14 @@ class NavRoutesTest {
     }
 
     @Test
+    fun `loan form route carries the account`() {
+        assertEquals("loan_form?accountId=3", NavRoutes.LoanForm.createRoute(accountId = 3))
+        assertEquals("loan_form?id=7&accountId=3", NavRoutes.LoanForm.createRoute(id = 7, accountId = 3))
+    }
+
+    @Test
     fun loanFormRoute() {
-        assertEquals("loan_form?id={id}", NavRoutes.LoanForm.route)
+        assertEquals("loan_form?id={id}&accountId={accountId}", NavRoutes.LoanForm.route)
         assertEquals("loan_form", NavRoutes.LoanForm.createRoute())
         assertEquals("loan_form?id=7", NavRoutes.LoanForm.createRoute(7))
     }

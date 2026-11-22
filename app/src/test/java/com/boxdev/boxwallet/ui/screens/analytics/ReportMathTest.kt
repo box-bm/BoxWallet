@@ -57,27 +57,6 @@ class ReportMathTest {
         assertEquals(LocalDate.of(2026, 2, 28), range.end)
     }
 
-    // installmentState
-
-    @Test
-    fun `paid installment is paid even when its date has passed`() {
-        assertEquals(InstallmentState.PAID, installmentState(true, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 11, 6)))
-    }
-
-    @Test
-    fun `unpaid installment past its date is overdue`() {
-        assertEquals(InstallmentState.OVERDUE, installmentState(false, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 11, 6)))
-    }
-
-    @Test
-    fun `unpaid installment due today is still open`() {
-        assertEquals(InstallmentState.OPEN, installmentState(false, LocalDate.of(2026, 11, 6), LocalDate.of(2026, 11, 6)))
-    }
-
-    // summarizeInstallments
-
-    private val today = LocalDate.of(2026, 11, 6)
-
     @Test
     fun `adjustments never count in monthly income or expense`() {
         val month = java.time.YearMonth.of(2026, 11)
@@ -121,63 +100,66 @@ class ReportMathTest {
         )
     }
 
-    @Test
-    fun `no installments gives no summary`() {
-        assertNull(summarizeInstallments(emptyList(), emptyMap(), today))
-    }
+    // loanFlows
 
-    @Test
-    fun `money to pay and to collect are never added together`() {
-        val summary = summarizeInstallments(
-            listOf(
-                installment(1, loanId = 10, day = novStart, amount = 30_000),
-                installment(2, loanId = 20, day = novStart, amount = 15_000, type = TransactionType.INCOME),
-            ),
-            mapOf(10L to "Moto", 20L to "Carlos"),
-            today,
-        )!!
-        assertEquals(30_000L, summary.toPayDue)
-        assertEquals(15_000L, summary.toCollectDue)
-    }
-
-    @Test
-    fun `each installment keeps its own state in due-date order`() {
-        val summary = summarizeInstallments(
-            listOf(
-                installment(1, loanId = 10, day = LocalDate.of(2026, 10, 1), amount = 10_000, paid = true),
-                installment(2, loanId = 10, day = LocalDate.of(2026, 11, 1), amount = 10_000),
-                installment(3, loanId = 10, day = LocalDate.of(2026, 11, 20), amount = 10_000),
-            ),
-            mapOf(10L to "Moto"),
-            today,
-        )!!
-        assertEquals(
-            listOf(InstallmentState.PAID, InstallmentState.OVERDUE, InstallmentState.OPEN),
-            summary.states,
+    private val gtq = Currency.getInstance("GTQ")
+    private fun loan(id: Long, type: com.boxdev.boxwallet.domain.model.LoanType, total: Long, paid: Long = 0, remainingMain: Long = total - paid) =
+        com.boxdev.boxwallet.domain.model.Loan(
+            id = id, name = "L$id", loanType = type, total = Money(total, gtq), accountId = 1,
+            date = LocalDate.of(2026, 11, 1).atTime(9, 0), paid = Money(paid, gtq), remainingMainMinor = remainingMain,
         )
-        assertEquals(1, summary.paidCount)
-        assertEquals(1, summary.overdueCount)
-        assertEquals(20_000L, summary.toPayOpen)
+
+    @Test
+    fun `loan flows split by direction and role`() {
+        // Received 10,000 to repay 11,000: "received" is the disbursement movement, not the total.
+        val borrowed = loan(1, com.boxdev.boxwallet.domain.model.LoanType.EXPENSE, 11_000)
+        val lent = loan(2, com.boxdev.boxwallet.domain.model.LoanType.INCOME, 1_000)
+        val flows = loanFlows(
+            listOf(
+                installment(1, 1, LocalDate.of(2026, 11, 1), 10_000, TransactionType.LOAN_IN),
+                installment(2, 1, LocalDate.of(2026, 11, 2), 1_100, TransactionType.LOAN_OUT),
+                installment(3, 2, LocalDate.of(2026, 11, 1), 1_000, TransactionType.LOAN_OUT),
+                installment(4, 2, LocalDate.of(2026, 11, 3), 250, TransactionType.LOAN_IN),
+            ),
+            mapOf(1L to borrowed, 2L to lent),
+        )
+        assertEquals(10_000L, flows.received)
+        assertEquals(1_100L, flows.paid)
+        assertEquals(1_000L, flows.lent)
+        assertEquals(250L, flows.collected)
     }
 
     @Test
-    fun `unpaid installments are grouped once per loan, overdue loans first`() {
-        val summary = summarizeInstallments(
-            listOf(
-                installment(1, loanId = 10, day = LocalDate.of(2026, 11, 25), amount = 30_000),
-                installment(2, loanId = 20, day = LocalDate.of(2026, 10, 1), amount = 15_000, type = TransactionType.INCOME),
-                installment(3, loanId = 20, day = LocalDate.of(2026, 11, 1), amount = 15_000, type = TransactionType.INCOME),
-                installment(4, loanId = 20, day = LocalDate.of(2026, 11, 28), amount = 15_000, type = TransactionType.INCOME),
-            ),
-            mapOf(10L to "Moto", 20L to "Carlos"),
-            today,
-        )!!
-        assertEquals(listOf("Carlos", "Moto"), summary.pending.map { it.loanName })
-        val carlos = summary.pending.first()
-        assertEquals(3, carlos.count)
-        assertEquals(2, carlos.overdueCount)
-        assertEquals(45_000L, carlos.amount)
-        assertEquals(LocalDate.of(2026, 10, 1), carlos.firstDue)
+    fun `loan flows carry what is still outstanding apart by direction`() {
+        val borrowed = loan(1, com.boxdev.boxwallet.domain.model.LoanType.EXPENSE, 10_000, paid = 1_100, remainingMain = 8_900)
+        val lent = loan(2, com.boxdev.boxwallet.domain.model.LoanType.INCOME, 1_000, paid = 1_000, remainingMain = 0)
+        val flows = loanFlows(emptyList(), mapOf(1L to borrowed, 2L to lent))
+        assertEquals(8_900L, flows.owe)
+        assertEquals(0L, flows.owed)
+    }
+
+    @Test
+    fun `loan flows ignore movements whose loan is missing`() {
+        val flows = loanFlows(
+            listOf(installment(1, 99, LocalDate.of(2026, 11, 1), 500, TransactionType.LOAN_IN)),
+            emptyMap(),
+        )
+        assertEquals(LoanFlows(0, 0, 0, 0, 0, 0), flows)
+    }
+
+    @Test
+    fun `loan movements stay out of income and expense totals`() {
+        val month = java.time.YearMonth.of(2026, 11)
+        val base = listOf(
+            installment(1, 1, LocalDate.of(2026, 11, 2), 1_000, TransactionType.INCOME),
+            installment(2, 1, LocalDate.of(2026, 11, 3), 300, TransactionType.EXPENSE),
+        )
+        val withLoans = base + listOf(
+            installment(3, 5, LocalDate.of(2026, 11, 4), 10_000, TransactionType.LOAN_IN),
+            installment(4, 5, LocalDate.of(2026, 11, 5), 1_100, TransactionType.LOAN_OUT),
+        )
+        assertEquals(base.monthlyTotals(listOf(month)), withLoans.monthlyTotals(listOf(month)))
+        assertEquals(base.net(), withLoans.net())
     }
 
     // bestColumnSplit

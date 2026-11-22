@@ -96,37 +96,6 @@ data class SpendingInsight(
     val kind: InsightKind,
 )
 
-enum class InstallmentState { PAID, OPEN, OVERDUE }
-
-/** A loan's unpaid installments in the period, grouped so each loan appears once. */
-data class LoanInstallmentsDue(
-    val loanId: Long,
-    val loanName: String,
-    val type: TransactionType,
-    val count: Int,
-    val overdueCount: Int,
-    val amount: Long,
-    /** Oldest unpaid due date: the overdue-since date when [overdueCount] > 0, otherwise the next due date. */
-    val firstDue: LocalDate,
-)
-
-/** Loan installments that fall due inside the selected period. */
-data class InstallmentSummary(
-    val dueCount: Int,
-    val paidCount: Int,
-    val overdueCount: Int,
-    /** Installments the user pays (expense loans): total due and what is still open. */
-    val toPayDue: Long,
-    val toPayOpen: Long,
-    /** Installments owed to the user (income loans). Never added to [toPayDue]. */
-    val toCollectDue: Long,
-    val toCollectOpen: Long,
-    /** One state per installment in due-date order, for the count bar. */
-    val states: List<InstallmentState>,
-    /** Loans with unpaid installments, overdue loans first, then by oldest due date. */
-    val pending: List<LoanInstallmentsDue>,
-)
-
 enum class InsightType {
     POSITIVE, WARNING, NEUTRAL, ALERT
 }
@@ -158,8 +127,8 @@ data class AnalyticsUiState(
     val categories: Map<Long, Category> = emptyMap(),
     /** Each installment plan's installment count by plan id, for a listed installment's "k/N". */
     val installmentCounts: Map<Long, Int> = emptyMap(),
-    /** Null when no installment falls due in the period. */
-    val installments: InstallmentSummary? = null,
+    /** Null when no loan moved in the period and none is open. */
+    val loans: LoanFlows? = null,
     val categoryExpenses: List<CategoryExpenseData> = emptyList(),
     val monthlyTrendData: List<MonthlyData> = emptyList(),
     val yearlyMonthlySummary: List<MonthlyData> = emptyList(),
@@ -200,9 +169,6 @@ class AnalyticsViewModel @Inject constructor(
     // Neither depends on the period on screen, so they stay subscribed across period changes.
     private val categoriesFlow = categoryRepository.getAllCategories()
         .shareIn(viewModelScope, SharingStarted.WhileSubscribed(5000), replay = 1)
-    private val loanNamesFlow = loanRepository.getAllLoans()
-        .map { loans -> loans.associate { it.id to it.name } }
-        .shareIn(viewModelScope, SharingStarted.WhileSubscribed(5000), replay = 1)
 
     val uiState: StateFlow<AnalyticsUiState> = filterState
         .flatMapLatest { filter ->
@@ -216,18 +182,22 @@ class AnalyticsViewModel @Inject constructor(
             val trendStart = LocalDate.now().minusMonths(11).withDayOfMonth(1)
             val trendEnd = LocalDate.now()
 
-            val installmentsFlow = combine(
-                transactionRepository.getInstallmentsBetweenDates(startDate, endDate),
-                loanNamesFlow,
-            ) { installments, loanNames -> summarizeInstallments(installments, loanNames, LocalDate.now()) }
+            val loansFlow = combine(
+                loanRepository.observeMovementsBetween(startDate, endDate),
+                loanRepository.observeAll(),
+            ) { movements, loans ->
+                val flows = loanFlows(movements, loans.associateBy { it.id })
+                // Shown only when something moved in the period or a loan is still open.
+                flows.takeIf { movements.isNotEmpty() || loans.any { !it.isSettled } }
+            }
 
             combine(
                 transactionRepository.getTransactionsBetweenDates(startDate, endDate),
                 transactionRepository.getTransactionsBetweenDates(prevStart, prevEnd),
                 transactionRepository.getTransactionsBetweenDates(trendStart, trendEnd),
                 categoriesFlow,
-                installmentsFlow,
-            ) { allPeriodTx, allPreviousTx, allTrendTx, categories, installments ->
+                loansFlow,
+            ) { allPeriodTx, allPreviousTx, allTrendTx, categories, loans ->
                 // Balance adjustments never count as income or expense in any report.
                 val periodTx = allPeriodTx.inReports()
                 val previousTx = allPreviousTx.inReports()
@@ -270,7 +240,7 @@ class AnalyticsViewModel @Inject constructor(
                     topExpenses = expenses.sortedByDescending { it.amount.minor }.take(5),
                     dayMovements = if (filter.frequency == AnalyticsFrequency.DAILY) periodTx.sortedByDescending { it.date } else emptyList(),
                     categories = categoryMap,
-                    installments = installments,
+                    loans = loans,
                     categoryExpenses = categoryExpenses,
                     monthlyTrendData = monthlyTrendData,
                     yearlyMonthlySummary = yearlyMonthlySummary,
@@ -485,11 +455,10 @@ class AnalyticsViewModel @Inject constructor(
         viewModelScope.launch {
             _exportState.value = ExportState(isExporting = true)
             try {
-                val (transactionList, categories, loans) = coroutineScope {
+                val (transactionList, categories) = coroutineScope {
                     val tx = async { transactionRepository.getTransactionsBetweenDates(startDate, endDate).first() }
                     val cats = async { categoryRepository.getAllCategories().first().associate { it.id to it.name } }
-                    val loanMap = async { loanRepository.getAllLoans().first().associateBy { it.id } }
-                    Triple(tx.await(), cats.await(), loanMap.await())
+                    tx.await() to cats.await()
                 }
                 val accounts = accountRepository.observeAccountsWithBalance().first()
 
@@ -500,19 +469,11 @@ class AnalyticsViewModel @Inject constructor(
                     rate = context.getString(R.string.report_col_rate),
                     mainAmount = context.getString(R.string.report_col_main_amount),
                 )
-                val loanTitles = ExcelReportGenerator.LoanTitles(
-                    currency = context.getString(R.string.report_col_currency),
-                    remaining = { context.getString(R.string.report_loan_remaining_in, it) },
-                    totalBorrowed = { context.getString(R.string.report_loan_total_borrowed, it) },
-                    totalPaid = { context.getString(R.string.report_loan_total_paid, it) },
-                    totalRemaining = { context.getString(R.string.report_loan_total_remaining, it) },
-                    excludedNote = { context.resources.getQuantityString(R.plurals.report_loans_excluded_other_currencies, it, it) },
-                )
                 val file = withContext(Dispatchers.IO) {
                     val reportsDir = File(context.cacheDir, "reports").also { if (!it.exists()) it.mkdirs() }
                     val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
                     val f = File(reportsDir, "BoxWallet_Report_$timestamp.xlsx")
-                    ExcelReportGenerator.create(f, transactionList, categories, accounts, loans, startDate, endDate, mainCurrency, titles, loanTitles)
+                    ExcelReportGenerator.create(f, transactionList, categories, accounts, startDate, endDate, mainCurrency, titles)
                 }
 
                 _exportState.value = ExportState(file = file)

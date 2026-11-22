@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.outlined.Handshake
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.SwapHoriz
@@ -30,6 +31,7 @@ import com.boxdev.boxwallet.util.DateFormats
 import com.boxdev.boxwallet.util.rememberCurrencyFormatter
 import com.boxdev.boxwallet.data.local.entity.isAdjustment
 import com.boxdev.boxwallet.data.local.entity.isInflow
+import com.boxdev.boxwallet.data.local.entity.isLoan
 import com.boxdev.boxwallet.data.local.entity.isTransfer
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Transaction
@@ -41,6 +43,7 @@ import com.boxdev.boxwallet.ui.theme.BoxTheme
  *
  * A transfer row is titled [transferTitle] ("<from> → <to>") when it has no note, and shows its
  * amount in its own account's currency, signed only when [signedTransfer] (a list scoped to one account).
+ * A loan movement is titled [loanLabel] with its loan's name (its description) and wears a handshake, no category.
  * A visacuotas installment is titled "<description> · installment k/N" once its plan's [installmentCount] (N) is known.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -58,6 +61,7 @@ fun TransactionItem(
     transferTitle: String? = null,
     signedTransfer: Boolean = false,
     installmentCount: Int? = null,
+    loanLabel: LoanMovementLabel? = null,
 ) {
     val isAdjustment = transaction.type.isAdjustment
     val isTransfer = transaction.type.isTransfer
@@ -72,7 +76,7 @@ fun TransactionItem(
     // Short, locale-correct day ("6 nov" / "Nov 6"); the year only appears when it isn't this year.
     val dateFormatter = DateFormats.shortDay(withYear = transaction.date.year != java.time.LocalDate.now().year)
     val timeFormatter = DateFormats.shortTime
-    val baseTitle = transaction.description.ifBlank {
+    val baseTitle = if (loanLabel != null) stringResource(loanLabel.title, transaction.description) else transaction.description.ifBlank {
         when {
             isAdjustment -> stringResource(R.string.transaction_adjustment)
             isTransfer -> transferTitle ?: stringResource(R.string.transaction_transfer)
@@ -93,8 +97,9 @@ fun TransactionItem(
         modifier = modifier,
         leadingContent = {
             CategoryBadge(
-                category = category,
+                category = if (transaction.type.isLoan) null else category,
                 fallbackIcon = when {
+                    transaction.type.isLoan -> Icons.Outlined.Handshake
                     isAdjustment -> Icons.Outlined.Tune
                     isTransfer -> Icons.Outlined.SwapHoriz
                     else -> trendIcon(isIncome)

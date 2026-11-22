@@ -32,8 +32,12 @@ sealed class NavRoutes(val route: String) {
             return if (args.isEmpty()) "transfer_form" else "transfer_form?" + args.joinToString("&")
         }
     }
-    data object LoanForm : NavRoutes("loan_form?id={id}") {
-        fun createRoute(id: Long? = null) = if (id == null) "loan_form" else "loan_form?id=$id"
+    /** [accountId] preselects the account a new loan goes in. */
+    data object LoanForm : NavRoutes("loan_form?id={id}&accountId={accountId}") {
+        fun createRoute(id: Long? = null, accountId: Long? = null): String {
+            val args = listOfNotNull(id?.let { "id=$it" }, accountId?.let { "accountId=$it" })
+            return if (args.isEmpty()) "loan_form" else "loan_form?" + args.joinToString("&")
+        }
     }
     data object Analytics : NavRoutes("analytics")
     data object Search : NavRoutes("search")

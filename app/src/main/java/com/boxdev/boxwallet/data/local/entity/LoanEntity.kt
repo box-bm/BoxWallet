@@ -12,7 +12,7 @@ import androidx.room.PrimaryKey
             entity = AccountEntity::class,
             parentColumns = ["id"],
             childColumns = ["accountId"],
-            onDelete = ForeignKey.SET_NULL,
+            onDelete = ForeignKey.RESTRICT,
         ),
     ],
     indices = [Index("accountId")],
@@ -24,16 +24,17 @@ data class LoanEntity(
     val description: String = "",
     /** Minor units of [currencyCode]. */
     val totalAmountMinor: Long,
+    /** What changed hands at the start, in minor units of [currencyCode]; the total is what is repaid. */
+    val disbursedAmountMinor: Long = totalAmountMinor,
     /** ISO 4217; immutable once the loan has payments. */
     val currencyCode: String,
-    val accountId: Long? = null,
-    val totalInstallments: Int,
-    val categoryId: Long? = null,
+    val accountId: Long,
     val startDate: Long,
     val loanType: String = "EXPENSE",
+    /** 0 for an open loan paid with free-form payments. */
+    val totalInstallments: Int = 0,
     val frequency: String = "MONTHLY",
     val frequencyInterval: Int = 1,
-    /** `SCHEDULED` (fixed installments) or an open-ended kind. */
-    val kind: String = "SCHEDULED",
+    val firstDueDate: Long? = null,
     val expectedDate: Long? = null,
 )

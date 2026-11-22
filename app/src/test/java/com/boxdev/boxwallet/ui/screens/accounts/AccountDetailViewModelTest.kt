@@ -15,6 +15,7 @@ import com.boxdev.boxwallet.data.rates.MovementWriteGuard
 import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.InstallmentPlanRepository
+import com.boxdev.boxwallet.data.repository.LoanRepository
 import com.boxdev.boxwallet.data.repository.NewInstallmentPlan
 import com.boxdev.boxwallet.data.repository.TransactionRepository
 import com.boxdev.boxwallet.data.repository.TransferRepository
@@ -73,6 +74,7 @@ class AccountDetailViewModelTest {
     private lateinit var transactions: TransactionRepository
     private lateinit var transfers: TransferRepository
     private lateinit var plans: InstallmentPlanRepository
+    private lateinit var loans: LoanRepository
     private var banco = 0L
     private var card = 0L
     private var child = 0L
@@ -100,6 +102,7 @@ class AccountDetailViewModelTest {
         accounts = AccountRepository(db.accountDao(), prefs, lookup, context, db.transactionDao(), db, amounts, guard)
         transactions = TransactionRepository(db.transactionDao(), accounts, prefs, context, amounts, guard)
         transfers = TransferRepository(db, db.transactionDao(), db.accountDao(), prefs, amounts, guard)
+        loans = LoanRepository(db, db.loanDao(), db.transactionDao(), db.accountDao(), prefs, amounts, guard)
         plans = InstallmentPlanRepository(
             db, db.installmentPlanDao(), db.transactionDao(), db.accountDao(), amounts, ExchangeRateResolver(lookup), guard, prefs,
             CurrentDay(flowOf(LocalDate.now())),
@@ -121,6 +124,7 @@ class AccountDetailViewModelTest {
         CategoryRepository(db.categoryDao()),
         transfers,
         plans,
+        loans,
         MovementsFilterRequest(),
     )
 
@@ -212,7 +216,7 @@ class AccountDetailViewModelTest {
         val ahorro = db.accountDao().insert(AccountEntity(name = "Ahorro", type = "SAVINGS", currencyCode = "GTQ", createdAt = 0L, sortOrder = 2))
         val vm = AccountDetailViewModel(
             SavedStateHandle(mapOf("accountId" to card)), repo, transactions, CategoryRepository(db.categoryDao()), transfers,
-            plans, MovementsFilterRequest(),
+            plans, loans, MovementsFilterRequest(),
         )
         val collecting = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect {} }
         vm.uiState.first { !it.isLoading && it.card != null }
@@ -250,5 +254,57 @@ class AccountDetailViewModelTest {
         val state = vm(banco).uiState.first { !it.isLoading }
 
         assertTrue(state.installmentPlans.isEmpty())
+    }
+
+    private suspend fun loan(accountId: Long, name: String, total: Long) = loans.create(
+        com.boxdev.boxwallet.domain.model.Loan(
+            name = name, loanType = com.boxdev.boxwallet.domain.model.LoanType.INCOME, total = Money(total, gtq),
+            accountId = accountId, date = LocalDate.now().atTime(9, 0),
+        )
+    )
+
+    @Test
+    fun `active loans come first and settled apart`() = runTest {
+        val open = loan(banco, "Ana", 100_00)
+        val done = loan(banco, "Luis", 50_00)
+        loans.addPayment(done, Money(50_00, gtq), LocalDate.now().atTime(10, 0))
+
+        val state = vm(banco).uiState.first { !it.isLoading && it.activeLoans.isNotEmpty() }
+
+        assertTrue(state.canHaveLoans)
+        assertEquals(listOf(open), state.activeLoans.map { it.id })
+        assertEquals(listOf(done), state.settledLoans.map { it.id })
+    }
+
+    @Test
+    fun `a loan of another account is not listed`() = runTest {
+        val other = db.accountDao().insert(AccountEntity(name = "Otra", type = "CHECKING", currencyCode = "GTQ", createdAt = 0L, sortOrder = 2))
+        loan(other, "Ana", 100_00)
+        val mine = loan(banco, "Luis", 100_00)
+
+        val state = vm(banco).uiState.first { !it.isLoading && it.activeLoans.isNotEmpty() }
+
+        assertEquals(listOf(mine), state.activeLoans.map { it.id })
+    }
+
+    @Test
+    fun `a loan payment in the account has its loan's direction`() = runTest {
+        val id = loan(banco, "Ana", 100_00)
+        val paymentId = loans.addPayment(id, Money(20_00, gtq), LocalDate.now().atTime(10, 0))
+
+        val state = vm(banco).uiState.first { !it.isLoading && it.movements.any { m -> m.id == paymentId } }
+
+        val payment = state.movements.single { it.id == paymentId }
+        assertEquals(TransactionType.LOAN_IN, payment.type)
+        assertEquals(com.boxdev.boxwallet.domain.model.LoanType.INCOME, state.loanTypes[payment.loanId])
+    }
+
+    @Test
+    fun `cards have no loans section`() = runTest {
+        val state = vm(card).uiState.first { !it.isLoading && it.card != null }
+
+        assertFalse(state.canHaveLoans)
+        assertTrue(state.activeLoans.isEmpty())
+        assertTrue(state.settledLoans.isEmpty())
     }
 }

@@ -434,10 +434,32 @@ class MainCurrencyChangerTest {
     }
 
     @Test
+    fun `loan movements are re-converted like any other`() = runTest {
+        val acc = account("USD")
+        val loan = db.loanDao().insert(
+            LoanEntity(name = "Juan", totalAmountMinor = 1000, currencyCode = "USD", accountId = acc, startDate = 0L, loanType = "INCOME")
+        )
+        val out = db.transactionDao().insert(tx(acc, 1000, "USD", 1000, "1", 1000, "1", loanId = loan).copy(type = "LOAN_OUT"))
+        val back = db.transactionDao().insert(tx(acc, 400, "USD", 400, "1", 400, "1", loanId = loan).copy(type = "LOAN_IN"))
+
+        val summary = changer.apply(gtq)
+
+        assertEquals(2, summary.converted)
+        // 10 USD -> 80 GTQ; 4 USD -> 32 GTQ; the original amount and the loan link stay.
+        for ((id, minor) in mapOf(out to 8000L, back to 3200L)) {
+            val t = db.transactionDao().getById(id)!!
+            assertEquals(minor, t.accountAmountMinor)
+            assertEquals(minor, t.amountMinor)
+            assertEquals(loan, t.loanId)
+        }
+        assertEquals("GTQ", db.accountDao().getById(acc)!!.currencyCode)
+    }
+
+    @Test
     fun `preview counts movements and loans`() = runTest {
         val acc = account("USD")
         val loan = db.loanDao().insert(
-            LoanEntity(name = "Car", totalAmountMinor = 100000, currencyCode = "USD", totalInstallments = 10, startDate = 0L)
+            LoanEntity(name = "Car", totalAmountMinor = 100000, currencyCode = "USD", accountId = acc, totalInstallments = 10, startDate = 0L)
         )
         db.transactionDao().insert(tx(acc, 1000, "USD", 1000, "1", 1000, "1"))
         db.transactionDao().insert(tx(acc, 1000, "USD", 1000, "1", 1000, "1", loanId = loan))

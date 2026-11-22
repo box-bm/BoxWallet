@@ -107,6 +107,9 @@ fun AccountsScreen(
     onSeeInMovements: () -> Unit,
     onOpenTransfer: (Long) -> Unit = {},
     onOpenInstallmentPlan: (Long) -> Unit = {},
+    onOpenLoan: (Long) -> Unit = {},
+    /** Opens a new loan in the given account. */
+    onNewLoan: (Long) -> Unit = {},
     /** Opens a new transfer from the given account. */
     onNewTransfer: (Long) -> Unit = {},
     /** Opens a route from the detail pane (a card's Pay). */
@@ -174,6 +177,8 @@ fun AccountsScreen(
                         onDeleted = { selectedId = null },
                         onOpenTransfer = onOpenTransfer,
                         onOpenInstallmentPlan = onOpenInstallmentPlan,
+                        onOpenLoan = onOpenLoan,
+                        onNewLoan = onNewLoan,
                         onNewTransfer = onNewTransfer,
                         onNavigate = onNavigate,
                         accountId = id,

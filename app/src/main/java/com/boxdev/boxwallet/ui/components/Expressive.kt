@@ -247,7 +247,7 @@ fun EquivalentText(text: String, modifier: Modifier = Modifier, textAlign: TextA
 fun LoanEquivalentText(loan: com.boxdev.boxwallet.domain.model.Loan, modifier: Modifier = Modifier, textAlign: TextAlign? = null) {
     val formatter = rememberCurrencyFormatter()
     val remaining = Money(loan.remainingMainMinor, formatter.main)
-    formatter.withEquivalent(loan.remainingAmount, remaining).second?.let {
+    formatter.withEquivalent(loan.remaining, remaining).second?.let {
         EquivalentText(it, modifier, textAlign)
     }
 }
@@ -372,6 +372,7 @@ fun <T> ConnectedChoiceRow(
     colors: @Composable (T) -> androidx.compose.material3.ToggleButtonColors = {
         ToggleButtonDefaults.toggleButtonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
     },
+    enabled: Boolean = true,
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -381,6 +382,7 @@ fun <T> ConnectedChoiceRow(
             ToggleButton(
                 checked = option == selected,
                 onCheckedChange = { onSelect(option) },
+                enabled = enabled,
                 modifier = Modifier
                     .weight(1f)
                     .semantics { role = Role.RadioButton },

@@ -15,6 +15,7 @@ import com.boxdev.boxwallet.data.repository.TransferRepository
 import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Loan
+import com.boxdev.boxwallet.domain.model.LoanType
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.domain.model.TransferPair
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -44,6 +45,8 @@ data class SearchUiState(
     val transferPairs: Map<String, TransferPair> = emptyMap(),
     /** Each installment plan's installment count by plan id, for a listed installment's "k/N". */
     val installmentCounts: Map<Long, Int> = emptyMap(),
+    /** Each loan's direction by loan id, for a loan movement's label. */
+    val loanTypes: Map<Long, LoanType> = emptyMap(),
     val isLoading: Boolean = true,
 ) {
     val hasQuery: Boolean get() = query.isNotBlank()
@@ -76,11 +79,12 @@ class SearchViewModel @Inject constructor(
         val accountsById: Map<Long, Account>,
         val pairs: Map<String, TransferPair>,
         val installmentCounts: Map<Long, Int>,
+        val loanTypes: Map<Long, LoanType>,
     )
 
     private val index = combine(
         transactionRepository.getAllTransactions(),
-        loanRepository.getAllLoans(),
+        loanRepository.observeAll(),
         categoryRepository.getAllCategories(),
         accountRepository.observeAll(),
         combine(transferRepository.observePairs(), installmentPlanRepository.observeInstallmentCounts(), ::Pair),
@@ -99,11 +103,12 @@ class SearchViewModel @Inject constructor(
                     val text = if (t.transferId != null) t.description + " " + transferNames(t) else t.description
                     t to haystack(text, categoryNames[t.categoryId], t.original)
                 },
-            loans = loans.map { l -> l to haystack(l.name + " " + l.description, categoryNames[l.categoryId], l.totalAmount) },
+            loans = loans.map { l -> l to haystack(l.name + " " + l.description, null, l.total) },
             categories = categories,
             accountsById = accountsById,
             pairs = pairs,
             installmentCounts = counts,
+            loanTypes = loans.associate { it.id to it.loanType },
         )
     }.flowOn(Dispatchers.Default)
 
@@ -118,6 +123,7 @@ class SearchViewModel @Inject constructor(
                 accountsById = idx.accountsById,
                 transferPairs = idx.pairs,
                 installmentCounts = idx.installmentCounts,
+                loanTypes = idx.loanTypes,
                 isLoading = false,
             )
         }
@@ -131,6 +137,7 @@ class SearchViewModel @Inject constructor(
             accountsById = idx.accountsById,
             transferPairs = idx.pairs,
             installmentCounts = idx.installmentCounts,
+            loanTypes = idx.loanTypes,
             isLoading = false,
         )
     }

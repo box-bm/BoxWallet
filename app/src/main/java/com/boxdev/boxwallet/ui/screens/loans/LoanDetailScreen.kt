@@ -2,10 +2,6 @@
 
 package com.boxdev.boxwallet.ui.screens.loans
 
-import com.boxdev.boxwallet.ui.components.trendIcon
-import com.boxdev.boxwallet.domain.model.LoanType
-import com.boxdev.boxwallet.ui.components.segmentShapes
-
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,20 +19,31 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.outlined.EventBusy
-import androidx.compose.material3.Checkbox
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.RadioButtonUnchecked
+import androidx.compose.material.icons.outlined.Timelapse
 import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MediumExtendedFloatingActionButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedListItem
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -46,10 +53,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
@@ -60,33 +71,37 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.boxdev.boxwallet.R
+import com.boxdev.boxwallet.domain.model.InstallmentState
 import com.boxdev.boxwallet.domain.model.Loan
+import com.boxdev.boxwallet.domain.model.LoanStatus
+import com.boxdev.boxwallet.domain.model.LoanType
+import com.boxdev.boxwallet.domain.model.ScheduledInstallment
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.ui.components.AmountKind
 import com.boxdev.boxwallet.ui.components.AmountText
 import com.boxdev.boxwallet.ui.components.BackButton
 import com.boxdev.boxwallet.ui.components.CategoryBadge
+import com.boxdev.boxwallet.ui.components.ConfirmDeleteDialog
 import com.boxdev.boxwallet.ui.components.EmptyState
 import com.boxdev.boxwallet.ui.components.InfoChip
-import com.boxdev.boxwallet.ui.components.EquivalentText
 import com.boxdev.boxwallet.ui.components.LoanEquivalentText
-import com.boxdev.boxwallet.util.rememberCurrencyFormatter
-import com.boxdev.boxwallet.domain.model.LoanStatus
 import com.boxdev.boxwallet.ui.components.LoanStatusChip
 import com.boxdev.boxwallet.ui.components.SectionHeader
 import com.boxdev.boxwallet.ui.components.accent
 import com.boxdev.boxwallet.ui.components.directionColors
-import com.boxdev.boxwallet.util.DateFormats
+import com.boxdev.boxwallet.ui.components.loanMovementLabel
+import com.boxdev.boxwallet.ui.components.segmentShapes
+import com.boxdev.boxwallet.ui.components.trendIcon
 import com.boxdev.boxwallet.ui.theme.BoxTheme
+import com.boxdev.boxwallet.util.DateFormats
+import com.boxdev.boxwallet.util.rememberCurrencyFormatter
 import java.time.LocalDate
-import com.boxdev.boxwallet.ui.screens.analytics.InstallmentState
-import com.boxdev.boxwallet.ui.screens.analytics.installmentState
 import java.time.temporal.ChronoUnit
 
 /**
  * Loan detail, drawn transparent so it sits on the [com.boxdev.boxwallet.ui.components.AppPane] around it.
- * In the Loans list-detail it is the detail pane bound to [loanId] (back button only in single pane);
- * opened from elsewhere it is its own destination with a back button. [onEditLoan] opens the loan form.
+ * Opened as its own destination with a back button; [onEditLoan] opens the loan form. Shows what is left,
+ * the installments (when there is a plan), the payments (tap one to edit it) and "Record payment".
  */
 @Composable
 fun LoanDetailScreen(
@@ -98,11 +113,35 @@ fun LoanDetailScreen(
     LaunchedEffect(loanId) { loanId?.let(viewModel::bind) }
     val uiState by viewModel.uiState.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
+    val snackbar = remember { SnackbarHostState() }
+    var menuOpen by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
+
+    LaunchedEffect(uiState.deleted) { if (uiState.deleted) onNavigateBack?.invoke() }
+    // A refusal outside the payment sheet (marking an installment, deleting) comes as a snackbar.
+    val errorText = uiState.error?.let { stringResource(it) }
+    LaunchedEffect(errorText, uiState.payment == null) {
+        if (errorText != null && uiState.payment == null) {
+            snackbar.showSnackbar(errorText)
+            viewModel.dismissError()
+        }
+    }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),
+        snackbarHost = { SnackbarHost(snackbar) },
+        floatingActionButton = {
+            val loan = uiState.loan
+            if (loan != null && !loan.isSettled) {
+                MediumExtendedFloatingActionButton(
+                    onClick = viewModel::openNewPayment,
+                    icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                    text = { Text(stringResource(R.string.loan_record_payment)) },
+                )
+            }
+        },
         topBar = {
             LargeFlexibleTopAppBar(
                 scrollBehavior = scrollBehavior,
@@ -123,8 +162,20 @@ fun LoanDetailScreen(
                 navigationIcon = { if (onNavigateBack != null) BackButton(onNavigateBack) },
                 actions = {
                     uiState.loan?.let { loan ->
-                        IconButton(onClick = { onEditLoan(loan.id) }) {
-                            Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.loan_detail_edit))
+                        Box {
+                            IconButton(onClick = { menuOpen = true }) {
+                                Icon(Icons.Outlined.MoreVert, contentDescription = stringResource(R.string.action_more))
+                            }
+                            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.loan_detail_edit)) },
+                                    onClick = { menuOpen = false; onEditLoan(loan.id) },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.loan_delete_button), color = MaterialTheme.colorScheme.error) },
+                                    onClick = { menuOpen = false; confirmDelete = true },
+                                )
+                            }
                         }
                     }
                 },
@@ -145,56 +196,100 @@ fun LoanDetailScreen(
             else -> {
                 val loan = uiState.loan!!
                 val today = remember { LocalDate.now() }
-                val states = remember(uiState.installments, today) {
-                    uiState.installments.associate { it.id to installmentState(it.isCleared, it.date.toLocalDate(), today) }
-                }
-                // "Next payment" marks the first installment still ahead; overdue ones carry their own state.
-                val nextUnpaidId = uiState.installments.firstOrNull { states[it.id] == InstallmentState.OPEN }?.id
+                val schedule = remember(loan, today) { loan.schedule(today) }
+                val next = remember(loan, today) { loan.nextDue(today) }
+                // Newest payment first, like the movement lists.
+                val payments = remember(uiState.payments) { uiState.payments.asReversed() }
                 LazyColumn(
                     modifier = Modifier.fillMaxSize().padding(padding),
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 120.dp),
                 ) {
                     item(key = "hero") {
-                        LoanHero(loan = loan, categoryName = uiState.category?.name, category = uiState.category)
+                        LoanHero(loan = loan, accountName = uiState.accountName)
                     }
-                    item(key = "installments_header") {
+                    if (schedule.isNotEmpty()) {
+                        item(key = "installments_header") {
+                            SectionHeader(
+                                title = stringResource(R.string.loan_installments_section),
+                                modifier = Modifier.padding(top = 20.dp),
+                            )
+                        }
+                        itemsIndexed(schedule, key = { _, i -> "installment_${i.number}" }) { index, installment ->
+                            InstallmentRow(
+                                installment = installment,
+                                index = index,
+                                count = schedule.size,
+                                isNext = installment.number == next?.number,
+                                onMarkPaid = { viewModel.markPaid(installment.number) },
+                            )
+                        }
+                    }
+                    item(key = "payments_header") {
                         SectionHeader(
-                            title = stringResource(R.string.loan_installments_section),
+                            title = stringResource(R.string.loan_payments_section),
                             modifier = Modifier.padding(top = 20.dp),
                         )
                     }
-                    itemsIndexed(uiState.installments, key = { _, t -> t.id }) { index, installment ->
-                        InstallmentRow(
-                            installment = installment,
-                            index = index,
-                            count = uiState.installments.size,
-                            isNext = installment.id == nextUnpaidId,
-                            isOverdue = states[installment.id] == InstallmentState.OVERDUE,
-                            onToggleCleared = { viewModel.toggleInstallmentCleared(installment) },
-                        )
+                    if (payments.isEmpty()) {
+                        item(key = "payments_empty") {
+                            Text(
+                                stringResource(R.string.loan_payments_empty),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
+                            )
+                        }
+                    } else {
+                        itemsIndexed(payments, key = { _, t -> "payment_${t.id}" }) { index, payment ->
+                            PaymentRow(
+                                loan = loan,
+                                payment = payment,
+                                index = index,
+                                count = payments.size,
+                                onClick = { viewModel.openPayment(payment.id) },
+                            )
+                        }
                     }
                 }
             }
         }
     }
+
+    uiState.payment?.let { sheet ->
+        LoanPaymentSheet(
+            state = sheet,
+            error = errorText,
+            onAmountChange = viewModel::updatePaymentAmount,
+            onDateChange = viewModel::updatePaymentDate,
+            onSave = viewModel::savePayment,
+            onDelete = viewModel::deleteOpenPayment,
+            onDismiss = viewModel::dismissPayment,
+        )
+    }
+
+    if (confirmDelete) {
+        ConfirmDeleteDialog(
+            title = stringResource(R.string.loan_delete_title),
+            message = stringResource(R.string.loan_delete_message),
+            onConfirm = viewModel::deleteLoan,
+            onDismiss = { confirmDelete = false },
+        )
+    }
 }
 
 @Composable
-private fun LoanHero(
-    loan: Loan,
-    categoryName: String?,
-    category: com.boxdev.boxwallet.domain.model.Category?,
-) {
+private fun LoanHero(loan: Loan, accountName: String?) {
     val today = LocalDate.now()
     val status = loan.status(today)
     val dateFormatter = DateFormats.mediumDate
+    val formatter = rememberCurrencyFormatter()
     val progress by animateFloatAsState(
         targetValue = loan.progressFraction,
         animationSpec = MaterialTheme.motionScheme.slowSpatialSpec(),
         label = "loanHeroProgress",
     )
     val density = LocalDensity.current
-    val stroke = remember(density) { with(density) { Stroke(width = 6.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round) } }
+    val stroke = remember(density) { with(density) { Stroke(width = 6.dp.toPx(), cap = StrokeCap.Round) } }
 
     Surface(
         color = BoxTheme.cardColor,
@@ -208,7 +303,7 @@ private fun LoanHero(
             ) {
                 LoanStatusChip(status = status)
                 InfoChip(stringResource(loan.loanType.displayNameRes))
-                if (categoryName != null) InfoChip(categoryName)
+                if (accountName != null) InfoChip(accountName)
             }
 
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
@@ -225,7 +320,7 @@ private fun LoanHero(
                     )
                     val (badgeContainer, badgeContent) = directionColors(loan.loanType == LoanType.INCOME)
                     CategoryBadge(
-                        category = category,
+                        category = null,
                         size = 64.dp,
                         fallbackIcon = trendIcon(loan.loanType == LoanType.INCOME),
                         fallbackContainer = badgeContainer,
@@ -240,13 +335,13 @@ private fun LoanHero(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     AmountText(
-                        amount = loan.remainingAmount,
+                        amount = loan.remaining,
                         style = BoxTheme.moneyType.large,
                         autoSize = true,
                     )
-                    if (!loan.isComplete) LoanEquivalentText(loan)
+                    if (!loan.isSettled) LoanEquivalentText(loan)
                     Text(
-                        stringResource(R.string.loan_paid_progress, loan.paidInstallments, loan.totalInstallments),
+                        stringResource(R.string.loan_of_total, formatter.format(loan.total)),
                         style = MaterialTheme.typography.titleSmall,
                         color = status.accent(),
                     )
@@ -259,7 +354,7 @@ private fun LoanHero(
                     modifier = Modifier.weight(1f),
                 ) {
                     AmountText(
-                        amount = loan.settledAmount,
+                        amount = loan.paid,
                         kind = AmountKind.Income,
                         signed = false,
                         style = BoxTheme.moneyType.medium,
@@ -270,17 +365,21 @@ private fun LoanHero(
                     label = stringResource(R.string.loan_total_amount),
                     modifier = Modifier.weight(1f),
                 ) {
-                    AmountText(amount = loan.totalAmount, style = BoxTheme.moneyType.medium, autoSize = true)
+                    AmountText(amount = loan.total, style = BoxTheme.moneyType.medium, autoSize = true)
                 }
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Stat(label = stringResource(R.string.loan_detail_start_date), modifier = Modifier.weight(1f)) {
-                    Text(loan.startDate.toLocalDate().format(dateFormatter), style = MaterialTheme.typography.titleMedium)
+                    Text(loan.date.toLocalDate().format(dateFormatter), style = MaterialTheme.typography.titleMedium)
                 }
-                Stat(label = stringResource(R.string.loan_next_payment), modifier = Modifier.weight(1f)) {
-                    val due = loan.nextDueDate
-                    if (due == null || loan.isComplete) {
+                // With a plan the next installment; without one the expected date.
+                val due = if (loan.isSettled) null else loan.nextDue(today)?.due ?: loan.expectedDate
+                Stat(
+                    label = stringResource(if (loan.plan != null) R.string.loan_next_payment else R.string.loan_expected_date),
+                    modifier = Modifier.weight(1f),
+                ) {
+                    if (due == null) {
                         Text("—", style = MaterialTheme.typography.titleMedium)
                     } else {
                         val days = ChronoUnit.DAYS.between(today, due).toInt()
@@ -311,53 +410,103 @@ private fun Stat(label: String, modifier: Modifier = Modifier, value: @Composabl
     }
 }
 
+/** An installment with how much of it the payments cover; the next unpaid one can be marked paid. */
 @Composable
 private fun InstallmentRow(
-    installment: Transaction,
+    installment: ScheduledInstallment,
     index: Int,
     count: Int,
     isNext: Boolean,
-    isOverdue: Boolean,
-    onToggleCleared: () -> Unit,
+    onMarkPaid: () -> Unit,
 ) {
-    val dateFormatter = DateFormats.mediumDate
-    val money = BoxTheme.money
-    SegmentedListItem(
-        checked = installment.isCleared,
-        onCheckedChange = { onToggleCleared() },
-        shapes = segmentShapes(index = index, count = count),
+    val formatter = rememberCurrencyFormatter()
+    val date = installment.due.format(DateFormats.mediumDate)
+    val overdue = installment.state == InstallmentState.OVERDUE
+    // Not clickable: only "Mark as paid" acts, so the row has no ripple.
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.loan_installment_number, installment.number)) },
         colors = ListItemDefaults.colors(
             containerColor = when {
-                isOverdue -> MaterialTheme.colorScheme.errorContainer
+                overdue -> MaterialTheme.colorScheme.errorContainer
                 isNext -> MaterialTheme.colorScheme.tertiaryContainer
                 else -> BoxTheme.cardColor
             },
         ),
-        leadingContent = { Checkbox(checked = installment.isCleared, onCheckedChange = null) },
+        leadingContent = {
+            val (icon, tint) = when (installment.state) {
+                InstallmentState.PAID -> Icons.Filled.CheckCircle to BoxTheme.money.income
+                InstallmentState.PARTIAL -> Icons.Outlined.Timelapse to MaterialTheme.colorScheme.primary
+                InstallmentState.OVERDUE -> Icons.Filled.ErrorOutline to MaterialTheme.colorScheme.onErrorContainer
+                InstallmentState.PENDING -> Icons.Outlined.RadioButtonUnchecked to MaterialTheme.colorScheme.onSurfaceVariant
+            }
+            Icon(icon, contentDescription = null, tint = tint)
+        },
         supportingContent = {
-            val date = installment.date.toLocalDate().format(dateFormatter)
-            Text(
-                when {
-                    isOverdue -> stringResource(R.string.loan_installment_overdue_since, date)
-                    isNext -> stringResource(R.string.loan_next_payment) + " · " + date
-                    else -> date
-                },
-                color = if (isOverdue) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Column {
+                Text(
+                    when {
+                        installment.state == InstallmentState.PAID -> stringResource(R.string.loan_installment_paid_label)
+                        overdue -> stringResource(R.string.loan_installment_overdue_since, date)
+                        isNext -> stringResource(R.string.loan_next_payment) + " · " + date
+                        else -> date
+                    },
+                    color = if (overdue) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (installment.state == InstallmentState.PARTIAL || (overdue && installment.covered.minor > 0)) {
+                    Text(
+                        stringResource(
+                            R.string.loan_installment_covered,
+                            formatter.format(installment.covered),
+                            formatter.format(installment.amount),
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         },
         trailingContent = {
-            val equivalent = rememberCurrencyFormatter().withEquivalent(installment.original, installment.amount).second
-            Column(horizontalAlignment = Alignment.End) {
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 AmountText(
-                    amount = installment.original,
+                    amount = installment.amount,
                     style = BoxTheme.moneyType.medium,
-                    color = if (installment.isCleared) money.income else MaterialTheme.colorScheme.onSurface,
+                    color = if (installment.state == InstallmentState.PAID) BoxTheme.money.income else MaterialTheme.colorScheme.onSurface,
                 )
-                if (equivalent != null) EquivalentText(equivalent)
+                if (isNext) {
+                    FilledTonalButton(onClick = onMarkPaid) { Text(stringResource(R.string.loan_mark_as_paid)) }
+                }
             }
+        },
+        modifier = Modifier
+            .padding(bottom = ListItemDefaults.SegmentedGap)
+            .clip(segmentShapes(index = index, count = count).shape),
+    )
+}
+
+/** A payment of the loan; tapping it opens the sheet to edit or delete it. */
+@Composable
+private fun PaymentRow(
+    loan: Loan,
+    payment: Transaction,
+    index: Int,
+    count: Int,
+    onClick: () -> Unit,
+) {
+    val label = loanMovementLabel(payment.type, loan.loanType)
+    SegmentedListItem(
+        onClick = onClick,
+        shapes = segmentShapes(index = index, count = count),
+        colors = ListItemDefaults.colors(containerColor = BoxTheme.cardColor),
+        supportingContent = { Text(payment.date.toLocalDate().format(DateFormats.mediumDate)) },
+        trailingContent = {
+            AmountText(
+                amount = payment.accountAmount,
+                kind = if (loan.loanType == LoanType.INCOME) AmountKind.Income else AmountKind.Expense,
+                style = BoxTheme.moneyType.medium,
+            )
         },
         modifier = Modifier.padding(bottom = ListItemDefaults.SegmentedGap),
     ) {
-        Text(stringResource(R.string.loan_installment_number, installment.installmentNumber ?: 0))
+        Text(stringResource(label.title, loan.name), maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }

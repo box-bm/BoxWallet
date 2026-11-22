@@ -4,6 +4,8 @@ import com.boxdev.boxwallet.data.local.entity.TransactionType.ADJUSTMENT_IN
 import com.boxdev.boxwallet.data.local.entity.TransactionType.ADJUSTMENT_OUT
 import com.boxdev.boxwallet.data.local.entity.TransactionType.EXPENSE
 import com.boxdev.boxwallet.data.local.entity.TransactionType.INCOME
+import com.boxdev.boxwallet.data.local.entity.TransactionType.LOAN_IN
+import com.boxdev.boxwallet.data.local.entity.TransactionType.LOAN_OUT
 import com.boxdev.boxwallet.data.local.entity.TransactionType.TRANSFER_IN
 import com.boxdev.boxwallet.data.local.entity.TransactionType.TRANSFER_OUT
 import com.boxdev.boxwallet.domain.model.Transaction
@@ -18,7 +20,7 @@ import org.junit.Test
 class TransactionTypeTest {
     @Test
     fun inflowTypes() {
-        assertEquals(setOf(INCOME, ADJUSTMENT_IN, TRANSFER_IN), TransactionType.entries.filter { it.isInflow }.toSet())
+        assertEquals(setOf(INCOME, ADJUSTMENT_IN, TRANSFER_IN, LOAN_IN), TransactionType.entries.filter { it.isInflow }.toSet())
     }
 
     @Test
@@ -40,6 +42,17 @@ class TransactionTypeTest {
             assertFalse(type.countsInReports)
         }
         assertFalse(INCOME.isTransfer)
+    }
+
+    @Test
+    fun loanHelpers() {
+        assertTrue(LOAN_IN.isInflow)
+        assertFalse(LOAN_OUT.isInflow)
+        assertFalse(LOAN_IN.countsInReports)
+        assertFalse(LOAN_OUT.countsInReports)
+        assertTrue(LOAN_IN.isLoan)
+        assertTrue(LOAN_OUT.isLoan)
+        assertFalse(INCOME.isLoan)
     }
 
     @Test

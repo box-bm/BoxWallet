@@ -36,6 +36,10 @@
     <string name="transaction_new_title">Nuevo Movimiento</string>
     <string name="transaction_type_expense">Gasto</string>
     <string name="transaction_adjustment">Ajuste de saldo</string>
+    <string name="loan_movement_lent_to">Préstamo a %s</string>
+    <string name="loan_movement_borrowed_from">Préstamo de %s</string>
+    <string name="loan_movement_payment_from">Pago de %s</string>
+    <string name="loan_movement_payment_to">Pago a %s</string>
     <string name="transaction_transfer">Transferencia</string>
     <string name="transaction_type_income">Ingreso</string>
     <string name="transaction_amount_label">Monto *</string>
@@ -60,39 +64,35 @@
     <string name="loan_new_title">Nuevo Pr\u00e9stamo</string>
     <string name="loan_name_label">Nombre del Pr\u00e9stamo *</string>
     <string name="loan_name_placeholder">ej. Pr\u00e9stamo de auto, Hipoteca</string>
-    <string name="loan_description_label">Descripci\u00f3n (Opcional)</string>
     <string name="loan_total_amount_label">Monto Total *</string>
     <string name="loan_installments_label">Cuotas *</string>
     <string name="loan_each_installment">Cada cuota: %1$s (%2$s)</string>
     <string name="loan_start_date">Fecha de Inicio</string>
-    <string name="loan_type_label">Tipo</string>
     <string name="loan_delete_title">Eliminar Pr\u00e9stamo</string>
-    <string name="loan_delete_message">Esto tambi\u00e9n eliminar\u00e1 las %1$s cuotas. Esta acci\u00f3n no se puede deshacer.</string>
+    <string name="loan_delete_message">Esto también eliminará el desembolso del préstamo y todos sus pagos. Esta acción no se puede deshacer.</string>
+    <string name="loan_currency_from_account">Moneda: %1$s, definida por la cuenta.</string>
+    <string name="loan_plan_switch">Pagos en cuotas</string>
+    <string name="loan_plan_switch_supporting">Divídelo en cuotas programadas</string>
+    <string name="loan_first_due">Primera cuota</string>
+    <string name="loan_expected_date">Fecha esperada</string>
+    <string name="loan_expected_date_none">Sin fecha</string>
+    <string name="loan_expected_date_clear">Quitar fecha esperada</string>
     <string name="loan_delete_button">Eliminar Pr\u00e9stamo</string>
 
     <!-- Loan Card -->
-    <string name="loan_paid_progress">%1$d/%2$d pagadas</string>
-    <string name="loan_due_date">Vence: %1$s</string>
 
     <!-- Loan Detail Screen -->
     <string name="loan_detail_title">Detalle del Pr\u00e9stamo</string>
     <string name="loan_detail_edit">Editar Pr\u00e9stamo</string>
     <string name="loan_not_found">Pr\u00e9stamo no encontrado</string>
-    <string name="loan_summary">Resumen del Pr\u00e9stamo</string>
     <string name="loan_total_amount">Monto Total</string>
-    <string name="loan_per_installment">Por Cuota</string>
-    <string name="loan_amount_paid">Monto Pagado</string>
-    <string name="loan_progress">Progreso</string>
     <string name="loan_next_payment">Pr\u00f3ximo Pago</string>
     <string name="loan_detail_start_date">Fecha de Inicio</string>
     <string name="loan_installments_section">Cuotas</string>
     <string name="loan_installment_number">Cuota #%1$d</string>
-    <string name="loan_mark_as_unpaid">Marcar como no pagada</string>
     <string name="loan_mark_as_paid">Marcar como pagada</string>
     <string name="loan_total_paid">Total Pagado</string>
-    <string name="loan_remaining">Restante</string>
     <string name="loan_overdue">Vencida</string>
-    <string name="loan_incoming_payment">Por vencer</string>
     <string name="loan_status_active">Activo</string>
     <string name="loan_status_paid">Pagado</string>
 
@@ -110,18 +110,7 @@
     <string name="transactions_filter_recurring_only">Solo Recurrentes</string>
 
     <!-- Loans Screen -->
-    <string name="loans_title">Pr\u00e9stamos</string>
     <string name="loans_no_loans">A\u00fan no hay pr\u00e9stamos</string>
-    <string name="loans_tap_to_add">Toca + para agregar un pr\u00e9stamo</string>
-    <string name="loans_no_results">Ning\u00fan pr\u00e9stamo coincide con los filtros</string>
-    <string name="loans_filter_type">Tipo</string>
-    <string name="loans_filter_status">Estado</string>
-    <string name="loans_filter_current">Activos</string>
-    <string name="loans_filter_overdue">Vencidos</string>
-    <string name="loans_filter_paid">Pagados</string>
-    <string name="loans_filter_category">Categor\u00eda</string>
-    <string name="loans_filter_sort_by">Ordenar por</string>
-    <string name="loans_filter_lowest">Menor monto</string>
     <string name="transactions_filter_category">Categor\u00eda</string>
     <string name="transactions_filter_lowest">Menor monto</string>
 
@@ -373,7 +362,6 @@
         <item quantity="other">%1$d movimientos</item>
     </plurals>
     <string name="transactions_select_hint">Selecciona un movimiento para editarlo</string>
-    <string name="loans_select_hint">Selecciona un préstamo para ver sus cuotas</string>
     <plurals name="loan_days_overdue">
         <item quantity="one">%1$d día de atraso</item>
         <item quantity="many">%1$d días de atraso</item>
@@ -425,17 +413,6 @@
     <string name="analytics_verdict_over">Gastaste %1$s más de lo que ingresó</string>
     <string name="analytics_verdict_no_income">Aún no hay ingresos en este periodo</string>
     <string name="analytics_twelve_month_caption">No depende del periodo que elijas arriba</string>
-    <string name="analytics_installments_title">Cuotas del periodo</string>
-    <string name="analytics_installments_paid">%1$d de %2$d pagadas</string>
-    <string name="analytics_installments_amount">%1$s de %2$s</string>
-    <plurals name="analytics_installments_overdue">
-        <item quantity="one">%1$d vencida</item>
-        <item quantity="other">%1$d vencidas</item>
-    </plurals>
-    <string name="analytics_installment_due">Vence %1$s</string>
-    <string name="analytics_installment_overdue">Vencida desde %1$s</string>
-    <string name="analytics_installments_all_paid">Todas las cuotas del periodo están pagadas</string>
-    <string name="analytics_see_loans">Ver todos los préstamos</string>
     <string name="analytics_not_enough_history">Historial insuficiente</string>
     <string name="chart_a11y_previous">Anterior</string>
     <string name="chart_a11y_next">Siguiente</string>
@@ -444,20 +421,7 @@
     <string name="analytics_net_by_month">Neto por mes</string>
     <string name="analytics_day_movements">Movimientos del día</string>
     <string name="analytics_see_category_movements">Ver movimientos de %1$s</string>
-    <string name="analytics_installments_to_pay">Por pagar</string>
-    <string name="analytics_installments_to_collect">Por cobrar</string>
-    <string name="analytics_installments_of_due">de %1$s en el período</string>
     <string name="analytics_trend_caption">Últimos 6 meses comparados con los 6 anteriores</string>
-    <plurals name="analytics_installments_open">
-        <item quantity="one">%1$d pendiente</item>
-        <item quantity="many">%1$d pendientes</item>
-        <item quantity="other">%1$d pendientes</item>
-    </plurals>
-    <plurals name="analytics_installments_overdue_since">
-        <item quantity="one">%1$d vencida desde %2$s</item>
-        <item quantity="many">%1$d vencidas desde %2$s</item>
-        <item quantity="other">%1$d vencidas desde %2$s</item>
-    </plurals>
     <string name="analytics_vs_same_point_week">%1$s vs mismo día de la semana pasada</string>
     <string name="analytics_vs_same_point_month">%1$s vs misma fecha del mes pasado</string>
     <string name="analytics_vs_same_point_year">%1$s vs misma fecha del año pasado</string>
@@ -466,9 +430,6 @@
     <string name="loan_total_collected">Total Cobrado</string>
     <string name="loan_row_next">%1$s · próxima %2$s</string>
     <string name="loan_row_overdue">%1$s · vencida desde %2$s</string>
-    <string name="loans_summary_to_pay">Debes</string>
-    <string name="loans_summary_to_collect">Te deben</string>
-    <string name="loans_completed">Completados (%1$d)</string>
     <string name="loan_installment_overdue_since">Vencida desde %1$s</string>
     <string name="transaction_settled_expense">Ya pagado</string>
     <string name="transaction_settled_income">Ya recibido</string>
@@ -489,9 +450,6 @@
     <string name="conversion_use_automatic">Usar tasa automática</string>
     <string name="conversion_needs_rate">Ingresa la tasa de cambio</string>
     <string name="conversion_needs_rate_explanation">No hay una tasa disponible para esta moneda y fecha.</string>
-    <string name="loan_currency_locked">La moneda no se puede cambiar una vez pagada una cuota.</string>
-    <string name="loan_currency_locked_description">Moneda: %1$s. Bloqueada porque ya hay una cuota pagada.</string>
-    <string name="loan_missing_rate">No hay tasa de cambio para %1$s. Conéctate a internet e inténtalo de nuevo.</string>
     <string name="transaction_error_invalid_amount">Ingresa un monto válido</string>
     <string name="transaction_error_account_loading">Todavía se está cargando la cuenta. Inténtalo de nuevo en un momento.</string>
     <string name="transaction_error_not_found">Este movimiento ya no existe.</string>
@@ -588,14 +546,6 @@
     <string name="report_col_currency">Moneda</string>
     <string name="report_col_rate">Tasa</string>
     <string name="report_col_main_amount">Monto en moneda principal</string>
-    <string name="report_loan_remaining_in">Pendiente (%1$s)</string>
-    <string name="report_loan_total_borrowed">Total prestado (%1$s)</string>
-    <string name="report_loan_total_paid">Total pagado (%1$s)</string>
-    <string name="report_loan_total_remaining">Total pendiente (%1$s)</string>
-    <plurals name="report_loans_excluded_other_currencies">
-        <item quantity="one">No incluye %1$d préstamo en otra moneda</item>
-        <item quantity="other">No incluye %1$d préstamos en otras monedas</item>
-    </plurals>
     <string name="search_in_app">Buscar en BoxWallet</string>
 
     <!-- Accounts -->
@@ -643,10 +593,11 @@
     <string name="account_not_found">No se encontró la cuenta</string>
     <string name="account_error_is_default">No puedes borrar ni archivar la cuenta por defecto</string>
     <string name="account_error_last">Necesitas al menos una cuenta</string>
-    <string name="account_error_has_movements">Esta cuenta tiene movimientos; archívala en su lugar</string>
+    <string name="account_error_has_movements">Esta cuenta tiene movimientos o préstamos; archívala en su lugar</string>
     <string name="account_error_second_currency_has_movements">La segunda moneda ya tiene movimientos</string>
     <string name="account_error_remove_second_currency_first">Quita primero la segunda moneda</string>
     <string name="account_error_has_pending_installments">Esta tarjeta tiene cuotas por cobrar</string>
+    <string name="account_error_has_loans">Esta cuenta tiene préstamos, y los préstamos no pueden estar en una tarjeta</string>
     <string name="account_error_missing_rate">No hay tasa de cambio para esta moneda todavía</string>
     <string name="account_balance_negative">Saldo negativo</string>
     <string name="account_error_generic">Algo salió mal. Inténtalo de nuevo.</string>
@@ -701,4 +652,38 @@
     <string name="installment_plan_installments">Cuotas</string>
     <string name="installment_plan_error_save">No se pudo guardar la compra. Inténtalo de nuevo.</string>
     <string name="installment_plan_error_delete">No se pudo eliminar la compra. Inténtalo de nuevo.</string>
+    <string name="loans_group_owed_to_me">Me deben</string>
+    <string name="loans_group_i_owe">Debo</string>
+    <string name="loans_group_settled">Liquidados</string>
+    <string name="loans_add_from_account">Agrega un pr\u00e9stamo desde una cuenta o con el bot\u00f3n +</string>
+    <string name="loan_payment_new_title">Registrar abono</string>
+    <string name="loan_payment_edit_title">Editar pago</string>
+    <string name="loan_payment_amount_label">Monto</string>
+    <string name="loan_payment_date_label">Fecha</string>
+    <string name="loan_payment_max">Hasta %1$s</string>
+    <string name="loan_payment_refused">El pago no puede pasar de lo que falta ni ser anterior al préstamo.</string>
+    <string name="loan_disbursed_received">Recibí</string>
+    <string name="loan_disbursed_given">Entregué</string>
+    <string name="loan_disbursed_supporting">Si es diferente del total a devolver</string>
+    <string name="loan_error_required">Completa el nombre, el monto y la cuenta.</string>
+    <string name="loan_save_refused">No se pudo guardar el préstamo con estos datos.</string>
+    <string name="loan_delete_failed">No se pudo eliminar el préstamo. Inténtalo de nuevo.</string>
+    <string name="loan_payment_delete_failed">No se pudo eliminar el pago. Inténtalo de nuevo.</string>
+    <string name="loan_record_payment">Registrar abono</string>
+    <string name="loan_payments_section">Pagos</string>
+    <string name="loan_payments_empty">Aún no hay pagos</string>
+    <string name="loan_installment_covered">%1$s de %2$s cubiertos</string>
+    <string name="loan_installment_paid_label">Pagada</string>
+    <string name="action_more">Más opciones</string>
+    <string name="loan_of_total">de %1$s</string>
+    <string name="account_loans_title">Préstamos</string>
+    <string name="account_loans_new">Nuevo préstamo</string>
+    <string name="account_loans_show_settled">Ver liquidados (%1$d)</string>
+    <string name="account_loans_hide_settled">Ocultar liquidados</string>
+    <string name="analytics_loans_title">Préstamos</string>
+    <string name="analytics_loans_received">Recibido</string>
+    <string name="analytics_loans_paid">Pagado</string>
+    <string name="analytics_loans_lent">Prestado</string>
+    <string name="analytics_loans_collected">Cobrado</string>
+    <string name="analytics_see_loans">Ver préstamos</string>
 </resources>

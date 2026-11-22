@@ -109,6 +109,16 @@ class AccountRepositoryTest {
         )
 
     @Test
+    fun `loan movements move the balance`() = runTest {
+        val id = db.accountDao().insert(AccountEntity(name = "Cash", type = "CASH", currencyCode = "USD", createdAt = 0L))
+        move(id, TransactionType.LOAN_IN, 10000, cleared = true)
+        move(id, TransactionType.LOAN_OUT, 1100, cleared = true)
+
+        val balance = repository.observeAccountsWithBalance().first().single { it.account.id == id }.balance
+        assertEquals(Money(8900, usd), balance)
+    }
+
+    @Test
     fun balanceCountsTransferLegs() = runTest {
         val id = db.accountDao().insert(AccountEntity(name = "Main", type = "CHECKING", currencyCode = "USD", createdAt = 0L))
         move(id, TransactionType.INCOME, 10000, cleared = true)
@@ -937,6 +947,29 @@ class AccountRepositoryTest {
         val cardId = repo.create(card(closingDay = 15), null, null)
         planOn(cardId, today, Money(300000, gtq))
         return repo to repo.observeAll().first().single { it.id == cardId }
+    }
+
+    @Test
+    fun `an account with loans can't become a card`() = runTest {
+        val id = repository.create(account("Cash"), null)
+        db.loanDao().insert(
+            com.boxdev.boxwallet.data.local.entity.LoanEntity(
+                name = "Juan", totalAmountMinor = 1000, currencyCode = "USD", accountId = id, startDate = 0L,
+            )
+        )
+        val stored = repository.observeAll().first().single { it.id == id }
+
+        assertThrows(AccountRuleError.HasLoans::class.java) {
+            runBlocking {
+                repository.update(
+                    stored.copy(type = AccountType.CREDIT_CARD, creditLimitMinor = 500000, statementClosingDay = 15, paymentDueDay = 5)
+                )
+            }
+        }
+        assertEquals(stored, repository.observeAll().first().single { it.id == id })
+        // Other edits still go through.
+        repository.update(stored.copy(name = "Wallet", type = AccountType.SAVINGS))
+        assertEquals("Wallet", repository.observeAll().first().single { it.id == id }.name)
     }
 
     @Test

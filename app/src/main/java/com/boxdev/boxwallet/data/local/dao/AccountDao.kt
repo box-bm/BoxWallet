@@ -13,7 +13,7 @@ data class AccountBalanceRow(val accountId: Long, val balanceMinor: Long)
 
 /** Balance expression shared by the per-account query and the one-shot lookup (over `transactions t`). */
 private const val BALANCE =
-    "SUM(CASE WHEN t.type IN ('INCOME','ADJUSTMENT_IN','TRANSFER_IN') THEN t.accountAmountMinor ELSE -t.accountAmountMinor END)"
+    "SUM(CASE WHEN t.type IN ('INCOME','ADJUSTMENT_IN','TRANSFER_IN','LOAN_IN') THEN t.accountAmountMinor ELSE -t.accountAmountMinor END)"
 
 /**
  * Which movements count: cards ignore the cleared flag and count everything dated before `:endOfToday`

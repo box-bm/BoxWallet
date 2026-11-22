@@ -1,16 +1,17 @@
 package com.boxdev.boxwallet.ui.screens.loans
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.analytics.AnalyticsHelper
 import com.boxdev.boxwallet.data.repository.AccountRepository
-import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.LoanRepository
-import com.boxdev.boxwallet.data.repository.TransactionRepository
-import com.boxdev.boxwallet.data.local.dao.CurrencyUsage
-import com.boxdev.boxwallet.domain.model.Category
+import com.boxdev.boxwallet.domain.model.Account
+import com.boxdev.boxwallet.domain.model.AccountType
 import com.boxdev.boxwallet.domain.model.Loan
+import com.boxdev.boxwallet.domain.model.LoanPlan
 import com.boxdev.boxwallet.domain.model.LoanType
 import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.domain.money.MissingRateException
@@ -18,14 +19,17 @@ import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.domain.money.parseMajor
 import com.boxdev.boxwallet.ui.screens.transaction.differsFrom
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.Currency
 import javax.inject.Inject
@@ -36,55 +40,74 @@ data class LoanFormState(
     val description: String = "",
     /** Typed in major units of [currency]. */
     val totalAmount: String = "",
-    val currency: Currency = Currency.getInstance("USD"),
-    val installments: String = "",
-    val startDate: LocalDateTime = LocalDateTime.now(),
-    val categoryId: Long? = null,
+    /** Received (borrowed) or given (lent), major units; empty means the same as the total. */
+    val disbursedAmount: String = "",
     val loanType: LoanType = LoanType.EXPENSE,
+    /** The loan's single account; its currency is the loan's. */
+    val accountId: Long? = null,
+    /** The accounts the loan can use (no cards; when editing, only the loan's currency). */
+    val accounts: List<Account> = emptyList(),
+    /** Disbursement date. */
+    val date: LocalDateTime = LocalDateTime.now(),
+    val hasPlan: Boolean = false,
+    val installments: String = "",
     val frequency: RecurrenceFrequency = RecurrenceFrequency.MONTHLY,
     val frequencyInterval: String = "1",
+    val firstDueDate: LocalDate = LocalDate.now(),
+    /** Only used while there is no plan. */
+    val expectedDate: LocalDate? = null,
+    /** What has been paid so far, when editing. */
+    val paid: Money? = null,
     val isEditing: Boolean = false,
     val isLoading: Boolean = false,
     val isSaved: Boolean = false,
     /** Set once a confirmed delete went through; the form then leaves the loan's screens too. */
     val deleted: Boolean = false,
-    val error: String? = null,
-    /** Set when a foreign-currency loan had no rate at all; the form shows a localized message. */
-    val missingRateCurrency: Currency? = null,
-    /** Installments already paid; the currency can't change once there is any. */
-    val paidInstallments: Int = 0,
+    @StringRes val error: Int? = null,
 ) {
-    val currencyLocked: Boolean get() = isEditing && paidInstallments > 0
+    val account: Account? get() = accounts.firstOrNull { it.id == accountId }
+
+    val currency: Currency get() = account?.currency ?: Currency.getInstance("USD")
 
     val total: Money? get() = parseMajor(totalAmount, currency)
+
+    /** What changed hands at the start: the typed amount, or the total when left empty. */
+    val disbursed: Money? get() = if (disbursedAmount.isBlank()) total else parseMajor(disbursedAmount, currency)
+
+    /** A loan with payments keeps its direction. */
+    val directionLocked: Boolean get() = isEditing && (paid?.minor ?: 0L) > 0
 
     /** The regular installment; the last one also absorbs the division remainder. */
     val installmentAmount: Money?
         get() {
+            if (!hasPlan) return null
             val amount = total ?: return null
             val count = installments.toIntOrNull() ?: return null
             return if (count > 0) Money(amount.minor / count, currency) else null
         }
 
     val isValid: Boolean
-        get() = name.isNotBlank() &&
-                total != null &&
-                (installments.toIntOrNull() ?: 0) > 0 &&
-                (frequency != RecurrenceFrequency.CUSTOM_MONTHS || (frequencyInterval.toIntOrNull() ?: 0) > 0)
+        get() {
+            val amount = total ?: return false
+            val received = disbursed ?: return false
+            return name.isNotBlank() &&
+                    received.minor > 0 &&
+                    accountId != null &&
+                    amount.minor >= (paid?.minor ?: 0L) &&
+                    (!hasPlan || (
+                            (installments.toIntOrNull() ?: 0) > 0 &&
+                                    (frequency != RecurrenceFrequency.CUSTOM_MONTHS || (frequencyInterval.toIntOrNull() ?: 0) > 0)
+                            ))
+        }
 }
 
 @HiltViewModel
 class LoanFormViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val loanRepository: LoanRepository,
-    categoryRepository: CategoryRepository,
     private val accountRepository: AccountRepository,
-    transactionRepository: TransactionRepository,
     private val analyticsHelper: AnalyticsHelper
 ) : ViewModel() {
-
-    /** The loan being edited, so fields the form doesn't show (account) survive the save. */
-    private var editing: Loan? = null
 
     private val _formState = MutableStateFlow(LoanFormState())
     val formState: StateFlow<LoanFormState> = _formState.asStateFlow()
@@ -97,60 +120,63 @@ class LoanFormViewModel @Inject constructor(
         base != null && state.differsFrom(base)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
-    val categories: StateFlow<List<Category>> = categoryRepository.getAllCategories()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    val recentCurrencies: StateFlow<List<CurrencyUsage>> = transactionRepository.recentCurrencies()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
     init {
-        loadLoan(savedStateHandle.get<Long>("id"))
+        loadLoan(savedStateHandle.get<Long>("id"), savedStateHandle.get<Long>("accountId"))
     }
 
-    private fun loadLoan(loanId: Long?) {
-        editing = null
+    private fun Account.usableForLoan() = type != AccountType.CREDIT_CARD && !isArchived
+
+    private fun loadLoan(loanId: Long?, routeAccountId: Long?) {
         initial.value = null
-        if (loanId == null || loanId == -1L) {
-            // A new loan defaults to its account's currency; loading until known so a save can't use a placeholder.
-            _formState.value = LoanFormState(isLoading = true)
-            viewModelScope.launch {
-                val account = accountRepository.defaultAccount()
-                _formState.update { it.copy(currency = account.currency, isLoading = false) }
-                initial.value = _formState.value
-            }
-            return
-        }
+        _formState.value = LoanFormState(isLoading = true)
         viewModelScope.launch {
-            _formState.update { it.copy(isLoading = true) }
-            val loan = loanRepository.getLoanById(loanId)
-            editing = loan
-            if (loan != null) {
-                _formState.value = LoanFormState(
-                    id = loan.id,
-                    name = loan.name,
-                    description = loan.description,
-                    totalAmount = loan.totalAmount.toMajor().toPlainString(),
-                    currency = loan.totalAmount.currency,
-                    installments = loan.totalInstallments.toString(),
-                    startDate = loan.startDate,
-                    categoryId = loan.categoryId,
-                    loanType = loan.loanType,
-                    frequency = loan.frequency,
-                    frequencyInterval = loan.frequencyInterval.toString(),
-                    isEditing = true,
-                    isLoading = false,
-                    paidInstallments = loan.paidInstallments,
-                )
+            val all = accountRepository.observeAll().first()
+            if (loanId == null || loanId == -1L) {
+                val usable = all.filter { it.usableForLoan() }
+                val preferred = usable.firstOrNull { it.id == routeAccountId }
+                    ?: accountRepository.defaultAccount().takeIf { it.usableForLoan() }?.let { d -> usable.firstOrNull { it.id == d.id } }
+                    ?: usable.firstOrNull()
+                _formState.value = LoanFormState(accounts = usable, accountId = preferred?.id)
                 initial.value = _formState.value
-            } else {
-                _formState.update { it.copy(isLoading = false, error = "Loan not found") }
+                return@launch
             }
+            val loan = loanRepository.get(loanId)
+            if (loan == null) {
+                _formState.update { it.copy(isLoading = false, error = R.string.loan_not_found) }
+                return@launch
+            }
+            // Same currency only; the account already used stays even if archived since.
+            val offered = all.filter {
+                it.type != AccountType.CREDIT_CARD && it.currency == loan.total.currency && (!it.isArchived || it.id == loan.accountId)
+            }
+            val frequency = loan.plan?.frequency ?: RecurrenceFrequency.MONTHLY
+            val interval = loan.plan?.interval ?: 1
+            _formState.value = LoanFormState(
+                id = loan.id,
+                name = loan.name,
+                description = loan.description,
+                totalAmount = loan.total.toMajor().toPlainString(),
+                disbursedAmount = if (loan.disbursed != loan.total) loan.disbursed.toMajor().toPlainString() else "",
+                loanType = loan.loanType,
+                accountId = loan.accountId,
+                accounts = offered,
+                date = loan.date,
+                hasPlan = loan.plan != null,
+                installments = loan.plan?.installments?.toString() ?: "",
+                frequency = frequency,
+                frequencyInterval = interval.toString(),
+                firstDueDate = loan.plan?.firstDue ?: frequency.advance(loan.date.toLocalDate(), interval, 1),
+                expectedDate = loan.expectedDate,
+                paid = loan.paid,
+                isEditing = true,
+            )
+            initial.value = _formState.value
         }
     }
 
-    fun updateCurrency(currency: Currency) {
-        if (_formState.value.currencyLocked) return
-        _formState.update { it.copy(currency = currency, error = null, missingRateCurrency = null) }
+    fun setAccount(id: Long) {
+        if (_formState.value.accounts.none { it.id == id }) return
+        _formState.update { it.copy(accountId = id, error = null) }
     }
     fun updateName(value: String) = _formState.update { it.copy(name = value, error = null) }
     fun updateDescription(value: String) = _formState.update { it.copy(description = value) }
@@ -159,61 +185,92 @@ class LoanFormViewModel @Inject constructor(
             _formState.update { it.copy(totalAmount = value, error = null) }
         }
     }
+    fun updateDisbursedAmount(value: String) {
+        if (value.isEmpty() || value.matches(Regex("^\\d*\\.?\\d*$"))) {
+            _formState.update { it.copy(disbursedAmount = value, error = null) }
+        }
+    }
     fun updateInstallments(value: String) {
         if (value.isEmpty() || value.matches(Regex("^\\d+$"))) {
             _formState.update { it.copy(installments = value, error = null) }
         }
     }
-    fun updateStartDate(value: LocalDateTime) = _formState.update { it.copy(startDate = value) }
-    fun updateTime(hour: Int, minute: Int) = _formState.update { it.copy(startDate = it.startDate.withHour(hour).withMinute(minute)) }
-    fun updateCategory(id: Long?) = _formState.update { it.copy(categoryId = id) }
-    fun updateLoanType(type: LoanType) = _formState.update { it.copy(loanType = type) }
+    fun updateDate(value: LocalDateTime) = _formState.update { it.copy(date = value) }
+    fun updateTime(hour: Int, minute: Int) = _formState.update { it.copy(date = it.date.withHour(hour).withMinute(minute)) }
+    fun updateLoanType(type: LoanType) = _formState.update { if (it.directionLocked) it else it.copy(loanType = type, error = null) }
     fun updateFrequency(freq: RecurrenceFrequency) = _formState.update { it.copy(frequency = freq) }
     fun updateFrequencyInterval(value: String) {
         if (value.isEmpty() || value.matches(Regex("^\\d+$"))) {
             _formState.update { it.copy(frequencyInterval = value, error = null) }
         }
     }
+    fun updateFirstDueDate(value: LocalDate) = _formState.update { it.copy(firstDueDate = value) }
+    fun updateExpectedDate(value: LocalDate?) = _formState.update { it.copy(expectedDate = value) }
+
+    /**
+     * Turning the plan on proposes the first due one period after the disbursement, unless the loan
+     * already had a plan (then its stored first due stays).
+     */
+    fun setHasPlan(on: Boolean) = _formState.update { s ->
+        if (on && !s.hasPlan && initial.value?.hasPlan != true) {
+            s.copy(
+                hasPlan = true,
+                firstDueDate = s.frequency.advance(s.date.toLocalDate(), s.frequencyInterval.toIntOrNull() ?: 1, 1),
+                error = null,
+            )
+        } else s.copy(hasPlan = on, error = null)
+    }
 
     fun save() {
         val s = _formState.value
         if (!s.isValid) {
-            _formState.update { it.copy(error = "Please fill in all required fields") }
+            _formState.update { it.copy(error = R.string.loan_error_required) }
             return
         }
         if (s.isLoading) return
         viewModelScope.launch {
-            _formState.update { it.copy(isLoading = true, missingRateCurrency = null) }
+            _formState.update { it.copy(isLoading = true) }
             try {
                 val loan = Loan(
                     id = if (s.isEditing) s.id else 0,
-                    name = s.name,
+                    name = s.name.trim(),
                     description = s.description,
-                    totalAmount = s.total!!,
-                    totalInstallments = s.installments.toInt(),
-                    accountId = editing?.accountId,
-                    categoryId = s.categoryId,
-                    startDate = s.startDate,
+                    total = s.total!!,
+                    disbursed = s.disbursed!!,
+                    accountId = s.accountId!!,
+                    date = s.date,
                     loanType = s.loanType,
-                    frequency = s.frequency,
-                    frequencyInterval = s.frequencyInterval.toIntOrNull() ?: 1
+                    plan = if (s.hasPlan) {
+                        LoanPlan(
+                            installments = s.installments.toInt(),
+                            frequency = s.frequency,
+                            interval = s.frequencyInterval.toIntOrNull() ?: 1,
+                            firstDue = s.firstDueDate,
+                        )
+                    } else null,
+                    expectedDate = if (s.hasPlan) null else s.expectedDate,
                 )
-                if (s.isEditing) loanRepository.updateLoan(loan)
-                else loanRepository.insertLoanWithInstallments(loan)
+                if (s.isEditing) loanRepository.update(loan)
+                else loanRepository.create(loan)
 
                 analyticsHelper.logEvent(
                     if (s.isEditing) "loan_updated" else "loan_created",
                     mapOf(
                         "type" to s.loanType.name,
-                        "installments" to s.installments.toIntOrNull().let { it ?: 0 }
+                        "installments" to (if (s.hasPlan) s.installments.toIntOrNull() ?: 0 else 0)
                     )
                 )
 
                 _formState.update { it.copy(isLoading = false, isSaved = true) }
-            } catch (e: MissingRateException) {
-                _formState.update { it.copy(isLoading = false, missingRateCurrency = e.from) }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                _formState.update { it.copy(isLoading = false, error = e.message ?: "Error saving loan") }
+                val error = when (e) {
+                    is MissingRateException -> R.string.account_error_missing_rate
+                    is IllegalArgumentException -> R.string.loan_save_refused
+                    else -> R.string.account_error_generic
+                }
+                _formState.update { it.copy(isLoading = false, error = error) }
             }
         }
     }
@@ -224,11 +281,13 @@ class LoanFormViewModel @Inject constructor(
         viewModelScope.launch {
             _formState.update { it.copy(isLoading = true) }
             try {
-                loanRepository.deleteLoan(s.id)
+                loanRepository.delete(s.id)
                 analyticsHelper.logEvent("loan_deleted")
                 _formState.update { it.copy(isLoading = false, deleted = true) }
-            } catch (e: Exception) {
-                _formState.update { it.copy(isLoading = false, error = e.message ?: "Error deleting loan") }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                _formState.update { it.copy(isLoading = false, error = R.string.loan_delete_failed) }
             }
         }
     }

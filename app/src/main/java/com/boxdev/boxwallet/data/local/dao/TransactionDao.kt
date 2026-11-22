@@ -118,22 +118,19 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE id = :id")
     suspend fun getById(id: Long): TransactionEntity?
 
-    @Query("SELECT * FROM transactions WHERE loanId IS NULL AND (installmentPlanId IS NULL OR date < :endOfToday) ORDER BY date DESC")
+    @Query("SELECT * FROM transactions WHERE (installmentPlanId IS NULL OR date < :endOfToday) ORDER BY date DESC")
     fun getAllTransactions(endOfToday: Long): Flow<List<TransactionEntity>>
 
-    /** One account's movements, newest first; loan installments are left out like in the global list. */
-    @Query("SELECT * FROM transactions WHERE accountId = :accountId AND loanId IS NULL AND (installmentPlanId IS NULL OR date < :endOfToday) ORDER BY date DESC")
+    /** One account's movements, newest first; future plan installments are left out like in the global list. */
+    @Query("SELECT * FROM transactions WHERE accountId = :accountId AND (installmentPlanId IS NULL OR date < :endOfToday) ORDER BY date DESC")
     fun observeByAccount(accountId: Long, endOfToday: Long): Flow<List<TransactionEntity>>
 
     /** Newest movements for Home; a transfer counts once, by its TRANSFER_OUT row. */
-    @Query("SELECT * FROM transactions WHERE loanId IS NULL AND type != 'TRANSFER_IN' AND (installmentPlanId IS NULL OR date < :endOfToday) ORDER BY date DESC LIMIT :limit")
+    @Query("SELECT * FROM transactions WHERE type != 'TRANSFER_IN' AND (installmentPlanId IS NULL OR date < :endOfToday) ORDER BY date DESC LIMIT :limit")
     fun getLatestTransactions(limit: Int, endOfToday: Long): Flow<List<TransactionEntity>>
 
-    @Query("SELECT * FROM transactions WHERE date BETWEEN :startDate AND :endDate AND loanId IS NULL AND (installmentPlanId IS NULL OR date < :endOfToday) ORDER BY date DESC")
+    @Query("SELECT * FROM transactions WHERE date BETWEEN :startDate AND :endDate AND (installmentPlanId IS NULL OR date < :endOfToday) ORDER BY date DESC")
     fun getTransactionsBetweenDates(startDate: Long, endDate: Long, endOfToday: Long): Flow<List<TransactionEntity>>
-
-    @Query("SELECT * FROM transactions WHERE date >= :startDate AND date < :endDate AND loanId IS NOT NULL ORDER BY date ASC")
-    fun getInstallmentsBetweenDates(startDate: Long, endDate: Long): Flow<List<TransactionEntity>>
 
     // Income and expense totals count what the balances count (AccountDao's COUNTED): cleared movements,
     // plus every card movement dated before :endOfToday, cleared or not.
@@ -144,6 +141,10 @@ interface TransactionDao {
     @Query("SELECT SUM(t.amountMinor) FROM transactions t JOIN accounts a ON a.id = t.accountId WHERE t.type = 'EXPENSE' AND $COUNTED")
     fun getTotalExpense(endOfToday: Long): Flow<Long?>
 
+    /** Disbursements and payments of every loan dated in the range. */
+    @Query("SELECT * FROM transactions WHERE loanId IS NOT NULL AND date BETWEEN :startDate AND :endDate ORDER BY date ASC, id ASC")
+    fun getLoanMovementsBetweenDates(startDate: Long, endDate: Long): Flow<List<TransactionEntity>>
+
     @Query("SELECT SUM(t.amountMinor) FROM transactions t JOIN accounts a ON a.id = t.accountId WHERE t.type = 'INCOME' AND $COUNTED AND t.date BETWEEN :startDate AND :endDate")
     fun getTotalIncomeBetweenDates(startDate: Long, endDate: Long, endOfToday: Long): Flow<Long?>
 
@@ -152,15 +153,6 @@ interface TransactionDao {
 
     @Query("SELECT * FROM transactions WHERE hasReminder = 1 AND reminderDate > :currentTime ORDER BY reminderDate ASC")
     fun getUpcomingReminders(currentTime: Long): Flow<List<TransactionEntity>>
-
-    @Query("SELECT * FROM transactions WHERE loanId = :loanId ORDER BY installmentNumber ASC")
-    fun getInstallmentsByLoanIdFlow(loanId: Long): Flow<List<TransactionEntity>>
-
-    @Query("SELECT * FROM transactions WHERE loanId = :loanId ORDER BY installmentNumber ASC")
-    suspend fun getInstallmentsByLoanId(loanId: Long): List<TransactionEntity>
-
-    @Query("SELECT COUNT(*) FROM transactions WHERE loanId = :loanId AND isCleared = 1")
-    fun getPaidInstallmentCount(loanId: Long): Flow<Int>
 
     @Query("SELECT * FROM transactions")
     suspend fun getAllTransactionsSync(): List<TransactionEntity>

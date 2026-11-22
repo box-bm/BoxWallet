@@ -56,6 +56,7 @@ class TransactionDaoTest {
         type: String = "EXPENSE",
         isCleared: Boolean = true,
         installmentPlanId: Long? = null,
+        loanId: Long? = null,
     ) = TransactionEntity(
         accountId = accountId,
         type = type,
@@ -70,6 +71,7 @@ class TransactionDaoTest {
         mainRateSource = RateSource.AUTO,
         isCleared = isCleared,
         installmentPlanId = installmentPlanId,
+        loanId = loanId,
     )
 
     @Test
@@ -147,5 +149,39 @@ class TransactionDaoTest {
         assertEquals(2, dao.observeByAccount(accountId, END_OF_TODAY).first().size)
         assertEquals(2, dao.getLatestTransactions(10, END_OF_TODAY).first().size)
         assertEquals(2, dao.getTransactionsBetweenDates(0L, END_OF_TODAY * 3, END_OF_TODAY).first().size)
+    }
+
+    private suspend fun loan(): Long = db.loanDao().insert(
+        com.boxdev.boxwallet.data.local.entity.LoanEntity(
+            name = "Ana", totalAmountMinor = 1000, currencyCode = "GTQ", accountId = accountId, totalInstallments = 1,
+            startDate = 0L, loanType = "EXPENSE", frequency = "MONTHLY",
+        )
+    )
+
+    @Test
+    fun `loan movements are listed by account and globally`() = runTest {
+        val loanId = loan()
+        val other = accountDao.insert(AccountEntity(name = "Other", type = "CHECKING", currencyCode = "GTQ", createdAt = 0L))
+        val disbursement = dao.insert(tx(type = "LOAN_IN", loanId = loanId, date = 1_000L))
+        val payment = dao.insert(tx(type = "LOAN_OUT", loanId = loanId, date = 2_000L))
+        val plain = dao.insert(tx(date = 3_000L).copy(accountId = other))
+        val all = setOf(disbursement, payment, plain)
+
+        assertEquals(all, dao.getAllTransactions(END_OF_TODAY).first().map { it.id }.toSet())
+        assertEquals(setOf(disbursement, payment), dao.observeByAccount(accountId, END_OF_TODAY).first().map { it.id }.toSet())
+        assertEquals(all, dao.getLatestTransactions(10, END_OF_TODAY).first().map { it.id }.toSet())
+        assertEquals(all, dao.getTransactionsBetweenDates(0L, 10_000L, END_OF_TODAY).first().map { it.id }.toSet())
+    }
+
+    @Test
+    fun `income and expense totals leave loan movements out`() = runTest {
+        val loanId = loan()
+        dao.insert(tx(amountMinor = 1000, type = "INCOME"))
+        dao.insert(tx(amountMinor = 300, type = "EXPENSE"))
+        dao.insert(tx(amountMinor = 5000, type = "LOAN_IN", loanId = loanId))
+        dao.insert(tx(amountMinor = 700, type = "LOAN_OUT", loanId = loanId))
+
+        assertEquals(1000L, dao.getTotalIncome(END_OF_TODAY).first())
+        assertEquals(300L, dao.getTotalExpense(END_OF_TODAY).first())
     }
 }

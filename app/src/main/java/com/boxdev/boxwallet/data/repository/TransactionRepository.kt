@@ -13,7 +13,6 @@ import com.boxdev.boxwallet.domain.model.FinancialSummary
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.domain.model.toDomain
 import com.boxdev.boxwallet.domain.model.toEntity
-import com.boxdev.boxwallet.domain.money.RateSource
 import com.boxdev.boxwallet.domain.money.TransactionAmounts
 import com.boxdev.boxwallet.util.CurrencyFormatter
 import com.boxdev.boxwallet.util.CurrentDay
@@ -62,7 +61,7 @@ class TransactionRepository @Inject constructor(
         return saved.id
     }
 
-    /** Transfer legs are edited as a pair through [TransferRepository.update]. */
+    /** Transfer legs are edited as a pair through [TransferRepository.update]; loan movements through their loan. */
     suspend fun updateTransaction(transaction: Transaction) {
         val stored = transactionDao.getById(transaction.id)
         require(!transaction.type.isTransfer && transaction.transferId == null && stored?.transferId == null) {
@@ -71,31 +70,20 @@ class TransactionRepository @Inject constructor(
         require(transaction.installmentPlanId == null && stored?.installmentPlanId == null) {
             "Installment ${transaction.id} must be changed through its plan"
         }
+        require(transaction.loanId == null && stored?.loanId == null) {
+            "Loan movement ${transaction.id}: edit it from its loan"
+        }
         val saved = guard.write { current ->
             current.revalidate(transaction).also { transactionDao.update(it.toEntity()) }
         }
         scheduleOrCancelReminder(saved)
     }
 
-    /**
-     * Marks a loan installment paid or unpaid. On payment its conversion is re-resolved for its
-     * date (the payment date), replacing the estimate made when it was generated; MANUAL is kept.
-     */
-    suspend fun setInstallmentCleared(installment: Transaction, cleared: Boolean) {
-        val saved = guard.write { current ->
-            val updated = current.revalidate(installment).copy(isCleared = cleared)
-            val manual = updated.accountRate.source == RateSource.MANUAL ||
-                updated.mainRate.source == RateSource.MANUAL
-            val converted = if (cleared && !manual) transactionAmounts.refresh(updated) ?: updated else updated
-            converted.also { transactionDao.update(it.toEntity()) }
-        }
-        scheduleOrCancelReminder(saved)
-    }
-
-    /** Deleting either leg of a transfer deletes both. A plan installment only goes with its plan. */
+    /** Deleting either leg of a transfer deletes both. A plan installment only goes with its plan, a loan movement with its loan. */
     suspend fun deleteTransaction(id: Long) {
         val stored = transactionDao.getById(id)
         require(stored?.installmentPlanId == null) { "Installment $id must be changed through its plan" }
+        require(stored?.loanId == null) { "Loan movement $id: edit it from its loan" }
         ReminderWorker.cancel(context, id)
         val transferId = stored?.transferId
         if (transferId != null) transactionDao.deleteByTransferId(transferId) else transactionDao.deleteById(id)
@@ -146,7 +134,7 @@ class TransactionRepository @Inject constructor(
     fun getAllTransactions(): Flow<List<Transaction>> =
         currentDay.days.flatMapLatest { transactionDao.getAllTransactions(endOfToday(it)).toDomain() }
 
-    /** [accountId]'s movements, newest first, without loan installments or future plan installments. */
+    /** [accountId]'s movements, newest first, without future plan installments. */
     @OptIn(ExperimentalCoroutinesApi::class)
     fun observeByAccount(accountId: Long): Flow<List<Transaction>> =
         currentDay.days.flatMapLatest { transactionDao.observeByAccount(accountId, endOfToday(it)).toDomain() }
@@ -162,14 +150,6 @@ class TransactionRepository @Inject constructor(
         return currentDay.days.flatMapLatest {
             transactionDao.getTransactionsBetweenDates(startMillis, endMillis, endOfToday(it)).toDomain()
         }
-    }
-
-    /** Loan installments due between [startDate] and [endDate], both inclusive, oldest first. */
-    fun getInstallmentsBetweenDates(startDate: LocalDate, endDate: LocalDate): Flow<List<Transaction>> {
-        val startMillis = startDate.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
-        val endMillis = endDate.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
-        return transactionDao.getInstallmentsBetweenDates(startMillis, endMillis)
-            .toDomain()
     }
 
     /**
@@ -202,9 +182,6 @@ class TransactionRepository @Inject constructor(
     fun getUpcomingReminders(): Flow<List<Transaction>> =
         transactionDao.getUpcomingReminders(System.currentTimeMillis())
             .toDomain()
-
-    fun getInstallmentsByLoanId(loanId: Long): Flow<List<Transaction>> =
-        transactionDao.getInstallmentsByLoanIdFlow(loanId).toDomain()
 
     fun getRecurrentTransactions(): Flow<List<Transaction>> =
         transactionDao.getRecurrentTransactions().toDomain()

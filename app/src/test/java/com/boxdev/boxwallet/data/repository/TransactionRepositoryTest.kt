@@ -140,19 +140,19 @@ class TransactionRepositoryTest {
     }
 
     @Test
-    fun `observeByAccount lists only that account's movements without loan installments`() = runTest {
+    fun `observeByAccount lists only that account's movements, loan ones included`() = runTest {
         val other = db.accountDao().insert(AccountEntity(name = "Other", type = "CHECKING", currencyCode = "USD", createdAt = 0L))
         val mine = saved(template(ExchangeRate(BigDecimal.ONE, RateSource.AUTO), 2000).copy(isRecurrent = false))
         saved(mine.copy(id = 0, accountId = other))
         val loanId = db.loanDao().insert(
             com.boxdev.boxwallet.data.local.entity.LoanEntity(
-                name = "Loan", totalAmountMinor = 1000, currencyCode = "USD", totalInstallments = 1,
+                name = "Loan", totalAmountMinor = 1000, currencyCode = "USD", accountId = accountId, totalInstallments = 1,
                 startDate = 0L, loanType = "EXPENSE", frequency = "MONTHLY",
             )
         )
-        saved(mine.copy(id = 0, loanId = loanId, installmentNumber = 1))
+        val loanMovement = saved(mine.copy(id = 0, type = TransactionType.LOAN_IN, loanId = loanId))
 
-        assertEquals(listOf(mine.id), repository.observeByAccount(accountId).first().map { it.id })
+        assertEquals(setOf(mine.id, loanMovement.id), repository.observeByAccount(accountId).first().map { it.id }.toSet())
     }
     private suspend fun quetzalDefault(): Long {
         val id = db.accountDao().insert(AccountEntity(name = "Quetzales", type = "CASH", currencyCode = "GTQ", createdAt = 0L, sortOrder = 1))
@@ -308,5 +308,33 @@ class TransactionRepositoryTest {
         assertRejected { repository.deleteTransaction(installment.id) }
 
         assertEquals(before, db.transactionDao().getById(installment.id))
+    }
+
+    private suspend fun storedLoanMovement(): Transaction {
+        val loanId = db.loanDao().insert(
+            com.boxdev.boxwallet.data.local.entity.LoanEntity(
+                name = "Ana", totalAmountMinor = 1000, currencyCode = "USD", accountId = accountId, totalInstallments = 1,
+                startDate = 0L, loanType = "EXPENSE", frequency = "MONTHLY",
+            )
+        )
+        return saved(
+            template(ExchangeRate(BigDecimal.ONE, RateSource.AUTO), 1000).copy(
+                type = TransactionType.LOAN_IN, description = "Ana", isRecurrent = false,
+                recurrenceFrequency = null, recurrenceInterval = null, loanId = loanId,
+            )
+        )
+    }
+
+    @Test
+    fun `a loan movement cannot be updated or deleted here`() = runTest {
+        val movement = storedLoanMovement()
+        val before = db.transactionDao().getById(movement.id)
+
+        assertRejected { repository.updateTransaction(movement.copy(description = "Other")) }
+        // Dropping the loan link from the incoming row doesn't get around it: the stored row decides too.
+        assertRejected { repository.updateTransaction(movement.copy(description = "Other", loanId = null)) }
+        assertRejected { repository.deleteTransaction(movement.id) }
+
+        assertEquals(before, db.transactionDao().getById(movement.id))
     }
 }

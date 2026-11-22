@@ -78,12 +78,14 @@ import com.boxdev.boxwallet.ui.components.transferTitle
 import com.boxdev.boxwallet.ui.components.AmountText
 import com.boxdev.boxwallet.ui.components.BackButton
 import com.boxdev.boxwallet.ui.components.CardBlock
+import com.boxdev.boxwallet.ui.components.AccountLoansSection
 import com.boxdev.boxwallet.ui.components.CardInstallmentsSection
 import com.boxdev.boxwallet.ui.components.payRoute
 import com.boxdev.boxwallet.ui.components.ConfirmDeleteDialog
 import com.boxdev.boxwallet.ui.components.EmptyState
 import com.boxdev.boxwallet.ui.components.SectionHeader
 import com.boxdev.boxwallet.ui.components.TransactionItem
+import com.boxdev.boxwallet.ui.components.loanMovementLabel
 import com.boxdev.boxwallet.ui.screens.settings.SettingsGroup
 import com.boxdev.boxwallet.ui.screens.settings.SettingsRow
 import com.boxdev.boxwallet.ui.theme.BoxTheme
@@ -106,6 +108,10 @@ fun AccountDetailScreen(
     onOpenTransfer: (Long) -> Unit = {},
     /** Opens an installment purchase's detail, from the card's section or one of its listed installments. */
     onOpenInstallmentPlan: (Long) -> Unit = {},
+    /** Opens a loan's detail from one of its movements. */
+    onOpenLoan: (Long) -> Unit = {},
+    /** Opens a new loan on the given account. */
+    onNewLoan: (Long) -> Unit = {},
     /** Opens a new transfer from the given account. */
     onNewTransfer: (Long) -> Unit = {},
     /** Opens a route; a card's Pay opens its prefilled transfer ([payRoute]). */
@@ -174,6 +180,14 @@ fun AccountDetailScreen(
                 card = uiState.card,
                 installmentPlans = uiState.installmentPlans,
                 installmentCounts = uiState.installmentCounts,
+                loanTypes = uiState.loanTypes,
+                activeLoans = uiState.activeLoans,
+                settledLoans = uiState.settledLoans,
+                canHaveLoans = uiState.canHaveLoans,
+                onOpenLoan = onOpenLoan,
+                onNewLoan = if (!item.account.isArchived) {
+                    { onNewLoan(item.account.id) }
+                } else null,
                 onOpenInstallmentPlan = onOpenInstallmentPlan,
                 transferTitleOf = { tx -> tx.transferId?.let { transferTitle(uiState.transferPairs[it], uiState.accountsById) } },
                 internalTransfers = uiState.internalTransfers,
@@ -195,6 +209,7 @@ fun AccountDetailScreen(
                     when {
                         tx.type.isAdjustment -> pendingAdjustment = tx
                         tx.installmentPlanId != null -> onOpenInstallmentPlan(tx.installmentPlanId)
+                        tx.loanId != null -> onOpenLoan(tx.loanId)
                         tx.type.isTransfer -> onOpenTransfer(tx.id)
                         else -> onEditTransaction(tx.id)
                     }
@@ -239,6 +254,12 @@ private fun AccountDetailContent(
     transferTitleOf: (Transaction) -> String?,
     installmentPlans: List<InstallmentPlan>,
     installmentCounts: Map<Long, Int>,
+    loanTypes: Map<Long, com.boxdev.boxwallet.domain.model.LoanType>,
+    activeLoans: List<com.boxdev.boxwallet.domain.model.Loan>,
+    settledLoans: List<com.boxdev.boxwallet.domain.model.Loan>,
+    canHaveLoans: Boolean,
+    onOpenLoan: (Long) -> Unit,
+    onNewLoan: (() -> Unit)?,
     onOpenInstallmentPlan: (Long) -> Unit,
     onAdjust: () -> Unit,
     onAdjustCard: (CardBalance) -> Unit,
@@ -278,6 +299,18 @@ private fun AccountDetailContent(
                     plans = installmentPlans,
                     categories = categories,
                     onOpenPlan = onOpenInstallmentPlan,
+                    modifier = Modifier.padding(top = 20.dp),
+                )
+            }
+        }
+        if (canHaveLoans) {
+            item(key = "loans") {
+                AccountLoansSection(
+                    accountId = account.id,
+                    active = activeLoans,
+                    settled = settledLoans,
+                    onOpenLoan = onOpenLoan,
+                    onNewLoan = onNewLoan,
                     modifier = Modifier.padding(top = 20.dp),
                 )
             }
@@ -346,6 +379,7 @@ private fun AccountDetailContent(
                 count = movements.size,
                 transferTitle = transferTitleOf(tx),
                 installmentCount = tx.installmentPlanId?.let(installmentCounts::get),
+                loanLabel = loanMovementLabel(tx, loanTypes),
                 // Only this account's movements: a transfer reads as money in or out of it, except one between a
                 // card's two currencies, which stays inside the card.
                 signedTransfer = tx.transferId !in internalTransfers,
@@ -439,6 +473,9 @@ private fun AccountDetailPreviewContent() {
                 transferTitleOf = { null },
                 installmentPlans = emptyList(),
                 installmentCounts = emptyMap(),
+                loanTypes = emptyMap(),
+                activeLoans = emptyList(), settledLoans = emptyList(), canHaveLoans = true,
+                onOpenLoan = {}, onNewLoan = {},
                 onOpenInstallmentPlan = {},
                 onAdjust = {}, onAdjustCard = {}, onPay = {}, onEdit = {}, onTransfer = {}, onSetDefault = {}, onArchive = {}, onDelete = {}, onOpenMovement = {}, onSeeInMovements = {},
             )

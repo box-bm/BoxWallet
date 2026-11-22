@@ -36,6 +36,10 @@
     <string name="transaction_new_title">New Movement</string>
     <string name="transaction_type_expense">Expense</string>
     <string name="transaction_adjustment">Balance adjustment</string>
+    <string name="loan_movement_lent_to">Loan to %s</string>
+    <string name="loan_movement_borrowed_from">Loan from %s</string>
+    <string name="loan_movement_payment_from">Payment from %s</string>
+    <string name="loan_movement_payment_to">Payment to %s</string>
     <string name="transaction_transfer">Transfer</string>
     <string name="transaction_type_income">Income</string>
     <string name="transaction_amount_label">Amount *</string>
@@ -64,39 +68,35 @@
     <string name="loan_new_title">New Loan</string>
     <string name="loan_name_label">Loan Name *</string>
     <string name="loan_name_placeholder">e.g. Car loan, Mortgage</string>
-    <string name="loan_description_label">Description (Optional)</string>
     <string name="loan_total_amount_label">Total Amount *</string>
     <string name="loan_installments_label">Installments *</string>
     <string name="loan_each_installment">Each installment: %1$s (%2$s)</string>
     <string name="loan_start_date">Start Date</string>
-    <string name="loan_type_label">Type</string>
     <string name="loan_delete_title">Delete Loan</string>
-    <string name="loan_delete_message">This will also delete all %1$s installments. This cannot be undone.</string>
+    <string name="loan_delete_message">This will also delete the loan\'s disbursement and all its payments. This cannot be undone.</string>
+    <string name="loan_currency_from_account">Currency: %1$s, set by the account.</string>
+    <string name="loan_plan_switch">Pay in installments</string>
+    <string name="loan_plan_switch_supporting">Split it into scheduled installments</string>
+    <string name="loan_first_due">First installment</string>
+    <string name="loan_expected_date">Expected date</string>
+    <string name="loan_expected_date_none">None</string>
+    <string name="loan_expected_date_clear">Clear expected date</string>
     <string name="loan_delete_button">Delete Loan</string>
 
     <!-- Loan Card -->
-    <string name="loan_paid_progress">%1$d/%2$d paid</string>
-    <string name="loan_due_date">Due: %1$s</string>
 
     <!-- Loan Detail Screen -->
     <string name="loan_detail_title">Loan Detail</string>
     <string name="loan_detail_edit">Edit Loan</string>
     <string name="loan_not_found">Loan not found</string>
-    <string name="loan_summary">Loan Summary</string>
     <string name="loan_total_amount">Total Amount</string>
-    <string name="loan_per_installment">Per Installment</string>
-    <string name="loan_amount_paid">Amount Paid</string>
-    <string name="loan_progress">Progress</string>
     <string name="loan_next_payment">Next Payment</string>
     <string name="loan_detail_start_date">Start Date</string>
     <string name="loan_installments_section">Installments</string>
     <string name="loan_installment_number">Installment #%1$d</string>
-    <string name="loan_mark_as_unpaid">Mark as unpaid</string>
     <string name="loan_mark_as_paid">Mark as paid</string>
     <string name="loan_total_paid">Total Paid</string>
-    <string name="loan_remaining">Remaining</string>
     <string name="loan_overdue">Overdue</string>
-    <string name="loan_incoming_payment">Incoming</string>
     <string name="loan_status_active">Active</string>
     <string name="loan_status_paid">Paid</string>
 
@@ -114,18 +114,7 @@
     <string name="transactions_filter_recurring_only">Recurring Only</string>
 
     <!-- Loans Screen -->
-    <string name="loans_title">Loans</string>
     <string name="loans_no_loans">No loans yet</string>
-    <string name="loans_tap_to_add">Tap + to add a loan</string>
-    <string name="loans_no_results">No loans match your filters</string>
-    <string name="loans_filter_type">Type</string>
-    <string name="loans_filter_status">Status</string>
-    <string name="loans_filter_current">Current</string>
-    <string name="loans_filter_overdue">Overdue</string>
-    <string name="loans_filter_paid">Paid</string>
-    <string name="loans_filter_category">Category</string>
-    <string name="loans_filter_sort_by">Sort By</string>
-    <string name="loans_filter_lowest">Lowest</string>
     <string name="transactions_filter_category">Category</string>
     <string name="transactions_filter_lowest">Lowest</string>
 
@@ -391,7 +380,6 @@
         <item quantity="other">%1$d movements</item>
     </plurals>
     <string name="transactions_select_hint">Select a movement to edit it</string>
-    <string name="loans_select_hint">Select a loan to see its installments</string>
     <plurals name="loan_days_overdue">
         <item quantity="one">%1$d day overdue</item>
         <item quantity="other">%1$d days overdue</item>
@@ -441,17 +429,6 @@
     <string name="analytics_verdict_over">You spent %1$s more than came in</string>
     <string name="analytics_verdict_no_income">No income recorded in this period yet</string>
     <string name="analytics_twelve_month_caption">Not affected by the period you pick above</string>
-    <string name="analytics_installments_title">Installments due</string>
-    <string name="analytics_installments_paid">%1$d of %2$d paid</string>
-    <string name="analytics_installments_amount">%1$s of %2$s</string>
-    <plurals name="analytics_installments_overdue">
-        <item quantity="one">%1$d overdue</item>
-        <item quantity="other">%1$d overdue</item>
-    </plurals>
-    <string name="analytics_installment_due">Due %1$s</string>
-    <string name="analytics_installment_overdue">Overdue since %1$s</string>
-    <string name="analytics_installments_all_paid">Every installment for this period is paid</string>
-    <string name="analytics_see_loans">See all loans</string>
     <string name="analytics_not_enough_history">Not enough history</string>
     <string name="chart_a11y_previous">Previous</string>
     <string name="chart_a11y_next">Next</string>
@@ -460,18 +437,7 @@
     <string name="analytics_net_by_month">Net by month</string>
     <string name="analytics_day_movements">Movements this day</string>
     <string name="analytics_see_category_movements">See %1$s movements</string>
-    <string name="analytics_installments_to_pay">To pay</string>
-    <string name="analytics_installments_to_collect">To collect</string>
-    <string name="analytics_installments_of_due">of %1$s due</string>
     <string name="analytics_trend_caption">Last 6 months compared with the 6 before</string>
-    <plurals name="analytics_installments_open">
-        <item quantity="one">%1$d open</item>
-        <item quantity="other">%1$d open</item>
-    </plurals>
-    <plurals name="analytics_installments_overdue_since">
-        <item quantity="one">%1$d overdue since %2$s</item>
-        <item quantity="other">%1$d overdue since %2$s</item>
-    </plurals>
     <string name="analytics_vs_same_point_week">%1$s vs same point last week</string>
     <string name="analytics_vs_same_point_month">%1$s vs same point last month</string>
     <string name="analytics_vs_same_point_year">%1$s vs same point last year</string>
@@ -480,9 +446,6 @@
     <string name="loan_total_collected">Total Collected</string>
     <string name="loan_row_next">%1$s · next %2$s</string>
     <string name="loan_row_overdue">%1$s · overdue since %2$s</string>
-    <string name="loans_summary_to_pay">You owe</string>
-    <string name="loans_summary_to_collect">Owed to you</string>
-    <string name="loans_completed">Completed (%1$d)</string>
     <string name="loan_installment_overdue_since">Overdue since %1$s</string>
     <string name="transaction_settled_expense">Already paid</string>
     <string name="transaction_settled_income">Already received</string>
@@ -502,9 +465,6 @@
     <string name="conversion_use_automatic">Use automatic rate</string>
     <string name="conversion_needs_rate">Enter the exchange rate</string>
     <string name="conversion_needs_rate_explanation">There is no rate available for this currency and date.</string>
-    <string name="loan_currency_locked">Currency cannot change once an installment is paid.</string>
-    <string name="loan_currency_locked_description">Currency: %1$s. Locked because an installment is already paid.</string>
-    <string name="loan_missing_rate">No exchange rate available for %1$s. Connect to the internet and try again.</string>
     <string name="transaction_error_invalid_amount">Enter a valid amount</string>
     <string name="transaction_error_account_loading">Still loading the account. Try again in a moment.</string>
     <string name="transaction_error_not_found">This movement no longer exists.</string>
@@ -601,14 +561,6 @@
     <string name="report_col_currency">Currency</string>
     <string name="report_col_rate">Rate</string>
     <string name="report_col_main_amount">Amount in main currency</string>
-    <string name="report_loan_remaining_in">Remaining (%1$s)</string>
-    <string name="report_loan_total_borrowed">Total Borrowed (%1$s)</string>
-    <string name="report_loan_total_paid">Total Paid (%1$s)</string>
-    <string name="report_loan_total_remaining">Total Remaining (%1$s)</string>
-    <plurals name="report_loans_excluded_other_currencies">
-        <item quantity="one">Excludes %1$d loan in another currency</item>
-        <item quantity="other">Excludes %1$d loans in other currencies</item>
-    </plurals>
     <string name="search_in_app">Search BoxWallet</string>
 
     <!-- Accounts -->
@@ -656,10 +608,11 @@
     <string name="account_not_found">Account not found</string>
     <string name="account_error_is_default">You can\'t delete or archive the default account</string>
     <string name="account_error_last">You need at least one account</string>
-    <string name="account_error_has_movements">This account has movements; archive it instead</string>
+    <string name="account_error_has_movements">This account has movements or loans; archive it instead</string>
     <string name="account_error_second_currency_has_movements">The second currency already has movements</string>
     <string name="account_error_remove_second_currency_first">Remove the second currency first</string>
     <string name="account_error_has_pending_installments">This card has installments still to be charged</string>
+    <string name="account_error_has_loans">This account has loans, and loans can\'t live in a card</string>
     <string name="account_error_missing_rate">There\'s no exchange rate for this currency yet</string>
     <string name="account_balance_negative">Negative balance</string>
     <string name="account_error_generic">Something went wrong. Try again.</string>
@@ -714,4 +667,38 @@
     <string name="installment_plan_installments">Installments</string>
     <string name="installment_plan_error_save">Couldn\'t save the purchase. Try again.</string>
     <string name="installment_plan_error_delete">Couldn\'t delete the purchase. Try again.</string>
+    <string name="loans_group_owed_to_me">Owed to me</string>
+    <string name="loans_group_i_owe">I owe</string>
+    <string name="loans_group_settled">Settled</string>
+    <string name="loans_add_from_account">Add a loan from an account or the + button</string>
+    <string name="loan_payment_new_title">Record payment</string>
+    <string name="loan_payment_edit_title">Edit payment</string>
+    <string name="loan_payment_amount_label">Amount</string>
+    <string name="loan_payment_date_label">Date</string>
+    <string name="loan_payment_max">Up to %1$s</string>
+    <string name="loan_payment_refused">The payment can\'t be more than what is left or dated before the loan.</string>
+    <string name="loan_disbursed_received">I received</string>
+    <string name="loan_disbursed_given">I gave</string>
+    <string name="loan_disbursed_supporting">If different from the total to repay</string>
+    <string name="loan_error_required">Fill in the name, the amount and the account.</string>
+    <string name="loan_save_refused">Couldn\'t save the loan with these details.</string>
+    <string name="loan_delete_failed">Couldn\'t delete the loan. Try again.</string>
+    <string name="loan_payment_delete_failed">Couldn\'t delete the payment. Try again.</string>
+    <string name="loan_record_payment">Record payment</string>
+    <string name="loan_payments_section">Payments</string>
+    <string name="loan_payments_empty">No payments yet</string>
+    <string name="loan_installment_covered">%1$s of %2$s covered</string>
+    <string name="loan_installment_paid_label">Paid</string>
+    <string name="action_more">More options</string>
+    <string name="loan_of_total">of %1$s</string>
+    <string name="account_loans_title">Loans</string>
+    <string name="account_loans_new">New loan</string>
+    <string name="account_loans_show_settled">Show settled (%1$d)</string>
+    <string name="account_loans_hide_settled">Hide settled</string>
+    <string name="analytics_loans_title">Loans</string>
+    <string name="analytics_loans_received">Received</string>
+    <string name="analytics_loans_paid">Paid</string>
+    <string name="analytics_loans_lent">Lent</string>
+    <string name="analytics_loans_collected">Collected</string>
+    <string name="analytics_see_loans">See loans</string>
 </resources>
