@@ -117,18 +117,12 @@ fun NavigationTab(
 
     val selectedTab = Destination.entries.firstOrNull { d ->
         navBackStackEntry?.destination?.hierarchy?.any { it.route == d.route } == true
-    } ?: when (currentRoute?.substringBefore("/")) {
-        "loan_detail" -> Destination.LOANS
-        else -> null
     }
     val onTabRoute = currentRoute in Destination.entries.map { it.route }
-    // A loan open in a single pane fills the Loans tab; the FAB would cover its actions.
-    var loanDetailInSinglePane by remember { mutableStateOf(false) }
     val showFab = currentRoute in listOf(
         NavRoutes.Home.route,
         NavRoutes.TransactionsList.route,
-        NavRoutes.Loans.route,
-    ) && !(currentRoute == NavRoutes.Loans.route && loanDetailInSinglePane)
+    )
 
     var fabExpanded by rememberSaveable { mutableStateOf(false) }
     val tabReselect = remember { MutableSharedFlow<String>(extraBufferCapacity = 1) }
@@ -157,11 +151,10 @@ fun NavigationTab(
     }
     // A transfer needs two active accounts; with one, the menu stays as it was.
     val canTransfer by hiltViewModel<TransferAvailabilityViewModel>().canTransfer.collectAsState()
-    /** The primary action is contextual: Records adds a movement, Loans adds a loan, Home asks. */
+    /** The primary action is contextual: Records adds a movement, Home asks. */
     val primaryAction: ((Boolean) -> Unit) = { checked ->
         when (currentRoute) {
             NavRoutes.TransactionsList.route -> openTransactionForm()
-            NavRoutes.Loans.route -> openLoanForm()
             else -> fabExpanded = checked
         }
     }
@@ -174,7 +167,6 @@ fun NavigationTab(
             modifier = contentModifier,
             analyticsHelper = analyticsHelper,
             onNavigateToSettings = { navController.navigate(NavRoutes.Settings.route) },
-            onLoanDetailInSinglePaneChange = { loanDetailInSinglePane = it },
         ) }
     }
 

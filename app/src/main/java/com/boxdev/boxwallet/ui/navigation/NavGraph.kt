@@ -17,11 +17,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Handshake
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
-import androidx.compose.material.icons.outlined.Handshake
 import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
@@ -84,12 +82,6 @@ enum class Destination(
         R.string.nav_transactions,
         Icons.AutoMirrored.Outlined.ReceiptLong,
         Icons.AutoMirrored.Filled.ReceiptLong
-    ),
-    LOANS(
-        NavRoutes.Loans.route,
-        R.string.nav_loans,
-        Icons.Outlined.Handshake,
-        Icons.Filled.Handshake
     ),
     ANALYTICS(
         NavRoutes.Analytics.route,
@@ -158,8 +150,6 @@ fun NavGraph(
     modifier: Modifier,
     analyticsHelper: AnalyticsHelper,
     onNavigateToSettings: () -> Unit = {},
-    /** Whether Loans shows a loan in a single pane (in place of its list). */
-    onLoanDetailInSinglePaneChange: (Boolean) -> Unit = {},
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val onNavigateToSearch: () -> Unit = { navController.navigate(NavRoutes.Search.route) { launchSingleTop = true } }
@@ -178,6 +168,7 @@ fun NavGraph(
         navController.navigate(NavRoutes.TransferForm.createRoute(from = it)) { launchSingleTop = true }
     }
     val onNavigateTo: (String) -> Unit = { navController.navigate(it) { launchSingleTop = true } }
+    val onSeeAllLoans: () -> Unit = { navController.navigate(NavRoutes.Loans.route) { launchSingleTop = true } }
     val onEditLoan: (Long) -> Unit = { navController.navigate(NavRoutes.LoanForm.createRoute(it)) { launchSingleTop = true } }
     LaunchedEffect(navBackStackEntry) {
         navBackStackEntry?.destination?.route?.let { route ->
@@ -210,9 +201,7 @@ fun NavGraph(
                 onSeeAllTransactions = {
                     navController.navigateToTab(NavRoutes.TransactionsList.route)
                 },
-                onSeeAllLoans = {
-                    navController.navigateToTab(NavRoutes.Loans.route)
-                },
+                onSeeAllLoans = onSeeAllLoans,
                 onNavigateToLoanDetail = openLoan,
                 onEditTransaction = onEditTransaction,
                 onNavigateToSettings = onNavigateToSettings,
@@ -234,13 +223,10 @@ fun NavGraph(
             )
         }
 
-        tabComposable(NavRoutes.Loans.route) {
+        composable(NavRoutes.Loans.route) {
             LoansScreen(
-                onNavigateToSearch = onNavigateToSearch,
-                onDetailInSinglePaneChange = onLoanDetailInSinglePaneChange,
-                // Loans opens a loan in its own detail pane rather than the loan_detail route: log it the same.
-                onLoanOpened = { analyticsHelper.logScreenView(NavRoutes.LoanDetail.route.substringBefore("/")) },
-                onEditLoan = onEditLoan,
+                onNavigateBack = { navController.popBackStack() },
+                onOpenLoan = openLoan,
             )
         }
 
@@ -248,7 +234,7 @@ fun NavGraph(
             route = NavRoutes.LoanDetail.route,
             arguments = listOf(navArgument("loanId") { type = NavType.LongType })
         ) {
-            // Opened from Home, Search or Reports: on its own, straight on the surface body.
+            // Opened from Home, Accounts, Search or Reports: on its own, straight on the surface body.
             val margin = BoxTheme.layout.margin
             Box(
                 Modifier
@@ -267,7 +253,7 @@ fun NavGraph(
                 onNavigateToSearch = onNavigateToSearch,
                 onEditTransaction = onEditTransaction,
                 onOpenLoan = openLoan,
-                onNavigateToLoans = { navController.navigateToTab(NavRoutes.Loans.route) },
+                onNavigateToLoans = onSeeAllLoans,
                 onNavigateToMovements = { navController.navigateToTab(NavRoutes.TransactionsList.route) },
                 onOpenInstallmentPlan = onOpenInstallmentPlan,
             )
@@ -306,11 +292,16 @@ fun NavGraph(
             TransferFormScreen(onDone = { entry.ifResumed { navController.popBackStack() } })
         }
 
-        formComposable(NavRoutes.LoanForm.route) { entry ->
+        formComposable(
+            NavRoutes.LoanForm.route,
+            arguments = listOf(
+                navArgument("id") { type = NavType.LongType; defaultValue = -1L },
+                navArgument("accountId") { type = NavType.LongType; defaultValue = -1L },
+            ),
+        ) { entry ->
             LoanFormScreen(
                 onDone = { entry.ifResumed { navController.popBackStack() } },
-                // A deleted loan's standalone detail would only say "not found": leave it too. The
-                // Loans pane clears its own selection.
+                // A deleted loan's standalone detail would only say "not found": leave it too.
                 onDeleted = {
                     entry.ifResumed {
                         navController.popBackStack()

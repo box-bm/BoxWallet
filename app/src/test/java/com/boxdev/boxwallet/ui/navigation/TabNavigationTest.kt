@@ -29,13 +29,18 @@ class TabNavigationTest {
     private val search = NavRoutes.Search.route
 
     @Test
+    fun `there are three destinations`() {
+        assertEquals(listOf(home, records, analytics), Destination.entries.map { it.route })
+    }
+
+    @Test
     fun `tapping the current tab scrolls to top`() {
         assertEquals(TabAction.ScrollToTop(home), resolveTabClick(home, home, setOf(home)))
     }
 
     @Test
     fun `tapping another tab from a tab root just switches`() {
-        assertEquals(TabAction.Switch(loans, popTo = null), resolveTabClick(loans, home, setOf(home)))
+        assertEquals(TabAction.Switch(records, popTo = null), resolveTabClick(records, home, setOf(home)))
     }
 
     @Test
@@ -49,13 +54,13 @@ class TabNavigationTest {
     }
 
     @Test
-    fun `loan detail opened from home switches to loans from home`() {
-        assertEquals(TabAction.Switch(loans, popTo = home), resolveTabClick(loans, loanDetail, setOf(home)))
+    fun `loan detail opened from home switches to movements from home`() {
+        assertEquals(TabAction.Switch(records, popTo = home), resolveTabClick(records, loanDetail, setOf(home)))
     }
 
     @Test
-    fun `loan detail opened from loans pops to the loans root`() {
-        assertEquals(TabAction.PopToRoot(loans), resolveTabClick(loans, loanDetail, setOf(home, loans)))
+    fun `loan detail opened from movements pops to the movements root`() {
+        assertEquals(TabAction.PopToRoot(records), resolveTabClick(records, loanDetail, setOf(home, records)))
     }
 
     @Test
@@ -65,13 +70,17 @@ class TabNavigationTest {
 
     @Test
     fun `unknown current route switches without popping`() {
-        assertEquals(TabAction.Switch(loans, popTo = null), resolveTabClick(loans, null, setOf(home)))
+        assertEquals(TabAction.Switch(records, popTo = null), resolveTabClick(records, null, setOf(home)))
     }
 
     @Test
     fun `tab routes are not secondary`() {
         assertFalse(isSecondary("home"))
-        assertFalse(isSecondary("loans"))
+    }
+
+    @Test
+    fun `the loans list is secondary now that it is not a tab`() {
+        assertTrue(isSecondary(loans))
     }
 
     @Test

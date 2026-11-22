@@ -121,15 +121,7 @@
     <string name="loans_title">Loans</string>
     <string name="loans_no_loans">No loans yet</string>
     <string name="loans_tap_to_add">Tap + to add a loan</string>
-    <string name="loans_no_results">No loans match your filters</string>
-    <string name="loans_filter_type">Type</string>
-    <string name="loans_filter_status">Status</string>
-    <string name="loans_filter_current">Current</string>
-    <string name="loans_filter_overdue">Overdue</string>
-    <string name="loans_filter_paid">Paid</string>
     <string name="loans_filter_category">Category</string>
-    <string name="loans_filter_sort_by">Sort By</string>
-    <string name="loans_filter_lowest">Lowest</string>
     <string name="transactions_filter_category">Category</string>
     <string name="transactions_filter_lowest">Lowest</string>
 
@@ -395,7 +387,6 @@
         <item quantity="other">%1$d movements</item>
     </plurals>
     <string name="transactions_select_hint">Select a movement to edit it</string>
-    <string name="loans_select_hint">Select a loan to see its installments</string>
     <plurals name="loan_days_overdue">
         <item quantity="one">%1$d day overdue</item>
         <item quantity="other">%1$d days overdue</item>
@@ -486,7 +477,6 @@
     <string name="loan_row_overdue">%1$s · overdue since %2$s</string>
     <string name="loans_summary_to_pay">You owe</string>
     <string name="loans_summary_to_collect">Owed to you</string>
-    <string name="loans_completed">Completed (%1$d)</string>
     <string name="loan_installment_overdue_since">Overdue since %1$s</string>
     <string name="transaction_settled_expense">Already paid</string>
     <string name="transaction_settled_income">Already received</string>
@@ -710,4 +700,8 @@
     <string name="installment_plan_installments">Installments</string>
     <string name="installment_plan_error_save">Couldn\'t save the purchase. Try again.</string>
     <string name="installment_plan_error_delete">Couldn\'t delete the purchase. Try again.</string>
+    <string name="loans_group_owed_to_me">Owed to me</string>
+    <string name="loans_group_i_owe">I owe</string>
+    <string name="loans_group_settled">Settled</string>
+    <string name="loans_add_from_account">Add a loan from an account or the + button</string>
 </resources>
