@@ -661,6 +661,12 @@
     <string name="loan_payment_date_label">Fecha</string>
     <string name="loan_payment_max">Hasta %1$s</string>
     <string name="loan_payment_refused">El pago no puede pasar de lo que falta ni ser anterior al préstamo.</string>
+    <string name="loan_disbursed_received">Recibí</string>
+    <string name="loan_disbursed_given">Entregué</string>
+    <string name="loan_disbursed_supporting">Si es diferente del total a devolver</string>
+    <string name="loan_error_required">Completa el nombre, el monto y la cuenta.</string>
+    <string name="loan_save_refused">No se pudo guardar el préstamo con estos datos.</string>
+    <string name="loan_delete_failed">No se pudo eliminar el préstamo. Inténtalo de nuevo.</string>
     <string name="loan_record_payment">Registrar abono</string>
     <string name="loan_payments_section">Pagos</string>
     <string name="loan_payments_empty">Aún no hay pagos</string>

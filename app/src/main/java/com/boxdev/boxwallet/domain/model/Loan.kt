@@ -18,7 +18,8 @@ data class LoanPlan(
 
 /**
  * A loan lives inside one account: [total] is in that account's currency, the disbursement and
- * every payment are movements of [accountId]. [paid] is the sum of the payments so far.
+ * every payment are movements of [accountId]. [total] is what has to be repaid; [disbursed] is what
+ * changed hands at the start (may differ from [total]). [paid] is the sum of the payments so far.
  */
 data class Loan(
     val id: Long = 0,
@@ -27,6 +28,8 @@ data class Loan(
     /** [LoanType.INCOME] = I lent it, [LoanType.EXPENSE] = I borrowed it. */
     val loanType: LoanType,
     val total: Money,
+    /** Received (borrowed) or given (lent) at the start; the disbursement movement's amount. */
+    val disbursed: Money = total,
     val accountId: Long,
     /** Disbursement date. */
     val date: LocalDateTime,
@@ -94,6 +97,7 @@ fun LoanEntity.toDomain(paidMinor: Long, remainingMainMinor: Long): Loan {
         description = description,
         loanType = LoanType.valueOf(loanType),
         total = Money(totalAmountMinor, currency),
+        disbursed = Money(disbursedAmountMinor, currency),
         accountId = accountId,
         date = start,
         plan = if (totalInstallments > 0) {
@@ -115,6 +119,7 @@ fun Loan.toEntity(): LoanEntity = LoanEntity(
     name = name,
     description = description,
     totalAmountMinor = total.minor,
+    disbursedAmountMinor = disbursed.minor,
     currencyCode = total.currency.currencyCode,
     accountId = accountId,
     startDate = date.toInstant(ZoneOffset.UTC).toEpochMilli(),

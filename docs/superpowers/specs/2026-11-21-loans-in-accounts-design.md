@@ -77,6 +77,10 @@ Se reutiliza la tabla `loans`, ajustada en el esquema v1 (sin migración):
   las etiquetas de `LoanType`.
 - `totalAmountMinor` + `currencyCode`: lo que se debe devolver, **en la moneda de la cuenta**. Como
   todo pasa por una sola cuenta, el préstamo siempre tiene la moneda de su cuenta.
+- `disbursedAmountMinor`: lo que se recibió (*Me prestaron*) o entregó (*Le presté*) al inicio, en la
+  misma moneda; es el monto del movimiento de desembolso. Puede ser menor, igual o mayor que el total
+  (> 0, sin otra regla). En el formulario es opcional ("Recibí" / "Entregué"): vacío = igual al total.
+  El total sigue mandando en lo pagado, lo que falta, las cuotas y si está saldado.
 - `accountId`: **obligatorio** (deja de ser nullable). Solo cuentas que no son tarjeta y no están
   archivadas. Al borrar una cuenta con préstamos, sigue el RESTRICT de movimientos: se bloquea con un
   mensaje que dice por qué.

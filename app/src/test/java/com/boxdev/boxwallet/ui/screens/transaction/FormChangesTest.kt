@@ -59,6 +59,7 @@ class FormChangesTest {
         val initial = LoanFormState(name = "Car")
         assertTrue(initial.copy(name = "Bike").differsFrom(initial))
         assertTrue(initial.copy(accountId = 2).differsFrom(initial))
+        assertTrue(initial.copy(disbursedAmount = "90").differsFrom(initial))
         assertTrue(initial.copy(expectedDate = java.time.LocalDate.of(2027, 1, 1)).differsFrom(initial))
         val withPlan = initial.copy(hasPlan = true, installments = "6")
         assertTrue(withPlan.copy(installments = "3").differsFrom(withPlan))
@@ -69,7 +70,7 @@ class FormChangesTest {
     fun loanBookkeepingFieldsAreIgnored() {
         val initial = LoanFormState(name = "Car")
         assertFalse(initial.copy(isLoading = true).differsFrom(initial))
-        assertFalse(initial.copy(error = "boom").differsFrom(initial))
+        assertFalse(initial.copy(error = 1).differsFrom(initial))
         assertFalse(initial.copy(isSaved = true).differsFrom(initial))
     }
 

@@ -286,7 +286,7 @@ class BackupRepositoryTest {
         val usdMoney = { major: Long -> Money(major * 100, usd) }
         val id = loans.create(
             Loan(
-                name = "Juan", loanType = LoanType.INCOME, total = usdMoney(1000), accountId = acc,
+                name = "Juan", loanType = LoanType.INCOME, total = usdMoney(1100), disbursed = usdMoney(1000), accountId = acc,
                 date = LocalDateTime.of(2026, 11, 5, 10, 0),
                 plan = LoanPlan(4, RecurrenceFrequency.MONTHLY, 1, LocalDate.of(2026, 12, 5)),
                 expectedDate = LocalDate.of(2027, 3, 5),
@@ -303,6 +303,8 @@ class BackupRepositoryTest {
         assertTrue(repo.restoreJson(json, usd) is RestoreResult.Restored)
 
         assertEquals(loanBefore, loans.observe(id).first())
+        assertEquals(usdMoney(1000), loans.observe(id).first()!!.disbursed)
+        assertEquals(usdMoney(1100), loans.observe(id).first()!!.total)
         assertEquals(3, movementsBefore.size)
         assertEquals(movementsBefore, db.transactionDao().getAllTransactionsSync().sortedBy { it.id })
     }

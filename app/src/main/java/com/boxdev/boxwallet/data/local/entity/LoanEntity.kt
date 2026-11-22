@@ -24,6 +24,8 @@ data class LoanEntity(
     val description: String = "",
     /** Minor units of [currencyCode]. */
     val totalAmountMinor: Long,
+    /** What changed hands at the start, in minor units of [currencyCode]; the total is what is repaid. */
+    val disbursedAmountMinor: Long = totalAmountMinor,
     /** ISO 4217; immutable once the loan has payments. */
     val currencyCode: String,
     val accountId: Long,

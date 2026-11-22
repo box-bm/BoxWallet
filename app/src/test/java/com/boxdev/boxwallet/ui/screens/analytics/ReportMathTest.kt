@@ -111,7 +111,8 @@ class ReportMathTest {
 
     @Test
     fun `loan flows split by direction and role`() {
-        val borrowed = loan(1, com.boxdev.boxwallet.domain.model.LoanType.EXPENSE, 10_000)
+        // Received 10,000 to repay 11,000: "received" is the disbursement movement, not the total.
+        val borrowed = loan(1, com.boxdev.boxwallet.domain.model.LoanType.EXPENSE, 11_000)
         val lent = loan(2, com.boxdev.boxwallet.domain.model.LoanType.INCOME, 1_000)
         val flows = loanFlows(
             listOf(

@@ -1,8 +1,10 @@
 package com.boxdev.boxwallet.ui.screens.loans
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.analytics.AnalyticsHelper
 import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.data.repository.LoanRepository
@@ -12,10 +14,12 @@ import com.boxdev.boxwallet.domain.model.Loan
 import com.boxdev.boxwallet.domain.model.LoanPlan
 import com.boxdev.boxwallet.domain.model.LoanType
 import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
+import com.boxdev.boxwallet.domain.money.MissingRateException
 import com.boxdev.boxwallet.domain.money.Money
 import com.boxdev.boxwallet.domain.money.parseMajor
 import com.boxdev.boxwallet.ui.screens.transaction.differsFrom
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -36,6 +40,8 @@ data class LoanFormState(
     val description: String = "",
     /** Typed in major units of [currency]. */
     val totalAmount: String = "",
+    /** Received (borrowed) or given (lent), major units; empty means the same as the total. */
+    val disbursedAmount: String = "",
     val loanType: LoanType = LoanType.EXPENSE,
     /** The loan's single account; its currency is the loan's. */
     val accountId: Long? = null,
@@ -57,13 +63,19 @@ data class LoanFormState(
     val isSaved: Boolean = false,
     /** Set once a confirmed delete went through; the form then leaves the loan's screens too. */
     val deleted: Boolean = false,
-    val error: String? = null,
+    @StringRes val error: Int? = null,
 ) {
     val account: Account? get() = accounts.firstOrNull { it.id == accountId }
 
     val currency: Currency get() = account?.currency ?: Currency.getInstance("USD")
 
     val total: Money? get() = parseMajor(totalAmount, currency)
+
+    /** What changed hands at the start: the typed amount, or the total when left empty. */
+    val disbursed: Money? get() = if (disbursedAmount.isBlank()) total else parseMajor(disbursedAmount, currency)
+
+    /** A loan with payments keeps its direction. */
+    val directionLocked: Boolean get() = isEditing && (paid?.minor ?: 0L) > 0
 
     /** The regular installment; the last one also absorbs the division remainder. */
     val installmentAmount: Money?
@@ -77,7 +89,9 @@ data class LoanFormState(
     val isValid: Boolean
         get() {
             val amount = total ?: return false
+            val received = disbursed ?: return false
             return name.isNotBlank() &&
+                    received.minor > 0 &&
                     accountId != null &&
                     amount.minor >= (paid?.minor ?: 0L) &&
                     (!hasPlan || (
@@ -128,7 +142,7 @@ class LoanFormViewModel @Inject constructor(
             }
             val loan = loanRepository.get(loanId)
             if (loan == null) {
-                _formState.update { it.copy(isLoading = false, error = "Loan not found") }
+                _formState.update { it.copy(isLoading = false, error = R.string.loan_not_found) }
                 return@launch
             }
             // Same currency only; the account already used stays even if archived since.
@@ -142,6 +156,7 @@ class LoanFormViewModel @Inject constructor(
                 name = loan.name,
                 description = loan.description,
                 totalAmount = loan.total.toMajor().toPlainString(),
+                disbursedAmount = if (loan.disbursed != loan.total) loan.disbursed.toMajor().toPlainString() else "",
                 loanType = loan.loanType,
                 accountId = loan.accountId,
                 accounts = offered,
@@ -170,6 +185,11 @@ class LoanFormViewModel @Inject constructor(
             _formState.update { it.copy(totalAmount = value, error = null) }
         }
     }
+    fun updateDisbursedAmount(value: String) {
+        if (value.isEmpty() || value.matches(Regex("^\\d*\\.?\\d*$"))) {
+            _formState.update { it.copy(disbursedAmount = value, error = null) }
+        }
+    }
     fun updateInstallments(value: String) {
         if (value.isEmpty() || value.matches(Regex("^\\d+$"))) {
             _formState.update { it.copy(installments = value, error = null) }
@@ -177,7 +197,7 @@ class LoanFormViewModel @Inject constructor(
     }
     fun updateDate(value: LocalDateTime) = _formState.update { it.copy(date = value) }
     fun updateTime(hour: Int, minute: Int) = _formState.update { it.copy(date = it.date.withHour(hour).withMinute(minute)) }
-    fun updateLoanType(type: LoanType) = _formState.update { it.copy(loanType = type, error = null) }
+    fun updateLoanType(type: LoanType) = _formState.update { if (it.directionLocked) it else it.copy(loanType = type, error = null) }
     fun updateFrequency(freq: RecurrenceFrequency) = _formState.update { it.copy(frequency = freq) }
     fun updateFrequencyInterval(value: String) {
         if (value.isEmpty() || value.matches(Regex("^\\d+$"))) {
@@ -204,7 +224,7 @@ class LoanFormViewModel @Inject constructor(
     fun save() {
         val s = _formState.value
         if (!s.isValid) {
-            _formState.update { it.copy(error = "Please fill in all required fields") }
+            _formState.update { it.copy(error = R.string.loan_error_required) }
             return
         }
         if (s.isLoading) return
@@ -216,6 +236,7 @@ class LoanFormViewModel @Inject constructor(
                     name = s.name.trim(),
                     description = s.description,
                     total = s.total!!,
+                    disbursed = s.disbursed!!,
                     accountId = s.accountId!!,
                     date = s.date,
                     loanType = s.loanType,
@@ -241,8 +262,15 @@ class LoanFormViewModel @Inject constructor(
                 )
 
                 _formState.update { it.copy(isLoading = false, isSaved = true) }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                _formState.update { it.copy(isLoading = false, error = e.message ?: "Error saving loan") }
+                val error = when (e) {
+                    is MissingRateException -> R.string.account_error_missing_rate
+                    is IllegalArgumentException -> R.string.loan_save_refused
+                    else -> R.string.account_error_generic
+                }
+                _formState.update { it.copy(isLoading = false, error = error) }
             }
         }
     }
@@ -256,8 +284,10 @@ class LoanFormViewModel @Inject constructor(
                 loanRepository.delete(s.id)
                 analyticsHelper.logEvent("loan_deleted")
                 _formState.update { it.copy(isLoading = false, deleted = true) }
-            } catch (e: Exception) {
-                _formState.update { it.copy(isLoading = false, error = e.message ?: "Error deleting loan") }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                _formState.update { it.copy(isLoading = false, error = R.string.loan_delete_failed) }
             }
         }
     }

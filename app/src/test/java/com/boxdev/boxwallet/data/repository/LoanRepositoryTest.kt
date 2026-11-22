@@ -144,6 +144,49 @@ class LoanRepositoryTest {
     }
 
     @Test
+    fun `borrowing less than what is repaid moves only what was received`() = runTest {
+        val id = repository.create(
+            lent(total = q(11_000)).copy(name = "Banco Industrial", loanType = LoanType.EXPENSE, disbursed = q(10_000))
+        )
+        assertEquals(500_000L + 1_000_000L, balance(banco))
+        assertEquals(q(11_000), loan(id).remaining)
+        assertEquals(q(10_000), loan(id).disbursed)
+        assertEquals(1_000_000L, rows(id).single { it.type == TransactionType.LOAN_IN }.accountAmount.minor)
+
+        repository.addPayment(id, q(1_100), later)
+
+        assertEquals(500_000L + 1_000_000L - 110_000L, balance(banco))
+        assertEquals(q(9_900), loan(id).remaining)
+        assertEquals(1_100_000L, db.loanDao().getById(id)!!.totalAmountMinor)
+        assertEquals(1_000_000L, db.loanDao().getById(id)!!.disbursedAmountMinor)
+    }
+
+    @Test
+    fun `remaining in the main currency uses the rate of what was received`() = runTest {
+        prefs.setMainCurrency("USD")
+        val id = repository.create(lent(total = q(1_100)).copy(disbursed = q(1_000)))
+        repository.addPayment(id, q(275), later)
+
+        // Q1,000.00 / 7.64 = $130.89 at disbursement; Q825.00 left at that rate = $107.98.
+        assertEquals(13_089L, rows(id).first { it.type == TransactionType.LOAN_OUT }.amount.minor)
+        assertEquals(10_798L, loan(id).remainingMainMinor)
+    }
+
+    @Test
+    fun `received amount must be positive and in the account's currency`() = runTest {
+        assertRefused { repository.create(lent().copy(disbursed = q(0))) }
+        assertRefused { repository.create(lent().copy(disbursed = Money(100_00, usd))) }
+        val id = repository.create(lent())
+        assertRefused { repository.update(loan(id).copy(disbursed = q(0))) }
+
+        assertEquals(1, db.loanDao().getAllLoansSync().size)
+        // Received may be above the total as well.
+        repository.update(loan(id).copy(disbursed = q(1_200)))
+        assertEquals(500_000L - 120_000L, balance(banco))
+        assertEquals(q(1_000), loan(id).remaining)
+    }
+
+    @Test
     fun `remaining in the main currency follows the disbursement's conversion`() = runTest {
         prefs.setMainCurrency("USD")
         val id = repository.create(lent())
@@ -229,7 +272,7 @@ class LoanRepositoryTest {
         repository.addPayment(id, q(200), later)
         val newDate = disbursed.minusDays(2)
 
-        repository.update(loan(id).copy(name = "Juan Pérez", total = q(1500), date = newDate))
+        repository.update(loan(id).copy(name = "Juan Pérez", total = q(1500), disbursed = q(1500), date = newDate))
 
         val disbursement = rows(id).first { it.type == TransactionType.LOAN_OUT }
         assertEquals(q(1500), disbursement.accountAmount)

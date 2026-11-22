@@ -107,9 +107,11 @@ class LoanTest {
     @Test
     fun `a planned loan survives the round trip to its entity`() {
         val planned = loan(paid = 30_000, remainingMain = 4_000, expectedDate = LocalDate.of(2026, 12, 31))
-            .copy(id = 9, description = "Car", plan = LoanPlan(6, RecurrenceFrequency.WEEKLY, 2, LocalDate.of(2026, 1, 15)))
+            .copy(id = 9, description = "Car", disbursed = q(110_000), plan = LoanPlan(6, RecurrenceFrequency.WEEKLY, 2, LocalDate.of(2026, 1, 15)))
 
         val back = planned.toEntity().toDomain(paidMinor = 30_000, remainingMainMinor = 4_000)
+
+        assertEquals(110_000L, planned.toEntity().disbursedAmountMinor)
 
         assertEquals(planned, back)
         assertEquals(LocalDate.of(2026, 1, 15), back.plan?.firstDue)

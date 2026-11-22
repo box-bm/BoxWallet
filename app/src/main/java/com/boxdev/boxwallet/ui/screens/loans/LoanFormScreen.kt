@@ -119,7 +119,7 @@ fun LoanFormScreen(
             return@FullScreenForm
         }
         // Above the fields so a failed save from the top bar is reported where the eye already is.
-        formState.error?.let { LoanFormErrorText(it) }
+        formState.error?.let { LoanFormErrorText(stringResource(it)) }
         LoanFormFields(viewModel)
     }
 
@@ -171,6 +171,8 @@ private fun LoanFormFields(
             label = { stringResource(it.displayNameRes) },
             icon = { trendIcon(it == LoanType.INCOME) },
             colors = { directionToggleColors(it == LoanType.INCOME) },
+            // A loan with payments keeps its direction.
+            enabled = !formState.directionLocked,
         )
 
         AmountField(
@@ -193,6 +195,28 @@ private fun LoanFormFields(
             accountChip = if (formState.accounts.size > 1) {
                 { AccountChip(formState.account, formState.accounts) { showAccountPicker = true } }
             } else null,
+        )
+
+        // Optional: what changed hands at the start, when it isn't the total to repay.
+        OutlinedTextField(
+            value = formState.disbursedAmount,
+            onValueChange = viewModel::updateDisbursedAmount,
+            label = {
+                Text(
+                    stringResource(
+                        if (formState.loanType == LoanType.EXPENSE) R.string.loan_disbursed_received
+                        else R.string.loan_disbursed_given
+                    )
+                )
+            },
+            placeholder = { formState.total?.let { Text(formatter.format(it)) } },
+            supportingText = { Text(stringResource(R.string.loan_disbursed_supporting)) },
+            isError = formState.error != null && formState.disbursedAmount.isNotBlank() &&
+                (formState.disbursed?.minor ?: 0L) <= 0L,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            shape = MaterialTheme.shapes.extraLarge,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
         )
 
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {

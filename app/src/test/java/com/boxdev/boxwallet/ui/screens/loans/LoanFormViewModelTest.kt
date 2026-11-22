@@ -11,6 +11,8 @@ import com.boxdev.boxwallet.data.repository.LoanRepository
 import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.AccountType
 import com.boxdev.boxwallet.domain.model.Loan
+import com.boxdev.boxwallet.R
+import com.boxdev.boxwallet.domain.money.MissingRateException
 import com.boxdev.boxwallet.domain.money.Money
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -189,17 +191,105 @@ class LoanFormViewModelTest {
         assertEquals(LocalDate.of(2026, 3, 15), captor.firstValue.plan?.firstDue)
     }
 
-    @Test
-    fun `a repository refusal becomes a form error`() = runTest {
-        whenever(loanRepository.create(any())).thenThrow(IllegalArgumentException("nope"))
+    private suspend fun kotlinx.coroutines.test.TestScope.savedNew(): LoanFormViewModel {
         val vm = vm(emptyMap())
         advanceUntilIdle()
         vm.updateName("Ana")
         vm.updateTotalAmount("50")
         vm.save()
         advanceUntilIdle()
-        assertEquals("nope", vm.formState.value.error)
+        return vm
+    }
+
+    @Test
+    fun `a repository refusal becomes a localized form error`() = runTest {
+        whenever(loanRepository.create(any())).thenThrow(IllegalArgumentException("nope"))
+        val vm = savedNew()
+        assertEquals(R.string.loan_save_refused, vm.formState.value.error)
         assertFalse(vm.formState.value.isSaved)
+    }
+
+    @Test
+    fun `a missing rate becomes the missing rate error`() = runTest {
+        whenever(loanRepository.create(any())).thenAnswer { throw MissingRateException(eur, usd) }
+        assertEquals(R.string.account_error_missing_rate, savedNew().formState.value.error)
+    }
+
+    @Test
+    fun `any other failure becomes the generic error`() = runTest {
+        whenever(loanRepository.create(any())).thenAnswer { throw IllegalStateException("db") }
+        assertEquals(R.string.account_error_generic, savedNew().formState.value.error)
+    }
+
+    @Test
+    fun `a failed delete becomes a localized error`() = runTest {
+        whenever(loanRepository.delete(7L)).thenAnswer { throw IllegalStateException("db") }
+        val vm = vm(mapOf("id" to 7L))
+        advanceUntilIdle()
+        vm.delete()
+        advanceUntilIdle()
+        assertEquals(R.string.loan_delete_failed, vm.formState.value.error)
+        assertFalse(vm.formState.value.deleted)
+    }
+
+    @Test
+    fun `saving with an empty received amount uses the total`() = runTest {
+        savedNew()
+        val captor = argumentCaptor<Loan>()
+        verify(loanRepository).create(captor.capture())
+        assertEquals(Money(50_00, usd), captor.firstValue.total)
+        assertEquals(Money(50_00, usd), captor.firstValue.disbursed)
+    }
+
+    @Test
+    fun `saving a received amount apart from the total`() = runTest {
+        val vm = vm(emptyMap())
+        advanceUntilIdle()
+        vm.updateName("Banco")
+        vm.updateTotalAmount("11000")
+        vm.updateDisbursedAmount("10000")
+        assertTrue(vm.formState.value.isValid)
+        vm.updateDisbursedAmount("0")
+        assertFalse(vm.formState.value.isValid)
+        vm.updateDisbursedAmount("10000")
+        vm.save()
+        advanceUntilIdle()
+        val captor = argumentCaptor<Loan>()
+        verify(loanRepository).create(captor.capture())
+        assertEquals(Money(1_100_000, usd), captor.firstValue.total)
+        assertEquals(Money(1_000_000, usd), captor.firstValue.disbursed)
+    }
+
+    @Test
+    fun `editing shows the received amount only when it differs from the total`() = runTest {
+        assertEquals("", vm(mapOf("id" to 7L)).also { advanceUntilIdle() }.formState.value.disbursedAmount)
+        whenever(loanRepository.get(9L)).thenReturn(
+            Loan(id = 9, name = "Bank", loanType = LoanType.EXPENSE, total = Money(110_00, usd),
+                disbursed = Money(100_00, usd), accountId = 1, date = LocalDateTime.of(2026, 1, 1, 0, 0)),
+        )
+        val vm = vm(mapOf("id" to 9L))
+        backgroundScope.launch { vm.hasUnsavedChanges.collect {} }
+        advanceUntilIdle()
+        assertEquals("100.00", vm.formState.value.disbursedAmount)
+        assertFalse(vm.hasUnsavedChanges.value)
+        vm.updateDisbursedAmount("90")
+        advanceUntilIdle()
+        assertTrue(vm.hasUnsavedChanges.value)
+    }
+
+    @Test
+    fun `direction is locked once the loan has payments`() = runTest {
+        assertFalse(vm(mapOf("id" to 7L)).also { advanceUntilIdle() }.formState.value.directionLocked)
+        whenever(loanRepository.get(10L)).thenReturn(
+            Loan(id = 10, name = "Paid", loanType = LoanType.EXPENSE, total = Money(100_00, usd), accountId = 1,
+                date = LocalDateTime.of(2026, 1, 1, 0, 0), paid = Money(10_00, usd)),
+        )
+        val vm = vm(mapOf("id" to 10L))
+        advanceUntilIdle()
+        assertTrue(vm.formState.value.directionLocked)
+        vm.updateLoanType(LoanType.INCOME)
+        assertEquals(LoanType.EXPENSE, vm.formState.value.loanType)
+        assertFalse(vm(emptyMap()).also { advanceUntilIdle() }.formState.value.directionLocked)
     }
 
     @Test

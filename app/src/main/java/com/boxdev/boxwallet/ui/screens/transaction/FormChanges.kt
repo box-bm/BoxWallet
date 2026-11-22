@@ -27,6 +27,7 @@ fun LoanFormState.differsFrom(initial: LoanFormState): Boolean =
     name != initial.name ||
         description != initial.description ||
         totalAmount != initial.totalAmount ||
+        disbursedAmount != initial.disbursedAmount ||
         loanType != initial.loanType ||
         accountId != initial.accountId ||
         date != initial.date ||

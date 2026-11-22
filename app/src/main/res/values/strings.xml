@@ -676,6 +676,12 @@
     <string name="loan_payment_date_label">Date</string>
     <string name="loan_payment_max">Up to %1$s</string>
     <string name="loan_payment_refused">The payment can\'t be more than what is left or dated before the loan.</string>
+    <string name="loan_disbursed_received">I received</string>
+    <string name="loan_disbursed_given">I gave</string>
+    <string name="loan_disbursed_supporting">If different from the total to repay</string>
+    <string name="loan_error_required">Fill in the name, the amount and the account.</string>
+    <string name="loan_save_refused">Couldn\'t save the loan with these details.</string>
+    <string name="loan_delete_failed">Couldn\'t delete the loan. Try again.</string>
     <string name="loan_record_payment">Record payment</string>
     <string name="loan_payments_section">Payments</string>
     <string name="loan_payments_empty">No payments yet</string>

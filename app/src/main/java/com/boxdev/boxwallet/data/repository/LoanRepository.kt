@@ -84,7 +84,7 @@ class LoanRepository @Inject constructor(
         database.withTransaction {
             requireAccount(loan.accountId, keptFrom = null)
             requireTotal(loan, current)
-            val disbursement = movement(current, loan, loan.disbursementType, loan.total, loan.date, previous = null)
+            val disbursement = movement(current, loan, loan.disbursementType, loan.disbursed, loan.date, previous = null)
             val id = loanDao.insert(loan.toEntity().copy(id = 0))
             transactionDao.insert(disbursement.copy(loanId = id).toEntity())
             id
@@ -111,7 +111,7 @@ class LoanRepository @Inject constructor(
                 "The disbursement can't be after a payment"
             }
             val disbursement = movement(
-                current, loan, loan.disbursementType, loan.total, loan.date, previous = stored.disbursement,
+                current, loan, loan.disbursementType, loan.disbursed, loan.date, previous = stored.disbursement,
             ).copy(id = stored.disbursement.id)
             val payments = stored.payments.map { payment ->
                 movement(current, loan, loan.paymentType, payment.accountAmount, payment.date, previous = payment)
@@ -181,7 +181,8 @@ class LoanRepository @Inject constructor(
 
     private fun requireTotal(loan: Loan, current: MovementWriteGuard.Current) {
         require(loan.total.minor > 0) { "A loan must have a positive total" }
-        require(loan.total.currency == current.accountCurrency(loan.accountId)) {
+        require(loan.disbursed.minor > 0) { "A loan must have a positive amount received or given" }
+        require(loan.total.currency == current.accountCurrency(loan.accountId) && loan.disbursed.currency == loan.total.currency) {
             "A loan must be in its account's currency"
         }
     }
@@ -228,13 +229,16 @@ class LoanRepository @Inject constructor(
         return Stored(shell.copy(paid = paid), disbursement, payments)
     }
 
-    /** What is left, converted to the main currency at the disbursement's rate (half-even). */
+    /**
+     * What is left, converted to the main currency at the disbursement's rate (its frozen main leg
+     * over the amount disbursed), half-even.
+     */
     private fun LoanWithTotals.toDomain(): Loan {
-        val total = loan.totalAmountMinor
-        val remaining = (total - paidMinor).coerceAtLeast(0)
-        val remainingMain = if (total == 0L) 0L else BigDecimal.valueOf(remaining)
+        val remaining = (loan.totalAmountMinor - paidMinor).coerceAtLeast(0)
+        val disbursed = loan.disbursedAmountMinor
+        val remainingMain = if (disbursed == 0L) 0L else BigDecimal.valueOf(remaining)
             .multiply(BigDecimal.valueOf(disbursementMainMinor))
-            .divide(BigDecimal.valueOf(total), 0, RoundingMode.HALF_EVEN)
+            .divide(BigDecimal.valueOf(disbursed), 0, RoundingMode.HALF_EVEN)
             .longValueExact()
         return loan.toDomain(paidMinor = paidMinor, remainingMainMinor = remainingMain)
     }
