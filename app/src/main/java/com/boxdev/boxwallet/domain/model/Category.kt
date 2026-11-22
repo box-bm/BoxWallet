@@ -6,19 +6,22 @@ data class Category(
     val id: Long = 0,
     val name: String,
     val description: String = "",
-    val icon: String = "Category"
+    val icon: String = "Category",
+    val color: AccountColor = AccountColor.DEFAULT
 )
 
 fun CategoryEntity.toDomain(): Category = Category(
     id = id,
     name = name,
     description = description,
-    icon = icon
+    icon = icon,
+    color = AccountColor.fromKey(color)
 )
 
 fun Category.toEntity(): CategoryEntity = CategoryEntity(
     id = id,
     name = name,
     description = description,
-    icon = icon
+    icon = icon,
+    color = color.key
 )

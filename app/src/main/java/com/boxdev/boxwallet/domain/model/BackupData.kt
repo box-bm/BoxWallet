@@ -8,7 +8,7 @@ import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 
 /**
  * Backup file contents (spec 6.3). There is one format, [CURRENT_VERSION]: a file in any other
- * version is refused on restore. Exchange rates are not backed up; they are downloaded again.
+ * version is refused on restore (7 added the category color). Exchange rates are not backed up; they are downloaded again.
  */
 data class BackupData(
     val version: Int = CURRENT_VERSION,
@@ -24,6 +24,6 @@ data class BackupData(
     val defaultAccountId: Long? = null,
 ) {
     companion object {
-        const val CURRENT_VERSION = 6
+        const val CURRENT_VERSION = 7
     }
 }

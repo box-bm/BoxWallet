@@ -83,8 +83,11 @@ import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.RoundedPolygon
 import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.domain.model.Account
+import com.boxdev.boxwallet.domain.model.AccountColor
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.ui.theme.BoxTheme
+import com.boxdev.boxwallet.ui.theme.container
+import com.boxdev.boxwallet.ui.theme.onContainer
 import com.boxdev.boxwallet.util.categoryIconVector
 import com.boxdev.boxwallet.util.rememberCurrencyFormatter
 import kotlin.math.absoluteValue
@@ -114,6 +117,7 @@ fun Category.polygon(): RoundedPolygon = categoryPolygons[tokenSeed() % category
 /** Container / content pair for a category, taken from scheme roles so dynamic color still works. */
 @Composable
 fun Category.tone(): Pair<Color, Color> {
+    if (color != AccountColor.DEFAULT) return color.container() to color.onContainer()
     val c = MaterialTheme.colorScheme
     return when ((tokenSeed() / categoryPolygons.size + tokenSeed()) % 4) {
         0 -> c.primaryContainer to c.onPrimaryContainer

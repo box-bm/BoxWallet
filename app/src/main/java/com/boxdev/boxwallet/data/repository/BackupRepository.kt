@@ -235,7 +235,9 @@ class BackupRepository @Inject constructor(
          */
         private fun sanitized(data: BackupData): BackupData {
             val accountIds = data.accounts.mapTo(HashSet()) { it.id }
-            val categoryIds = data.categories.mapTo(HashSet()) { it.id }
+            // Gson bypasses the Kotlin default, so a file without a category color leaves it null.
+            val categories = data.categories.map { c -> if ((c.color as String?).isNullOrBlank()) c.copy(color = "DEFAULT") else c }
+            val categoryIds = categories.mapTo(HashSet()) { it.id }
             val loans = data.loans.filter { it.accountId in accountIds }
             val loanIds = loans.mapTo(HashSet()) { it.id }
             val loanAccounts = loans.associate { it.id to it.accountId }
@@ -266,6 +268,7 @@ class BackupRepository @Inject constructor(
             }
             return data.copy(
                 accounts = singleChildren(data.accounts),
+                categories = categories,
                 loans = loans,
                 installmentPlans = plans,
                 transactions = parentsFirst(wholeTransfers(transactions)),

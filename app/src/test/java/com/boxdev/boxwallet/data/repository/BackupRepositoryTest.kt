@@ -100,13 +100,14 @@ class BackupRepositoryTest {
         prefs.setMainCurrency("GTQ")
         val main = db.accountDao().insert(AccountEntity(name = "Main", type = "CHECKING", currencyCode = "GTQ", createdAt = 1L))
         val savings = db.accountDao().insert(AccountEntity(name = "USD savings", type = "SAVINGS", currencyCode = "USD", createdAt = 2L, sortOrder = 1))
+        db.categoryDao().insert(CategoryEntity(id = 51, name = "Teal one", color = "TEAL"))
         db.transactionDao().insert(
             tx(id = 10, accountId = savings, amount = 1000, code = "USD").copy(
                 amountMinor = 7712, mainRate = BigDecimal("7.712345678901"), mainRateSource = RateSource.MANUAL,
             )
         )
         val json = Gson().toJson(repo.snapshot())
-        assertEquals(6, JsonParser.parseString(json).asJsonObject.get("version").asInt)
+        assertEquals(7, JsonParser.parseString(json).asJsonObject.get("version").asInt)
         db.transactionDao().deleteAll()
         db.accountDao().deleteAll()
 
@@ -120,6 +121,18 @@ class BackupRepositoryTest {
         assertEquals(BigDecimal("7.712345678901"), row.mainRate)
         assertEquals(RateSource.MANUAL, row.mainRateSource)
         assertEquals(main, prefs.defaultAccountId.first())
+        assertEquals("TEAL", db.categoryDao().getAllCategoriesSync().first { it.id == 51L }.color)
+    }
+
+    @Test
+    fun `a category without color in the file restores as DEFAULT`() = runTest {
+        val root = JsonParser.parseString(Gson().toJson(repo.snapshot().copy(categories = listOf(CategoryEntity(id = 60, name = "Old file"))))).asJsonObject
+        root.getAsJsonArray("categories").forEach { it.asJsonObject.remove("color") }
+
+        val result = repo.restoreJson(root.toString(), usd)
+
+        assertTrue(result is RestoreResult.Restored)
+        assertEquals("DEFAULT", db.categoryDao().getAllCategoriesSync().single { it.id == 60L }.color)
     }
 
     @Test
@@ -484,11 +497,11 @@ class BackupRepositoryTest {
     }
 
     @Test
-    fun `local snapshot is written in the v6 shape with accounts`() = runTest {
+    fun `local snapshot is written in the v7 shape with accounts`() = runTest {
         seedLocalData()
         val file: File = repo.writeLocalSnapshot()
         val root = JsonParser.parseString(file.readText()).asJsonObject
-        assertEquals(6, root.get("version").asInt)
+        assertEquals(7, root.get("version").asInt)
         assertEquals("USD", root.get("mainCurrencyCode").asString)
         assertEquals("Old", root.getAsJsonArray("accounts")[0].asJsonObject.get("name").asString)
     }
@@ -600,6 +613,16 @@ class BackupRepositoryTest {
 
         assertEquals(99L, db.transactionDao().getAllTransactionsSync().single().id)
         assertEquals("Old", db.accountDao().getAll().single().name)
+    }
+
+    @Test
+    fun `version 6 backups are refused`() = runTest {
+        seedLocalData()
+        val json = Gson().toJson(BackupData(version = 6, mainCurrencyCode = "USD"))
+
+        assertEquals(RestoreResult.Incompatible, repo.restoreJson(json, usd))
+
+        assertEquals(99L, db.transactionDao().getAllTransactionsSync().single().id)
     }
 
     @Test
