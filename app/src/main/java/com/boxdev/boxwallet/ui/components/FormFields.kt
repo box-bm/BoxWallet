@@ -152,24 +152,40 @@ fun AmountField(
                 } else {
                     stringResource(R.string.currency_chip_description, currencyCode)
                 }
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.weight(1f).padding(start = 4.dp)) { labelText() }
-                    if (accountChip != null) {
-                        accountChip()
-                        Spacer(Modifier.width(8.dp))
+                // The label never wraps (softWrap = false makes it claim its full width); when the
+                // account and currency buttons don't fit beside it, they drop to their own line.
+                androidx.compose.foundation.layout.FlowRow(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    itemVerticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(Modifier.weight(1f).padding(start = 4.dp)) {
+                        Text(
+                            label,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                            softWrap = false,
+                        )
                     }
-                    androidx.compose.material3.FilledTonalButton(
-                        onClick = onCurrencyClick,
-                        enabled = currencyEnabled,
-                        colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            contentColor = MaterialTheme.colorScheme.onSurface,
-                        ),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 8.dp),
-                        modifier = Modifier.semantics { contentDescription = chipDescription },
-                    ) {
-                        Text(currencyCode)
-                        Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (accountChip != null) {
+                            Box(Modifier.weight(1f, fill = false)) { accountChip() }
+                            Spacer(Modifier.width(8.dp))
+                        }
+                        androidx.compose.material3.FilledTonalButton(
+                            onClick = onCurrencyClick,
+                            enabled = currencyEnabled,
+                            colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                contentColor = MaterialTheme.colorScheme.onSurface,
+                            ),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 8.dp),
+                            modifier = Modifier.semantics { contentDescription = chipDescription },
+                        ) {
+                            Text(currencyCode)
+                            Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
+                        }
                     }
                 }
             } else {
