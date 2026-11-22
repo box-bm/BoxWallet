@@ -42,7 +42,6 @@ import androidx.compose.material.icons.outlined.NotificationsOff
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.QueryStats
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -229,7 +228,6 @@ private fun SettingsListDetail(
                                 icon = Icons.Outlined.Settings,
                                 title = stringResource(R.string.settings_select_hint),
                             )
-                            SettingsSection.GENERAL -> GeneralSettingsScreen(onNavigateBack = null)
                             SettingsSection.CURRENCIES -> CurrenciesScreen(
                                 onNavigateBack = null,
                                 onOpenCurrency = onOpenCurrency,
@@ -315,15 +313,13 @@ private fun ColumnScope.SettingsList(
     }
 
     SettingsGroup(stringResource(R.string.settings_preferences_section)) {
-        SettingsRow(0, 5, Icons.Outlined.AccountBalanceWallet, stringResource(R.string.settings_accounts_title),
+        SettingsRow(0, 4, Icons.Outlined.AccountBalanceWallet, stringResource(R.string.settings_accounts_title),
             stringResource(R.string.settings_accounts_subtitle), onOpenAccounts)
-        SectionRow(SettingsSection.GENERAL, 1, 5, Icons.Outlined.Tune, R.string.settings_general_title,
-            R.string.settings_general_subtitle, selected, onOpenSection)
-        SectionRow(SettingsSection.CURRENCIES, 2, 5, Icons.Outlined.CurrencyExchange, R.string.settings_currencies_title,
+        SectionRow(SettingsSection.CURRENCIES, 1, 4, Icons.Outlined.CurrencyExchange, R.string.settings_currencies_title,
             R.string.settings_currencies_subtitle, selected, onOpenSection)
-        SectionRow(SettingsSection.CATEGORIES, 3, 5, Icons.Outlined.Category, R.string.settings_categories_title,
+        SectionRow(SettingsSection.CATEGORIES, 2, 4, Icons.Outlined.Category, R.string.settings_categories_title,
             R.string.settings_categories_subtitle, selected, onOpenSection)
-        SectionRow(SettingsSection.THEME, 4, 5, Icons.Outlined.Palette, R.string.settings_theme_title,
+        SectionRow(SettingsSection.THEME, 3, 4, Icons.Outlined.Palette, R.string.settings_theme_title,
             R.string.settings_theme_subtitle, selected, onOpenSection)
     }
 

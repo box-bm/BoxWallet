@@ -87,7 +87,7 @@ fun CategoriesScreen(
             category = null,
             onDismiss = { showAddDialog = false },
             onSave = { name, description, icon ->
-                viewModel.addCategory(name, description, icon)
+                viewModel.save(null, name, description, icon, com.boxdev.boxwallet.domain.model.AccountColor.DEFAULT)
                 showAddDialog = false
             }
         )
@@ -98,7 +98,7 @@ fun CategoriesScreen(
             category = category,
             onDismiss = { editingCategory = null },
             onSave = { name, description, icon ->
-                viewModel.updateCategory(category.copy(name = name, description = description, icon = icon))
+                viewModel.save(category.id, name, description, icon, category.color)
                 editingCategory = null
             }
         )
@@ -108,7 +108,7 @@ fun CategoriesScreen(
         ConfirmDeleteDialog(
             title = stringResource(R.string.categories_delete_title),
             message = stringResource(R.string.categories_delete_message, category.name),
-            onConfirm = { viewModel.deleteCategory(category.id) },
+            onConfirm = { viewModel.delete(category.id) },
             onDismiss = { deleteConfirmCategory = null },
         )
     }
