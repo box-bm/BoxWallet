@@ -18,7 +18,9 @@ import com.boxdev.boxwallet.domain.model.AccountWithBalance
 import com.boxdev.boxwallet.domain.model.CardSummary
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.InstallmentPlan
+import com.boxdev.boxwallet.domain.model.Loan
 import com.boxdev.boxwallet.domain.model.LoanType
+import com.boxdev.boxwallet.domain.model.AccountType
 import com.boxdev.boxwallet.domain.model.isFinished
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.domain.model.TransferPair
@@ -70,6 +72,12 @@ data class AccountDetailUiState(
     val installmentCounts: Map<Long, Int> = emptyMap(),
     /** Each loan's direction by loan id, for a loan movement's label. */
     val loanTypes: Map<Long, LoanType> = emptyMap(),
+    /** The account's loans still open, newest first. */
+    val activeLoans: List<Loan> = emptyList(),
+    /** The account's paid-off loans, newest first. */
+    val settledLoans: List<Loan> = emptyList(),
+    /** Cards can't hold loans, so their detail has no loans section. */
+    val canHaveLoans: Boolean = false,
     val isLoading: Boolean = true,
 )
 
@@ -147,23 +155,28 @@ class AccountDetailViewModel @Inject constructor(
             combine(accountRepository.observeAccountsWithBalance(), accountRepository.observeDefaultAccountId(), ::Pair),
             movementsOf(id),
             categoryRepository.getAllCategories(),
-            combine(transferRepository.observePairs(), installmentPlanRepository.observePlansOfCard(id), loanRepository.observeAll(), ::Triple),
+            combine(transferRepository.observePairs(), installmentPlanRepository.observePlansOfCard(id), loanRepository.observeByAccount(id), ::Triple),
             accountRepository.observeCardSummaries(),
         ) { (accounts, defaultId), movements, categories, (pairs, plans, loans), cards ->
             val card = cards[id]
+            val account = accounts.firstOrNull { it.account.id == id }
+            val canHaveLoans = account != null && account.account.type != AccountType.CREDIT_CARD
             val key = card?.let { cardPayerKey(id, it.second?.account?.id, movements, pairs, accounts) }
             if (key != payerKey) {
                 lastPayer = key?.let { accountRepository.lastPayerOf(it.cardId, it.childId) }
                 payerKey = key
             }
             AccountDetailUiState(
-                account = accounts.firstOrNull { it.account.id == id },
+                account = account,
                 isDefault = defaultId == id,
                 movements = movements,
                 categories = categories.associateBy { it.id },
                 accountsById = accounts.associate { it.account.id to it.account },
                 transferPairs = pairs,
                 loanTypes = loans.associate { it.id to it.loanType },
+                activeLoans = if (canHaveLoans) loans.filterNot { it.isSettled } else emptyList(),
+                settledLoans = if (canHaveLoans) loans.filter { it.isSettled } else emptyList(),
+                canHaveLoans = canHaveLoans,
                 canTransfer = accounts.count { !it.account.isArchived } >= 2,
                 card = card,
                 cardPayer = card?.let { lastPayer ?: defaultId },

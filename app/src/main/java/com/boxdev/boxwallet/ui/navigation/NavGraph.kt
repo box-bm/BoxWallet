@@ -164,6 +164,9 @@ fun NavGraph(
     val onOpenInstallmentPlan: (Long) -> Unit = {
         navController.navigate(NavRoutes.InstallmentPlanDetail.createRoute(it)) { launchSingleTop = true }
     }
+    val onNewLoanOn: (Long) -> Unit = {
+        navController.navigate(NavRoutes.LoanForm.createRoute(accountId = it)) { launchSingleTop = true }
+    }
     val onNewTransferFrom: (Long) -> Unit = {
         navController.navigate(NavRoutes.TransferForm.createRoute(from = it)) { launchSingleTop = true }
     }
@@ -340,6 +343,7 @@ fun NavGraph(
                 onOpenTransfer = onOpenTransfer,
                 onOpenInstallmentPlan = onOpenInstallmentPlan,
                 onOpenLoan = openLoan,
+                onNewLoan = onNewLoanOn,
                 onNewTransfer = onNewTransferFrom,
                 onNavigate = onNavigateTo,
             )
@@ -367,6 +371,7 @@ fun NavGraph(
                     onOpenTransfer = onOpenTransfer,
                     onOpenInstallmentPlan = onOpenInstallmentPlan,
                     onOpenLoan = openLoan,
+                    onNewLoan = onNewLoanOn,
                     onNewTransfer = onNewTransferFrom,
                     onNavigate = onNavigateTo,
                 )

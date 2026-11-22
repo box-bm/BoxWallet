@@ -255,4 +255,44 @@ class AccountDetailViewModelTest {
 
         assertTrue(state.installmentPlans.isEmpty())
     }
+
+    private suspend fun loan(accountId: Long, name: String, total: Long) = loans.create(
+        com.boxdev.boxwallet.domain.model.Loan(
+            name = name, loanType = com.boxdev.boxwallet.domain.model.LoanType.INCOME, total = Money(total, gtq),
+            accountId = accountId, date = LocalDate.now().atTime(9, 0),
+        )
+    )
+
+    @Test
+    fun `active loans come first and settled apart`() = runTest {
+        val open = loan(banco, "Ana", 100_00)
+        val done = loan(banco, "Luis", 50_00)
+        loans.addPayment(done, Money(50_00, gtq), LocalDate.now().atTime(10, 0))
+
+        val state = vm(banco).uiState.first { !it.isLoading && it.activeLoans.isNotEmpty() }
+
+        assertTrue(state.canHaveLoans)
+        assertEquals(listOf(open), state.activeLoans.map { it.id })
+        assertEquals(listOf(done), state.settledLoans.map { it.id })
+    }
+
+    @Test
+    fun `a loan of another account is not listed`() = runTest {
+        val other = db.accountDao().insert(AccountEntity(name = "Otra", type = "CHECKING", currencyCode = "GTQ", createdAt = 0L, sortOrder = 2))
+        loan(other, "Ana", 100_00)
+        val mine = loan(banco, "Luis", 100_00)
+
+        val state = vm(banco).uiState.first { !it.isLoading && it.activeLoans.isNotEmpty() }
+
+        assertEquals(listOf(mine), state.activeLoans.map { it.id })
+    }
+
+    @Test
+    fun `cards have no loans section`() = runTest {
+        val state = vm(card).uiState.first { !it.isLoading && it.card != null }
+
+        assertFalse(state.canHaveLoans)
+        assertTrue(state.activeLoans.isEmpty())
+        assertTrue(state.settledLoans.isEmpty())
+    }
 }

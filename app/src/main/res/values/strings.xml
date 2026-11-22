@@ -723,4 +723,8 @@
     <string name="loan_account_label">Account</string>
     <string name="action_more">More options</string>
     <string name="loan_of_total">of %1$s</string>
+    <string name="account_loans_title">Loans</string>
+    <string name="account_loans_new">New loan</string>
+    <string name="account_loans_show_settled">Show settled (%1$d)</string>
+    <string name="account_loans_hide_settled">Hide settled</string>
 </resources>

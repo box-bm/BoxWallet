@@ -710,4 +710,8 @@
     <string name="loan_account_label">Cuenta</string>
     <string name="action_more">Más opciones</string>
     <string name="loan_of_total">de %1$s</string>
+    <string name="account_loans_title">Préstamos</string>
+    <string name="account_loans_new">Nuevo préstamo</string>
+    <string name="account_loans_show_settled">Ver liquidados (%1$d)</string>
+    <string name="account_loans_hide_settled">Ocultar liquidados</string>
 </resources>

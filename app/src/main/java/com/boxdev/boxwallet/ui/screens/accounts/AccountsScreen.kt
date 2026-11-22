@@ -109,6 +109,7 @@ fun AccountsScreen(
     onOpenInstallmentPlan: (Long) -> Unit = {},
     onOpenLoan: (Long) -> Unit = {},
     /** Opens a new transfer from the given account. */
+    onNewLoan: (Long) -> Unit = {},
     onNewTransfer: (Long) -> Unit = {},
     /** Opens a route from the detail pane (a card's Pay). */
     onNavigate: (String) -> Unit = {},
@@ -176,6 +177,7 @@ fun AccountsScreen(
                         onOpenTransfer = onOpenTransfer,
                         onOpenInstallmentPlan = onOpenInstallmentPlan,
                         onOpenLoan = onOpenLoan,
+                        onNewLoan = onNewLoan,
                         onNewTransfer = onNewTransfer,
                         onNavigate = onNavigate,
                         accountId = id,
