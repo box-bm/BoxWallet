@@ -208,21 +208,25 @@
     <string name="settings_buy_coffee">Inv\u00edtame un Caf\u00e9</string>
     <string name="settings_buy_coffee_subtitle">\u00a1Apoya el desarrollo!</string>
 
-    <!-- General Settings Screen -->
-
     <!-- Categories Screen -->
     <string name="categories_title">Categor\u00edas</string>
-    <string name="categories_add">Agregar Categor\u00eda</string>
     <string name="categories_no_categories">A\u00fan no hay categor\u00edas</string>
     <string name="categories_tap_to_create">Toca + para crear tu primera categor\u00eda</string>
     <string name="categories_delete_title">Eliminar Categor\u00eda</string>
     <string name="categories_delete_message">\u00bfEst\u00e1s seguro de eliminar \"%1$s\"? Los movimientos con esta categor\u00eda no ser\u00e1n eliminados.</string>
-    <string name="categories_edit_title">Editar Categor\u00eda</string>
-    <string name="categories_add_title">Agregar Categor\u00eda</string>
+    <string name="categories_edit_title">Editar categor\u00eda</string>
     <string name="categories_save_failed">No se pudo guardar la categor\u00eda</string>
     <string name="categories_delete_failed">No se pudo borrar la categor\u00eda</string>
     <string name="categories_name_label">Nombre</string>
     <string name="categories_icon_label">Icono</string>
+    <string name="categories_new">Nueva categor\u00eda</string>
+    <string name="categories_create">Crear</string>
+    <string name="categories_color_label">Color</string>
+    <string name="categories_color_automatic">Color autom\u00e1tico</string>
+    <string name="categories_default_title">Categor\u00eda principal</string>
+    <string name="categories_default_none">Ninguna</string>
+    <string name="categories_default_help">Se elige sola en cada movimiento nuevo</string>
+    <string name="categories_default_change">Cambiar</string>
 
     <!-- Theme Screen -->
     <string name="theme_title">Tema</string>

@@ -224,21 +224,25 @@
     <string name="settings_buy_coffee">Buy Me a Coffee</string>
     <string name="settings_buy_coffee_subtitle">Support the development!</string>
 
-    <!-- General Settings Screen -->
-
     <!-- Categories Screen -->
     <string name="categories_title">Categories</string>
-    <string name="categories_add">Add Category</string>
     <string name="categories_no_categories">No categories yet</string>
     <string name="categories_tap_to_create">Tap + to create your first category</string>
     <string name="categories_delete_title">Delete Category</string>
     <string name="categories_delete_message">Are you sure you want to delete \"%1$s\"? Movements with this category will not be deleted.</string>
-    <string name="categories_edit_title">Edit Category</string>
-    <string name="categories_add_title">Add Category</string>
+    <string name="categories_edit_title">Edit category</string>
     <string name="categories_save_failed">Couldn\'t save the category</string>
     <string name="categories_delete_failed">Couldn\'t delete the category</string>
     <string name="categories_name_label">Name</string>
     <string name="categories_icon_label">Icon</string>
+    <string name="categories_new">New category</string>
+    <string name="categories_create">Create</string>
+    <string name="categories_color_label">Color</string>
+    <string name="categories_color_automatic">Automatic color</string>
+    <string name="categories_default_title">Default category</string>
+    <string name="categories_default_none">None</string>
+    <string name="categories_default_help">Selected automatically on every new movement</string>
+    <string name="categories_default_change">Change</string>
 
     <!-- Theme Screen -->
     <string name="theme_title">Theme</string>
