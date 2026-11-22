@@ -68,12 +68,10 @@
     <string name="loan_new_title">New Loan</string>
     <string name="loan_name_label">Loan Name *</string>
     <string name="loan_name_placeholder">e.g. Car loan, Mortgage</string>
-    <string name="loan_description_label">Description (Optional)</string>
     <string name="loan_total_amount_label">Total Amount *</string>
     <string name="loan_installments_label">Installments *</string>
     <string name="loan_each_installment">Each installment: %1$s (%2$s)</string>
     <string name="loan_start_date">Start Date</string>
-    <string name="loan_type_label">Type</string>
     <string name="loan_delete_title">Delete Loan</string>
     <string name="loan_delete_message">This will also delete the loan\'s disbursement and all its payments. This cannot be undone.</string>
     <string name="loan_currency_from_account">Currency: %1$s, set by the account.</string>
@@ -86,28 +84,19 @@
     <string name="loan_delete_button">Delete Loan</string>
 
     <!-- Loan Card -->
-    <string name="loan_paid_progress">%1$d/%2$d paid</string>
-    <string name="loan_due_date">Due: %1$s</string>
 
     <!-- Loan Detail Screen -->
     <string name="loan_detail_title">Loan Detail</string>
     <string name="loan_detail_edit">Edit Loan</string>
     <string name="loan_not_found">Loan not found</string>
-    <string name="loan_summary">Loan Summary</string>
     <string name="loan_total_amount">Total Amount</string>
-    <string name="loan_per_installment">Per Installment</string>
-    <string name="loan_amount_paid">Amount Paid</string>
-    <string name="loan_progress">Progress</string>
     <string name="loan_next_payment">Next Payment</string>
     <string name="loan_detail_start_date">Start Date</string>
     <string name="loan_installments_section">Installments</string>
     <string name="loan_installment_number">Installment #%1$d</string>
-    <string name="loan_mark_as_unpaid">Mark as unpaid</string>
     <string name="loan_mark_as_paid">Mark as paid</string>
     <string name="loan_total_paid">Total Paid</string>
-    <string name="loan_remaining">Remaining</string>
     <string name="loan_overdue">Overdue</string>
-    <string name="loan_incoming_payment">Incoming</string>
     <string name="loan_status_active">Active</string>
     <string name="loan_status_paid">Paid</string>
 
@@ -125,10 +114,7 @@
     <string name="transactions_filter_recurring_only">Recurring Only</string>
 
     <!-- Loans Screen -->
-    <string name="loans_title">Loans</string>
     <string name="loans_no_loans">No loans yet</string>
-    <string name="loans_tap_to_add">Tap + to add a loan</string>
-    <string name="loans_filter_category">Category</string>
     <string name="transactions_filter_category">Category</string>
     <string name="transactions_filter_lowest">Lowest</string>
 
@@ -460,8 +446,6 @@
     <string name="loan_total_collected">Total Collected</string>
     <string name="loan_row_next">%1$s · next %2$s</string>
     <string name="loan_row_overdue">%1$s · overdue since %2$s</string>
-    <string name="loans_summary_to_pay">You owe</string>
-    <string name="loans_summary_to_collect">Owed to you</string>
     <string name="loan_installment_overdue_since">Overdue since %1$s</string>
     <string name="transaction_settled_expense">Already paid</string>
     <string name="transaction_settled_income">Already received</string>
@@ -698,7 +682,6 @@
     <string name="loan_left_of">%1$s left of %2$s</string>
     <string name="loan_installment_covered">%1$s of %2$s covered</string>
     <string name="loan_installment_paid_label">Paid</string>
-    <string name="loan_account_label">Account</string>
     <string name="action_more">More options</string>
     <string name="loan_of_total">of %1$s</string>
     <string name="account_loans_title">Loans</string>

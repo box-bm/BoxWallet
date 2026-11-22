@@ -64,12 +64,10 @@
     <string name="loan_new_title">Nuevo Pr\u00e9stamo</string>
     <string name="loan_name_label">Nombre del Pr\u00e9stamo *</string>
     <string name="loan_name_placeholder">ej. Pr\u00e9stamo de auto, Hipoteca</string>
-    <string name="loan_description_label">Descripci\u00f3n (Opcional)</string>
     <string name="loan_total_amount_label">Monto Total *</string>
     <string name="loan_installments_label">Cuotas *</string>
     <string name="loan_each_installment">Cada cuota: %1$s (%2$s)</string>
     <string name="loan_start_date">Fecha de Inicio</string>
-    <string name="loan_type_label">Tipo</string>
     <string name="loan_delete_title">Eliminar Pr\u00e9stamo</string>
     <string name="loan_delete_message">Esto también eliminará el desembolso del préstamo y todos sus pagos. Esta acción no se puede deshacer.</string>
     <string name="loan_currency_from_account">Moneda: %1$s, definida por la cuenta.</string>
@@ -82,28 +80,19 @@
     <string name="loan_delete_button">Eliminar Pr\u00e9stamo</string>
 
     <!-- Loan Card -->
-    <string name="loan_paid_progress">%1$d/%2$d pagadas</string>
-    <string name="loan_due_date">Vence: %1$s</string>
 
     <!-- Loan Detail Screen -->
     <string name="loan_detail_title">Detalle del Pr\u00e9stamo</string>
     <string name="loan_detail_edit">Editar Pr\u00e9stamo</string>
     <string name="loan_not_found">Pr\u00e9stamo no encontrado</string>
-    <string name="loan_summary">Resumen del Pr\u00e9stamo</string>
     <string name="loan_total_amount">Monto Total</string>
-    <string name="loan_per_installment">Por Cuota</string>
-    <string name="loan_amount_paid">Monto Pagado</string>
-    <string name="loan_progress">Progreso</string>
     <string name="loan_next_payment">Pr\u00f3ximo Pago</string>
     <string name="loan_detail_start_date">Fecha de Inicio</string>
     <string name="loan_installments_section">Cuotas</string>
     <string name="loan_installment_number">Cuota #%1$d</string>
-    <string name="loan_mark_as_unpaid">Marcar como no pagada</string>
     <string name="loan_mark_as_paid">Marcar como pagada</string>
     <string name="loan_total_paid">Total Pagado</string>
-    <string name="loan_remaining">Restante</string>
     <string name="loan_overdue">Vencida</string>
-    <string name="loan_incoming_payment">Por vencer</string>
     <string name="loan_status_active">Activo</string>
     <string name="loan_status_paid">Pagado</string>
 
@@ -121,10 +110,7 @@
     <string name="transactions_filter_recurring_only">Solo Recurrentes</string>
 
     <!-- Loans Screen -->
-    <string name="loans_title">Pr\u00e9stamos</string>
     <string name="loans_no_loans">A\u00fan no hay pr\u00e9stamos</string>
-    <string name="loans_tap_to_add">Toca + para agregar un pr\u00e9stamo</string>
-    <string name="loans_filter_category">Categor\u00eda</string>
     <string name="transactions_filter_category">Categor\u00eda</string>
     <string name="transactions_filter_lowest">Menor monto</string>
 
@@ -444,8 +430,6 @@
     <string name="loan_total_collected">Total Cobrado</string>
     <string name="loan_row_next">%1$s · próxima %2$s</string>
     <string name="loan_row_overdue">%1$s · vencida desde %2$s</string>
-    <string name="loans_summary_to_pay">Debes</string>
-    <string name="loans_summary_to_collect">Te deben</string>
     <string name="loan_installment_overdue_since">Vencida desde %1$s</string>
     <string name="transaction_settled_expense">Ya pagado</string>
     <string name="transaction_settled_income">Ya recibido</string>
@@ -683,7 +667,6 @@
     <string name="loan_left_of">Faltan %1$s de %2$s</string>
     <string name="loan_installment_covered">%1$s de %2$s cubiertos</string>
     <string name="loan_installment_paid_label">Pagada</string>
-    <string name="loan_account_label">Cuenta</string>
     <string name="action_more">Más opciones</string>
     <string name="loan_of_total">de %1$s</string>
     <string name="account_loans_title">Préstamos</string>

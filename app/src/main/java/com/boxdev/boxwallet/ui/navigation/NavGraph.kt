@@ -255,7 +255,6 @@ fun NavGraph(
             AnalyticsScreen(
                 onNavigateToSearch = onNavigateToSearch,
                 onEditTransaction = onEditTransaction,
-                onOpenLoan = openLoan,
                 onNavigateToLoans = onSeeAllLoans,
                 onNavigateToMovements = { navController.navigateToTab(NavRoutes.TransactionsList.route) },
                 onOpenInstallmentPlan = onOpenInstallmentPlan,

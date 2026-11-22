@@ -141,7 +141,6 @@ import java.util.Locale
 fun AnalyticsScreen(
     onNavigateToSearch: () -> Unit = {},
     onEditTransaction: (Long) -> Unit = {},
-    onOpenLoan: (Long) -> Unit = {},
     onNavigateToLoans: () -> Unit = {},
     onNavigateToMovements: () -> Unit = {},
     onOpenInstallmentPlan: (Long) -> Unit = {},
