@@ -71,7 +71,14 @@
     <string name="loan_start_date">Fecha de Inicio</string>
     <string name="loan_type_label">Tipo</string>
     <string name="loan_delete_title">Eliminar Pr\u00e9stamo</string>
-    <string name="loan_delete_message">Esto tambi\u00e9n eliminar\u00e1 las %1$s cuotas. Esta acci\u00f3n no se puede deshacer.</string>
+    <string name="loan_delete_message">Esto también eliminará el desembolso del préstamo y todos sus pagos. Esta acción no se puede deshacer.</string>
+    <string name="loan_currency_from_account">Moneda: %1$s, definida por la cuenta.</string>
+    <string name="loan_plan_switch">Pagos en cuotas</string>
+    <string name="loan_plan_switch_supporting">Divídelo en cuotas programadas</string>
+    <string name="loan_first_due">Primera cuota</string>
+    <string name="loan_expected_date">Fecha esperada</string>
+    <string name="loan_expected_date_none">Sin fecha</string>
+    <string name="loan_expected_date_clear">Quitar fecha esperada</string>
     <string name="loan_delete_button">Eliminar Pr\u00e9stamo</string>
 
     <!-- Loan Card -->
@@ -483,9 +490,6 @@
     <string name="conversion_use_automatic">Usar tasa automática</string>
     <string name="conversion_needs_rate">Ingresa la tasa de cambio</string>
     <string name="conversion_needs_rate_explanation">No hay una tasa disponible para esta moneda y fecha.</string>
-    <string name="loan_currency_locked">La moneda no se puede cambiar una vez pagada una cuota.</string>
-    <string name="loan_currency_locked_description">Moneda: %1$s. Bloqueada porque ya hay una cuota pagada.</string>
-    <string name="loan_missing_rate">No hay tasa de cambio para %1$s. Conéctate a internet e inténtalo de nuevo.</string>
     <string name="transaction_error_invalid_amount">Ingresa un monto válido</string>
     <string name="transaction_error_account_loading">Todavía se está cargando la cuenta. Inténtalo de nuevo en un momento.</string>
     <string name="transaction_error_not_found">Este movimiento ya no existe.</string>

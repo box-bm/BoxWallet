@@ -12,7 +12,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.EventRepeat
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
@@ -45,13 +49,16 @@ import com.boxdev.boxwallet.R
 import com.boxdev.boxwallet.domain.model.LoanType
 import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.domain.money.CurrencyCatalog
-import com.boxdev.boxwallet.domain.money.pickerSections
 import com.boxdev.boxwallet.ui.components.AmountField
-import com.boxdev.boxwallet.ui.components.CategoryPicker
 import com.boxdev.boxwallet.ui.components.ConfirmDeleteDialog
 import com.boxdev.boxwallet.ui.components.ConnectedChoiceRow
-import com.boxdev.boxwallet.ui.components.CurrencyPickerSheet
+import com.boxdev.boxwallet.util.DateFormats
 import com.boxdev.boxwallet.ui.components.DateRow
+import com.boxdev.boxwallet.ui.components.LocalDateDialog
+import com.boxdev.boxwallet.ui.components.SwitchRow
+import com.boxdev.boxwallet.ui.components.ValueRow
+import com.boxdev.boxwallet.ui.screens.transaction.AccountChip
+import com.boxdev.boxwallet.ui.screens.transaction.AccountPickerSheet
 import com.boxdev.boxwallet.ui.components.DateTimePickerDialogs
 import com.boxdev.boxwallet.ui.components.FullScreenForm
 import com.boxdev.boxwallet.ui.components.MenuRow
@@ -119,7 +126,7 @@ fun LoanFormScreen(
     if (showDeleteDialog) {
         ConfirmDeleteDialog(
             title = stringResource(R.string.loan_delete_title),
-            message = stringResource(R.string.loan_delete_message, formState.installments),
+            message = stringResource(R.string.loan_delete_message),
             onConfirm = viewModel::delete,
             onDismiss = { showDeleteDialog = false }
         )
@@ -139,18 +146,18 @@ private fun LoanFormErrorText(message: String) {
     )
 }
 
-/** The loan form's fields plus the pickers they open (currency sheet, date/time dialogs). */
+/** The loan form's fields plus the pickers they open (account sheet, date/time dialogs). */
 @Composable
 private fun LoanFormFields(
     viewModel: LoanFormViewModel,
     modifier: Modifier = Modifier,
 ) {
     val formState by viewModel.formState.collectAsState()
-    val categories by viewModel.categories.collectAsState()
     val pickers = rememberDateTimePickerState()
     val formatter = rememberCurrencyFormatter()
-    val recentCurrencies by viewModel.recentCurrencies.collectAsState()
-    var showCurrencyPicker by remember { mutableStateOf(false) }
+    var showAccountPicker by remember { mutableStateOf(false) }
+    var showFirstDuePicker by remember { mutableStateOf(false) }
+    var showExpectedPicker by remember { mutableStateOf(false) }
     val locale = remember { Locale.getDefault() }
 
     Column(
@@ -175,29 +182,18 @@ private fun LoanFormFields(
             isError = formState.error != null && formState.totalAmount.isEmpty(),
             autoFocus = !formState.isEditing,
             currencyCode = formState.currency.currencyCode,
-            onCurrencyClick = { showCurrencyPicker = true },
-            currencyEnabled = !formState.currencyLocked,
+            // The currency is the account's: shown, never picked.
+            onCurrencyClick = {},
+            currencyEnabled = false,
             currencyDisabledDescription = stringResource(
-                R.string.loan_currency_locked_description,
+                R.string.loan_currency_from_account,
                 formState.currency.currencyCode,
             ),
+            // With a single account there is nothing to choose: no chip.
+            accountChip = if (formState.accounts.size > 1) {
+                { AccountChip(formState.account, formState.accounts) { showAccountPicker = true } }
+            } else null,
         )
-        if (formState.currencyLocked) {
-            Text(
-                stringResource(R.string.loan_currency_locked),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 4.dp),
-            )
-        }
-        formState.missingRateCurrency?.let { missing ->
-            Text(
-                stringResource(R.string.loan_missing_rate, missing.currencyCode),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(horizontal = 4.dp),
-            )
-        }
 
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedTextField(
@@ -219,92 +215,137 @@ private fun LoanFormFields(
             )
         }
 
-        CategoryPicker(
-            categories = categories,
-            selectedCategoryId = formState.categoryId,
-            onCategorySelected = viewModel::updateCategory,
-        )
+        OptionGroup {
+            DateRow(groupShape(0, 2), stringResource(R.string.loan_start_date), formState.date, pickers)
+            TimeRow(groupShape(1, 2), formState.date, pickers)
+        }
 
-        // Terms: how many installments, how often, starting when.
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(
-                stringResource(R.string.loan_terms),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 4.dp),
+        OptionGroup {
+            SwitchRow(
+                shape = groupShape(0, 1),
+                icon = Icons.Outlined.EventRepeat,
+                label = stringResource(R.string.loan_plan_switch),
+                checked = formState.hasPlan,
+                onCheckedChange = viewModel::setHasPlan,
+                supporting = stringResource(R.string.loan_plan_switch_supporting),
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = formState.installments,
-                    onValueChange = viewModel::updateInstallments,
-                    label = { Text(stringResource(R.string.loan_installments_label)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    shape = MaterialTheme.shapes.extraLarge,
-                    singleLine = true,
-                    modifier = Modifier.weight(1f),
+        }
+
+        if (formState.hasPlan) {
+            // Terms: how many installments, how often, starting when.
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    stringResource(R.string.loan_terms),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 4.dp),
                 )
-                AnimatedVisibility(
-                    visible = formState.frequency == RecurrenceFrequency.CUSTOM_MONTHS,
-                    modifier = Modifier.weight(1f),
-                ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
-                        value = formState.frequencyInterval,
-                        onValueChange = viewModel::updateFrequencyInterval,
-                        label = { Text(stringResource(R.string.transaction_every_n_months)) },
+                        value = formState.installments,
+                        onValueChange = viewModel::updateInstallments,
+                        label = { Text(stringResource(R.string.loan_installments_label)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         shape = MaterialTheme.shapes.extraLarge,
                         singleLine = true,
+                        modifier = Modifier.weight(1f),
+                    )
+                    AnimatedVisibility(
+                        visible = formState.frequency == RecurrenceFrequency.CUSTOM_MONTHS,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        OutlinedTextField(
+                            value = formState.frequencyInterval,
+                            onValueChange = viewModel::updateFrequencyInterval,
+                            label = { Text(stringResource(R.string.transaction_every_n_months)) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            shape = MaterialTheme.shapes.extraLarge,
+                            singleLine = true,
+                        )
+                    }
+                }
+                OptionGroup {
+                    MenuRow(
+                        shape = groupShape(0, 2),
+                        icon = Icons.Outlined.EventRepeat,
+                        label = stringResource(R.string.transaction_frequency_label),
+                        value = stringResource(formState.frequency.displayNameRes),
+                        options = RecurrenceFrequency.entries,
+                        optionLabel = { stringResource(it.displayNameRes) },
+                        onSelect = viewModel::updateFrequency,
+                    )
+                    ValueRow(
+                        groupShape(1, 2),
+                        Icons.Outlined.CalendarMonth,
+                        stringResource(R.string.loan_first_due),
+                        formState.firstDueDate.format(DateFormats.mediumDate),
+                        onClick = { showFirstDuePicker = true },
                     )
                 }
+                formState.installmentAmount?.let { amount ->
+                    Surface(
+                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                        shape = MaterialTheme.shapes.extraLarge,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            text = stringResource(
+                                R.string.loan_each_installment,
+                                formatter.format(amount),
+                                stringResource(formState.frequency.displayNameRes),
+                            ),
+                            style = MaterialTheme.typography.titleSmall,
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+                        )
+                    }
+                }
             }
-            OptionGroup {
-                MenuRow(
-                    shape = groupShape(0, 3),
-                    icon = Icons.Outlined.EventRepeat,
-                    label = stringResource(R.string.transaction_frequency_label),
-                    value = stringResource(formState.frequency.displayNameRes),
-                    options = RecurrenceFrequency.entries,
-                    optionLabel = { stringResource(it.displayNameRes) },
-                    onSelect = viewModel::updateFrequency,
-                )
-                DateRow(groupShape(1, 3), stringResource(R.string.loan_start_date), formState.startDate, pickers)
-                TimeRow(groupShape(2, 3), formState.startDate, pickers)
-            }
-            formState.installmentAmount?.let { amount ->
-                Surface(
-                    color = MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                    shape = MaterialTheme.shapes.extraLarge,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(
-                        text = stringResource(
-                            R.string.loan_each_installment,
-                            formatter.format(amount),
-                            stringResource(formState.frequency.displayNameRes),
-                        ),
-                        style = MaterialTheme.typography.titleSmall,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
-                    )
+        } else {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f)) {
+                    OptionGroup {
+                        ValueRow(
+                            groupShape(0, 1),
+                            Icons.Outlined.CalendarMonth,
+                            stringResource(R.string.loan_expected_date),
+                            formState.expectedDate?.format(DateFormats.mediumDate)
+                                ?: stringResource(R.string.loan_expected_date_none),
+                            onClick = { showExpectedPicker = true },
+                        )
+                    }
+                }
+                if (formState.expectedDate != null) {
+                    IconButton(onClick = { viewModel.updateExpectedDate(null) }) {
+                        Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.loan_expected_date_clear))
+                    }
                 }
             }
         }
     }
 
-    if (showCurrencyPicker) {
-        var query by remember { mutableStateOf("") }
-        val allCurrencies = remember(locale) { CurrencyCatalog.all(locale) }
-        val sections = remember(query, recentCurrencies, allCurrencies) {
-            pickerSections(allCurrencies, recentCurrencies, query, locale)
-        }
-        CurrencyPickerSheet(
-            selected = formState.currency,
-            sections = sections,
-            onQuery = { query = it },
-            onPick = { viewModel.updateCurrency(it); showCurrencyPicker = false },
-            onDismiss = { showCurrencyPicker = false },
+    if (showAccountPicker) {
+        AccountPickerSheet(
+            accounts = formState.accounts,
+            selectedId = formState.accountId,
+            onPick = { viewModel.setAccount(it); showAccountPicker = false },
+            onDismiss = { showAccountPicker = false },
+        )
+    }
+    if (showFirstDuePicker) {
+        LocalDateDialog(
+            initial = formState.firstDueDate,
+            onPick = viewModel::updateFirstDueDate,
+            onDismiss = { showFirstDuePicker = false },
+        )
+    }
+    if (showExpectedPicker) {
+        LocalDateDialog(
+            initial = formState.expectedDate ?: formState.date.toLocalDate(),
+            onPick = viewModel::updateExpectedDate,
+            onDismiss = { showExpectedPicker = false },
         )
     }
 
-    DateTimePickerDialogs(pickers, formState.startDate, viewModel::updateStartDate, viewModel::updateTime)
+    DateTimePickerDialogs(pickers, formState.date, viewModel::updateDate, viewModel::updateTime)
 }

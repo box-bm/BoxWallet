@@ -7,9 +7,7 @@ import java.time.LocalDate
 import androidx.lifecycle.SavedStateHandle
 import com.boxdev.boxwallet.analytics.AnalyticsHelper
 import com.boxdev.boxwallet.data.repository.AccountRepository
-import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.LoanRepository
-import com.boxdev.boxwallet.data.repository.TransactionRepository
 import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.AccountType
 import com.boxdev.boxwallet.domain.model.Loan
@@ -24,12 +22,15 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -42,21 +43,25 @@ class LoanFormViewModelTest {
     private val usd = Currency.getInstance("USD")
     private val loanRepository = mock<LoanRepository>()
     private val accountRepository = mock<AccountRepository>()
-    private val categoryRepository = mock<CategoryRepository>()
-    private val transactionRepository = mock<TransactionRepository>()
     private val analytics = mock<AnalyticsHelper>()
+
+    private val eur = Currency.getInstance("EUR")
+    private val cash = Account(id = 1, name = "Cash", type = AccountType.CASH, currency = usd, createdAt = 0)
+    private val savings = Account(id = 2, name = "Savings", type = AccountType.SAVINGS, currency = usd, createdAt = 0)
+    private val euros = Account(id = 3, name = "Euros", type = AccountType.CHECKING, currency = eur, createdAt = 0)
+    private val card = Account(id = 4, name = "Card", type = AccountType.CREDIT_CARD, currency = usd, createdAt = 0)
+    private val old = Account(id = 5, name = "Old", type = AccountType.CASH, currency = usd, isArchived = true, createdAt = 0)
+    private var accounts = listOf(cash, savings, euros, card, old)
 
     @Before
     fun setUp() = runTest {
         Dispatchers.setMain(StandardTestDispatcher())
-        whenever(categoryRepository.getAllCategories()).thenReturn(flowOf(emptyList()))
-        whenever(transactionRepository.recentCurrencies()).thenReturn(flowOf(emptyList()))
-        whenever(accountRepository.defaultAccount())
-            .thenReturn(Account(id = 1, name = "Cash", type = AccountType.CASH, currency = usd, createdAt = 0))
+        whenever(accountRepository.observeAll()).thenReturn(flowOf(accounts))
+        whenever(accountRepository.defaultAccount()).thenReturn(cash)
         whenever(loanRepository.get(7L)).thenReturn(
             Loan(id = 7, name = "Car", loanType = LoanType.EXPENSE, total = Money(100_00, usd), accountId = 1,
                 date = LocalDateTime.of(2026, 1, 1, 0, 0),
-                plan = LoanPlan(10, RecurrenceFrequency.MONTHLY, 1, LocalDate.of(2026, 1, 1))),
+                plan = LoanPlan(10, RecurrenceFrequency.MONTHLY, 1, LocalDate.of(2026, 3, 15))),
         )
     }
 
@@ -64,7 +69,7 @@ class LoanFormViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     private fun vm(args: Map<String, Any?>) = LoanFormViewModel(
-        SavedStateHandle(args), loanRepository, categoryRepository, accountRepository, transactionRepository, analytics,
+        SavedStateHandle(args), loanRepository, accountRepository, analytics,
     )
 
     @Test
@@ -79,9 +84,122 @@ class LoanFormViewModelTest {
     fun withoutAnIdStartsANewLoan() = runTest {
         val vm = vm(emptyMap())
         advanceUntilIdle()
-        verify(accountRepository).defaultAccount()
         assertFalse(vm.formState.value.isEditing)
         assertFalse(vm.formState.value.isLoading)
+    }
+
+    @Test
+    fun `account from the route is preselected`() = runTest {
+        val vm = vm(mapOf("accountId" to 2L))
+        advanceUntilIdle()
+        assertEquals(2L, vm.formState.value.accountId)
+    }
+
+    @Test
+    fun `a card or archived route account is not preselected`() = runTest {
+        assertEquals(1L, vm(mapOf("accountId" to 4L)).also { advanceUntilIdle() }.formState.value.accountId)
+        assertEquals(1L, vm(mapOf("accountId" to 5L)).also { advanceUntilIdle() }.formState.value.accountId)
+    }
+
+    @Test
+    fun `cards and archived accounts are not offered`() = runTest {
+        val vm = vm(emptyMap())
+        advanceUntilIdle()
+        assertEquals(listOf(1L, 2L, 3L), vm.formState.value.accounts.map { it.id })
+    }
+
+    @Test
+    fun `when editing, only accounts in the loan currency are offered`() = runTest {
+        val vm = vm(mapOf("id" to 7L))
+        advanceUntilIdle()
+        assertEquals(listOf(1L, 2L), vm.formState.value.accounts.map { it.id })
+    }
+
+    @Test
+    fun `editing keeps an archived account the loan already uses`() = runTest {
+        whenever(loanRepository.get(8L)).thenReturn(
+            Loan(id = 8, name = "Old", loanType = LoanType.EXPENSE, total = Money(100_00, usd), accountId = 5,
+                date = LocalDateTime.of(2026, 1, 1, 0, 0)),
+        )
+        val vm = vm(mapOf("id" to 8L))
+        advanceUntilIdle()
+        assertEquals(listOf(1L, 2L, 5L), vm.formState.value.accounts.map { it.id })
+        assertEquals(5L, vm.formState.value.accountId)
+    }
+
+    @Test
+    fun `new loan defaults to the default account unless it is a card, then the first usable one`() = runTest {
+        whenever(accountRepository.defaultAccount()).thenReturn(savings)
+        assertEquals(2L, vm(emptyMap()).also { advanceUntilIdle() }.formState.value.accountId)
+        whenever(accountRepository.defaultAccount()).thenReturn(card)
+        assertEquals(1L, vm(emptyMap()).also { advanceUntilIdle() }.formState.value.accountId)
+    }
+
+    @Test
+    fun `turning the plan on defaults the first due to one period after the disbursement`() = runTest {
+        val vm = vm(emptyMap())
+        advanceUntilIdle()
+        vm.updateDate(LocalDateTime.of(2026, 3, 31, 9, 0))
+        vm.setHasPlan(true)
+        assertEquals(LocalDate.of(2026, 4, 30), vm.formState.value.firstDueDate)
+    }
+
+    @Test
+    fun `saving without a plan stores the expected date and no plan`() = runTest {
+        val vm = vm(emptyMap())
+        advanceUntilIdle()
+        vm.updateName("Ana")
+        vm.updateTotalAmount("50")
+        vm.updateExpectedDate(LocalDate.of(2027, 1, 1))
+        vm.save()
+        advanceUntilIdle()
+        val captor = argumentCaptor<Loan>()
+        verify(loanRepository).create(captor.capture())
+        assertNull(captor.firstValue.plan)
+        assertEquals(LocalDate.of(2027, 1, 1), captor.firstValue.expectedDate)
+        assertEquals(1L, captor.firstValue.accountId)
+    }
+
+    @Test
+    fun `saving with a plan drops the expected date`() = runTest {
+        val vm = vm(emptyMap())
+        advanceUntilIdle()
+        vm.updateName("Ana")
+        vm.updateTotalAmount("50")
+        vm.updateExpectedDate(LocalDate.of(2027, 1, 1))
+        vm.setHasPlan(true)
+        vm.updateInstallments("5")
+        vm.save()
+        advanceUntilIdle()
+        val captor = argumentCaptor<Loan>()
+        verify(loanRepository).create(captor.capture())
+        assertEquals(5, captor.firstValue.plan?.installments)
+        assertNull(captor.firstValue.expectedDate)
+    }
+
+    @Test
+    fun `editing carries over the stored first due and expected dates`() = runTest {
+        val vm = vm(mapOf("id" to 7L))
+        advanceUntilIdle()
+        vm.updateName("Car 2")
+        vm.save()
+        advanceUntilIdle()
+        val captor = argumentCaptor<Loan>()
+        verify(loanRepository).update(captor.capture())
+        assertEquals(LocalDate.of(2026, 3, 15), captor.firstValue.plan?.firstDue)
+    }
+
+    @Test
+    fun `a repository refusal becomes a form error`() = runTest {
+        whenever(loanRepository.create(any())).thenThrow(IllegalArgumentException("nope"))
+        val vm = vm(emptyMap())
+        advanceUntilIdle()
+        vm.updateName("Ana")
+        vm.updateTotalAmount("50")
+        vm.save()
+        advanceUntilIdle()
+        assertEquals("nope", vm.formState.value.error)
+        assertFalse(vm.formState.value.isSaved)
     }
 
     @Test
@@ -99,7 +217,6 @@ class LoanFormViewModelTest {
     fun theNavHostDefaultIdStartsANewLoan() = runTest {
         val vm = vm(mapOf("id" to -1L))
         advanceUntilIdle()
-        verify(accountRepository).defaultAccount()
         verify(loanRepository, never()).get(any())
         assertFalse(vm.formState.value.isEditing)
         assertFalse(vm.formState.value.isLoading)

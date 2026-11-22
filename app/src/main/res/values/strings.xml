@@ -75,7 +75,14 @@
     <string name="loan_start_date">Start Date</string>
     <string name="loan_type_label">Type</string>
     <string name="loan_delete_title">Delete Loan</string>
-    <string name="loan_delete_message">This will also delete all %1$s installments. This cannot be undone.</string>
+    <string name="loan_delete_message">This will also delete the loan\'s disbursement and all its payments. This cannot be undone.</string>
+    <string name="loan_currency_from_account">Currency: %1$s, set by the account.</string>
+    <string name="loan_plan_switch">Pay in installments</string>
+    <string name="loan_plan_switch_supporting">Split it into scheduled installments</string>
+    <string name="loan_first_due">First installment</string>
+    <string name="loan_expected_date">Expected date</string>
+    <string name="loan_expected_date_none">None</string>
+    <string name="loan_expected_date_clear">Clear expected date</string>
     <string name="loan_delete_button">Delete Loan</string>
 
     <!-- Loan Card -->
@@ -496,9 +503,6 @@
     <string name="conversion_use_automatic">Use automatic rate</string>
     <string name="conversion_needs_rate">Enter the exchange rate</string>
     <string name="conversion_needs_rate_explanation">There is no rate available for this currency and date.</string>
-    <string name="loan_currency_locked">Currency cannot change once an installment is paid.</string>
-    <string name="loan_currency_locked_description">Currency: %1$s. Locked because an installment is already paid.</string>
-    <string name="loan_missing_rate">No exchange rate available for %1$s. Connect to the internet and try again.</string>
     <string name="transaction_error_invalid_amount">Enter a valid amount</string>
     <string name="transaction_error_account_loading">Still loading the account. Try again in a moment.</string>
     <string name="transaction_error_not_found">This movement no longer exists.</string>

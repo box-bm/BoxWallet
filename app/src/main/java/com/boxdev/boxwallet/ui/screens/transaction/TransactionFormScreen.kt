@@ -376,7 +376,7 @@ private fun TransactionFormFields(
 
 /** The movement's account as a quiet button beside the currency: its icon and [accountLabel]. */
 @Composable
-private fun AccountChip(account: Account?, accounts: List<Account>, onClick: () -> Unit) {
+internal fun AccountChip(account: Account?, accounts: List<Account>, onClick: () -> Unit) {
     val name = account?.let { a -> accountLabel(a, accounts.firstOrNull { it.id == a.parentAccountId }) }
         ?: stringResource(R.string.transaction_account_label)
     val description = stringResource(R.string.transaction_account_chip_description, name)

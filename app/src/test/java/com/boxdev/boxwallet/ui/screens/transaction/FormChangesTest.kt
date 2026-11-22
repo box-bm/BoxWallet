@@ -58,7 +58,11 @@ class FormChangesTest {
     fun editedLoanNameDiffers() {
         val initial = LoanFormState(name = "Car")
         assertTrue(initial.copy(name = "Bike").differsFrom(initial))
-        assertTrue(initial.copy(installments = "3").differsFrom(initial))
+        assertTrue(initial.copy(accountId = 2).differsFrom(initial))
+        assertTrue(initial.copy(expectedDate = java.time.LocalDate.of(2027, 1, 1)).differsFrom(initial))
+        val withPlan = initial.copy(hasPlan = true, installments = "6")
+        assertTrue(withPlan.copy(installments = "3").differsFrom(withPlan))
+        assertFalse(initial.copy(installments = "3").differsFrom(initial))
     }
 
     @Test
@@ -66,7 +70,6 @@ class FormChangesTest {
         val initial = LoanFormState(name = "Car")
         assertFalse(initial.copy(isLoading = true).differsFrom(initial))
         assertFalse(initial.copy(error = "boom").differsFrom(initial))
-        assertFalse(initial.copy(paidInstallments = 2).differsFrom(initial))
         assertFalse(initial.copy(isSaved = true).differsFrom(initial))
     }
 
