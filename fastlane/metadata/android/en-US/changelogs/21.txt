@@ -1,0 +1,9 @@
+• Category sheet with color and icon, and a default category card
+• Pick the default category from Categories and apply it to new movements
+• Give categories their own color
+• Loans block in reports and active loans on home
+• Show an account's loans in its detail
+• Loan detail with installments, payments and free top-ups
+• Loan form with account, optional installments and expected date
+• Drop the Loans tab and open loans as their own screens
+• …
