@@ -288,6 +288,18 @@ class AccountDetailViewModelTest {
     }
 
     @Test
+    fun `a loan payment in the account has its loan's direction`() = runTest {
+        val id = loan(banco, "Ana", 100_00)
+        val paymentId = loans.addPayment(id, Money(20_00, gtq), LocalDate.now().atTime(10, 0))
+
+        val state = vm(banco).uiState.first { !it.isLoading && it.movements.any { m -> m.id == paymentId } }
+
+        val payment = state.movements.single { it.id == paymentId }
+        assertEquals(TransactionType.LOAN_IN, payment.type)
+        assertEquals(com.boxdev.boxwallet.domain.model.LoanType.INCOME, state.loanTypes[payment.loanId])
+    }
+
+    @Test
     fun `cards have no loans section`() = runTest {
         val state = vm(card).uiState.first { !it.isLoading && it.card != null }
 

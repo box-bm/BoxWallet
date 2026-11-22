@@ -687,7 +687,6 @@
     <string name="loan_record_payment">Record payment</string>
     <string name="loan_payments_section">Payments</string>
     <string name="loan_payments_empty">No payments yet</string>
-    <string name="loan_left_of">%1$s left of %2$s</string>
     <string name="loan_installment_covered">%1$s of %2$s covered</string>
     <string name="loan_installment_paid_label">Paid</string>
     <string name="action_more">More options</string>

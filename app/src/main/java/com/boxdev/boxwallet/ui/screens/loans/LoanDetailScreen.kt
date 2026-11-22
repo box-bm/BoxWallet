@@ -35,6 +35,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
@@ -57,6 +58,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -339,7 +341,7 @@ private fun LoanHero(loan: Loan, accountName: String?) {
                     )
                     if (!loan.isSettled) LoanEquivalentText(loan)
                     Text(
-                        stringResource(R.string.loan_left_of, formatter.format(loan.remaining), formatter.format(loan.total)),
+                        stringResource(R.string.loan_of_total, formatter.format(loan.total)),
                         style = MaterialTheme.typography.titleSmall,
                         color = status.accent(),
                     )
@@ -420,9 +422,9 @@ private fun InstallmentRow(
     val formatter = rememberCurrencyFormatter()
     val date = installment.due.format(DateFormats.mediumDate)
     val overdue = installment.state == InstallmentState.OVERDUE
-    SegmentedListItem(
-        onClick = {},
-        shapes = segmentShapes(index = index, count = count),
+    // Not clickable: only "Mark as paid" acts, so the row has no ripple.
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.loan_installment_number, installment.number)) },
         colors = ListItemDefaults.colors(
             containerColor = when {
                 overdue -> MaterialTheme.colorScheme.errorContainer
@@ -475,10 +477,10 @@ private fun InstallmentRow(
                 }
             }
         },
-        modifier = Modifier.padding(bottom = ListItemDefaults.SegmentedGap),
-    ) {
-        Text(stringResource(R.string.loan_installment_number, installment.number))
-    }
+        modifier = Modifier
+            .padding(bottom = ListItemDefaults.SegmentedGap)
+            .clip(segmentShapes(index = index, count = count).shape),
+    )
 }
 
 /** A payment of the loan; tapping it opens the sheet to edit or delete it. */

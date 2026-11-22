@@ -672,7 +672,6 @@
     <string name="loan_record_payment">Registrar abono</string>
     <string name="loan_payments_section">Pagos</string>
     <string name="loan_payments_empty">Aún no hay pagos</string>
-    <string name="loan_left_of">Faltan %1$s de %2$s</string>
     <string name="loan_installment_covered">%1$s de %2$s cubiertos</string>
     <string name="loan_installment_paid_label">Pagada</string>
     <string name="action_more">Más opciones</string>

@@ -7,6 +7,7 @@ import com.boxdev.boxwallet.data.local.dao.LoanDao
 import com.boxdev.boxwallet.data.local.dao.LoanWithTotals
 import com.boxdev.boxwallet.data.local.dao.TransactionDao
 import com.boxdev.boxwallet.data.local.database.BoxWalletDatabase
+import com.boxdev.boxwallet.data.local.entity.TransactionEntity
 import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.data.rates.MovementWriteGuard
 import com.boxdev.boxwallet.domain.model.AccountType
@@ -56,27 +57,23 @@ class LoanRepository @Inject constructor(
     suspend fun get(id: Long): Loan? = observe(id).first()
 
     /** The disbursement and every payment, oldest first. */
-    fun observeMovements(loanId: Long): Flow<List<Transaction>> = combine(
-        loanDao.getMovements(loanId),
-        accountDao.observeAll(),
-        userPreferences.mainCurrency,
-    ) { rows, accounts, main ->
-        val currencies = accounts.associate { it.id to Currency.getInstance(it.currencyCode) }
-        rows.map { it.toDomain(currencies[it.accountId] ?: main, main) }
-    }
+    fun observeMovements(loanId: Long): Flow<List<Transaction>> = withCurrencies(loanDao.getMovements(loanId))
 
     /** Every loan movement dated from [start] to [end] inclusive, oldest first. */
     fun observeMovementsBetween(start: LocalDate, end: LocalDate): Flow<List<Transaction>> {
         val startMillis = start.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
         val endMillis = end.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
-        return combine(
-            transactionDao.getLoanMovementsBetweenDates(startMillis, endMillis),
-            accountDao.observeAll(),
-            userPreferences.mainCurrency,
-        ) { rows, accounts, main ->
-            val currencies = accounts.associate { it.id to Currency.getInstance(it.currencyCode) }
-            rows.map { it.toDomain(currencies[it.accountId] ?: main, main) }
-        }
+        return withCurrencies(transactionDao.getLoanMovementsBetweenDates(startMillis, endMillis))
+    }
+
+    /** Maps stored [rows] to movements, each in its account's currency. */
+    private fun withCurrencies(rows: Flow<List<TransactionEntity>>): Flow<List<Transaction>> = combine(
+        rows,
+        accountDao.observeAll(),
+        userPreferences.mainCurrency,
+    ) { entities, accounts, main ->
+        val currencies = accounts.associate { it.id to Currency.getInstance(it.currencyCode) }
+        entities.map { it.toDomain(currencies[it.accountId] ?: main, main) }
     }
 
     /** Saves [loan] and its disbursement; returns the loan's id. A missing rate saves nothing. */
@@ -150,7 +147,8 @@ class LoanRepository @Inject constructor(
     suspend fun deletePayment(paymentId: Long): Unit = database.withTransaction {
         val row = transactionDao.getById(paymentId)?.takeIf { it.loanId != null }
             ?: throw IllegalArgumentException("Movement $paymentId is not a loan payment")
-        val loan = loanDao.getById(row.loanId!!)!!.toDomain(paidMinor = 0, remainingMainMinor = 0)
+        val loan = row.loanId?.let { loanDao.getById(it) }?.toDomain(paidMinor = 0, remainingMainMinor = 0)
+            ?: throw IllegalArgumentException("Loan of movement $paymentId does not exist")
         require(row.type == loan.paymentType.name) { "The disbursement goes only with its loan" }
         transactionDao.deleteById(paymentId)
     }

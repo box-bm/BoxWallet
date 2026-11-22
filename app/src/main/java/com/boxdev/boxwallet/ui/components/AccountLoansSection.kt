@@ -31,6 +31,8 @@ import com.boxdev.boxwallet.domain.model.Loan
  */
 @Composable
 fun AccountLoansSection(
+    /** Keys the "show settled" choice, so another account's detail starts folded. */
+    accountId: Long,
     active: List<Loan>,
     settled: List<Loan>,
     onOpenLoan: (Long) -> Unit,
@@ -38,7 +40,7 @@ fun AccountLoansSection(
     modifier: Modifier = Modifier,
 ) {
     if (active.isEmpty() && settled.isEmpty() && onNewLoan == null) return
-    var showSettled by rememberSaveable { mutableStateOf(false) }
+    var showSettled by rememberSaveable(accountId) { mutableStateOf(false) }
     val shown = if (showSettled) active + settled else active
     Column(modifier) {
         SectionHeader(

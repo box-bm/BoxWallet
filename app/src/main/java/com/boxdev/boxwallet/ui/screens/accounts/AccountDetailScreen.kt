@@ -306,6 +306,7 @@ private fun AccountDetailContent(
         if (canHaveLoans) {
             item(key = "loans") {
                 AccountLoansSection(
+                    accountId = account.id,
                     active = activeLoans,
                     settled = settledLoans,
                     onOpenLoan = onOpenLoan,
