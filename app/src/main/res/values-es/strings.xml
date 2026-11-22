@@ -217,6 +217,8 @@
     <string name="categories_edit_title">Editar categor\u00eda</string>
     <string name="categories_save_failed">No se pudo guardar la categor\u00eda</string>
     <string name="categories_delete_failed">No se pudo borrar la categor\u00eda</string>
+    <string name="categories_default_failed">No se pudo cambiar la categor\u00eda principal</string>
+    <string name="categories_default_change_description">Cambiar categor\u00eda principal</string>
     <string name="categories_name_label">Nombre</string>
     <string name="categories_icon_label">Icono</string>
     <string name="categories_new">Nueva categor\u00eda</string>
@@ -340,8 +342,6 @@
     <string name="action_clear">Limpiar</string>
     <string name="action_clear_all">Limpiar Todo</string>
     <string name="action_filter">Filtrar</string>
-    <string name="action_none">Ninguno</string>
-    <string name="action_selected">Seleccionado</string>
     <string name="description_optional">Descripci\u00f3n (Opcional)</string>
     <string name="nav_analytics">Reportes</string>
 

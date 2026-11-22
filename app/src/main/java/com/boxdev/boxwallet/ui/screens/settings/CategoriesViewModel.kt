@@ -73,8 +73,10 @@ class CategoriesViewModel @Inject constructor(
     }
 
     fun setDefaultCategory(id: Long?) {
-        viewModelScope.launch { userPreferences.setDefaultCategory(id) }
-        analyticsHelper.logEvent("default_category_changed")
+        run(R.string.categories_default_failed) {
+            userPreferences.setDefaultCategory(id)
+            analyticsHelper.logEvent("default_category_changed")
+        }
     }
 
     fun clearError() = _uiState.update { it.copy(error = null) }

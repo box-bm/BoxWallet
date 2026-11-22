@@ -63,6 +63,38 @@ class CategoriesViewModelTest {
     }
 
     @Test
+    fun `the default category follows a preference change after the view model starts`() = runTest {
+        val vm = vm()
+        advanceUntilIdle()
+        assertNull(vm.uiState.value.defaultCategory)
+        defaultId.value = 2
+        advanceUntilIdle()
+        assertEquals(2L, vm.uiState.value.defaultCategory?.id)
+        defaultId.value = null
+        advanceUntilIdle()
+        assertNull(vm.uiState.value.defaultCategory)
+    }
+
+    @Test
+    fun `picking a default stores it and logs the event`() = runTest {
+        val vm = vm()
+        vm.setDefaultCategory(2)
+        advanceUntilIdle()
+        assertEquals(2L, defaultId.value)
+        verify(analytics).logEvent("default_category_changed")
+    }
+
+    @Test
+    fun `a failing default change shows a localized error and logs nothing`() = runTest {
+        whenever(prefs.setDefaultCategory(anyOrNull())).thenThrow(RuntimeException("boom"))
+        val vm = vm()
+        vm.setDefaultCategory(2)
+        advanceUntilIdle()
+        assertEquals(R.string.categories_default_failed, vm.uiState.value.error)
+        verify(analytics, never()).logEvent("default_category_changed")
+    }
+
+    @Test
     fun `a default id missing from the list shows none`() = runTest {
         defaultId.value = 9
         val vm = vm()

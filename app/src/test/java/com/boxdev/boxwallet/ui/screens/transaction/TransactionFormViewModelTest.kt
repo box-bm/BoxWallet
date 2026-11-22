@@ -29,6 +29,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -128,6 +129,18 @@ class TransactionFormViewModelTest {
         vm.open(3L)
         advanceUntilIdle()
         assertEquals(1L, vm.formState.value.categoryId)
+    }
+
+    @Test
+    fun editingAMovementWithoutCategoryDoesNotTakeTheDefault() = runTest {
+        whenever(userPreferences.defaultCategoryId).thenReturn(flowOf(7L))
+        whenever(categoryRepository.getAllCategories()).thenReturn(flowOf(listOf(Category(id = 7, name = "Food"))))
+        val vm = vm(mapOf("id" to 3L))
+        advanceUntilIdle()
+        vm.open(3L)
+        advanceUntilIdle()
+        assertTrue(vm.formState.value.isEditing)
+        assertNull(vm.formState.value.categoryId)
     }
 
     @Test
