@@ -13,7 +13,6 @@ import com.boxdev.boxwallet.domain.model.FinancialSummary
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.domain.model.toDomain
 import com.boxdev.boxwallet.domain.model.toEntity
-import com.boxdev.boxwallet.domain.money.RateSource
 import com.boxdev.boxwallet.domain.money.TransactionAmounts
 import com.boxdev.boxwallet.util.CurrencyFormatter
 import com.boxdev.boxwallet.util.CurrentDay
@@ -73,21 +72,6 @@ class TransactionRepository @Inject constructor(
         }
         val saved = guard.write { current ->
             current.revalidate(transaction).also { transactionDao.update(it.toEntity()) }
-        }
-        scheduleOrCancelReminder(saved)
-    }
-
-    /**
-     * Marks a loan installment paid or unpaid. On payment its conversion is re-resolved for its
-     * date (the payment date), replacing the estimate made when it was generated; MANUAL is kept.
-     */
-    suspend fun setInstallmentCleared(installment: Transaction, cleared: Boolean) {
-        val saved = guard.write { current ->
-            val updated = current.revalidate(installment).copy(isCleared = cleared)
-            val manual = updated.accountRate.source == RateSource.MANUAL ||
-                updated.mainRate.source == RateSource.MANUAL
-            val converted = if (cleared && !manual) transactionAmounts.refresh(updated) ?: updated else updated
-            converted.also { transactionDao.update(it.toEntity()) }
         }
         scheduleOrCancelReminder(saved)
     }
@@ -164,14 +148,6 @@ class TransactionRepository @Inject constructor(
         }
     }
 
-    /** Loan installments due between [startDate] and [endDate], both inclusive, oldest first. */
-    fun getInstallmentsBetweenDates(startDate: LocalDate, endDate: LocalDate): Flow<List<Transaction>> {
-        val startMillis = startDate.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
-        val endMillis = endDate.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
-        return transactionDao.getInstallmentsBetweenDates(startMillis, endMillis)
-            .toDomain()
-    }
-
     /**
      * Income and expense, all-time and for the current month. Counts what balances count: cleared
      * movements, plus card movements dated up to today whether cleared or not. Follows the day, so the
@@ -202,9 +178,6 @@ class TransactionRepository @Inject constructor(
     fun getUpcomingReminders(): Flow<List<Transaction>> =
         transactionDao.getUpcomingReminders(System.currentTimeMillis())
             .toDomain()
-
-    fun getInstallmentsByLoanId(loanId: Long): Flow<List<Transaction>> =
-        transactionDao.getInstallmentsByLoanIdFlow(loanId).toDomain()
 
     fun getRecurrentTransactions(): Flow<List<Transaction>> =
         transactionDao.getRecurrentTransactions().toDomain()

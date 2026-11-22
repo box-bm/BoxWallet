@@ -103,4 +103,23 @@ class LoanTest {
         )
         assertEquals(LoanTotals(toPay = 7_000, toCollect = 7_000), loans.outstandingTotals())
     }
+
+    @Test
+    fun `a planned loan survives the round trip to its entity`() {
+        val planned = loan(paid = 30_000, remainingMain = 4_000, expectedDate = LocalDate.of(2026, 12, 31))
+            .copy(id = 9, description = "Car", plan = LoanPlan(6, RecurrenceFrequency.WEEKLY, 2, LocalDate.of(2026, 1, 15)))
+
+        val back = planned.toEntity().toDomain(paidMinor = 30_000, remainingMainMinor = 4_000)
+
+        assertEquals(planned, back)
+        assertEquals(LocalDate.of(2026, 1, 15), back.plan?.firstDue)
+        assertEquals(LocalDate.of(2026, 12, 31), back.expectedDate)
+    }
+
+    @Test
+    fun `no installments in the entity means no plan`() {
+        val entity = loan(plan = monthly12).toEntity().copy(totalInstallments = 0)
+
+        assertNull(entity.toDomain(paidMinor = 0, remainingMainMinor = 0).plan)
+    }
 }

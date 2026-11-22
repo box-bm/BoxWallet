@@ -49,7 +49,7 @@ class LoansViewModel @Inject constructor(
     private val _filterState = MutableStateFlow(LoansFilterState())
 
     val uiState: StateFlow<LoansUiState> = combine(
-        loanRepository.getAllLoans(),
+        loanRepository.observeAll(),
         categoryRepository.getAllCategories(),
         _filterState
     ) { loans, categories, filterState ->

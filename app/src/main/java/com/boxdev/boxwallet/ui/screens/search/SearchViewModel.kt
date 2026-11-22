@@ -80,7 +80,7 @@ class SearchViewModel @Inject constructor(
 
     private val index = combine(
         transactionRepository.getAllTransactions(),
-        loanRepository.getAllLoans(),
+        loanRepository.observeAll(),
         categoryRepository.getAllCategories(),
         accountRepository.observeAll(),
         combine(transferRepository.observePairs(), installmentPlanRepository.observeInstallmentCounts(), ::Pair),

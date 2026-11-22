@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.boxdev.boxwallet.analytics.AnalyticsHelper
 import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.LoanRepository
-import com.boxdev.boxwallet.data.repository.TransactionRepository
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Loan
 import com.boxdev.boxwallet.domain.model.Transaction
@@ -19,12 +18,12 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class LoanDetailUiState(
     val loan: Loan? = null,
-    val installments: List<Transaction> = emptyList(),
+    /** The disbursement and payments, oldest first. */
+    val movements: List<Transaction> = emptyList(),
     val category: Category? = null,
     val isLoading: Boolean = true
 )
@@ -33,7 +32,6 @@ data class LoanDetailUiState(
 class LoanDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val loanRepository: LoanRepository,
-    private val transactionRepository: TransactionRepository,
     private val categoryRepository: CategoryRepository,
     private val analyticsHelper: AnalyticsHelper
 ) : ViewModel() {
@@ -48,13 +46,13 @@ class LoanDetailViewModel @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<LoanDetailUiState> = loanId.filterNotNull().flatMapLatest { id ->
         combine(
-            loanRepository.observeLoan(id),
-            transactionRepository.getInstallmentsByLoanId(id),
+            loanRepository.observe(id),
+            loanRepository.observeMovements(id),
             categoryRepository.getAllCategories()
-        ) { loan, installments, categories ->
+        ) { loan, movements, _ ->
             LoanDetailUiState(
                 loan = loan,
-                installments = installments,
+                movements = movements,
                 category = null,
                 isLoading = false
             )
@@ -64,12 +62,4 @@ class LoanDetailViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = LoanDetailUiState()
     )
-
-    fun toggleInstallmentCleared(transaction: Transaction) {
-        viewModelScope.launch {
-            val newCleared = !transaction.isCleared
-            transactionRepository.setInstallmentCleared(transaction, newCleared)
-            analyticsHelper.logEvent("installment_toggled", mapOf("cleared" to newCleared))
-        }
-    }
 }

@@ -145,11 +145,11 @@ fun LoanDetailScreen(
             else -> {
                 val loan = uiState.loan!!
                 val today = remember { LocalDate.now() }
-                val states = remember(uiState.installments, today) {
-                    uiState.installments.associate { it.id to installmentState(it.isCleared, it.date.toLocalDate(), today) }
+                val states = remember(uiState.movements, today) {
+                    uiState.movements.associate { it.id to installmentState(it.isCleared, it.date.toLocalDate(), today) }
                 }
                 // "Next payment" marks the first installment still ahead; overdue ones carry their own state.
-                val nextUnpaidId = uiState.installments.firstOrNull { states[it.id] == InstallmentState.OPEN }?.id
+                val nextUnpaidId = uiState.movements.firstOrNull { states[it.id] == InstallmentState.OPEN }?.id
                 LazyColumn(
                     modifier = Modifier.fillMaxSize().padding(padding),
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp),
@@ -163,14 +163,14 @@ fun LoanDetailScreen(
                             modifier = Modifier.padding(top = 20.dp),
                         )
                     }
-                    itemsIndexed(uiState.installments, key = { _, t -> t.id }) { index, installment ->
+                    itemsIndexed(uiState.movements, key = { _, t -> t.id }) { index, installment ->
                         InstallmentRow(
                             installment = installment,
                             index = index,
-                            count = uiState.installments.size,
+                            count = uiState.movements.size,
                             isNext = installment.id == nextUnpaidId,
                             isOverdue = states[installment.id] == InstallmentState.OVERDUE,
-                            onToggleCleared = { viewModel.toggleInstallmentCleared(installment) },
+                            onToggleCleared = {}, // Installments are computed now; the detail is rebuilt in Task 8.
                         )
                     }
                 }

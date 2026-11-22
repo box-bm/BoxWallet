@@ -53,7 +53,7 @@ class LoanFormViewModelTest {
         whenever(transactionRepository.recentCurrencies()).thenReturn(flowOf(emptyList()))
         whenever(accountRepository.defaultAccount())
             .thenReturn(Account(id = 1, name = "Cash", type = AccountType.CASH, currency = usd, createdAt = 0))
-        whenever(loanRepository.getLoanById(7L)).thenReturn(
+        whenever(loanRepository.get(7L)).thenReturn(
             Loan(id = 7, name = "Car", loanType = LoanType.EXPENSE, total = Money(100_00, usd), accountId = 1,
                 date = LocalDateTime.of(2026, 1, 1, 0, 0),
                 plan = LoanPlan(10, RecurrenceFrequency.MONTHLY, 1, LocalDate.of(2026, 1, 1))),
@@ -71,7 +71,7 @@ class LoanFormViewModelTest {
     fun loadsTheLoanNamedByTheIdArgument() = runTest {
         val vm = vm(mapOf("id" to 7L))
         advanceUntilIdle()
-        verify(loanRepository).getLoanById(7L)
+        verify(loanRepository).get(7L)
         assertTrue(vm.formState.value.isEditing)
     }
 
@@ -90,7 +90,7 @@ class LoanFormViewModelTest {
         advanceUntilIdle()
         vm.delete()
         advanceUntilIdle()
-        verify(loanRepository).deleteLoan(7L)
+        verify(loanRepository).delete(7L)
         assertTrue(vm.formState.value.deleted)
         assertFalse(vm.formState.value.isSaved)
     }
@@ -100,7 +100,7 @@ class LoanFormViewModelTest {
         val vm = vm(mapOf("id" to -1L))
         advanceUntilIdle()
         verify(accountRepository).defaultAccount()
-        verify(loanRepository, never()).getLoanById(any())
+        verify(loanRepository, never()).get(any())
         assertFalse(vm.formState.value.isEditing)
         assertFalse(vm.formState.value.isLoading)
     }

@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.shareIn
@@ -200,9 +201,6 @@ class AnalyticsViewModel @Inject constructor(
     // Neither depends on the period on screen, so they stay subscribed across period changes.
     private val categoriesFlow = categoryRepository.getAllCategories()
         .shareIn(viewModelScope, SharingStarted.WhileSubscribed(5000), replay = 1)
-    private val loanNamesFlow = loanRepository.getAllLoans()
-        .map { loans -> loans.associate { it.id to it.name } }
-        .shareIn(viewModelScope, SharingStarted.WhileSubscribed(5000), replay = 1)
 
     val uiState: StateFlow<AnalyticsUiState> = filterState
         .flatMapLatest { filter ->
@@ -216,10 +214,8 @@ class AnalyticsViewModel @Inject constructor(
             val trendStart = LocalDate.now().minusMonths(11).withDayOfMonth(1)
             val trendEnd = LocalDate.now()
 
-            val installmentsFlow = combine(
-                transactionRepository.getInstallmentsBetweenDates(startDate, endDate),
-                loanNamesFlow,
-            ) { installments, loanNames -> summarizeInstallments(installments, loanNames, LocalDate.now()) }
+            // Loans no longer store installment rows; Reports rebuilds this section from the loans (Task 10).
+            val installmentsFlow = flowOf<InstallmentSummary?>(null)
 
             combine(
                 transactionRepository.getTransactionsBetweenDates(startDate, endDate),
@@ -488,7 +484,7 @@ class AnalyticsViewModel @Inject constructor(
                 val (transactionList, categories, loans) = coroutineScope {
                     val tx = async { transactionRepository.getTransactionsBetweenDates(startDate, endDate).first() }
                     val cats = async { categoryRepository.getAllCategories().first().associate { it.id to it.name } }
-                    val loanMap = async { loanRepository.getAllLoans().first().associateBy { it.id } }
+                    val loanMap = async { loanRepository.observeAll().first().associateBy { it.id } }
                     Triple(tx.await(), cats.await(), loanMap.await())
                 }
                 val accounts = accountRepository.observeAccountsWithBalance().first()

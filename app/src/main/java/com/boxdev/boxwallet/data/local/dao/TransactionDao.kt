@@ -132,9 +132,6 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE date BETWEEN :startDate AND :endDate AND loanId IS NULL AND (installmentPlanId IS NULL OR date < :endOfToday) ORDER BY date DESC")
     fun getTransactionsBetweenDates(startDate: Long, endDate: Long, endOfToday: Long): Flow<List<TransactionEntity>>
 
-    @Query("SELECT * FROM transactions WHERE date >= :startDate AND date < :endDate AND loanId IS NOT NULL ORDER BY date ASC")
-    fun getInstallmentsBetweenDates(startDate: Long, endDate: Long): Flow<List<TransactionEntity>>
-
     // Income and expense totals count what the balances count (AccountDao's COUNTED): cleared movements,
     // plus every card movement dated before :endOfToday, cleared or not.
 
@@ -152,15 +149,6 @@ interface TransactionDao {
 
     @Query("SELECT * FROM transactions WHERE hasReminder = 1 AND reminderDate > :currentTime ORDER BY reminderDate ASC")
     fun getUpcomingReminders(currentTime: Long): Flow<List<TransactionEntity>>
-
-    @Query("SELECT * FROM transactions WHERE loanId = :loanId ORDER BY installmentNumber ASC")
-    fun getInstallmentsByLoanIdFlow(loanId: Long): Flow<List<TransactionEntity>>
-
-    @Query("SELECT * FROM transactions WHERE loanId = :loanId ORDER BY installmentNumber ASC")
-    suspend fun getInstallmentsByLoanId(loanId: Long): List<TransactionEntity>
-
-    @Query("SELECT COUNT(*) FROM transactions WHERE loanId = :loanId AND isCleared = 1")
-    fun getPaidInstallmentCount(loanId: Long): Flow<Int>
 
     @Query("SELECT * FROM transactions")
     suspend fun getAllTransactionsSync(): List<TransactionEntity>

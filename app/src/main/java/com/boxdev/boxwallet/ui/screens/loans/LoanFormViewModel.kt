@@ -124,7 +124,7 @@ class LoanFormViewModel @Inject constructor(
         }
         viewModelScope.launch {
             _formState.update { it.copy(isLoading = true) }
-            val loan = loanRepository.getLoanById(loanId)
+            val loan = loanRepository.get(loanId)
             editing = loan
             if (loan != null) {
                 _formState.value = LoanFormState(
@@ -201,8 +201,8 @@ class LoanFormViewModel @Inject constructor(
                         firstDue = s.startDate.toLocalDate(),
                     ),
                 )
-                if (s.isEditing) loanRepository.updateLoan(loan)
-                else loanRepository.insertLoanWithInstallments(loan)
+                if (s.isEditing) loanRepository.update(loan)
+                else loanRepository.create(loan)
 
                 analyticsHelper.logEvent(
                     if (s.isEditing) "loan_updated" else "loan_created",
@@ -227,7 +227,7 @@ class LoanFormViewModel @Inject constructor(
         viewModelScope.launch {
             _formState.update { it.copy(isLoading = true) }
             try {
-                loanRepository.deleteLoan(s.id)
+                loanRepository.delete(s.id)
                 analyticsHelper.logEvent("loan_deleted")
                 _formState.update { it.copy(isLoading = false, deleted = true) }
             } catch (e: Exception) {

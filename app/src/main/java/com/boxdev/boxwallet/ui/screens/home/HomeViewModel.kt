@@ -87,7 +87,7 @@ class HomeViewModel @Inject constructor(
     val uiState: StateFlow<HomeUiState> = combine(
         transactionRepository.getFinancialSummary(),
         transactionRepository.getLatestTransactions(5),
-        loanRepository.getAllLoans(),
+        loanRepository.observeAll(),
         categoryRepository.getAllCategories(),
         balances,
     ) { summary, latest, loans, categories, balances ->
