@@ -481,11 +481,10 @@ class AnalyticsViewModel @Inject constructor(
         viewModelScope.launch {
             _exportState.value = ExportState(isExporting = true)
             try {
-                val (transactionList, categories, loans) = coroutineScope {
+                val (transactionList, categories) = coroutineScope {
                     val tx = async { transactionRepository.getTransactionsBetweenDates(startDate, endDate).first() }
                     val cats = async { categoryRepository.getAllCategories().first().associate { it.id to it.name } }
-                    val loanMap = async { loanRepository.observeAll().first().associateBy { it.id } }
-                    Triple(tx.await(), cats.await(), loanMap.await())
+                    tx.await() to cats.await()
                 }
                 val accounts = accountRepository.observeAccountsWithBalance().first()
 
@@ -496,19 +495,11 @@ class AnalyticsViewModel @Inject constructor(
                     rate = context.getString(R.string.report_col_rate),
                     mainAmount = context.getString(R.string.report_col_main_amount),
                 )
-                val loanTitles = ExcelReportGenerator.LoanTitles(
-                    currency = context.getString(R.string.report_col_currency),
-                    remaining = { context.getString(R.string.report_loan_remaining_in, it) },
-                    totalBorrowed = { context.getString(R.string.report_loan_total_borrowed, it) },
-                    totalPaid = { context.getString(R.string.report_loan_total_paid, it) },
-                    totalRemaining = { context.getString(R.string.report_loan_total_remaining, it) },
-                    excludedNote = { context.resources.getQuantityString(R.plurals.report_loans_excluded_other_currencies, it, it) },
-                )
                 val file = withContext(Dispatchers.IO) {
                     val reportsDir = File(context.cacheDir, "reports").also { if (!it.exists()) it.mkdirs() }
                     val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
                     val f = File(reportsDir, "BoxWallet_Report_$timestamp.xlsx")
-                    ExcelReportGenerator.create(f, transactionList, categories, accounts, loans, startDate, endDate, mainCurrency, titles, loanTitles)
+                    ExcelReportGenerator.create(f, transactionList, categories, accounts, startDate, endDate, mainCurrency, titles)
                 }
 
                 _exportState.value = ExportState(file = file)

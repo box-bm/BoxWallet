@@ -4,6 +4,7 @@ import com.boxdev.boxwallet.data.local.entity.TransactionType
 import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.InstallmentPlanRepository
+import com.boxdev.boxwallet.data.repository.LoanRepository
 import com.boxdev.boxwallet.data.repository.TransactionRepository
 import com.boxdev.boxwallet.data.repository.TransferRepository
 import com.boxdev.boxwallet.domain.model.Account
@@ -41,6 +42,7 @@ class TransactionsListViewModelTest {
     private val accountRepository = mock<AccountRepository>()
     private val transferRepository = mock<TransferRepository>()
     private val installmentPlanRepository = mock<InstallmentPlanRepository>()
+    private val loanRepository = mock<LoanRepository>()
     private val filterRequest = MovementsFilterRequest()
     private val cash = Account(id = 1, name = "Cash", type = AccountType.CASH, currency = usd, createdAt = 0)
     private val bank = Account(id = 2, name = "Bank", type = AccountType.CHECKING, currency = usd, createdAt = 0)
@@ -75,13 +77,14 @@ class TransactionsListViewModelTest {
         whenever(accountRepository.observeAll()).thenReturn(flowOf(listOf(cash, bank)))
         whenever(transferRepository.observePairs()).thenReturn(flowOf(emptyMap()))
         whenever(installmentPlanRepository.observeInstallmentCounts()).thenReturn(flowOf(emptyMap()))
+        whenever(loanRepository.observeAll()).thenReturn(flowOf(emptyList()))
     }
 
     @After
     fun tearDown() = Dispatchers.resetMain()
 
     private fun vm() = TransactionsListViewModel(
-        repository, categoryRepository, accountRepository, transferRepository, installmentPlanRepository, filterRequest,
+        repository, categoryRepository, accountRepository, transferRepository, installmentPlanRepository, loanRepository, filterRequest,
     )
 
     @Test
@@ -173,5 +176,24 @@ class TransactionsListViewModelTest {
         vm.updateAccountFilter(6L)
         advanceUntilIdle()
         assertEquals(listOf(3L), vm.uiState.value.filteredTransactions.map { it.id })
+    }
+
+    @Test
+    fun typeFilterIncomeAndExpenseLeaveLoanMovementsOutButAllKeepsThem() = runTest {
+        val loanRow = Transaction.singleCurrency(1, TransactionType.LOAN_IN, LocalDateTime.of(2026, 1, 9, 0, 0), Money(1_00, usd))
+            .copy(id = 9, description = "Ana", loanId = 3)
+        whenever(repository.getAllTransactions()).thenReturn(flowOf(listOf(loanRow, movement(1, 1))))
+        val vm = vm()
+        backgroundScope.launch { vm.uiState.collect {} }
+
+        vm.updateTypeFilter(TransactionTypeFilter.INCOME)
+        advanceUntilIdle()
+        assertEquals(emptyList<Long>(), vm.uiState.value.filteredTransactions.map { it.id })
+        vm.updateTypeFilter(TransactionTypeFilter.EXPENSE)
+        advanceUntilIdle()
+        assertEquals(listOf(1L), vm.uiState.value.filteredTransactions.map { it.id })
+        vm.updateTypeFilter(TransactionTypeFilter.ALL)
+        advanceUntilIdle()
+        assertEquals(listOf(9L, 1L), vm.uiState.value.filteredTransactions.map { it.id })
     }
 }

@@ -15,6 +15,7 @@ import com.boxdev.boxwallet.domain.model.CardSummary
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.FinancialSummary
 import com.boxdev.boxwallet.domain.model.Loan
+import com.boxdev.boxwallet.domain.model.LoanType
 import com.boxdev.boxwallet.domain.model.TotalBalance
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.domain.model.TransferPair
@@ -44,6 +45,8 @@ data class HomeUiState(
     val transferPairs: Map<String, TransferPair> = emptyMap(),
     /** Each installment plan's installment count by plan id, for a listed installment's "k/N". */
     val installmentCounts: Map<Long, Int> = emptyMap(),
+    /** Each loan's direction by loan id, for a loan movement's label. */
+    val loanTypes: Map<Long, LoanType> = emptyMap(),
     val isLoading: Boolean = true
 )
 
@@ -95,6 +98,7 @@ class HomeViewModel @Inject constructor(
             financialSummary = summary,
             latestTransactions = latest,
             activeLoans = loans.filter { !it.isSettled },
+            loanTypes = loans.associate { it.id to it.loanType },
             categories = categories,
             totalBalance = balances.total,
             accounts = balances.active,

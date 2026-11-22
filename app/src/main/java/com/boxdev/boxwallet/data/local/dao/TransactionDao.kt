@@ -118,18 +118,18 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE id = :id")
     suspend fun getById(id: Long): TransactionEntity?
 
-    @Query("SELECT * FROM transactions WHERE loanId IS NULL AND (installmentPlanId IS NULL OR date < :endOfToday) ORDER BY date DESC")
+    @Query("SELECT * FROM transactions WHERE (installmentPlanId IS NULL OR date < :endOfToday) ORDER BY date DESC")
     fun getAllTransactions(endOfToday: Long): Flow<List<TransactionEntity>>
 
-    /** One account's movements, newest first; loan installments are left out like in the global list. */
-    @Query("SELECT * FROM transactions WHERE accountId = :accountId AND loanId IS NULL AND (installmentPlanId IS NULL OR date < :endOfToday) ORDER BY date DESC")
+    /** One account's movements, newest first; future plan installments are left out like in the global list. */
+    @Query("SELECT * FROM transactions WHERE accountId = :accountId AND (installmentPlanId IS NULL OR date < :endOfToday) ORDER BY date DESC")
     fun observeByAccount(accountId: Long, endOfToday: Long): Flow<List<TransactionEntity>>
 
     /** Newest movements for Home; a transfer counts once, by its TRANSFER_OUT row. */
-    @Query("SELECT * FROM transactions WHERE loanId IS NULL AND type != 'TRANSFER_IN' AND (installmentPlanId IS NULL OR date < :endOfToday) ORDER BY date DESC LIMIT :limit")
+    @Query("SELECT * FROM transactions WHERE type != 'TRANSFER_IN' AND (installmentPlanId IS NULL OR date < :endOfToday) ORDER BY date DESC LIMIT :limit")
     fun getLatestTransactions(limit: Int, endOfToday: Long): Flow<List<TransactionEntity>>
 
-    @Query("SELECT * FROM transactions WHERE date BETWEEN :startDate AND :endDate AND loanId IS NULL AND (installmentPlanId IS NULL OR date < :endOfToday) ORDER BY date DESC")
+    @Query("SELECT * FROM transactions WHERE date BETWEEN :startDate AND :endDate AND (installmentPlanId IS NULL OR date < :endOfToday) ORDER BY date DESC")
     fun getTransactionsBetweenDates(startDate: Long, endDate: Long, endOfToday: Long): Flow<List<TransactionEntity>>
 
     // Income and expense totals count what the balances count (AccountDao's COUNTED): cleared movements,

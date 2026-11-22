@@ -80,6 +80,7 @@ import com.boxdev.boxwallet.ui.components.CategoryBadge
 import com.boxdev.boxwallet.ui.components.EmptyState
 import com.boxdev.boxwallet.ui.components.LoanCard
 import com.boxdev.boxwallet.ui.components.TransactionItem
+import com.boxdev.boxwallet.ui.components.loanMovementLabel
 import com.boxdev.boxwallet.ui.components.transferTitle
 import com.boxdev.boxwallet.ui.components.readableWidth
 
@@ -221,10 +222,12 @@ fun SearchScreen(
                                     transferTitle(uiState.transferPairs[it], uiState.accountsById)
                                 },
                                 installmentCount = transaction.installmentPlanId?.let(uiState.installmentCounts::get),
+                                loanLabel = loanMovementLabel(transaction, uiState.loanTypes),
                                 onClick = {
                                     when {
                                         transaction.type.isAdjustment -> pendingAdjustment = transaction
                                         transaction.installmentPlanId != null -> onOpenInstallmentPlan(transaction.installmentPlanId)
+                                        transaction.loanId != null -> onOpenLoan(transaction.loanId)
                                         transaction.type.isTransfer -> onOpenTransfer(transaction.id)
                                         else -> onOpenTransaction(transaction.id)
                                     }

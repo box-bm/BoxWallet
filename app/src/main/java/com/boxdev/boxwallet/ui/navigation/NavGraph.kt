@@ -230,6 +230,7 @@ fun NavGraph(
                 onNavigateToSearch = onNavigateToSearch,
                 onOpenTransfer = onOpenTransfer,
                 onOpenInstallmentPlan = onOpenInstallmentPlan,
+                onOpenLoan = openLoan,
             )
         }
 
@@ -347,6 +348,7 @@ fun NavGraph(
                 onSeeInMovements = { navController.switchToTab(NavRoutes.TransactionsList.route) },
                 onOpenTransfer = onOpenTransfer,
                 onOpenInstallmentPlan = onOpenInstallmentPlan,
+                onOpenLoan = openLoan,
                 onNewTransfer = onNewTransferFrom,
                 onNavigate = onNavigateTo,
             )
@@ -373,6 +375,7 @@ fun NavGraph(
                     onDeleted = { entry.ifResumed { navController.popBackStack() } },
                     onOpenTransfer = onOpenTransfer,
                     onOpenInstallmentPlan = onOpenInstallmentPlan,
+                    onOpenLoan = openLoan,
                     onNewTransfer = onNewTransferFrom,
                     onNavigate = onNavigateTo,
                 )

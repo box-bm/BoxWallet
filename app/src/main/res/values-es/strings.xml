@@ -36,6 +36,10 @@
     <string name="transaction_new_title">Nuevo Movimiento</string>
     <string name="transaction_type_expense">Gasto</string>
     <string name="transaction_adjustment">Ajuste de saldo</string>
+    <string name="loan_movement_lent_to">Préstamo a %s</string>
+    <string name="loan_movement_borrowed_from">Préstamo de %s</string>
+    <string name="loan_movement_payment_from">Pago de %s</string>
+    <string name="loan_movement_payment_to">Pago a %s</string>
     <string name="transaction_transfer">Transferencia</string>
     <string name="transaction_type_income">Ingreso</string>
     <string name="transaction_amount_label">Monto *</string>
@@ -588,14 +592,6 @@
     <string name="report_col_currency">Moneda</string>
     <string name="report_col_rate">Tasa</string>
     <string name="report_col_main_amount">Monto en moneda principal</string>
-    <string name="report_loan_remaining_in">Pendiente (%1$s)</string>
-    <string name="report_loan_total_borrowed">Total prestado (%1$s)</string>
-    <string name="report_loan_total_paid">Total pagado (%1$s)</string>
-    <string name="report_loan_total_remaining">Total pendiente (%1$s)</string>
-    <plurals name="report_loans_excluded_other_currencies">
-        <item quantity="one">No incluye %1$d préstamo en otra moneda</item>
-        <item quantity="other">No incluye %1$d préstamos en otras monedas</item>
-    </plurals>
     <string name="search_in_app">Buscar en BoxWallet</string>
 
     <!-- Accounts -->

@@ -61,7 +61,7 @@ class TransactionRepository @Inject constructor(
         return saved.id
     }
 
-    /** Transfer legs are edited as a pair through [TransferRepository.update]. */
+    /** Transfer legs are edited as a pair through [TransferRepository.update]; loan movements through their loan. */
     suspend fun updateTransaction(transaction: Transaction) {
         val stored = transactionDao.getById(transaction.id)
         require(!transaction.type.isTransfer && transaction.transferId == null && stored?.transferId == null) {
@@ -70,16 +70,20 @@ class TransactionRepository @Inject constructor(
         require(transaction.installmentPlanId == null && stored?.installmentPlanId == null) {
             "Installment ${transaction.id} must be changed through its plan"
         }
+        require(transaction.loanId == null && stored?.loanId == null) {
+            "Loan movement ${transaction.id}: edit it from its loan"
+        }
         val saved = guard.write { current ->
             current.revalidate(transaction).also { transactionDao.update(it.toEntity()) }
         }
         scheduleOrCancelReminder(saved)
     }
 
-    /** Deleting either leg of a transfer deletes both. A plan installment only goes with its plan. */
+    /** Deleting either leg of a transfer deletes both. A plan installment only goes with its plan, a loan movement with its loan. */
     suspend fun deleteTransaction(id: Long) {
         val stored = transactionDao.getById(id)
         require(stored?.installmentPlanId == null) { "Installment $id must be changed through its plan" }
+        require(stored?.loanId == null) { "Loan movement $id: edit it from its loan" }
         ReminderWorker.cancel(context, id)
         val transferId = stored?.transferId
         if (transferId != null) transactionDao.deleteByTransferId(transferId) else transactionDao.deleteById(id)
@@ -130,7 +134,7 @@ class TransactionRepository @Inject constructor(
     fun getAllTransactions(): Flow<List<Transaction>> =
         currentDay.days.flatMapLatest { transactionDao.getAllTransactions(endOfToday(it)).toDomain() }
 
-    /** [accountId]'s movements, newest first, without loan installments or future plan installments. */
+    /** [accountId]'s movements, newest first, without future plan installments. */
     @OptIn(ExperimentalCoroutinesApi::class)
     fun observeByAccount(accountId: Long): Flow<List<Transaction>> =
         currentDay.days.flatMapLatest { transactionDao.observeByAccount(accountId, endOfToday(it)).toDomain() }

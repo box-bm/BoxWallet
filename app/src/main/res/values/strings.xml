@@ -36,6 +36,10 @@
     <string name="transaction_new_title">New Movement</string>
     <string name="transaction_type_expense">Expense</string>
     <string name="transaction_adjustment">Balance adjustment</string>
+    <string name="loan_movement_lent_to">Loan to %s</string>
+    <string name="loan_movement_borrowed_from">Loan from %s</string>
+    <string name="loan_movement_payment_from">Payment from %s</string>
+    <string name="loan_movement_payment_to">Payment to %s</string>
     <string name="transaction_transfer">Transfer</string>
     <string name="transaction_type_income">Income</string>
     <string name="transaction_amount_label">Amount *</string>
@@ -601,14 +605,6 @@
     <string name="report_col_currency">Currency</string>
     <string name="report_col_rate">Rate</string>
     <string name="report_col_main_amount">Amount in main currency</string>
-    <string name="report_loan_remaining_in">Remaining (%1$s)</string>
-    <string name="report_loan_total_borrowed">Total Borrowed (%1$s)</string>
-    <string name="report_loan_total_paid">Total Paid (%1$s)</string>
-    <string name="report_loan_total_remaining">Total Remaining (%1$s)</string>
-    <plurals name="report_loans_excluded_other_currencies">
-        <item quantity="one">Excludes %1$d loan in another currency</item>
-        <item quantity="other">Excludes %1$d loans in other currencies</item>
-    </plurals>
     <string name="search_in_app">Search BoxWallet</string>
 
     <!-- Accounts -->

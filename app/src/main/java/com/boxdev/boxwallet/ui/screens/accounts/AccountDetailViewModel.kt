@@ -11,12 +11,14 @@ import com.boxdev.boxwallet.data.repository.AccountRuleError
 import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.InstallmentPlanRepository
 import com.boxdev.boxwallet.data.repository.TransactionRepository
+import com.boxdev.boxwallet.data.repository.LoanRepository
 import com.boxdev.boxwallet.data.repository.TransferRepository
 import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.AccountWithBalance
 import com.boxdev.boxwallet.domain.model.CardSummary
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.InstallmentPlan
+import com.boxdev.boxwallet.domain.model.LoanType
 import com.boxdev.boxwallet.domain.model.isFinished
 import com.boxdev.boxwallet.domain.model.Transaction
 import com.boxdev.boxwallet.domain.model.TransferPair
@@ -66,6 +68,8 @@ data class AccountDetailUiState(
     val installmentPlans: List<InstallmentPlan> = emptyList(),
     /** Each of [installmentPlans]' installment count by plan id, for a listed installment's "k/N". */
     val installmentCounts: Map<Long, Int> = emptyMap(),
+    /** Each loan's direction by loan id, for a loan movement's label. */
+    val loanTypes: Map<Long, LoanType> = emptyMap(),
     val isLoading: Boolean = true,
 )
 
@@ -103,6 +107,7 @@ class AccountDetailViewModel @Inject constructor(
     categoryRepository: CategoryRepository,
     transferRepository: TransferRepository,
     installmentPlanRepository: InstallmentPlanRepository,
+    loanRepository: LoanRepository,
     private val movementsFilter: MovementsFilterRequest,
 ) : ViewModel() {
 
@@ -142,9 +147,9 @@ class AccountDetailViewModel @Inject constructor(
             combine(accountRepository.observeAccountsWithBalance(), accountRepository.observeDefaultAccountId(), ::Pair),
             movementsOf(id),
             categoryRepository.getAllCategories(),
-            combine(transferRepository.observePairs(), installmentPlanRepository.observePlansOfCard(id), ::Pair),
+            combine(transferRepository.observePairs(), installmentPlanRepository.observePlansOfCard(id), loanRepository.observeAll(), ::Triple),
             accountRepository.observeCardSummaries(),
-        ) { (accounts, defaultId), movements, categories, (pairs, plans), cards ->
+        ) { (accounts, defaultId), movements, categories, (pairs, plans, loans), cards ->
             val card = cards[id]
             val key = card?.let { cardPayerKey(id, it.second?.account?.id, movements, pairs, accounts) }
             if (key != payerKey) {
@@ -158,6 +163,7 @@ class AccountDetailViewModel @Inject constructor(
                 categories = categories.associateBy { it.id },
                 accountsById = accounts.associate { it.account.id to it.account },
                 transferPairs = pairs,
+                loanTypes = loans.associate { it.id to it.loanType },
                 canTransfer = accounts.count { !it.account.isArchived } >= 2,
                 card = card,
                 cardPayer = card?.let { lastPayer ?: defaultId },

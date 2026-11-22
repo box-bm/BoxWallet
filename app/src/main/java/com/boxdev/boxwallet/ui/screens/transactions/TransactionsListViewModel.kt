@@ -7,10 +7,12 @@ import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.InstallmentPlanRepository
 import com.boxdev.boxwallet.data.repository.TransactionRepository
+import com.boxdev.boxwallet.data.repository.LoanRepository
 import com.boxdev.boxwallet.data.repository.TransferRepository
 import com.boxdev.boxwallet.domain.model.Account
 import com.boxdev.boxwallet.domain.model.Category
 import com.boxdev.boxwallet.domain.model.Transaction
+import com.boxdev.boxwallet.domain.model.LoanType
 import com.boxdev.boxwallet.domain.model.TransferPair
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,6 +50,8 @@ data class TransactionsListUiState(
     val transferPairs: Map<String, TransferPair> = emptyMap(),
     /** Each installment plan's installment count by plan id, for a listed installment's "k/N". */
     val installmentCounts: Map<Long, Int> = emptyMap(),
+    /** Each loan's direction by loan id, for a loan movement's label. */
+    val loanTypes: Map<Long, LoanType> = emptyMap(),
     val isLoading: Boolean = true,
     val filterState: TransactionsFilterState = TransactionsFilterState()
 )
@@ -59,6 +63,7 @@ class TransactionsListViewModel @Inject constructor(
     accountRepository: AccountRepository,
     transferRepository: TransferRepository,
     installmentPlanRepository: InstallmentPlanRepository,
+    loanRepository: LoanRepository,
     private val filterRequest: MovementsFilterRequest,
 ) : ViewModel() {
 
@@ -68,9 +73,9 @@ class TransactionsListViewModel @Inject constructor(
         repository.getAllTransactions(),
         categoryRepository.getAllCategories(),
         accountRepository.observeAll(),
-        combine(transferRepository.observePairs(), installmentPlanRepository.observeInstallmentCounts(), ::Pair),
+        combine(transferRepository.observePairs(), installmentPlanRepository.observeInstallmentCounts(), loanRepository.observeAll(), ::Triple),
         filterState,
-    ) { transactions, categories, accounts, (pairs, counts), filter ->
+    ) { transactions, categories, accounts, (pairs, counts, loans), filter ->
         TransactionsListUiState(
             transactions = transactions,
             filteredTransactions = applyFilters(transactions, filter, accounts),
@@ -78,6 +83,7 @@ class TransactionsListViewModel @Inject constructor(
             accounts = accounts,
             transferPairs = pairs,
             installmentCounts = counts,
+            loanTypes = loans.associate { it.id to it.loanType },
             isLoading = false,
             filterState = filter,
         )
@@ -120,6 +126,7 @@ class TransactionsListViewModel @Inject constructor(
             // Unscoped, a transfer is one row: its OUT leg. Scoped to an account, that account's own leg.
             (f.accountId != null || tx.type != TransactionType.TRANSFER_IN) &&
             when (f.transactionType) {
+                // Loan movements only show under All: they are neither income nor expense.
                 TransactionTypeFilter.INCOME -> tx.type == TransactionType.INCOME
                 TransactionTypeFilter.EXPENSE -> tx.type == TransactionType.EXPENSE
                 TransactionTypeFilter.ALL -> true

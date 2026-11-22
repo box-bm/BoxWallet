@@ -1,10 +1,6 @@
 package com.boxdev.boxwallet.util
 
-import com.boxdev.boxwallet.domain.model.LoanType
-import com.boxdev.boxwallet.domain.model.LoanPlan
-import com.boxdev.boxwallet.domain.model.RecurrenceFrequency
 import com.boxdev.boxwallet.data.local.entity.TransactionType
-import com.boxdev.boxwallet.domain.model.Loan
 import com.boxdev.boxwallet.domain.model.Transaction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -40,21 +36,10 @@ class ExcelReportGeneratorTest {
         )
     }
 
-    private val loan = Loan(
-        id = 7,
-        name = "Car",
-        loanType = LoanType.EXPENSE,
-        total = Money(120_000, gtq),
-        accountId = 1,
-        date = LocalDateTime.of(2026, 1, 1, 0, 0),
-        plan = LoanPlan(12, RecurrenceFrequency.MONTHLY, 1, LocalDate.of(2026, 1, 1)),
-        paid = Money(10_000, gtq),
-    )
-
     private val transactions = listOf(
         movement(300_000, LocalDateTime.of(2026, 1, 5, 9, 0), TransactionType.INCOME).copy(categoryId = 1),
         movement(10_000, LocalDateTime.of(2026, 2, 3, 12, 30), TransactionType.EXPENSE)
-            .copy(description = "Rent & <bills>", categoryId = 2, loanId = 7, installmentNumber = 1, isCleared = true)
+            .copy(description = "Rent & <bills>", categoryId = 2, isCleared = true)
     )
 
     private fun sheetNames(file: java.io.File): List<String> = ZipFile(file).use { zip ->
@@ -65,14 +50,14 @@ class ExcelReportGeneratorTest {
     }
 
     @Test
-    fun `creates every sheet for a multi-month range with loans`() {
+    fun `creates every sheet for a multi-month range`() {
         val file = ExcelReportGenerator.create(
             tmp.newFile("report.xlsx"), transactions, mapOf(1L to "Salary", 2L to "Home"), emptyList(),
-            mapOf(7L to loan), LocalDate.of(2026, 1, 1), LocalDate.of(2026, 2, 28), gtq
+            LocalDate.of(2026, 1, 1), LocalDate.of(2026, 2, 28), gtq
         )
 
         assertEquals(
-            listOf("Movements", "Summary", "By Category", "Monthly Overview", "Loans", "Loan Installments"),
+            listOf("Movements", "Summary", "By Category", "Monthly Overview"),
             sheetNames(file)
         )
         ZipFile(file).use { zip ->
@@ -96,10 +81,10 @@ class ExcelReportGeneratorTest {
         val range = LocalDate.of(2026, 1, 1) to LocalDate.of(2026, 2, 28)
         val names = mapOf(1L to "Salary", 2L to "Home")
         val without = ExcelReportGenerator.create(
-            tmp.newFile("without.xlsx"), transactions, names, emptyList(), mapOf(7L to loan), range.first, range.second, gtq
+            tmp.newFile("without.xlsx"), transactions, names, emptyList(), range.first, range.second, gtq
         )
         val with = ExcelReportGenerator.create(
-            tmp.newFile("with.xlsx"), transactions + adjustments, names, emptyList(), mapOf(7L to loan), range.first, range.second, gtq
+            tmp.newFile("with.xlsx"), transactions + adjustments, names, emptyList(), range.first, range.second, gtq
         )
 
         val movements = sheetXml(with, "Movements")
@@ -118,7 +103,7 @@ class ExcelReportGeneratorTest {
             movement(5_000, LocalDateTime.of(2026, 1, 6, 9, 0), TransactionType.TRANSFER_IN),
         )
         val file = ExcelReportGenerator.create(
-            tmp.newFile("transfers.xlsx"), rows, emptyMap(), emptyList(), emptyMap(),
+            tmp.newFile("transfers.xlsx"), rows, emptyMap(), emptyList(),
             LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31), gtq
         )
 
@@ -132,10 +117,26 @@ class ExcelReportGeneratorTest {
     }
 
     @Test
-    fun `skips monthly and loan sheets when not applicable`() {
+    fun `loan movements are left out of every sheet`() {
+        val rows = transactions + listOf(
+            movement(70_000, LocalDateTime.of(2026, 1, 8, 9, 0), TransactionType.LOAN_IN).copy(description = "Ana", loanId = 7),
+            movement(20_000, LocalDateTime.of(2026, 1, 9, 9, 0), TransactionType.LOAN_OUT).copy(description = "Ana", loanId = 7),
+        )
+        val range = LocalDate.of(2026, 1, 1) to LocalDate.of(2026, 2, 28)
+        val names = mapOf(1L to "Salary", 2L to "Home")
+        val plain = ExcelReportGenerator.create(tmp.newFile("plain.xlsx"), transactions, names, emptyList(), range.first, range.second, gtq)
+        val withLoans = ExcelReportGenerator.create(tmp.newFile("loans.xlsx"), rows, names, emptyList(), range.first, range.second, gtq)
+
+        assertEquals(sheetNames(plain), sheetNames(withLoans))
+        for (sheet in sheetNames(plain)) assertEquals(sheet, sheetXml(plain, sheet), sheetXml(withLoans, sheet))
+        assertTrue(!sheetXml(withLoans, "Movements").contains("Loan in"))
+    }
+
+    @Test
+    fun `skips the monthly sheet when not applicable`() {
         val file = ExcelReportGenerator.create(
             tmp.newFile("report.xlsx"), transactions.take(1), mapOf(1L to "Salary"), emptyList(),
-            emptyMap(), LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31), gtq
+            LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31), gtq
         )
 
         assertEquals(listOf("Movements", "Summary", "By Category"), sheetNames(file))
@@ -150,7 +151,7 @@ class ExcelReportGeneratorTest {
             amount = Money(16_579, gtq), mainRate = ExchangeRate(BigDecimal("8.2895"), RateSource.AUTO),
         )
         val file = ExcelReportGenerator.create(
-            tmp.newFile("report.xlsx"), listOf(foreign), emptyMap(), emptyList(), emptyMap(),
+            tmp.newFile("report.xlsx"), listOf(foreign), emptyMap(), emptyList(),
             LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31), gtq
         )
 
@@ -158,54 +159,11 @@ class ExcelReportGeneratorTest {
             val xml = zip.getInputStream(zip.getEntry("xl/worksheets/sheet1.xml")).readBytes().toString(Charsets.UTF_8)
             assertTrue(xml.contains("Original amount"))
             assertTrue(xml.contains("Amount in main currency"))
-            assertTrue(xml.contains("<c r=\"L2\"><v>20.00</v></c>"))
+            assertTrue(xml.contains("<c r=\"J2\"><v>20.00</v></c>"))
             assertTrue(xml.contains("<t xml:space=\"preserve\">EUR</t>"))
-            assertTrue(xml.contains("<c r=\"N2\"><v>8.289500</v></c>"))
-            assertTrue(xml.contains("<c r=\"O2\"><v>165.79</v></c>"))
+            assertTrue(xml.contains("<c r=\"L2\"><v>8.289500</v></c>"))
+            assertTrue(xml.contains("<c r=\"M2\"><v>165.79</v></c>"))
         }
-    }
-
-    @Test
-    fun `loan portfolio remaining total uses main currency figures`() {
-        val usdLoan = loan.copy(
-            id = 8, name = "Abroad", total = Money(100_000, Currency.getInstance("USD")),
-            paid = Money(0, Currency.getInstance("USD")), remainingMainMinor = 770_000
-        )
-        val file = ExcelReportGenerator.create(
-            tmp.newFile("report.xlsx"), emptyList(), emptyMap(), emptyList(),
-            mapOf(7L to loan.copy(remainingMainMinor = 110_000), 8L to usdLoan),
-            LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31), gtq
-        )
-
-        ZipFile(file).use { zip ->
-            val idx = sheetNames(file).indexOf("Loans") + 1
-            val xml = zip.getInputStream(zip.getEntry("xl/worksheets/sheet$idx.xml")).readBytes().toString(Charsets.UTF_8)
-            assertTrue(xml.contains("<v>8800.0</v>"))
-        }
-    }
-
-    private fun loansSheet(file: java.io.File): String = ZipFile(file).use { zip ->
-        val idx = sheetNames(file).indexOf("Loans") + 1
-        zip.getInputStream(zip.getEntry("xl/worksheets/sheet$idx.xml")).readBytes().toString(Charsets.UTF_8)
-    }
-
-    @Test
-    fun `loan totals note counts loans in other currencies only when there are some`() {
-        val usdLoan = loan.copy(id = 8, name = "Abroad", total = Money(100_000, Currency.getInstance("USD")))
-        val eurLoan = loan.copy(id = 9, name = "Euro", total = Money(50_000, Currency.getInstance("EUR")))
-        val range = LocalDate.of(2026, 1, 1) to LocalDate.of(2026, 1, 31)
-
-        val mixed = ExcelReportGenerator.create(
-            tmp.newFile("mixed.xlsx"), emptyList(), emptyMap(), emptyList(),
-            mapOf(7L to loan, 8L to usdLoan, 9L to eurLoan), range.first, range.second, gtq
-        )
-        assertTrue(loansSheet(mixed).contains("Excludes 2 loans in other currencies"))
-
-        val allMain = ExcelReportGenerator.create(
-            tmp.newFile("main.xlsx"), emptyList(), emptyMap(), emptyList(),
-            mapOf(7L to loan), range.first, range.second, gtq
-        )
-        assertTrue(!loansSheet(allMain).contains("Excludes"))
     }
 
     private val usd = Currency.getInstance("USD")
@@ -221,7 +179,7 @@ class ExcelReportGeneratorTest {
         val into = out.copy(accountId = 2, type = TransactionType.TRANSFER_IN, accountAmount = Money(10_092, usd))
         val expense = movement(5_000, LocalDateTime.of(2026, 1, 7, 9, 0), TransactionType.EXPENSE)
         val file = ExcelReportGenerator.create(
-            tmp.newFile("accounts.xlsx"), listOf(out, into, expense), emptyMap(), accounts, emptyMap(),
+            tmp.newFile("accounts.xlsx"), listOf(out, into, expense), emptyMap(), accounts,
             LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31), gtq
         )
 
@@ -238,7 +196,7 @@ class ExcelReportGeneratorTest {
     @Test
     fun `accounts sheet lists each account with its balance in its own currency`() {
         val file = ExcelReportGenerator.create(
-            tmp.newFile("balances.xlsx"), transactions, emptyMap(), accounts, emptyMap(),
+            tmp.newFile("balances.xlsx"), transactions, emptyMap(), accounts,
             LocalDate.of(2026, 1, 1), LocalDate.of(2026, 2, 28), gtq
         )
 
@@ -259,7 +217,7 @@ class ExcelReportGeneratorTest {
         val withCard = accounts + AccountWithBalance(visa, Money(-50_000, gtq)) + AccountWithBalance(visaUsd, Money(-1_000, usd))
         val expense = movement(1_000, LocalDateTime.of(2026, 1, 7, 9, 0), TransactionType.EXPENSE).copy(accountId = 4)
         val file = ExcelReportGenerator.create(
-            tmp.newFile("cards.xlsx"), listOf(expense), emptyMap(), withCard, emptyMap(),
+            tmp.newFile("cards.xlsx"), listOf(expense), emptyMap(), withCard,
             LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31), gtq
         )
 
@@ -281,10 +239,10 @@ class ExcelReportGeneratorTest {
             amount = Money(16_579, gtq), mainRate = ExchangeRate(BigDecimal("7.64"), RateSource.AUTO),
         )
         val file = ExcelReportGenerator.create(
-            tmp.newFile("rate.xlsx"), listOf(foreign), emptyMap(), accounts, emptyMap(),
+            tmp.newFile("rate.xlsx"), listOf(foreign), emptyMap(), accounts,
             LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31), gtq
         )
 
-        assertTrue(sheetXml(file, "Movements").contains("<c r=\"N2\"><v>8.290928</v></c>"))
+        assertTrue(sheetXml(file, "Movements").contains("<c r=\"L2\"><v>8.290928</v></c>"))
     }
 }

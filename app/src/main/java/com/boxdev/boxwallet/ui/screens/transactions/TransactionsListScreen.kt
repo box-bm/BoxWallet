@@ -99,6 +99,7 @@ import com.boxdev.boxwallet.ui.components.EmptyState
 import com.boxdev.boxwallet.ui.components.FilterGroup
 import com.boxdev.boxwallet.ui.components.FilterToggleAction
 import com.boxdev.boxwallet.ui.components.TransactionItem
+import com.boxdev.boxwallet.ui.components.loanMovementLabel
 import com.boxdev.boxwallet.ui.components.transferTitle
 import com.boxdev.boxwallet.ui.theme.BoxTheme
 import java.time.LocalDate
@@ -111,6 +112,7 @@ fun TransactionsListScreen(
     onNavigateToSearch: () -> Unit = {},
     onOpenTransfer: (Long) -> Unit = {},
     onOpenInstallmentPlan: (Long) -> Unit = {},
+    onOpenLoan: (Long) -> Unit = {},
     viewModel: TransactionsListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -285,6 +287,7 @@ fun TransactionsListScreen(
                         when {
                             tapped?.type?.isAdjustment == true -> pendingAdjustment = tapped
                             tapped?.installmentPlanId != null -> onOpenInstallmentPlan(tapped.installmentPlanId)
+                            tapped?.loanId != null -> onOpenLoan(tapped.loanId)
                             tapped?.type?.isTransfer == true -> onOpenTransfer(id)
                             else -> openMovement(id)
                         }
@@ -449,6 +452,7 @@ private fun TransactionsByDay(
                     transferTitle = transaction.transferId?.let { transferTitle(uiState.transferPairs[it], accountsById) },
                     signedTransfer = signedTransfer,
                     installmentCount = transaction.installmentPlanId?.let(uiState.installmentCounts::get),
+                    loanLabel = loanMovementLabel(transaction, uiState.loanTypes),
                     containerColor = if (transaction.id == selectedId) {
                         MaterialTheme.colorScheme.secondaryContainer
                     } else BoxTheme.cardColor,

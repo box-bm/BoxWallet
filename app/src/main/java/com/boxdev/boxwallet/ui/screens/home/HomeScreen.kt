@@ -52,6 +52,7 @@ import com.boxdev.boxwallet.ui.components.LoanRow
 import com.boxdev.boxwallet.ui.components.PaneRow
 import com.boxdev.boxwallet.ui.components.SectionHeader
 import com.boxdev.boxwallet.ui.components.TransactionItem
+import com.boxdev.boxwallet.ui.components.loanMovementLabel
 import com.boxdev.boxwallet.ui.components.transferTitle
 import com.boxdev.boxwallet.ui.theme.BoxTheme
 import kotlinx.coroutines.coroutineScope
@@ -154,10 +155,12 @@ fun HomeScreen(
                         count = list.size,
                         transferTitle = transaction.transferId?.let { transferTitle(uiState.transferPairs[it], uiState.accountsById) },
                         installmentCount = transaction.installmentPlanId?.let(uiState.installmentCounts::get),
+                        loanLabel = loanMovementLabel(transaction, uiState.loanTypes),
                         onClick = {
                             when {
                                 transaction.type.isAdjustment -> pendingAdjustment = transaction
                                 transaction.installmentPlanId != null -> onOpenInstallmentPlan(transaction.installmentPlanId)
+                                transaction.loanId != null -> onNavigateToLoanDetail(transaction.loanId)
                                 transaction.type.isTransfer -> onOpenTransfer(transaction.id)
                                 else -> onEditTransaction(transaction.id)
                             }

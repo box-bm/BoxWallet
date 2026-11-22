@@ -15,6 +15,7 @@ import com.boxdev.boxwallet.data.rates.MovementWriteGuard
 import com.boxdev.boxwallet.data.repository.AccountRepository
 import com.boxdev.boxwallet.data.repository.CategoryRepository
 import com.boxdev.boxwallet.data.repository.InstallmentPlanRepository
+import com.boxdev.boxwallet.data.repository.LoanRepository
 import com.boxdev.boxwallet.data.repository.NewInstallmentPlan
 import com.boxdev.boxwallet.data.repository.TransactionRepository
 import com.boxdev.boxwallet.data.repository.TransferRepository
@@ -73,6 +74,7 @@ class AccountDetailViewModelTest {
     private lateinit var transactions: TransactionRepository
     private lateinit var transfers: TransferRepository
     private lateinit var plans: InstallmentPlanRepository
+    private lateinit var loans: LoanRepository
     private var banco = 0L
     private var card = 0L
     private var child = 0L
@@ -100,6 +102,7 @@ class AccountDetailViewModelTest {
         accounts = AccountRepository(db.accountDao(), prefs, lookup, context, db.transactionDao(), db, amounts, guard)
         transactions = TransactionRepository(db.transactionDao(), accounts, prefs, context, amounts, guard)
         transfers = TransferRepository(db, db.transactionDao(), db.accountDao(), prefs, amounts, guard)
+        loans = LoanRepository(db, db.loanDao(), db.transactionDao(), db.accountDao(), prefs, amounts, guard)
         plans = InstallmentPlanRepository(
             db, db.installmentPlanDao(), db.transactionDao(), db.accountDao(), amounts, ExchangeRateResolver(lookup), guard, prefs,
             CurrentDay(flowOf(LocalDate.now())),
@@ -121,6 +124,7 @@ class AccountDetailViewModelTest {
         CategoryRepository(db.categoryDao()),
         transfers,
         plans,
+        loans,
         MovementsFilterRequest(),
     )
 
@@ -212,7 +216,7 @@ class AccountDetailViewModelTest {
         val ahorro = db.accountDao().insert(AccountEntity(name = "Ahorro", type = "SAVINGS", currencyCode = "GTQ", createdAt = 0L, sortOrder = 2))
         val vm = AccountDetailViewModel(
             SavedStateHandle(mapOf("accountId" to card)), repo, transactions, CategoryRepository(db.categoryDao()), transfers,
-            plans, MovementsFilterRequest(),
+            plans, loans, MovementsFilterRequest(),
         )
         val collecting = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect {} }
         vm.uiState.first { !it.isLoading && it.card != null }
