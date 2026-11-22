@@ -224,7 +224,7 @@ class BackupRepository @Inject constructor(
          *
          * A loan whose account is missing is dropped together with every movement that points to it
          * (a loan is never moved to another account), and so is a movement pointing to a loan the
-         * backup doesn't have.
+         * backup doesn't have. A movement of a kept loan always goes to that loan's account.
          *
          * An installment plan whose account is missing is dropped with its installments (a card
          * purchase isn't moved to another account); one whose category is missing loses the category.
@@ -238,6 +238,7 @@ class BackupRepository @Inject constructor(
             val categoryIds = data.categories.mapTo(HashSet()) { it.id }
             val loans = data.loans.filter { it.accountId in accountIds }
             val loanIds = loans.mapTo(HashSet()) { it.id }
+            val loanAccounts = loans.associate { it.id to it.accountId }
             val plans = data.installmentPlans.filter { it.accountId in accountIds }
                 .map { plan -> plan.copy(categoryId = plan.categoryId?.takeIf { it in categoryIds }) }
             val planIds = plans.mapTo(HashSet()) { it.id }
@@ -255,7 +256,8 @@ class BackupRepository @Inject constructor(
                 val planKept = tx.installmentPlanId?.let { it in planIds } ?: true
                 val inOwnCurrency = tx.accountRate.compareTo(BigDecimal.ONE) == 0 && tx.originalAmountMinor == tx.accountAmountMinor
                 tx.copy(
-                    accountId = existingAccount(tx.accountId, tx.currencyCode.takeIf { inOwnCurrency }),
+                    accountId = tx.loanId?.let(loanAccounts::get)
+                        ?: existingAccount(tx.accountId, tx.currencyCode.takeIf { inOwnCurrency }),
                     categoryId = tx.categoryId?.takeIf { it in categoryIds },
                     installmentPlanId = if (planKept) tx.installmentPlanId else null,
                     installmentNumber = if (planKept) tx.installmentNumber else null,

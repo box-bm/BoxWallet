@@ -271,6 +271,27 @@ class BackupRepositoryTest {
     }
 
     @Test
+    fun `a loan movement goes to its loan's account`() = runTest {
+        val backup = BackupData(
+            mainCurrencyCode = "USD",
+            accounts = listOf(
+                AccountEntity(id = 1, name = "Main", type = "CHECKING", currencyCode = "USD", createdAt = 0L),
+                AccountEntity(id = 2, name = "Other", type = "CASH", currencyCode = "USD", createdAt = 0L, sortOrder = 1),
+            ),
+            loans = listOf(LoanEntity(id = 1, name = "Juan", totalAmountMinor = 1, currencyCode = "USD", accountId = 1, startDate = 0L)),
+            transactions = listOf(
+                tx(id = 1, accountId = 1, amount = 1, code = "USD").copy(type = "LOAN_OUT", loanId = 1),
+                tx(id = 2, accountId = 2, amount = 1, code = "USD").copy(type = "LOAN_IN", loanId = 1),
+                tx(id = 3, accountId = 404, amount = 1, code = "USD").copy(type = "LOAN_IN", loanId = 1),
+            ),
+        )
+
+        repo.restore(backup)
+
+        assertEquals(listOf(1L, 1L, 1L), db.transactionDao().getAllTransactionsSync().sortedBy { it.id }.map { it.accountId })
+    }
+
+    @Test
     fun `backup round-trips a loan with its payments`() = runTest {
         val acc = db.accountDao().insert(AccountEntity(name = "Main", type = "CHECKING", currencyCode = "USD", createdAt = 0L))
         val noRates = object : RateLookup {
