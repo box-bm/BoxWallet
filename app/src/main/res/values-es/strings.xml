@@ -52,6 +52,10 @@
     <string name="transaction_cleared">Liquidado</string>
     <string name="transaction_reminder">Recordatorio</string>
     <string name="transaction_reminder_date">Fecha de Recordatorio</string>
+    <string name="transaction_reminder_before">Recordar antes</string>
+    <string name="transaction_reminder_select">Selecciona la duración</string>
+    <string name="transaction_time_label">Hora</string>
+    <string name="transaction_select_time">Selecciona la hora</string>
     <string name="transaction_recurring">Recurrente</string>
     <string name="transaction_frequency_label">Frecuencia</string>
     <string name="transaction_frequency_placeholder">Seleccionar frecuencia</string>
@@ -177,6 +181,13 @@
     <string name="analytics_export_report">Exportar Reporte</string>
     <string name="analytics_export_generate">Generar Reporte</string>
     <string name="analytics_export_share">Compartir reporte</string>
+    <string name="analytics_export_quick_range">Rango rápido</string>
+    <string name="analytics_export_preset_7d">7 días</string>
+    <string name="analytics_export_preset_30d">30 días</string>
+    <string name="analytics_export_preset_3m">3 meses</string>
+    <string name="analytics_export_preset_year">Este año</string>
+    <string name="analytics_export_from">Desde</string>
+    <string name="analytics_export_to">Hasta</string>
 
     <!-- Settings Screen -->
     <string name="settings_title">Ajustes</string>
@@ -302,6 +313,9 @@
     <string name="onboarding_sign_in_message">Inicia sesi\u00f3n con Google para acceder a tus respaldos en Google Drive.</string>
     <string name="onboarding_no_backups">No se encontraron respaldos en tu Google Drive.</string>
     <string name="onboarding_select_backup">Selecciona un respaldo para restaurar:</string>
+    <string name="onboarding_privacy_title">Privacidad y analíticas</string>
+    <string name="onboarding_privacy_description">Ayuda a mejorar BoxWallet compartiendo datos de uso anónimos. Nunca recopilamos información personal ni financiera.</string>
+    <string name="onboarding_analytics_toggle">Activar analíticas de uso</string>
 
     <!-- Lock Screen -->
     <string name="lock_screen_title">BoxWallet est\u00e1 bloqueado</string>
@@ -431,6 +445,10 @@
     <string name="transaction_settled_expense">Ya pagado</string>
     <string name="transaction_settled_income">Ya recibido</string>
     <string name="settings_privacy_section">Privacidad</string>
+    <string name="settings_notifications_disabled_title">Las notificaciones están desactivadas</string>
+    <string name="settings_notifications_disabled_subtitle">Activa las notificaciones para recibir recordatorios de movimientos. Toca para abrir los ajustes.</string>
+    <string name="settings_analytics_title">Analíticas de uso</string>
+    <string name="settings_analytics_subtitle">Ayuda a mejorar BoxWallet compartiendo datos de uso anónimos</string>
     <string name="account_default_name">Principal</string>
     <string name="currency_picker_title">Moneda</string>
     <string name="currency_picker_search">Buscar moneda</string>
